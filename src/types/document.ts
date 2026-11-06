@@ -49,11 +49,20 @@ export interface AcademicReference {
   accessDate?: string;
 }
 
+export type ProjectTemplateType = 'tcc' | 'artigo' | 'relatorio' | 'projeto_pesquisa';
+
 export interface DocumentProject {
   id: string;
   name: string;
+  templateType?: ProjectTemplateType;
   metadata: DocumentMetadata;
   blocks: Block[];
   references: AcademicReference[];
   updatedAt: string;
+}
+
+export interface RedijaBackupFile {
+  version: 1;
+  exportedAt: string;
+  project: DocumentProject;
 }

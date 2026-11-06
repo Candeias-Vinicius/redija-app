@@ -1,108 +1,94 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Editor } from '@/components/Editor';
 import { PdfPreview } from '@/components/PdfPreview';
 import { ReferenceModal } from '@/components/ReferenceModal';
-import { DocumentProject, DocumentMetadata, Block, AcademicReference } from '@/types/document';
+import { ProjectsModal } from '@/components/ProjectsModal';
+import {
+  DocumentProject,
+  DocumentMetadata,
+  Block,
+  AcademicReference,
+  ProjectTemplateType,
+} from '@/types/document';
 import { generateStandaloneTypst, generateTypstFiles } from '@/core/transpiler/typstGenerator';
 import { compileToPdf } from '@/core/typst/typstClient';
+import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
+import {
+  loadInitialActiveProject,
+  saveProject,
+  listProjects,
+  duplicateProject,
+  deleteProject,
+  setActiveProjectId,
+  serializeBackup,
+  parseBackup,
+} from '@/core/storage/db';
 
-const initialProject: DocumentProject = {
-  id: 'proj_1',
-  name: 'Meu Trabalho Acadêmico ABNT',
-  updatedAt: new Date().toISOString(),
-  metadata: {
-    title: 'Desenvolvimento de uma Plataforma Automatizada para Redação Científica em Conformidade com as Normas da ABNT',
-    subtitle: 'Um estudo de caso em tecnologias baseadas em WebAssembly e Typst',
-    author: 'Vinícius Candeias',
-    advisor: 'Prof. Dr. Nome do Orientador',
-    nature:
-      'Trabalho de Conclusão de Curso apresentado ao Bacharelado em Ciência da Computação da Universidade Federal de Tecnologia, como requisito parcial para obtenção do título de Bacharel.',
-    institution: 'Universidade Federal de Tecnologia',
-    course: 'Bacharelado em Ciência da Computação',
-    location: 'São Paulo',
-    year: '2026',
-    abstract: 'Este projeto apresenta a concepção e implementação do RedijaApp, uma plataforma web focada em simplificar a escrita acadêmica para estudantes universitários. Utilizando o compilador Typst executado via WebAssembly no navegador e uma interface intuitiva orientada a blocos, o sistema automatiza a formatação rigorosa exigida pela ABNT, eliminando a barreira técnica associada a ferramentas como LaTeX.',
-    keywords: ['ABNT', 'Typst', 'WebAssembly', 'Editor Acadêmico', 'Produtividade'],
-  },
-  blocks: [
-    {
-      id: 'b1',
-      type: 'h1',
-      content: 'Introdução',
-    },
-    {
-      id: 'b2',
-      type: 'paragraph',
-      content: 'A elaboração de trabalhos acadêmicos no Brasil impõe aos estudantes um duplo desafio: a pesquisa científica e o cumprimento rigoroso das diretrizes de diagramação estabelecidas pela Associação Brasileira de Normas Técnicas (ABNT). Ferramentas como o Microsoft Word demandam ajustes manuais suscetíveis a erros, enquanto o ecossistema LaTeX apresenta uma curva de aprendizado íngreme para pesquisadores sem formação em computação.',
-    },
-    {
-      id: 'b3',
-      type: 'h2',
-      content: 'Justificativa e Objetivos',
-    },
-    {
-      id: 'b4',
-      type: 'paragraph',
-      content: 'O objetivo principal deste projeto é democratizar o acesso à tipografia de alta qualidade, garantindo que o autor concentre seus esforços no conteúdo intelectual e na argumentação, delegando toda a complexidade de regras de paginação, citações e referências ao motor automatizado.',
-    },
-    {
-      id: 'b5',
-      type: 'quote_long',
-      content: 'A simplificação das interfaces de escrita científica não deve comprometer a fidelidade tipográfica ou o rigor metodológico, mas sim atuar como um catalisador para a disseminação do conhecimento acessível.',
-      meta: {
-        author: 'SILVA',
-        year: '2023',
-        page: '42',
-      },
-    },
-    {
-      id: 'b6',
-      type: 'h1',
-      content: 'Metodologia e Arquitetura',
-    },
-    {
-      id: 'b7',
-      type: 'paragraph',
-      content: 'A arquitetura do RedijaApp divide-se em três camadas principais: uma interface de usuário visual e interativa com atalhos de barra, um módulo transpilador que gera representações formais do documento e o compilador de alto desempenho Typst.',
-    },
-    {
-      id: 'b8',
-      type: 'image',
-      content: '',
-      meta: {
-        caption: 'Fluxo de dados da arquitetura do RedijaApp',
-        source: 'Dados da pesquisa, 2026',
-      },
-    },
-  ],
-  references: [
-    {
-      id: 'ref1',
-      authors: 'ASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS',
-      title: 'NBR 14724: Informação e documentação: Trabalhos acadêmicos: Apresentação',
-      city: 'Rio de Janeiro',
-      publisher: 'ABNT',
-      year: '2011',
-    },
-    {
-      id: 'ref2',
-      authors: 'SILVA, Roberto Carlos; SOUZA, Maria Fernanda',
-      title: 'Tipografia digital e a evolução dos sistemas de editoração científica',
-      edition: '3',
-      city: 'São Paulo',
-      publisher: 'Editora Acadêmica',
-      year: '2023',
-    },
-  ],
-};
+const fallbackInitialProject = createProjectFromTemplate('tcc');
 
 export const App: React.FC = () => {
-  const [project, setProject] = useState<DocumentProject>(initialProject);
+  const [project, setProject] = useState<DocumentProject>(fallbackInitialProject);
+  const [projects, setProjects] = useState<DocumentProject[]>([fallbackInitialProject]);
+  const [isStorageReady, setIsStorageReady] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const [showCode, setShowCode] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  const skipNextAutoSaveRef = useRef(true);
+
+  // Carrega o projeto ativo do IndexedDB ao iniciar
+  useEffect(() => {
+    let mounted = true;
+    loadInitialActiveProject()
+      .then(({ activeProject, allProjects }) => {
+        if (!mounted) return;
+        skipNextAutoSaveRef.current = true;
+        setProject(activeProject);
+        setProjects(allProjects);
+        setIsStorageReady(true);
+      })
+      .catch((err) => {
+        console.error('Erro ao inicializar IndexedDB:', err);
+        if (mounted) setIsStorageReady(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Auto-save com debounce sempre que o projeto ativo sofrer alterações
+  useEffect(() => {
+    if (!isStorageReady) return;
+    if (skipNextAutoSaveRef.current) {
+      skipNextAutoSaveRef.current = false;
+      return;
+    }
+
+    setSaveStatus('saving');
+    const timer = setTimeout(async () => {
+      try {
+        const saved = await saveProject(project);
+        const all = await listProjects();
+        setProjects(all);
+        setSaveStatus('saved');
+        // Mantém updatedAt sincronizado sem disparar novo ciclo de auto-save
+        if (saved.updatedAt !== project.updatedAt) {
+          skipNextAutoSaveRef.current = true;
+          setProject((prev) => ({ ...prev, updatedAt: saved.updatedAt }));
+        }
+      } catch (err) {
+        console.error('Erro ao salvar no IndexedDB:', err);
+        setSaveStatus('saved');
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [project, isStorageReady]);
 
   const handleMetadataChange = (metadata: DocumentMetadata) => {
     setProject((prev) => ({ ...prev, metadata }));
@@ -124,6 +110,85 @@ export const App: React.FC = () => {
       ...prev,
       references: prev.references.filter((r) => r.id !== id),
     }));
+  };
+
+  const handleSelectProject = (selected: DocumentProject) => {
+    skipNextAutoSaveRef.current = true;
+    setProject(selected);
+    setActiveProjectId(selected.id);
+  };
+
+  const handleCreateProject = async (
+    templateType: ProjectTemplateType,
+    customName?: string,
+  ) => {
+    const newProj = createProjectFromTemplate(templateType, customName);
+    await saveProject(newProj, false);
+    const all = await listProjects();
+    setProjects(all);
+    skipNextAutoSaveRef.current = true;
+    setProject(newProj);
+    setActiveProjectId(newProj.id);
+  };
+
+  const handleRenameProject = async (id: string, newName: string) => {
+    const target = projects.find((p) => p.id === id);
+    if (!target) return;
+    const updated = await saveProject({ ...target, name: newName });
+    const all = await listProjects();
+    setProjects(all);
+    if (id === project.id) {
+      skipNextAutoSaveRef.current = true;
+      setProject(updated);
+    }
+  };
+
+  const handleDuplicateProject = async (id: string) => {
+    const cloned = await duplicateProject(id);
+    if (!cloned) return;
+    const all = await listProjects();
+    setProjects(all);
+    skipNextAutoSaveRef.current = true;
+    setProject(cloned);
+    setActiveProjectId(cloned.id);
+  };
+
+  const handleDeleteProject = async (id: string) => {
+    if (projects.length <= 1) return;
+    await deleteProject(id);
+    const all = await listProjects();
+    setProjects(all);
+    if (id === project.id && all.length > 0) {
+      skipNextAutoSaveRef.current = true;
+      setProject(all[0]);
+      setActiveProjectId(all[0].id);
+    }
+  };
+
+  const handleExportBackup = (targetProject: DocumentProject) => {
+    const json = serializeBackup(targetProject);
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${targetProject.name.toLowerCase().replace(/\s+/g, '_')}.redija`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportBackup = async (file: File) => {
+    try {
+      const content = await file.text();
+      const imported = parseBackup(content);
+      await saveProject(imported, false);
+      const all = await listProjects();
+      setProjects(all);
+      skipNextAutoSaveRef.current = true;
+      setProject(imported);
+      setActiveProjectId(imported.id);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao importar arquivo .redija.');
+    }
   };
 
   const handleDownloadPdf = async () => {
@@ -168,6 +233,9 @@ export const App: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-neutral-100 select-none">
       <Header
         projectName={project.name}
+        projectsCount={projects.length}
+        saveStatus={saveStatus}
+        onOpenProjectsModal={() => setIsProjectsModalOpen(true)}
         onDownloadPdf={handleDownloadPdf}
         isExportingPdf={isExportingPdf}
         onExportTypst={handleExportTypst}
@@ -202,6 +270,20 @@ export const App: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onAddReference={handleAddReference}
+      />
+
+      <ProjectsModal
+        isOpen={isProjectsModalOpen}
+        onClose={() => setIsProjectsModalOpen(false)}
+        projects={projects}
+        activeProjectId={project.id}
+        onSelectProject={handleSelectProject}
+        onCreateProject={handleCreateProject}
+        onRenameProject={handleRenameProject}
+        onDuplicateProject={handleDuplicateProject}
+        onDeleteProject={handleDeleteProject}
+        onExportBackup={handleExportBackup}
+        onImportBackup={handleImportBackup}
       />
     </div>
   );

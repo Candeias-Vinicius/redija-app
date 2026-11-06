@@ -1,8 +1,19 @@
 import React from 'react';
-import { Download, Code2, FileDown, CheckCircle2, Loader2 } from 'lucide-react';
+import {
+  Download,
+  Code2,
+  FileDown,
+  CheckCircle2,
+  Loader2,
+  FolderOpen,
+  ChevronDown,
+} from 'lucide-react';
 
 interface HeaderProps {
   projectName: string;
+  projectsCount: number;
+  saveStatus: 'saved' | 'saving';
+  onOpenProjectsModal: () => void;
   onDownloadPdf: () => void;
   isExportingPdf: boolean;
   onExportTypst: () => void;
@@ -12,6 +23,9 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   projectName,
+  projectsCount,
+  saveStatus,
+  onOpenProjectsModal,
   onDownloadPdf,
   isExportingPdf,
   onExportTypst,
@@ -37,15 +51,33 @@ export const Header: React.FC<HeaderProps> = ({
 
         <span className="text-neutral-300">/</span>
 
-        <span className="text-sm font-medium text-neutral-600 max-w-xs truncate">
-          {projectName}
-        </span>
+        <button
+          onClick={onOpenProjectsModal}
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-neutral-100 text-sm font-medium text-neutral-700 transition-colors"
+          title="Alternar ou criar trabalho acadêmico"
+        >
+          <FolderOpen className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span className="max-w-xs truncate">{projectName}</span>
+          <span className="text-[10px] bg-neutral-200/80 text-neutral-600 px-1.5 py-0.2 rounded-full">
+            {projectsCount}
+          </span>
+          <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
+        </button>
       </div>
 
       <div className="flex items-center gap-2">
         <div className="hidden sm:flex items-center gap-1.5 text-xs text-neutral-500 mr-2">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Salvo localmente</span>
+          {saveStatus === 'saving' ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin" />
+              <span>Salvando...</span>
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Salvo no navegador</span>
+            </>
+          )}
         </div>
 
         <button
