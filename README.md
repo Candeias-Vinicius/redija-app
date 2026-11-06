@@ -54,7 +54,7 @@ redija-app/
 ├── .github/workflows/       # CI/CD (Testes e Typecheck automático)
 ├── public/                  # Arquivos estáticos
 ├── src/
-├── components/          # Componentes de UI (Editor, Sidebar, Header, Preview)
+│   ├── components/          # Componentes de UI (Editor, Sidebar, Header, Preview)
 │   ├── core/
 │   │   ├── abnt/            # Regras e constantes normativas (NBRs)
 │   │   ├── templates/       # Modelos base em Typst
