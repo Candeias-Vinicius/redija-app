@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Download, Code2, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Download, Code2, Sparkles, CheckCircle2 } from 'lucide-react';
 
 interface HeaderProps {
   projectName: string;

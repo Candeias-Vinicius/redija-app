@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DocumentMetadata, AcademicReference } from '@/types/document';
-import { BookOpen, User, Building, MapPin, Calendar, Plus, Trash2, ChevronDown, ChevronRight, Bookmark } from 'lucide-react';
+import { BookOpen, Building, Plus, Trash2, ChevronDown, ChevronRight, Bookmark } from 'lucide-react';
 
 interface SidebarProps {
   metadata: DocumentMetadata;
