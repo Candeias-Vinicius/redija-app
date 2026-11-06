@@ -10,9 +10,9 @@
 //   #show: abnt.with(titulo: "...", ...)
 // =====================================================================
 
-// Fontes em ordem de preferência. As duas primeiras são livres e têm as
-// mesmas métricas da Times New Roman (serão embutidas no navegador).
-#let fontes-serifadas = ("TeX Gyre Termes", "Liberation Serif", "Times New Roman")
+// Fontes em ordem de preferência. As primeiras são livres e têm as
+// mesmas métricas da Times New Roman (embutidas no navegador).
+#let fontes-serifadas = ("Tinos", "TeX Gyre Termes", "Liberation Serif", "Times New Roman")
 
 // Espaçamentos (o "leading" do Typst é o espaço entre linhas, não a altura
 // total da linha; os valores abaixo aproximam o espaçamento 1,5 e simples

@@ -1,18 +1,20 @@
 import React from 'react';
-import { Download, Code2, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Download, Code2, FileDown, CheckCircle2, Loader2 } from 'lucide-react';
 
 interface HeaderProps {
   projectName: string;
+  onDownloadPdf: () => void;
+  isExportingPdf: boolean;
   onExportTypst: () => void;
-  onCopyTypst: () => void;
   showCode: boolean;
   setShowCode: (val: boolean) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   projectName,
+  onDownloadPdf,
+  isExportingPdf,
   onExportTypst,
-  onCopyTypst,
   showCode,
   setShowCode,
 }) => {
@@ -60,19 +62,31 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         <button
-          onClick={onCopyTypst}
+          onClick={onExportTypst}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 transition-colors"
+          title="Baixar arquivo-fonte .typ"
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-          <span>Copiar Código</span>
+          <FileDown className="w-3.5 h-3.5 text-neutral-500" />
+          <span>Exportar .typ</span>
         </button>
 
         <button
-          onClick={onExportTypst}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
+          onClick={onDownloadPdf}
+          disabled={isExportingPdf}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white shadow-sm transition-colors"
+          title="Compilar e baixar o PDF final nas normas da ABNT"
         >
-          <Download className="w-3.5 h-3.5" />
-          <span>Exportar .typ</span>
+          {isExportingPdf ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>Gerando PDF...</span>
+            </>
+          ) : (
+            <>
+              <Download className="w-3.5 h-3.5" />
+              <span>Baixar PDF</span>
+            </>
+          )}
         </button>
       </div>
     </header>

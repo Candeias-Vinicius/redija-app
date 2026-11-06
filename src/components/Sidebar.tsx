@@ -86,6 +86,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
 
               <div>
+                <label className="text-[11px] font-medium text-neutral-500 block mb-1">Orientador(a) (Opcional)</label>
+                <input
+                  type="text"
+                  value={metadata.advisor || ''}
+                  onChange={(e) => updateField('advisor', e.target.value)}
+                  className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                  placeholder="Ex: Prof. Dr. Nome do Orientador"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-neutral-500 block mb-1">Natureza do Trabalho (Folha de Rosto)</label>
+                <textarea
+                  rows={3}
+                  value={metadata.nature || ''}
+                  onChange={(e) => updateField('nature', e.target.value)}
+                  className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                  placeholder="Ex: Trabalho de Conclusão de Curso apresentado ao..."
+                />
+              </div>
+
+              <div>
                 <label className="text-[11px] font-medium text-neutral-500 block mb-1">Instituição</label>
                 <input
                   type="text"

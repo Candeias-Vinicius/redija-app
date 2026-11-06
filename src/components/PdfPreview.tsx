@@ -1,7 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DocumentProject } from '@/types/document';
-import { generateStandaloneTypst } from '@/core/transpiler/typstGenerator';
-import { Eye, FileCode, Check, Copy } from 'lucide-react';
+import { generateTypstFiles, generateStandaloneTypst } from '@/core/transpiler/typstGenerator';
+import {
+  compileToVector,
+  getVectorPagesInfo,
+  renderVectorToCanvases,
+  type PageDimension,
+} from '@/core/typst/typstClient';
+import type { FriendlyDiagnostic } from '@/core/typst/diagnostics';
+import {
+  Eye,
+  FileCode,
+  Check,
+  Copy,
+  Loader2,
+  AlertTriangle,
+  ZoomIn,
+  ZoomOut,
+  FileText,
+} from 'lucide-react';
 
 interface PdfPreviewProps {
   project: DocumentProject;
@@ -10,6 +27,18 @@ interface PdfPreviewProps {
 
 export const PdfPreview: React.FC<PdfPreviewProps> = ({ project, showCode }) => {
   const [copied, setCopied] = useState(false);
+  const [isCompiling, setIsCompiling] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [compileTimeMs, setCompileTimeMs] = useState<number | null>(null);
+  const [pages, setPages] = useState<PageDimension[]>([]);
+  const [diagnostics, setDiagnostics] = useState<FriendlyDiagnostic[]>([]);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<number>(100);
+
+  const artifactRef = useRef<Uint8Array | null>(null);
+  const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
+  const latestCompileId = useRef(0);
+
   const typstCode = generateStandaloneTypst(project);
 
   const handleCopy = () => {
@@ -18,130 +47,213 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({ project, showCode }) => 
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Debounce da compilação quando o projeto muda
+  useEffect(() => {
+    const currentId = ++latestCompileId.current;
+    const timer = setTimeout(async () => {
+      setIsCompiling(true);
+      setRuntimeError(null);
+
+      try {
+        const files = generateTypstFiles(project);
+        const result = await compileToVector(files);
+
+        if (currentId !== latestCompileId.current) return;
+
+        setDiagnostics(result.diagnostics);
+        setCompileTimeMs(result.compileTimeMs);
+
+        if (result.error) {
+          setRuntimeError(result.error);
+          setIsCompiling(false);
+          return;
+        }
+
+        if (result.artifact) {
+          artifactRef.current = result.artifact;
+          const pageInfos = await getVectorPagesInfo(result.artifact);
+          if (currentId !== latestCompileId.current) return;
+          setPages(pageInfos);
+          setIsInitialized(true);
+        }
+      } catch (err) {
+        if (currentId !== latestCompileId.current) return;
+        setRuntimeError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (currentId === latestCompileId.current) {
+          setIsCompiling(false);
+        }
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [project]);
+
+  // Renderiza os canvases sempre que o artefato ou a lista de páginas mudar
+  useEffect(() => {
+    const artifact = artifactRef.current;
+    if (!artifact || pages.length === 0 || showCode) return;
+
+    let cancelled = false;
+    renderVectorToCanvases(
+      artifact,
+      (pageIndex) => {
+        if (cancelled) return null;
+        return canvasRefs.current.get(pageIndex) ?? null;
+      },
+      2.5,
+    ).catch((err) => {
+      if (!cancelled) {
+        setRuntimeError(err instanceof Error ? err.message : String(err));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pages, showCode, compileTimeMs]);
+
+  const basePageWidthPx = 420;
+  const scaledWidthPx = Math.round((basePageWidthPx * zoom) / 100);
+
   return (
-    <aside className="w-[460px] xl:w-[540px] border-l border-neutral-200 bg-neutral-100 flex flex-col h-[calc(100vh-3.5rem)]">
+    <aside className="w-[460px] xl:w-[560px] border-l border-neutral-200 bg-neutral-100 flex flex-col h-[calc(100vh-3.5rem)]">
       {/* Top Bar do Preview */}
       <div className="h-10 border-b border-neutral-200 bg-neutral-50 px-4 flex items-center justify-between text-xs text-neutral-600">
         <div className="flex items-center gap-2">
           {showCode ? (
             <>
               <FileCode className="w-3.5 h-3.5 text-neutral-500" />
-              <span className="font-medium">Código Typst Gerado (WASM)</span>
+              <span className="font-medium">Código Typst Gerado</span>
             </>
           ) : (
             <>
               <Eye className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="font-medium">Prévia da Diagramação ABNT</span>
+              <span className="font-medium">Prévia PDF Real (Typst WASM)</span>
+              {isCompiling ? (
+                <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  {isInitialized ? 'Compilando...' : 'Iniciando WASM...'}
+                </span>
+              ) : (
+                compileTimeMs !== null && (
+                  <span className="text-[11px] text-neutral-400">
+                    • {pages.length} {pages.length === 1 ? 'página' : 'páginas'} ({compileTimeMs} ms)
+                  </span>
+                )
+              )}
             </>
           )}
         </div>
 
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1 text-[11px] text-neutral-500 hover:text-neutral-900 transition-colors"
-        >
-          {copied ? (
-            <>
-              <Check className="w-3 h-3 text-emerald-600" />
-              <span className="text-emerald-600">Copiado</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-3 h-3" />
-              <span>Copiar Typst</span>
-            </>
+        <div className="flex items-center gap-2">
+          {!showCode && (
+            <div className="flex items-center gap-1 mr-1">
+              <button
+                onClick={() => setZoom((z) => Math.max(70, z - 15))}
+                className="p-1 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/60 rounded"
+                title="Diminuir zoom"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-[11px] font-mono text-neutral-500 w-9 text-center">
+                {zoom}%
+              </span>
+              <button
+                onClick={() => setZoom((z) => Math.min(145, z + 15))}
+                className="p-1 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/60 rounded"
+                title="Aumentar zoom"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+            </div>
           )}
-        </button>
+
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-1 text-[11px] text-neutral-500 hover:text-neutral-900 transition-colors"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3 h-3 text-emerald-600" />
+                <span className="text-emerald-600">Copiado</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3 h-3" />
+                <span>Copiar .typ</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Conteúdo: Código ou Visualização de Papel A4 */}
-      <div className="flex-1 overflow-y-auto p-6 flex justify-center">
+      {/* Painel de Diagnósticos / Erros */}
+      {(diagnostics.length > 0 || runtimeError) && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-2.5 text-xs text-red-800 space-y-1">
+          <div className="flex items-center gap-1.5 font-semibold text-red-900">
+            <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+            <span>Atenção na compilação do documento</span>
+          </div>
+          {runtimeError && <p className="text-[11px] text-red-700">{runtimeError}</p>}
+          {diagnostics.map((d, idx) => (
+            <div key={idx} className="text-[11px] text-red-700">
+              <span className="font-medium">{d.location}:</span> {d.message}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Conteúdo: Código ou Páginas A4 Reais Renderizadas pelo Typst */}
+      <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center gap-6">
         {showCode ? (
-          <div className="w-full bg-neutral-900 text-neutral-100 p-4 rounded-lg font-mono text-xs overflow-x-auto shadow-inner leading-relaxed">
+          <div className="w-full bg-neutral-900 text-neutral-100 p-4 rounded-lg font-mono text-xs overflow-x-auto shadow-inner leading-relaxed select-text">
             <pre>{typstCode}</pre>
           </div>
-        ) : (
-          /* Folha de Papel A4 emulada */
-          <div className="w-full max-w-[420px] bg-white rounded shadow-md border border-neutral-200 p-8 text-neutral-900 text-[11px] leading-relaxed flex flex-col min-h-[580px]">
-            {/* Header / Capa Preview */}
-            <div className="text-center mb-6">
-              <p className="font-bold uppercase tracking-wider text-[10px]">
-                {project.metadata.institution || 'NOME DA INSTITUIÇÃO'}
-              </p>
-              <p className="text-[9px] text-neutral-500 uppercase mt-0.5">
-                {project.metadata.course || 'CURSO DE GRADUAÇÃO'}
-              </p>
-              <div className="my-6">
-                <p className="font-bold text-[10px] uppercase">
-                  {project.metadata.author || 'NOME DO AUTOR'}
-                </p>
-              </div>
-              <h1 className="font-bold text-xs uppercase text-neutral-900">
-                {project.metadata.title || 'TÍTULO DO TRABALHO ACADÊMICO'}
-              </h1>
-              {project.metadata.subtitle && (
-                <p className="text-[10px] text-neutral-600 mt-0.5">
-                  {project.metadata.subtitle}
-                </p>
-              )}
-            </div>
-
-            <div className="border-t border-neutral-100 my-4" />
-
-            {/* Conteúdo dos Blocos */}
-            <div className="space-y-3 flex-1 font-serif">
-              {project.blocks.map((b) => (
-                <div key={b.id}>
-                  {b.type === 'h1' && (
-                    <h2 className="font-bold font-sans uppercase text-[11px] text-neutral-900 mt-4 mb-1">
-                      {b.content || '1 SEÇÃO'}
-                    </h2>
-                  )}
-                  {b.type === 'h2' && (
-                    <h3 className="font-bold font-sans text-[10px] text-neutral-800 mt-2 mb-1">
-                      {b.content || '1.1 Subseção'}
-                    </h3>
-                  )}
-                  {b.type === 'paragraph' && (
-                    <p className="text-[10px] text-justify indent-4 leading-relaxed text-neutral-800">
-                      {b.content || 'Parágrafo do texto...'}
-                    </p>
-                  )}
-                  {b.type === 'quote_long' && (
-                    <div className="pl-6 text-[9px] leading-normal italic text-neutral-600 border-l-2 border-neutral-300 my-2">
-                      <p>{b.content || 'Texto da citação direta longa...'}</p>
-                      <p className="text-right not-italic uppercase font-sans text-[8px] mt-1 text-neutral-500">
-                        ({b.meta?.author || 'SOBRENOME'}, {b.meta?.year || 'ANO'}, p. {b.meta?.page || '0'})
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {/* Referências no Preview */}
-              {project.references.length > 0 && (
-                <div className="pt-6 mt-6 border-t border-neutral-200">
-                  <h3 className="text-center font-bold font-sans uppercase text-[10px] mb-2">
-                    REFERÊNCIAS
-                  </h3>
-                  <div className="space-y-2 text-[9px] text-neutral-700">
-                    {project.references.map((ref) => (
-                      <p key={ref.id} className="leading-tight">
-                        <strong className="uppercase">{ref.authors}.</strong>{' '}
-                        <strong>{ref.title}</strong>{ref.subtitle ? `: ${ref.subtitle}` : ''}. {ref.city}: {ref.publisher}, {ref.year}.
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Rodapé A4 */}
-            <div className="mt-8 pt-4 border-t border-neutral-100 flex justify-between text-[9px] text-neutral-400 font-sans">
-              <span>{project.metadata.location}, {project.metadata.year}</span>
-              <span>Pág. 1</span>
-            </div>
+        ) : !isInitialized && isCompiling ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-neutral-500">
+            <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+            <p className="text-sm font-medium text-neutral-700">
+              Carregando motor tipográfico Typst WASM...
+            </p>
+            <p className="text-xs text-neutral-400 mt-1 max-w-xs">
+              Preparando fontes ABNT e diagramação A4 diretamente no seu navegador.
+            </p>
           </div>
+        ) : (
+          pages.map((page, index) => {
+            const aspectRatio = page.height / page.width;
+            const pageHeightPx = Math.round(scaledWidthPx * aspectRatio);
+
+            return (
+              <div key={index} className="flex flex-col items-center gap-1.5">
+                <div
+                  className="bg-white rounded-sm shadow-md border border-neutral-200 overflow-hidden transition-all"
+                  style={{
+                    width: `${scaledWidthPx}px`,
+                    height: `${pageHeightPx}px`,
+                  }}
+                >
+                  <canvas
+                    ref={(el) => {
+                      if (el) {
+                        canvasRefs.current.set(index, el);
+                      } else {
+                        canvasRefs.current.delete(index);
+                      }
+                    }}
+                    className="w-full h-full block"
+                  />
+                </div>
+                <div className="flex items-center gap-1 text-[11px] text-neutral-400">
+                  <FileText className="w-3 h-3" />
+                  <span>
+                    Página {index + 1} de {pages.length}
+                  </span>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
     </aside>

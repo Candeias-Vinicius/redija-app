@@ -5,7 +5,8 @@ import { Editor } from '@/components/Editor';
 import { PdfPreview } from '@/components/PdfPreview';
 import { ReferenceModal } from '@/components/ReferenceModal';
 import { DocumentProject, DocumentMetadata, Block, AcademicReference } from '@/types/document';
-import { generateStandaloneTypst } from '@/core/transpiler/typstGenerator';
+import { generateStandaloneTypst, generateTypstFiles } from '@/core/transpiler/typstGenerator';
+import { compileToPdf } from '@/core/typst/typstClient';
 
 const initialProject: DocumentProject = {
   id: 'proj_1',
@@ -101,6 +102,7 @@ export const App: React.FC = () => {
   const [project, setProject] = useState<DocumentProject>(initialProject);
   const [showCode, setShowCode] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const handleMetadataChange = (metadata: DocumentMetadata) => {
     setProject((prev) => ({ ...prev, metadata }));
@@ -124,6 +126,33 @@ export const App: React.FC = () => {
     }));
   };
 
+  const handleDownloadPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const files = generateTypstFiles(project);
+      const result = await compileToPdf(files);
+      if (result.error || !result.pdf) {
+        const msg =
+          result.error ||
+          result.diagnostics.map((d) => `${d.location}: ${d.message}`).join('\n') ||
+          'Não foi possível gerar o PDF.';
+        alert(`Erro ao gerar PDF:\n${msg}`);
+        return;
+      }
+
+      const pdfBytes = new Uint8Array(result.pdf);
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${project.name.toLowerCase().replace(/\s+/g, '_')}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const handleExportTypst = () => {
     const code = generateStandaloneTypst(project);
     const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
@@ -135,18 +164,13 @@ export const App: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleCopyTypst = () => {
-    const code = generateStandaloneTypst(project);
-    navigator.clipboard.writeText(code);
-    alert('Código Typst copiado para a área de transferência!');
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-neutral-100 select-none">
       <Header
         projectName={project.name}
+        onDownloadPdf={handleDownloadPdf}
+        isExportingPdf={isExportingPdf}
         onExportTypst={handleExportTypst}
-        onCopyTypst={handleCopyTypst}
         showCode={showCode}
         setShowCode={setShowCode}
       />
