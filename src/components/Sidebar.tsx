@@ -21,7 +21,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [openResumo, setOpenResumo] = useState(false);
   const [openRefs, setOpenRefs] = useState(true);
 
-  const updateField = (field: keyof DocumentMetadata, value: any) => {
+  const updateField = <K extends keyof DocumentMetadata>(field: K, value: DocumentMetadata[K]) => {
     onChangeMetadata({ ...metadata, [field]: value });
   };
 

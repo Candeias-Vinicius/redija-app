@@ -28,7 +28,7 @@ export const Editor: React.FC<EditorProps> = ({ blocks, onChangeBlocks }) => {
     );
   };
 
-  const updateBlockMeta = (id: string, meta: Record<string, any>) => {
+  const updateBlockMeta = (id: string, meta: NonNullable<Block['meta']>) => {
     onChangeBlocks(
       blocks.map((b) => (b.id === id ? { ...b, meta: { ...b.meta, ...meta } } : b))
     );
@@ -36,7 +36,7 @@ export const Editor: React.FC<EditorProps> = ({ blocks, onChangeBlocks }) => {
 
   const addBlock = (afterId: string, type: BlockType = 'paragraph') => {
     const newBlock: Block = {
-      id: Math.random().toString(36).substring(2, 9),
+      id: crypto.randomUUID(),
       type,
       content: '',
       meta: type === 'quote_long' ? { author: 'SOBRENOME', year: '2024', page: '15' } : undefined,
@@ -172,7 +172,7 @@ export const Editor: React.FC<EditorProps> = ({ blocks, onChangeBlocks }) => {
                   type="text"
                   value={block.content}
                   onChange={(e) => updateBlockContent(block.id, e.target.value)}
-                  placeholder="1 INTRODUÇÃO"
+                  placeholder="Título da seção (ex.: Introdução)"
                   className="w-full font-bold text-lg text-neutral-900 border-none focus:outline-none placeholder-neutral-300 uppercase tracking-wide"
                 />
               )}
@@ -182,7 +182,7 @@ export const Editor: React.FC<EditorProps> = ({ blocks, onChangeBlocks }) => {
                   type="text"
                   value={block.content}
                   onChange={(e) => updateBlockContent(block.id, e.target.value)}
-                  placeholder="1.1 Contexto e Justificativa"
+                  placeholder="Subseção (ex.: Objetivos)"
                   className="w-full font-bold text-base text-neutral-900 border-none focus:outline-none placeholder-neutral-300"
                 />
               )}
@@ -192,7 +192,7 @@ export const Editor: React.FC<EditorProps> = ({ blocks, onChangeBlocks }) => {
                   type="text"
                   value={block.content}
                   onChange={(e) => updateBlockContent(block.id, e.target.value)}
-                  placeholder="1.1.1 Detalhes Específicos"
+                  placeholder="Subseção de 3º nível"
                   className="w-full italic font-medium text-sm text-neutral-800 border-none focus:outline-none placeholder-neutral-300"
                 />
               )}

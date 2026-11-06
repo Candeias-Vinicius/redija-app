@@ -1,94 +1,153 @@
 import { Block, AcademicReference, DocumentProject } from '@/types/document';
-import { generateAbntPreamble } from '@/core/templates/abntTemplate';
+import { escapeMarkup, typstContent, typstString } from './escape';
+import abntTemplate from '@/core/templates/abnt.typ?raw';
+
+/** Nome do arquivo do modelo dentro do projeto Typst gerado. */
+export const TEMPLATE_FILE = 'abnt.typ';
+export const MAIN_FILE = 'main.typ';
+
+const IMPORT_LINE = `#import "${TEMPLATE_FILE}": *`;
 
 /**
- * Transpilador RedijaApp:
- * Converte blocos visuais e metadados estruturados para código Typst 100% formatado.
+ * Transpilador RedijaApp: converte o documento estruturado (metadados + blocos
+ * + referências) em um projeto Typst com dois arquivos:
+ *   - abnt.typ  → modelo com todas as regras da ABNT
+ *   - main.typ  → conteúdo do usuário
  */
-export function generateTypstCode(project: DocumentProject): string {
-  const parts: string[] = [];
+export function generateTypstFiles(project: DocumentProject): Record<string, string> {
+  return {
+    [TEMPLATE_FILE]: abntTemplate,
+    [MAIN_FILE]: generateMain(project),
+  };
+}
 
-  // 1. Cabeçalho, Margens e Capa ABNT
-  parts.push(generateAbntPreamble(project.metadata));
+/**
+ * Gera um único arquivo .typ autocontido (modelo + conteúdo), útil para
+ * exportação e para abrir em outros editores Typst.
+ */
+export function generateStandaloneTypst(project: DocumentProject): string {
+  const main = generateMain(project).replace(IMPORT_LINE, '');
+  return `${abntTemplate}\n// ===================== DOCUMENTO =====================\n${main}`;
+}
 
-  // 2. Transpilação dos Blocos de Conteúdo
-  parts.push('// ==========================================');
-  parts.push('// CORPO DO TRABALHO');
-  parts.push('// ==========================================\n');
+/** Gera apenas o conteúdo do main.typ. */
+export function generateMain(project: DocumentProject): string {
+  const parts: string[] = [IMPORT_LINE, generateShowRule(project), ''];
 
   for (const block of project.blocks) {
-    parts.push(transpileBlock(block));
+    const code = transpileBlock(block);
+    if (code !== null) parts.push(code, '');
   }
 
-  // 3. Referências Bibliográficas (NBR 6023)
   if (project.references.length > 0) {
-    parts.push('\n#pagebreak()');
-    parts.push('#align(center)[#text(weight: "bold")[REFERÊNCIAS]]');
-    parts.push('#v(1.5em)');
-    parts.push('#set par(first-line-indent: 0pt, justify: false, leading: 0.35em)'); // ABNT: alinhadas à esquerda e espaçamento simples
-
-    for (const ref of project.references) {
-      parts.push(transpileReference(ref));
-    }
+    parts.push(transpileReferences(project.references));
   }
 
   return parts.join('\n');
 }
 
-function transpileBlock(block: Block): string {
+function generateShowRule(project: DocumentProject): string {
+  const m = project.metadata;
+  const args: string[] = [
+    `instituicao: ${typstString(m.institution)}`,
+    `curso: ${typstString(m.course)}`,
+    `autor: ${typstString(m.author)}`,
+    `titulo: ${typstString(m.title)}`,
+  ];
+  if (m.subtitle?.trim()) args.push(`subtitulo: ${typstString(m.subtitle)}`);
+  if (m.nature?.trim()) args.push(`natureza: ${typstContent(m.nature)}`);
+  if (m.advisor?.trim()) args.push(`orientador: ${typstString(m.advisor)}`);
+  args.push(`local: ${typstString(m.location)}`, `ano: ${typstString(m.year)}`);
+  if (m.abstract.trim()) args.push(`resumo: ${typstContent(m.abstract)}`);
+
+  const keywords = m.keywords.map((k) => k.trim()).filter(Boolean);
+  if (keywords.length > 0) {
+    args.push(`palavras-chave: (${keywords.map(typstString).join(', ')},)`);
+  }
+
+  return `#show: abnt.with(\n  ${args.join(',\n  ')},\n)`;
+}
+
+/**
+ * A numeração das seções é automática (1, 1.1, 1.1.1). Se o usuário digitar
+ * o número manualmente ("1 INTRODUÇÃO", "2.1 Objetivos"), ele é removido para
+ * não aparecer duplicado.
+ */
+export function stripManualNumbering(title: string): string {
+  return title.replace(/^\s*\d+(\.\d+)*\.?\s+/, '').trim();
+}
+
+function transpileBlock(block: Block): string | null {
+  const text = block.content.trim();
+
   switch (block.type) {
     case 'h1':
-      return `= ${block.content}\n`;
     case 'h2':
-      return `== ${block.content}\n`;
-    case 'h3':
-      return `=== ${block.content}\n`;
-    case 'paragraph':
-      return `${block.content}\n`;
-    case 'quote_long': {
-      const author = block.meta?.author || 'SOBRENOME';
-      const year = block.meta?.year || 'ANO';
-      const page = block.meta?.page || '0';
-      return `#citacao(autor: "${author}", ano: "${year}", pagina: "${page}")[\n  ${block.content}\n]\n`;
+    case 'h3': {
+      const title = stripManualNumbering(text);
+      if (!title) return null;
+      const level = Number(block.type[1]);
+      return `${'='.repeat(level)} ${escapeMarkup(title)}`;
     }
+
+    case 'paragraph':
+      return text ? escapeMarkup(text) : null;
+
     case 'bullet':
-      return `- ${block.content}\n`;
+      return text ? `- ${escapeMarkup(text)}` : null;
+
     case 'numbered':
-      return `+ ${block.content}\n`;
-    case 'image':
-      return `
-#align(center)[
-  #text(size: 10pt)[Figura - ${block.meta?.caption || 'Descrição da figura'}]
-  #v(0.5em)
-  #rect(width: 80%, height: 120pt, stroke: 0.5pt + luma(150))[#center[Imagem / Gráfico]]
-  #v(0.5em)
-  #text(size: 10pt)[Fonte: ${block.meta?.source || 'do autor'}.]
-]
-`;
+      return text ? `+ ${escapeMarkup(text)}` : null;
+
+    case 'quote_long': {
+      if (!text) return null;
+      const ref = formatCitationReference(block.meta?.author, block.meta?.year, block.meta?.page);
+      const refArg = ref ? `referencia: ${typstContent(ref)}` : '';
+      return `#citacao(${refArg})${typstContent(text)}`;
+    }
+
+    case 'image': {
+      const caption = block.meta?.caption?.trim() || 'Sem legenda';
+      const source = block.meta?.source?.trim() || 'do autor';
+      return `#figura(legenda: ${typstContent(caption)}, fonte: ${typstContent(source)})`;
+    }
+
     default:
-      return `${block.content}\n`;
+      return text ? escapeMarkup(text) : null;
   }
 }
 
-function transpileReference(ref: AcademicReference): string {
-  // Formato ABNT NBR 6023:
-  // SOBRENOME, Nome. Título: subtítulo. Edição. Cidade: Editora, Ano.
-  const authorUpper = ref.authors.toUpperCase();
-  const titleFormatted = `#strong[${ref.title}]`;
-  const subtitle = ref.subtitle ? `: ${ref.subtitle}` : '';
-  const edition = ref.edition ? ` ${ref.edition}. ed.` : '';
-  const publisher = ref.publisher || 'Editora';
-  const city = ref.city || 'Local';
-  const year = ref.year || 'Ano';
+/** Monta a chamada autor-data da citação: (SILVA, 2023, p. 42). */
+export function formatCitationReference(author?: string, year?: string, page?: string): string {
+  const parts: string[] = [];
+  if (author?.trim()) parts.push(author.trim().toUpperCase());
+  if (year?.trim()) parts.push(year.trim());
+  if (page?.trim()) parts.push(`p. ${page.trim()}`);
+  return parts.join(', ');
+}
 
-  let result = `${authorUpper}. ${titleFormatted}${subtitle}.${edition} ${city}: ${publisher}, ${year}.`;
+function transpileReferences(references: AcademicReference[]): string {
+  const sorted = [...references].sort((a, b) =>
+    a.authors.localeCompare(b.authors, 'pt-BR', { sensitivity: 'base' }),
+  );
+  const items = sorted.map((ref) => `  ${transpileReference(ref)},`);
+  return `#referencias(\n${items.join('\n')}\n)`;
+}
 
-  if (ref.url) {
-    result += ` Disponível em: <${ref.url}>.`;
-    if (ref.accessDate) {
-      result += ` Acesso em: ${ref.accessDate}.`;
-    }
+/**
+ * Formato NBR 6023 para livros:
+ * SOBRENOME, Nome. **Título**: subtítulo. Edição. Local: Editora, Ano.
+ */
+export function transpileReference(ref: AcademicReference): string {
+  const e = escapeMarkup;
+  let out = `${e(ref.authors.trim().toUpperCase())}. #strong[${e(ref.title.trim())}]`;
+  if (ref.subtitle?.trim()) out += `: ${e(ref.subtitle.trim())}`;
+  out += '.';
+  if (ref.edition?.trim()) out += ` ${e(ref.edition.trim())}. ed.`;
+  out += ` ${e(ref.city?.trim() || '[S. l.]')}: ${e(ref.publisher?.trim() || '[s. n.]')}, ${e(ref.year?.trim() || '[s. d.]')}.`;
+  if (ref.url?.trim()) {
+    out += ` Disponível em: ${e(ref.url.trim())}.`;
+    if (ref.accessDate?.trim()) out += ` Acesso em: ${e(ref.accessDate.trim())}.`;
   }
-
-  return `${result}\n#v(1em)`;
+  return `[${out}]`;
 }

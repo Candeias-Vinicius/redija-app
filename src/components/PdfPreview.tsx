@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DocumentProject } from '@/types/document';
-import { generateTypstCode } from '@/core/transpiler/typstGenerator';
+import { generateStandaloneTypst } from '@/core/transpiler/typstGenerator';
 import { Eye, FileCode, Check, Copy } from 'lucide-react';
 
 interface PdfPreviewProps {
@@ -10,7 +10,7 @@ interface PdfPreviewProps {
 
 export const PdfPreview: React.FC<PdfPreviewProps> = ({ project, showCode }) => {
   const [copied, setCopied] = useState(false);
-  const typstCode = generateTypstCode(project);
+  const typstCode = generateStandaloneTypst(project);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(typstCode);

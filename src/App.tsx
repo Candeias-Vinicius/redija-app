@@ -5,7 +5,7 @@ import { Editor } from '@/components/Editor';
 import { PdfPreview } from '@/components/PdfPreview';
 import { ReferenceModal } from '@/components/ReferenceModal';
 import { DocumentProject, DocumentMetadata, Block, AcademicReference } from '@/types/document';
-import { generateTypstCode } from '@/core/transpiler/typstGenerator';
+import { generateStandaloneTypst } from '@/core/transpiler/typstGenerator';
 
 const initialProject: DocumentProject = {
   id: 'proj_1',
@@ -15,7 +15,9 @@ const initialProject: DocumentProject = {
     title: 'Desenvolvimento de uma Plataforma Automatizada para Redação Científica em Conformidade com as Normas da ABNT',
     subtitle: 'Um estudo de caso em tecnologias baseadas em WebAssembly e Typst',
     author: 'Vinícius Candeias',
-    advisor: 'Prof. Dr. Orientador',
+    advisor: 'Prof. Dr. Nome do Orientador',
+    nature:
+      'Trabalho de Conclusão de Curso apresentado ao Bacharelado em Ciência da Computação da Universidade Federal de Tecnologia, como requisito parcial para obtenção do título de Bacharel.',
     institution: 'Universidade Federal de Tecnologia',
     course: 'Bacharelado em Ciência da Computação',
     location: 'São Paulo',
@@ -27,7 +29,7 @@ const initialProject: DocumentProject = {
     {
       id: 'b1',
       type: 'h1',
-      content: '1 INTRODUÇÃO',
+      content: 'Introdução',
     },
     {
       id: 'b2',
@@ -37,7 +39,7 @@ const initialProject: DocumentProject = {
     {
       id: 'b3',
       type: 'h2',
-      content: '1.1 Justificativa e Objetivos',
+      content: 'Justificativa e Objetivos',
     },
     {
       id: 'b4',
@@ -57,7 +59,7 @@ const initialProject: DocumentProject = {
     {
       id: 'b6',
       type: 'h1',
-      content: '2 METODOLOGIA E ARQUITETURA',
+      content: 'Metodologia e Arquitetura',
     },
     {
       id: 'b7',
@@ -123,7 +125,7 @@ export const App: React.FC = () => {
   };
 
   const handleExportTypst = () => {
-    const code = generateTypstCode(project);
+    const code = generateStandaloneTypst(project);
     const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -134,7 +136,7 @@ export const App: React.FC = () => {
   };
 
   const handleCopyTypst = () => {
-    const code = generateTypstCode(project);
+    const code = generateStandaloneTypst(project);
     navigator.clipboard.writeText(code);
     alert('Código Typst copiado para a área de transferência!');
   };

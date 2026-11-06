@@ -27,6 +27,7 @@ export interface DocumentMetadata {
   subtitle?: string;
   author: string;
   advisor: string;
+  nature?: string;
   institution: string;
   course: string;
   location: string;

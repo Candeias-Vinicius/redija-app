@@ -29,7 +29,7 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
     if (!authors || !title) return;
 
     onAddReference({
-      id: Math.random().toString(36).substring(2, 9),
+      id: crypto.randomUUID(),
       authors,
       title,
       subtitle: subtitle || undefined,
