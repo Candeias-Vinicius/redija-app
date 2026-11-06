@@ -155,17 +155,15 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-neutral-600 font-medium mb-1">Link / URL (Se for online)</label>
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://exemplo.com/artigo.pdf"
-                className="w-full px-3 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-              />
-            </div>
+          <div>
+            <label className="block text-neutral-600 font-medium mb-1">Link / URL (Se for online)</label>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://exemplo.com/artigo.pdf"
+              className="w-full px-3 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+            />
           </div>
 
           <div className="pt-3 flex justify-end gap-2">
