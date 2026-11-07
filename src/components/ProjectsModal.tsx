@@ -158,17 +158,17 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".redija,.json"
+              accept=".redija,.docx,.zip,.json"
               onChange={handleFileChange}
               className="hidden"
             />
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 transition-colors"
-              title="Importar arquivo de backup .redija"
+              title="Importar documento Word (.docx), pacote (.zip do Redija ou Overleaf) ou backup (.redija)"
             >
               <Upload className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Importar .redija</span>
+              <span>Importar Projeto</span>
             </button>
             <button
               onClick={onClose}
@@ -474,13 +474,29 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
               </div>
             </div>
 
-            <button
-              type="submit"
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Criar Novo Trabalho</span>
-            </button>
+            <div className="space-y-2">
+              <button
+                type="submit"
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Criar Novo Trabalho</span>
+              </button>
+
+              <div className="pt-2 border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 font-medium text-xs transition-colors"
+                >
+                  <Upload className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Importar Word (.docx) ou ZIP (Redija / Overleaf)</span>
+                </button>
+                <p className="text-[10px] text-neutral-500 text-center mt-1">
+                  O formato e conteúdo são identificados e convertidos automaticamente.
+                </p>
+              </div>
+            </div>
           </form>
         </div>
 

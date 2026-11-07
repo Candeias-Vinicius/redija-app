@@ -40,6 +40,7 @@ import {
 } from '@/core/transpiler/projectExporter';
 import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
 import { autoMergeProjects } from '@/core/storage/projectMerger';
+import { importDocumentFile } from '@/core/storage/documentImporter';
 import {
   db,
   loadInitialActiveProject,
@@ -53,7 +54,6 @@ import {
   deleteProject,
   setActiveProjectId,
   serializeBackup,
-  parseBackup,
 } from '@/core/storage/db';
 
 const fallbackInitialProject = createProjectFromTemplate('tcc');
@@ -866,16 +866,18 @@ export const App: React.FC = () => {
 
   const handleImportBackup = async (file: File) => {
     try {
-      const content = await file.text();
-      const imported = parseBackup(content);
+      const imported = await importDocumentFile(file);
       await saveProject(imported, false);
       const all = await listProjects();
       setProjects(all);
       skipNextAutoSaveRef.current = true;
+      setPast([]);
+      setFuture([]);
       setProject(imported);
       setActiveProjectId(imported.id);
+      setIsProjectsModalOpen(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao importar arquivo .redija.');
+      alert(err instanceof Error ? err.message : 'Erro ao importar documento.');
     }
   };
 
