@@ -16,6 +16,7 @@ import { LoginScreen } from '@/components/LoginScreen';
 import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
 import {
   saveProjectToDrive,
+  saveProjectPdfToDrive,
   listDriveProjects,
   loadProjectFromDrive,
   deleteAllUserDriveProjects,
@@ -480,6 +481,20 @@ export const App: React.FC = () => {
           const all = await listProjects(user.email);
           setProjects(all);
         }
+
+        // Atualiza em segundo plano uma cópia do PDF compilado no Drive (backup legível para o usuário)
+        (async () => {
+          try {
+            const files = generateTypstFiles(projectToSync);
+            const binaryFiles = extractBinaryAssets(projectToSync);
+            const pdfResult = await compileToPdf(files, binaryFiles);
+            if (pdfResult.pdf) {
+              await saveProjectPdfToDrive(projectToSync, new Uint8Array(pdfResult.pdf), token);
+            }
+          } catch (pdfErr) {
+            console.warn('Erro ao atualizar cópia PDF no Drive:', pdfErr);
+          }
+        })();
       } catch (err) {
         console.warn('Erro ao sincronizar com Google Drive:', err);
         setRawDriveSyncStatus('error');
@@ -534,6 +549,20 @@ export const App: React.FC = () => {
         const all = await listProjects();
         setProjects(all);
       }
+
+      // Sincroniza cópia do PDF compilado em segundo plano
+      (async () => {
+        try {
+          const files = generateTypstFiles(projectToSync);
+          const binaryFiles = extractBinaryAssets(projectToSync);
+          const pdfResult = await compileToPdf(files, binaryFiles);
+          if (pdfResult.pdf) {
+            await saveProjectPdfToDrive(projectToSync, new Uint8Array(pdfResult.pdf), token);
+          }
+        } catch (pdfErr) {
+          console.warn('Erro ao atualizar cópia PDF no Drive:', pdfErr);
+        }
+      })();
 
       setRawDriveSyncStatus('synced');
       return fileId;
@@ -1043,6 +1072,17 @@ export const App: React.FC = () => {
       link.download = `${project.name.toLowerCase().replace(/\s+/g, '_')}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
+
+      // Sincroniza em segundo plano uma cópia do PDF compilado no Google Drive se autenticado
+      if (isAuthenticated) {
+        getValidAccessToken().then((token) => {
+          if (token) {
+            saveProjectPdfToDrive(project, pdfBytes, token).catch((err) =>
+              console.warn('Erro ao sincronizar cópia PDF no Drive:', err),
+            );
+          }
+        });
+      }
     } finally {
       setIsExportingPdf(false);
     }

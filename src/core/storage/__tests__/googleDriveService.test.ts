@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   saveProjectToDrive,
+  saveProjectPdfToDrive,
   loadProjectFromDrive,
   listDriveProjects,
   inviteCollaborator,
@@ -194,5 +195,69 @@ describe('Google Drive Service (BYOS & Colaboração)', () => {
     expect(list[0].role).toBe('owner');
     expect(list[1].role).toBe('writer');
     expect(list[1].emailAddress).toBe('colega@gmail.com');
+  });
+
+  it('cria novo arquivo PDF no Drive via POST multipart quando o projeto não tem PDF existente', async () => {
+    const mockProject = createProjectFromTemplate('tcc', 'Meu Trabalho');
+    const fakePdfBytes = new Uint8Array([37, 80, 68, 70]); // %PDF
+    const fakeToken = 'google_token_123';
+
+    // 1. Busca por appProperties (não encontra)
+    // 2. Busca por nome (não encontra)
+    // 3. Criação POST multipart
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ files: [] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ files: [] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'pdf_drive_id_123', modifiedTime: '2026-11-07T05:00:00Z' }),
+      } as Response);
+
+    const result = await saveProjectPdfToDrive(mockProject, fakePdfBytes, fakeToken);
+
+    expect(result).toBeDefined();
+    expect(result?.fileId).toBe('pdf_drive_id_123');
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    const [createUrl, createOpts] = fetchSpy.mock.calls[2];
+    expect(createUrl).toContain('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
+    expect(createOpts?.method).toBe('POST');
+  });
+
+  it('atualiza arquivo PDF existente no Drive via PATCH media quando encontrado', async () => {
+    const mockProject = createProjectFromTemplate('tcc', 'Meu Trabalho');
+    const fakePdfBytes = new Uint8Array([37, 80, 68, 70]);
+    const fakeToken = 'google_token_123';
+
+    // 1. Busca por appProperties (encontra PDF já existente)
+    // 2. PATCH metadata
+    // 3. PATCH media
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          files: [{ id: 'pdf_existing_id', modifiedTime: '2026-11-07T03:00:00Z' }],
+        }),
+      } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'pdf_existing_id' }),
+      } as Response);
+
+    const result = await saveProjectPdfToDrive(mockProject, fakePdfBytes, fakeToken);
+
+    expect(result).toBeDefined();
+    expect(result?.fileId).toBe('pdf_existing_id');
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    const [patchUrl] = fetchSpy.mock.calls[2];
+    expect(patchUrl).toContain('https://www.googleapis.com/upload/drive/v3/files/pdf_existing_id?uploadType=media');
   });
 });

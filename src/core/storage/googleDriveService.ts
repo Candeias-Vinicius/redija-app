@@ -224,6 +224,141 @@ export async function saveProjectToDrive(
 }
 
 /**
+ * Salva ou atualiza a cópia em PDF do projeto no Google Drive como backup legível.
+ * O RedijaApp não depende desse arquivo para funcionar (usa o .redija para edição),
+ * mas ele permite que o usuário e seus orientadores visualizem, imprimam e compartilhem
+ * o documento diagramado nativamente dentro do Google Drive (inclusive no celular).
+ */
+export async function saveProjectPdfToDrive(
+  project: DocumentProject,
+  pdfBytes: Uint8Array,
+  accessToken: string,
+): Promise<{ fileId: string; modifiedTime: string } | null> {
+  // Simulação para testes de desenvolvimento local
+  if (accessToken.startsWith('mock_dev_token')) {
+    return {
+      fileId: `mock_pdf_${Date.now()}`,
+      modifiedTime: new Date().toISOString(),
+    };
+  }
+
+  const cleanName = project.name.replace(/\.redija$/i, '').trim() || 'Sem Titulo';
+  const fileName = `${cleanName}.pdf`;
+
+  // 1. Procura se já existe um PDF deste projeto no Drive
+  let existingFileId: string | null = null;
+  try {
+    const propQuery = encodeURIComponent(
+      `appProperties has { key='redijaProjectId' and value='${project.id}' } and appProperties has { key='isRedijaPdf' and value='true' } and trashed = false`,
+    );
+    const propRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${propQuery}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (propRes.ok) {
+      const data = await propRes.json();
+      if (data.files && data.files.length > 0) {
+        existingFileId = data.files[0].id;
+      }
+    }
+  } catch (err) {
+    console.warn('Erro ao buscar PDF por appProperties no Drive:', err);
+  }
+
+  // Se não encontrou por appProperties, busca pelo nome exato do arquivo .pdf
+  if (!existingFileId) {
+    try {
+      const safeName = fileName.replace(/'/g, "\\'");
+      const nameQuery = encodeURIComponent(
+        `name = '${safeName}' and mimeType = 'application/pdf' and trashed = false`,
+      );
+      const nameRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${nameQuery}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc`,
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+      if (nameRes.ok) {
+        const data = await nameRes.json();
+        if (data.files && data.files.length > 0) {
+          existingFileId = data.files[0].id;
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao buscar PDF por nome no Drive:', err);
+    }
+  }
+
+  // CENÁRIO A: ATUALIZAR ARQUIVO PDF EXISTENTE
+  if (existingFileId) {
+    // Atualiza metadados / nome caso o projeto tenha sido renomeado
+    await fetch(`https://www.googleapis.com/drive/v3/files/${existingFileId}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: fileName,
+        appProperties: {
+          redijaProjectId: project.id,
+          isRedijaPdf: 'true',
+        },
+      }),
+    }).catch(() => null);
+
+    // Atualiza os bytes do PDF
+    const updateRes = await fetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=media`,
+      {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/pdf',
+        },
+        body: new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' }),
+      },
+    );
+
+    if (updateRes.ok) {
+      const data = await updateRes.json().catch(() => ({}));
+      return { fileId: data.id || existingFileId, modifiedTime: new Date().toISOString() };
+    }
+  }
+
+  // CENÁRIO B: CRIAR NOVO ARQUIVO PDF NO DRIVE (Multipart)
+  const metadata = {
+    name: fileName,
+    mimeType: 'application/pdf',
+    description: 'Documento acadêmico ABNT gerado pelo RedijaApp (visualizável no Google Drive)',
+    appProperties: {
+      redijaProjectId: project.id,
+      isRedijaPdf: 'true',
+    },
+  };
+
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' }));
+
+  const createRes = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,modifiedTime',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form,
+    },
+  );
+
+  if (!createRes.ok) {
+    const err = await createRes.json().catch(() => ({}));
+    console.warn('Não foi possível salvar a cópia PDF no Drive:', err);
+    return null;
+  }
+
+  const data = await createRes.json();
+  return { fileId: data.id, modifiedTime: data.modifiedTime || new Date().toISOString() };
+}
+
+/**
  * Lista todos os projetos .redija do usuário (próprios e compartilhados com ele).
  */
 export async function listDriveProjects(accessToken: string): Promise<DriveProjectSummary[]> {
