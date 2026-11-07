@@ -476,8 +476,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       : 'text-slate-500 hover:text-emerald-700'
                   }`}
                 >
-                  Prefere testar sem conta agora?{' '}
-                  <span className="underline font-semibold">Continuar como Convidado</span>
+                  Prefere usar localmente sem nuvem?{' '}
+                  <span className="underline font-semibold">Entrar com Perfil Local</span>
                 </button>
               </div>
 

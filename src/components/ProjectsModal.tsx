@@ -80,7 +80,12 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    onCreateProject(selectedTemplate, newProjectName.trim() || undefined);
+    const name = newProjectName.trim();
+    if (name && projects.some((p) => p.name.trim().toLowerCase() === name.toLowerCase())) {
+      alert(`Já existe um trabalho ativo com o nome "${name}". Escolha um nome diferente.`);
+      return;
+    }
+    onCreateProject(selectedTemplate, name || undefined);
     setNewProjectName('');
     onClose();
   };
@@ -91,9 +96,20 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
   };
 
   const commitRename = (id: string) => {
-    if (editingName.trim()) {
-      onRenameProject(id, editingName.trim());
+    const trimmed = editingName.trim();
+    if (!trimmed) {
+      setEditingId(null);
+      return;
     }
+    if (
+      projects.some(
+        (p) => p.id !== id && p.name.trim().toLowerCase() === trimmed.toLowerCase(),
+      )
+    ) {
+      alert(`Já existe outro trabalho com o nome "${trimmed}". Escolha um nome diferente.`);
+      return;
+    }
+    onRenameProject(id, trimmed);
     setEditingId(null);
   };
 
