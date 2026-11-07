@@ -243,6 +243,44 @@ describe('typstGenerator helpers', () => {
       }),
     ).toBe('(SILVA, 2024)');
 
+    // 2 autores separados por ponto e vírgula
+    expect(
+      formatShortCitation({
+        id: '2',
+        authors: 'SILVA, Roberto; SOUZA, Maria',
+        title: 'Obra',
+        city: 'SP',
+        publisher: 'Ed',
+        year: '2024',
+      }),
+    ).toBe('(SILVA; SOUZA, 2024)');
+
+    // 4 ou mais autores abreviados automaticamente com et al. (NBR 10520)
+    expect(
+      formatShortCitation(
+        {
+          id: '4',
+          authors: 'SILVA, R.; SOUZA, M.; SANTOS, P.; OLIVEIRA, C.',
+          title: 'Obra Coletiva',
+          city: 'SP',
+          publisher: 'Ed',
+          year: '2024',
+        },
+        'titlecase',
+      ),
+    ).toBe('(Silva et al., 2024)');
+
+    // Referência bibliográfica com 4+ autores usa #emph[et al.] sem duplicar ponto
+    const ref4Authors = transpileReference({
+      id: '4',
+      authors: 'SILVA, R.; SOUZA, M.; SANTOS, P.; OLIVEIRA, C.',
+      title: 'Pesquisa Avançada',
+      city: 'São Paulo',
+      publisher: 'Editora Y',
+      year: '2024',
+    });
+    expect(ref4Authors).toContain('SILVA, R. #emph[et al.] #strong[Pesquisa Avançada]');
+
     const proj = createSampleProject();
     const warnings = runAbntLinter(proj);
     // ALMEIDA não foi citado no texto, logo o linter deve avisar

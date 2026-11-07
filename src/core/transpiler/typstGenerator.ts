@@ -297,13 +297,13 @@ function transpileBlock(
     }
 
     case 'paragraph':
-      return plainText ? richContent : null;
+      return plainText ? italicizeLatinTerms(richContent) : null;
 
     case 'bullet':
-      return plainText ? `- ${richContent}` : null;
+      return plainText ? `- ${italicizeLatinTerms(richContent)}` : null;
 
     case 'numbered':
-      return plainText ? `+ ${richContent}` : null;
+      return plainText ? `+ ${italicizeLatinTerms(richContent)}` : null;
 
     case 'quote_long': {
       if (!plainText) return null;
@@ -313,8 +313,9 @@ function transpileBlock(
         block.meta?.page,
         cfg.citationStyle,
       );
-      const refArg = ref ? `referencia: ${typstContent(ref)}` : '';
-      return `#citacao(${refArg})[${richContent}]`;
+      const refContent = ref ? italicizeLatinTerms(escapeMarkup(ref)) : '';
+      const refArg = refContent ? `referencia: [${refContent}]` : '';
+      return `#citacao(${refArg})[${italicizeLatinTerms(richContent)}]`;
     }
 
     case 'equation': {
@@ -327,8 +328,8 @@ function transpileBlock(
     case 'code': {
       const rawCode = block.content.trim();
       if (!rawCode) return null;
-      const caption = block.meta?.caption?.trim();
-      const source = block.meta?.source?.trim();
+      const caption = block.meta?.caption?.trim().replace(/\.+$/, '');
+      const source = block.meta?.source?.trim().replace(/\.+$/, '');
       const lang = (block.meta?.language || 'txt').replace(/[^a-zA-Z0-9_-]/g, '');
       const args: string[] = [];
       if (caption) args.push(`legenda: ${typstContent(caption)}`);
@@ -338,8 +339,8 @@ function transpileBlock(
     }
 
     case 'image': {
-      const caption = block.meta?.caption?.trim() || 'Sem legenda';
-      const source = block.meta?.source?.trim() || 'do autor';
+      const caption = (block.meta?.caption?.trim() || 'Sem legenda').replace(/\.+$/, '');
+      const source = (block.meta?.source?.trim() || 'do autor').replace(/\.+$/, '');
       const widthPct = block.meta?.imageWidthPct || 80;
       if (includeBinaryImages && block.meta?.imageDataUrl) {
         const parsed = parseDataUrl(block.meta.imageDataUrl);
@@ -355,9 +356,10 @@ function transpileBlock(
     case 'box': {
       const isBox = block.type === 'box';
       const macroName = isBox ? 'quadro' : 'tabela';
-      const caption =
-        block.meta?.caption?.trim() || (isBox ? 'Quadro comparativo' : 'Tabela de dados');
-      const source = block.meta?.source?.trim() || 'do autor';
+      const caption = (
+        block.meta?.caption?.trim() || (isBox ? 'Quadro comparativo' : 'Tabela de dados')
+      ).replace(/\.+$/, '');
+      const source = (block.meta?.source?.trim() || 'do autor').replace(/\.+$/, '');
       const headers = block.meta?.headers?.length
         ? block.meta.headers
         : ['Coluna 1', 'Coluna 2'];
@@ -392,14 +394,24 @@ function transpileBlock(
     }
 
     case 'footnote':
-      return plainText ? `#footnote[${richContent}]` : null;
+      return plainText ? `#footnote[${italicizeLatinTerms(richContent)}]` : null;
 
     case 'pagebreak':
       return '#pagebreak()';
 
     default:
-      return plainText ? richContent : null;
+      return plainText ? italicizeLatinTerms(richContent) : null;
   }
+}
+
+/**
+ * Aplica itálico automático às expressões latinas "et al." e "apud" (NBR 10520:2023)
+ * quando ainda não estão dentro de `#emph[...]`.
+ */
+function italicizeLatinTerms(typstText: string): string {
+  return typstText
+    .replace(/(?<!#emph\[)\b(et\s+al\.)/gi, '#emph[et al.]')
+    .replace(/(?<!#emph\[)\b(apud)\b/gi, '#emph[apud]');
 }
 
 /** Formata o sobrenome do autor conforme o estilo (MAIÚSCULAS ou Inicial Maiúscula). */
@@ -409,12 +421,31 @@ export function formatAuthorCase(
 ): string {
   const trimmed = rawAuthor.trim();
   if (!trimmed) return '';
-  if (style === 'titlecase') {
-    return trimmed
-      .toLowerCase()
-      .replace(/(?:^|[\s-;])(\S)/g, (match) => match.toUpperCase());
+
+  const hasEtAl = /\bet\s+al\.?/i.test(trimmed);
+  const cleaned = trimmed.replace(/\bet\s+al\.?/gi, '').trim();
+  const entries = cleaned
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const formatSingle = (text: string): string => {
+    if (style === 'titlecase') {
+      return text
+        .toLowerCase()
+        .replace(/(?:^|[\s-;])(\S)/g, (match) => match.toUpperCase())
+        .replace(/\bApud\b/gi, 'apud');
+    }
+    return text.toUpperCase().replace(/\bAPUD\b/gi, 'apud');
+  };
+
+  if (entries.length >= 4 || hasEtAl) {
+    const first = entries[0] || cleaned;
+    const surname = first.split(',')[0]?.trim() || first;
+    return `${formatSingle(surname.replace(/\.+$/, ''))} et al.`;
   }
-  return trimmed.toUpperCase();
+
+  return formatSingle(cleaned);
 }
 
 /** Monta a chamada autor-data da citação: (SILVA, 2023, p. 42) ou (Silva, 2023, p. 42). */
@@ -443,6 +474,30 @@ function transpileReferences(
 }
 
 /**
+ * Formata os autores para a lista final de Referências (NBR 6023):
+ * - Até 3 autores: mantém todos separados por ponto e vírgula, finalizando com ponto.
+ * - 4 ou mais autores (ou com "et al."): indica o primeiro autor seguido de `#emph[et al.]`.
+ */
+function formatReferenceAuthors(rawAuthors: string): string {
+  const e = escapeMarkup;
+  const trimmed = rawAuthors.trim();
+  const hasEtAl = /\bet\s+al\.?/i.test(trimmed);
+  const cleaned = trimmed.replace(/\bet\s+al\.?/gi, '').trim();
+  const entries = cleaned
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (entries.length >= 4 || hasEtAl) {
+    const firstAuthor = (entries[0] || cleaned).trim().toUpperCase();
+    return `${e(firstAuthor)} #emph[et al.]`;
+  }
+
+  const allAuthors = cleaned.replace(/\.+$/, '').trim().toUpperCase();
+  return `${e(allAuthors)}.`;
+}
+
+/**
  * Formato NBR 6023 para livros, artigos de periódico, teses/TCCs, sites e legislação,
  * respeitando a preferência de destaque (negrito ou itálico).
  */
@@ -452,7 +507,7 @@ export function transpileReference(
 ): string {
   const e = escapeMarkup;
   const type = ref.type || 'book';
-  const authors = e(ref.authors.trim().toUpperCase());
+  const authors = formatReferenceAuthors(ref.authors);
   const title = e(ref.title.trim());
   const subtitle = ref.subtitle?.trim() ? `: ${e(ref.subtitle.trim())}` : '';
   const year = e(ref.year?.trim() || '[s. d.]');
@@ -463,7 +518,7 @@ export function transpileReference(
 
   if (type === 'article' && ref.journal?.trim()) {
     // Artigo de periódico: AUTOR. Título: subtítulo. **Revista**, Local, v. X, n. Y, p. Z, Ano.
-    out = `${authors}. ${title}${subtitle}. ${hl(e(ref.journal.trim()))}`;
+    out = `${authors} ${title}${subtitle}. ${hl(e(ref.journal.trim()))}`;
     if (ref.city?.trim()) out += `, ${e(ref.city.trim())}`;
     if (ref.volume?.trim()) out += `, v. ${e(ref.volume.trim())}`;
     if (ref.issue?.trim()) out += `, n. ${e(ref.issue.trim())}`;
@@ -474,10 +529,10 @@ export function transpileReference(
     const degree = e(ref.degree?.trim() || 'Trabalho de Conclusão de Curso');
     const inst = e(ref.institution?.trim() || ref.publisher?.trim() || 'Instituição');
     const city = e(ref.city?.trim() || '[S. l.]');
-    out = `${authors}. ${hl(title)}${subtitle}. ${year}. ${degree} — ${inst}, ${city}, ${year}.`;
+    out = `${authors} ${hl(title)}${subtitle}. ${year}. ${degree} — ${inst}, ${city}, ${year}.`;
   } else {
     // Livro / Site / Legislação: AUTOR. **Título**: subtítulo. Edição. Local: Editora, Ano.
-    out = `${authors}. ${hl(title)}${subtitle}.`;
+    out = `${authors} ${hl(title)}${subtitle}.`;
     if (ref.edition?.trim()) out += ` ${e(ref.edition.trim())}. ed.`;
     const city = e(ref.city?.trim() || '[S. l.]');
     const pub = e(ref.publisher?.trim() || '[s. n.]');
@@ -485,11 +540,13 @@ export function transpileReference(
   }
 
   if (ref.doi?.trim()) {
-    out += ` DOI: ${e(ref.doi.trim())}.`;
+    out += ` DOI: ${e(ref.doi.trim()).replace(/\.+$/, '')}.`;
   }
   if (ref.url?.trim()) {
-    out += ` Disponível em: ${e(ref.url.trim())}.`;
-    if (ref.accessDate?.trim()) out += ` Acesso em: ${e(ref.accessDate.trim())}.`;
+    out += ` Disponível em: ${e(ref.url.trim()).replace(/\.+$/, '')}.`;
+    if (ref.accessDate?.trim()) {
+      out += ` Acesso em: ${e(ref.accessDate.trim()).replace(/\.+$/, '')}.`;
+    }
   }
   return `[${out}]`;
 }

@@ -44,6 +44,7 @@ const ABNT_STANDARDS_DOCS: AbntStandardDoc[] = [
     rulesApplied: [
       'Citação direta longa (mais de 3 linhas) com recuo esquerdo de 4 cm, fonte 10 pt, espaçamento simples e sem aspas.',
       'Suporte tanto ao padrão tradicional em maiúsculas (SILVA, 2023) quanto à atualização NBR 10520:2023 em caixa mista entre parênteses (Silva, 2023).',
+      'Formatação automática de múltiplos autores (até 3 separados por ponto e vírgula, e 4 ou mais abreviados com et al.) e destaque automático em itálico para expressões latinas como et al. e apud.',
       'Inserção rápida de chamadas pelo atalho "@" ou pelo comando "/" direto no parágrafo.',
     ],
   },
@@ -54,7 +55,7 @@ const ABNT_STANDARDS_DOCS: AbntStandardDoc[] = [
       'Estabelece a ordem dos elementos e a formatação da lista final de referências bibliográficas.',
     rulesApplied: [
       'Referências alinhadas exclusivamente à esquerda (sem justificar), em espaçamento simples e separadas entre si por um espaço simples em branco.',
-      'Ordenação alfabética automática pelo sobrenome do primeiro autor.',
+      'Ordenação alfabética automática pelo sobrenome do primeiro autor e abreviação normativa com et al. em itálico para obras com 4 ou mais autores.',
       'Formatação específica para Livros, Artigos de Periódicos, Teses/Dissertações/TCCs, Sites e Legislação, com importação automática por DOI, ISBN e arquivos BibTeX (.bib).',
     ],
   },
@@ -66,7 +67,7 @@ const ABNT_STANDARDS_DOCS: AbntStandardDoc[] = [
     rulesApplied: [
       'Numeração automática em 5 níveis (1, 1.1, 1.1.1, 1.1.1.1 e 1.1.1.1.1) sem ponto final após o número.',
       'Diferenciação tipográfica graduada: Seção 1 em MAIÚSCULAS e negrito (iniciando em nova página nos TCCs), Seção 1.1 em negrito, Seção 1.1.1 em itálico, Seção 1.1.1.1 sublinhada e Seção 1.1.1.1.1 regular.',
-      'Suporte a títulos sem indicação numérica centralizados (Errata, Agradecimentos, Resumo, Referências, Apêndices e Anexos).',
+      'Suporte a títulos sem indicação numérica centralizados (Errata, Agradecimentos, Resumo, Referências, Glossário, Apêndices e Anexos).',
     ],
   },
   {
@@ -96,6 +97,24 @@ const ABNT_STANDARDS_DOCS: AbntStandardDoc[] = [
     rulesApplied: [
       'Tabelas estatísticas abertas nas laterais esquerda e direita (norma IBGE) com título no topo e fonte na base.',
       'Quadros textuais fechados nos 4 lados com listagem própria separada da Lista de Tabelas.',
+    ],
+  },
+  {
+    code: 'ABNT NBR 15287',
+    title: 'Projeto de Pesquisa: Apresentação',
+    summary:
+      'Estrutura padronizada para submissão de projetos de TCC, mestrado, doutorado e iniciação científica.',
+    rulesApplied: [
+      'Atendido pela estrutura pré-textual (Capa, Folha de Rosto, Sumário) e seções numeradas para Tema, Problema, Hipótese, Objetivos, Justificativa, Referencial Teórico, Metodologia, Recursos e Cronograma (em Quadros ABNT).',
+    ],
+  },
+  {
+    code: 'ABNT NBR 10719',
+    title: 'Relatório Técnico e/ou Científico: Apresentação',
+    summary:
+      'Diretrizes para relatórios de estágio supervisionado, iniciação científica (PIBIC) e relatórios técnicos.',
+    rulesApplied: [
+      'Predefinição dedicada em "Norma & Layout" com estrutura formal de capa, folha de rosto, resumo, listas técnicas, desenvolvimento e anexos.',
     ],
   },
 ];
@@ -185,7 +204,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
                 <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200 space-y-1">
                   <div className="flex items-center gap-2 font-semibold text-neutral-900">
                     <BookOpenCheck className="w-4 h-4 text-emerald-600" />
-                    <span>7 Normas ABNT Automatizadas</span>
+                    <span>9 Normas ABNT Automatizadas</span>
                   </div>
                   <p className="text-[11px] text-neutral-500 leading-snug">
                     Capa, Folha de Rosto, Folha de Aprovação, Sumário automático, recuo de 1,25 cm,

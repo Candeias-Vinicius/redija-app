@@ -26,40 +26,96 @@ export function countWords(text: string): number {
  * (ex: "SILVA, Roberto; SOUZA, Maria" -> "SILVA").
  */
 export function getPrimarySurname(authors: string): string {
-  const firstAuthor = authors.split(';')[0]?.trim() || '';
+  const cleaned = authors.replace(/\bet\s+al\.?/gi, '').trim();
+  const firstAuthor = cleaned.split(';')[0]?.trim() || '';
   const surname = firstAuthor.split(',')[0]?.trim() || firstAuthor;
-  return surname.toUpperCase();
+  return surname.replace(/\.+$/, '').trim().toUpperCase();
+}
+
+function toTitleCaseSurname(surname: string): string {
+  return surname
+    .toLowerCase()
+    .replace(/(?:^|[\s-])(\S)/g, (m) => m.toUpperCase());
 }
 
 /**
- * Gera a citação curta autor-data no padrão ABNT NBR 10520: `(SILVA, 2023)` ou `(Silva, 2023)`.
+ * Extrai a lista de sobrenomes (ou nomes de entidades) de uma string de autores ABNT
+ * separada por ponto e vírgula, além de identificar se contém "et al.".
+ */
+export function parseCitationAuthors(authors: string): {
+  surnames: string[];
+  hasEtAl: boolean;
+} {
+  const hasEtAl = /\bet\s+al\.?/i.test(authors);
+  const cleaned = authors.replace(/\bet\s+al\.?/gi, '').trim();
+  const entries = cleaned
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const surnames = entries
+    .map((entry) => {
+      const surname = entry.split(',')[0]?.trim() || entry;
+      return surname.replace(/\.+$/, '').trim().toUpperCase();
+    })
+    .filter(Boolean);
+
+  return { surnames, hasEtAl };
+}
+
+/**
+ * Gera a citação curta autor-data no padrão ABNT NBR 10520:
+ * - 1 autor: `(SILVA, 2023)` ou `(Silva, 2023)`
+ * - 2 ou 3 autores: `(SILVA; SOUZA, 2023)` ou `(Silva; Souza, 2023)`
+ * - 4 ou mais autores (ou com et al.): `(SILVA et al., 2023)` ou `(Silva et al., 2023)`
  */
 export function formatShortCitation(
   ref: AcademicReference,
   style: 'uppercase' | 'titlecase' = 'uppercase',
   page?: string,
 ): string {
-  const rawSurname = getPrimarySurname(ref.authors);
-  const surname =
-    style === 'titlecase'
-      ? rawSurname.toLowerCase().replace(/(?:^|[\s-])(\S)/g, (m) => m.toUpperCase())
-      : rawSurname;
+  const { surnames, hasEtAl } = parseCitationAuthors(ref.authors);
+  const formatted =
+    style === 'titlecase' ? surnames.map(toTitleCaseSurname) : surnames;
+
+  let authorLabel = 'AUTOR';
+  if (formatted.length > 0) {
+    if (hasEtAl || formatted.length >= 4) {
+      authorLabel = `${formatted[0]} et al.`;
+    } else {
+      authorLabel = formatted.join('; ');
+    }
+  }
+
   const year = ref.year?.trim() || 's.d.';
   const pagePart = page?.trim() ? `, p. ${page.trim()}` : '';
-  return `(${surname}, ${year}${pagePart})`;
+  return `(${authorLabel}, ${year}${pagePart})`;
 }
 
 /**
- * Gera a chamada narrativa com o autor na frase: `Silva (2023)` ou `Silva (2023, p. 42)`.
+ * Gera a chamada narrativa com o autor na frase:
+ * `Silva (2023)`, `Silva e Souza (2023)` ou `Silva et al. (2023, p. 42)`.
  */
 export function formatNarrativeCitation(ref: AcademicReference, page?: string): string {
-  const rawSurname = getPrimarySurname(ref.authors);
-  const surname = rawSurname
-    .toLowerCase()
-    .replace(/(?:^|[\s-])(\S)/g, (m) => m.toUpperCase());
+  const { surnames, hasEtAl } = parseCitationAuthors(ref.authors);
+  const formatted = surnames.map(toTitleCaseSurname);
+
+  let authorLabel = 'Autor';
+  if (formatted.length > 0) {
+    if (hasEtAl || formatted.length >= 4) {
+      authorLabel = `${formatted[0]} et al.`;
+    } else if (formatted.length === 1) {
+      authorLabel = formatted[0];
+    } else if (formatted.length === 2) {
+      authorLabel = `${formatted[0]} e ${formatted[1]}`;
+    } else {
+      authorLabel = `${formatted[0]}, ${formatted[1]} e ${formatted[2]}`;
+    }
+  }
+
   const year = ref.year?.trim() || 's.d.';
   const pagePart = page?.trim() ? `, p. ${page.trim()}` : '';
-  return `${surname} (${year}${pagePart})`;
+  return `${authorLabel} (${year}${pagePart})`;
 }
 
 /**
@@ -340,13 +396,14 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
         });
       }
     }
-    if (b.type === 'table') {
+    if (b.type === 'table' || b.type === 'box') {
+      const label = b.type === 'box' ? 'Quadro' : 'Tabela';
       if (!b.meta?.caption?.trim() || !b.meta?.source?.trim()) {
         warnings.push({
           id: `tbl-meta-${b.id}`,
           severity: 'warning',
-          title: `Tabela no bloco #${idx + 1} incompleta (NBR 14724)`,
-          description: 'Toda tabela deve possuir título na parte superior e fonte na parte inferior.',
+          title: `${label} no bloco #${idx + 1} incompleto (NBR 14724)`,
+          description: `Todo ${label.toLowerCase()} deve possuir título na parte superior e fonte na parte inferior.`,
         });
       }
     }
@@ -384,8 +441,8 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
 
   for (const b of project.blocks) {
     if (b.type === 'quote_long' && b.meta?.author?.trim()) {
-      const cited = b.meta.author.trim().toUpperCase();
-      if (!registeredSurnames.has(cited)) {
+      const cited = getPrimarySurname(b.meta.author);
+      if (cited && !registeredSurnames.has(cited)) {
         warnings.push({
           id: `missing-ref-${b.id}`,
           severity: 'warning',
