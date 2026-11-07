@@ -77,9 +77,11 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   /**
    * Solicita um novo Access Token via Google Identity Services TokenClient.
+   * Se promptMode for '' (vazio), o Google solicita permissões APENAS na primeira vez
+   * que o usuário conectar; em logins subsequentes, conecta direto sem re-pedir permissões.
    */
   const requestTokenFromGoogle = useCallback(
-    (promptMode = ''): Promise<{ token: string; expiresIn: number }> => {
+    (promptMode = '', userHint?: string): Promise<{ token: string; expiresIn: number }> => {
       return new Promise((resolve, reject) => {
         if (!isConfigured) {
           return reject(
@@ -101,6 +103,7 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           client_id: GOOGLE_CLIENT_ID,
           scope: FULL_AUTH_SCOPE,
           prompt: promptMode,
+          hint: userHint || undefined,
           callback: (response) => {
             if (response.error) {
               return reject(new Error(response.error_description || response.error));
@@ -119,7 +122,10 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           },
         });
 
-        client.requestAccessToken({ prompt: promptMode });
+        client.requestAccessToken({
+          prompt: promptMode,
+          hint: userHint || undefined,
+        });
       });
     },
     [isConfigured]
@@ -162,9 +168,11 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setError(null);
 
       try {
-        const { token, expiresIn } = await requestTokenFromGoogle(
-          promptConsent ? 'consent' : 'select_account'
-        );
+        // Documentação Google Identity Services (GIS):
+        // prompt: '' (vazio) -> O usuário só recebe o popup de concessão de permissões
+        // na primeira vez. Em logins seguintes, o Google autentica direto sem re-pedir permissões!
+        const promptMode = promptConsent ? 'consent' : '';
+        const { token, expiresIn } = await requestTokenFromGoogle(promptMode, user?.email);
 
         accessTokenRef.current = token;
         tokenExpiresAtRef.current = Date.now() + expiresIn * 1000;
@@ -185,7 +193,7 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setIsLoading(false);
       }
     },
-    [requestTokenFromGoogle]
+    [requestTokenFromGoogle, user?.email]
   );
 
   /**
@@ -207,20 +215,12 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   /**
    * Efetua Logout limpo:
-   * - Revoga o token atual
-   * - Limpa referências em memória
-   * - Remove metadados do localStorage
-   * - Desativa reconexão automática
+   * - Limpa o token em memória e o estado do usuário
+   * - Remove metadados da sessão local
+   * - NÃO revoga permissões na API do Google (pois revogar deletaria a autorização concedida
+   *   fazendo com que o usuário precisasse marcar tudo de novo no próximo login).
    */
   const logout = useCallback(() => {
-    if (accessTokenRef.current && window.google?.accounts?.oauth2?.revoke) {
-      try {
-        window.google.accounts.oauth2.revoke(accessTokenRef.current);
-      } catch {
-        // Falha silenciosa caso o token já seja inválido
-      }
-    }
-
     if (window.google?.accounts?.id?.disableAutoSelect) {
       try {
         window.google.accounts.id.disableAutoSelect();
