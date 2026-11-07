@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Block, BlockType, AcademicReference, DocumentMetadata } from '@/types/document';
 import { RichTextInput } from './RichTextInput';
 import { stripHtmlTags } from '@/core/transpiler/escape';
+import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
 import {
   calculateProjectImageBytes,
   formatBytes,
@@ -43,8 +44,10 @@ interface EditorProps {
   references: AcademicReference[];
   citationStyle?: 'uppercase' | 'titlecase';
   isFullWidth?: boolean;
+  activeCollaborators?: CollaboratorPresence[];
   onOpenReferenceModal?: () => void;
   onChangeBlocks: (blocks: Block[]) => void;
+  onFocusBlock?: (blockId: string) => void;
   onMinimize?: () => void;
 }
 
@@ -219,8 +222,10 @@ export const Editor: React.FC<EditorProps> = ({
   references,
   citationStyle = 'uppercase',
   isFullWidth = false,
+  activeCollaborators = [],
   onOpenReferenceModal,
   onChangeBlocks,
+  onFocusBlock,
   onMinimize,
 }) => {
   const [activeMenuBlockId, setActiveMenuBlockId] = useState<string | null>(null);
@@ -465,32 +470,50 @@ export const Editor: React.FC<EditorProps> = ({
           </div>
         </div>
 
-        {blocks.map((block) => (
-          <div
-            key={block.id}
-            onDragOver={(e) => {
-              if (!draggedBlockId || draggedBlockId === block.id) return;
-              e.preventDefault();
-              setDragOverBlockId(block.id);
-            }}
-            onDragLeave={() => {
-              if (dragOverBlockId === block.id) setDragOverBlockId(null);
-            }}
-            onDrop={(e) => {
-              if (!draggedBlockId) return;
-              e.preventDefault();
-              reorderBlocksById(draggedBlockId, block.id);
-              setDraggedBlockId(null);
-              setDragOverBlockId(null);
-            }}
-            className={`group relative flex items-start gap-2.5 -ml-24 pl-24 pr-3 py-1.5 rounded-lg transition-all hover:bg-neutral-50/80 ${
-              draggedBlockId === block.id ? 'opacity-40' : ''
-            } ${
-              dragOverBlockId === block.id
-                ? 'border-t-2 border-emerald-500 bg-emerald-50/30'
-                : ''
-            }`}
-          >
+        {blocks.map((block) => {
+          const activeCollab = activeCollaborators.find((c) => c.activeBlockId === block.id);
+          return (
+            <div
+              key={block.id}
+              onFocus={() => {
+                setFocusedBlockId(block.id);
+                onFocusBlock?.(block.id);
+              }}
+              onDragOver={(e) => {
+                if (!draggedBlockId || draggedBlockId === block.id) return;
+                e.preventDefault();
+                setDragOverBlockId(block.id);
+              }}
+              onDragLeave={() => {
+                if (dragOverBlockId === block.id) setDragOverBlockId(null);
+              }}
+              onDrop={(e) => {
+                if (!draggedBlockId) return;
+                e.preventDefault();
+                reorderBlocksById(draggedBlockId, block.id);
+                setDraggedBlockId(null);
+                setDragOverBlockId(null);
+              }}
+              className={`group relative flex items-start gap-2.5 -ml-24 pl-24 pr-3 py-1.5 rounded-lg transition-all hover:bg-neutral-50/80 ${
+                draggedBlockId === block.id ? 'opacity-40' : ''
+              } ${
+                dragOverBlockId === block.id
+                  ? 'border-t-2 border-emerald-500 bg-emerald-50/30'
+                  : ''
+              } ${
+                activeCollab ? 'ring-1 ring-emerald-400/80 bg-emerald-50/15' : ''
+              }`}
+            >
+              {/* Badge Flutuante do Colaborador Ativo no Bloco */}
+              {activeCollab && (
+                <div
+                  className="absolute -top-2.5 right-3 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs animate-in fade-in zoom-in-95 duration-150"
+                  title={`${activeCollab.user.name} (${activeCollab.user.email}) está editando este bloco`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>{activeCollab.user.name.split(' ')[0]} está aqui</span>
+                </div>
+              )}
             {/* Controles laterais do bloco (ficam na margem esquerda dedicada, nunca sobre o texto) */}
             <div className="absolute left-2 top-1.5 w-20 opacity-0 group-hover:opacity-100 flex items-center justify-end gap-0.5 pr-1 text-neutral-400 transition-opacity select-none">
               <button
@@ -1190,7 +1213,8 @@ export const Editor: React.FC<EditorProps> = ({
               )}
             </div>
           </div>
-        ))}
+        );
+      })}
 
         {/* Botão para adicionar bloco no final */}
         <button

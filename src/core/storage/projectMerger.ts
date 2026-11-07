@@ -60,6 +60,25 @@ export function mergeBlocks(localBlocks: Block[], remoteBlocks: Block[]): Block[
     }
 
     // Se ambos editaram o mesmo bloco:
+    // Se temos timestamps explícitos, a edição mais recente prevalece de forma determinística
+    const localTime = localBlock.updatedAt ?? 0;
+    const remoteTime = remoteBlock.updatedAt ?? 0;
+
+    if (remoteTime > localTime) {
+      result.push({
+        ...remoteBlock,
+        meta: { ...localBlock.meta, ...remoteBlock.meta },
+      });
+      continue;
+    } else if (localTime > remoteTime) {
+      result.push({
+        ...localBlock,
+        meta: { ...remoteBlock.meta, ...localBlock.meta },
+      });
+      continue;
+    }
+
+    // Se nenhum tem timestamp explícito (ou timestamps idênticos):
     // Se o local não foi alterado (está vazio ou muito curto) e o remoto tem texto substancial, adota o remoto
     if (!localNorm && remoteNorm) {
       result.push(remoteBlock);
