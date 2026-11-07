@@ -66,7 +66,7 @@
 )
 
 // ---------------------------------------------------------------------
-// Tabela com título acima e fonte abaixo (NBR 14724 / IBGE).
+// Tabela com título acima e fonte abaixo (NBR 14724 / IBGE — aberta nas laterais).
 // ---------------------------------------------------------------------
 #let tabela(legenda: [], fonte: [do autor], corpo) = figure(
   kind: table,
@@ -76,6 +76,51 @@
     corpo
     v(0.3em)
     text(size: 10pt)[Fonte: #fonte.]
+  },
+)
+
+// ---------------------------------------------------------------------
+// Quadro com bordas fechadas nos 4 lados (NBR 14724 — dados textuais).
+// ---------------------------------------------------------------------
+#let quadro(legenda: [], fonte: [do autor], corpo) = figure(
+  kind: "quadro",
+  supplement: [Quadro],
+  caption: legenda,
+  {
+    corpo
+    v(0.3em)
+    text(size: 10pt)[Fonte: #fonte.]
+  },
+)
+
+// ---------------------------------------------------------------------
+// Bloco de Código-Fonte / Algoritmo com borda sutil e fonte monoespaçada.
+// ---------------------------------------------------------------------
+#let codigo(legenda: none, fonte: none, corpo) = block(
+  width: 100%,
+  above: 1.4em,
+  below: 1.4em,
+  {
+    if legenda != none {
+      align(center, text(size: 10pt, weight: "bold")[Algoritmo — #legenda])
+      v(0.3em)
+    }
+    block(
+      width: 100%,
+      inset: 10pt,
+      radius: 3pt,
+      fill: luma(248),
+      stroke: 0.5pt + luma(200),
+      {
+        set par(justify: false, first-line-indent: 0pt, leading: 0.55em)
+        set text(size: 9.5pt)
+        corpo
+      },
+    )
+    if fonte != none {
+      v(0.2em)
+      align(center, text(size: 10pt)[Fonte: #fonte.])
+    }
   },
 )
 
@@ -115,6 +160,7 @@
   keywords: (),
   lista-figuras: false,
   lista-tabelas: false,
+  siglas: none,
   // Parâmetros de personalização de norma / layout
   fonte: "serif",
   tamanho-fonte: 12pt,
@@ -161,10 +207,13 @@
   }
   show heading.where(level: 2): it => text(weight: "bold", it)
   show heading.where(level: 3): it => text(weight: "regular", style: "italic", it)
+  show heading.where(level: 4): it => text(weight: "regular", underline(it))
+  show heading.where(level: 5): it => text(weight: "regular", it)
 
-  // Figuras e Tabelas: legenda acima, texto 10 pt, sem recuo
+  // Figuras, Tabelas e Quadros: legenda acima, texto 10 pt, sem recuo
   show figure.where(kind: image): set figure.caption(position: top)
   show figure.where(kind: table): set figure.caption(position: top)
+  show figure.where(kind: "quadro"): set figure.caption(position: top)
   show figure.caption: set text(size: 10pt)
   show figure: set par(first-line-indent: 0pt)
   show figure: set block(above: 1.5em, below: 1.5em)
@@ -328,6 +377,15 @@
     align(center, text(weight: "bold")[LISTA DE TABELAS])
     v(1.5em)
     outline(title: none, target: figure.where(kind: table))
+  }
+
+  // --------------- LISTA DE ABREVIATURAS E SIGLAS ---------------------
+  if siglas != none {
+    pagebreak()
+    set par(first-line-indent: 0pt, leading: entrelinha-simples)
+    align(center, text(weight: "bold")[LISTA DE ABREVIATURAS E SIGLAS])
+    v(1.5em)
+    siglas
   }
 
   // ------------------------------ SUMÁRIO -----------------------------

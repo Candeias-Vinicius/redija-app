@@ -3,8 +3,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   db,
   listProjects,
+  listTrashedProjects,
   saveProject,
   duplicateProject,
+  moveProjectToTrash,
+  restoreProjectFromTrash,
+  purgeExpiredTrash,
+  getRemainingTrashDays,
   deleteProject,
   loadInitialActiveProject,
   serializeBackup,
@@ -63,5 +68,32 @@ describe('Persistência IndexedDB (Dexie) e Backup .redija', () => {
     expect(() => parseBackup(JSON.stringify({ foo: 'bar' }))).toThrow(
       /não contém os dados obrigatórios/,
     );
+  });
+
+  it('move para lixeira (30 dias), restaura e expurga itens vencidos automaticamente', async () => {
+    const blank = createProjectFromTemplate('em_branco', 'Rascunho Livre');
+    await saveProject(blank, false);
+
+    expect(await listProjects()).toHaveLength(1);
+    expect(await listTrashedProjects()).toHaveLength(0);
+
+    await moveProjectToTrash(blank.id);
+    expect(await listProjects()).toHaveLength(0);
+    const trashed = await listTrashedProjects();
+    expect(trashed).toHaveLength(1);
+    expect(getRemainingTrashDays(trashed[0].deletedAt)).toBe(30);
+
+    await restoreProjectFromTrash(blank.id);
+    expect(await listProjects()).toHaveLength(1);
+    expect(await listTrashedProjects()).toHaveLength(0);
+
+    // Simula item na lixeira há 31 dias
+    const thirtyOneDaysAgo = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
+    await saveProject({ ...blank, deletedAt: thirtyOneDaysAgo }, false);
+    expect(await listTrashedProjects()).toHaveLength(1);
+
+    const purged = await purgeExpiredTrash();
+    expect(purged).toBe(1);
+    expect(await listTrashedProjects()).toHaveLength(0);
   });
 });

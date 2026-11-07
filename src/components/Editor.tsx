@@ -5,12 +5,18 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Heading4,
+  Heading5,
+  Hash,
   AlignLeft,
   Quote,
   List,
   ListOrdered,
   Image as ImageIcon,
   Table as TableIcon,
+  LayoutGrid,
+  Sigma,
+  Code2,
   MessageSquareQuote,
   Scissors,
   Plus,
@@ -68,6 +74,27 @@ const SLASH_OPTIONS: SlashMenuOption[] = [
     icon: <Heading3 className="w-4 h-4 text-neutral-700" />,
   },
   {
+    type: 'h4',
+    label: 'Seção Quaternária (1.1.1.1)',
+    description: 'Subseção de 4º nível sublinhada (NBR 6024)',
+    keywords: 'titulo 4 h4 subsecao quaternaria',
+    icon: <Heading4 className="w-4 h-4 text-neutral-700" />,
+  },
+  {
+    type: 'h5',
+    label: 'Seção Quinária (1.1.1.1.1)',
+    description: 'Subseção de 5º nível regular (NBR 6024)',
+    keywords: 'titulo 5 h5 subsecao quinaria',
+    icon: <Heading5 className="w-4 h-4 text-neutral-700" />,
+  },
+  {
+    type: 'unnumbered_heading',
+    label: 'Título Sem Numeração',
+    description: 'Seção em maiúsculas sem número (ex: Errata, Conclusão livre)',
+    keywords: 'titulo sem numero h0 secao livre',
+    icon: <Hash className="w-4 h-4 text-neutral-500" />,
+  },
+  {
     type: 'quote_long',
     label: 'Citação Direta Longa',
     description: 'Mais de 3 linhas: recuo de 4 cm, fonte 10 pt (NBR 10520)',
@@ -75,18 +102,39 @@ const SLASH_OPTIONS: SlashMenuOption[] = [
     icon: <Quote className="w-4 h-4 text-emerald-600" />,
   },
   {
+    type: 'equation',
+    label: 'Equação Matemática / Fórmula',
+    description: 'Fórmula científica com botões visuais (fração, raiz, somatório, integral)',
+    keywords: 'equacao formula matematica fisica calculo soma integral',
+    icon: <Sigma className="w-4 h-4 text-indigo-600" />,
+  },
+  {
+    type: 'code',
+    label: 'Bloco de Código / Algoritmo',
+    description: 'Trecho de código-fonte formatado em fonte monoespaçada com legenda',
+    keywords: 'codigo algoritmo programacao python javascript sql',
+    icon: <Code2 className="w-4 h-4 text-sky-600" />,
+  },
+  {
     type: 'image',
     label: 'Figura com Upload',
-    description: 'Ilustração/gráfico com legenda no topo e fonte abaixo',
+    description: 'Ilustração/gráfico com legenda no topo, fonte abaixo e controle de largura',
     keywords: 'figura imagem foto grafico upload ilustracao',
     icon: <ImageIcon className="w-4 h-4 text-blue-600" />,
   },
   {
     type: 'table',
-    label: 'Tabela ABNT / IBGE',
-    description: 'Tabela aberta nas laterais com título no topo e fonte abaixo',
-    keywords: 'tabela quadro dados linhas colunas',
+    label: 'Tabela ABNT / IBGE (Aberta)',
+    description: 'Tabela estatística aberta nas laterais com título no topo e fonte abaixo',
+    keywords: 'tabela ibge dados estatisticos linhas colunas',
     icon: <TableIcon className="w-4 h-4 text-purple-600" />,
+  },
+  {
+    type: 'box',
+    label: 'Quadro ABNT (Fechado)',
+    description: 'Quadro comparativo fechado com bordas nos 4 lados (NBR 14724)',
+    keywords: 'quadro comparativo bordas fechado texto',
+    icon: <LayoutGrid className="w-4 h-4 text-teal-600" />,
   },
   {
     type: 'bullet',
@@ -123,11 +171,18 @@ function createDefaultMetaForType(type: BlockType): Block['meta'] {
     return { author: 'SOBRENOME', year: '2025', page: '15' };
   }
   if (type === 'image') {
-    return { caption: 'Descrição da figura', source: 'do autor' };
+    return { caption: 'Descrição da figura', source: 'do autor', imageWidthPct: 75 };
   }
-  if (type === 'table') {
+  if (type === 'code') {
     return {
-      caption: 'Comparativo de resultados',
+      caption: 'Implementação do método principal',
+      source: 'Elaborado pelo autor',
+      language: 'python',
+    };
+  }
+  if (type === 'table' || type === 'box') {
+    return {
+      caption: type === 'box' ? 'Quadro síntese de conceitos' : 'Comparativo de resultados',
       source: 'Dados da pesquisa',
       headers: ['Critério', 'Resultado'],
       rows: [
@@ -231,11 +286,13 @@ export const Editor: React.FC<EditorProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // Calcula numeração progressiva automática (1, 1.1, 1.1.1) para exibição visual no editor
+  // Calcula numeração progressiva automática (1 a 1.1.1.1.1 — NBR 6024) para exibição visual no editor
   const computeSectionNumbers = (): Record<string, string> => {
     let h1 = 0;
     let h2 = 0;
     let h3 = 0;
+    let h4 = 0;
+    let h5 = 0;
     const map: Record<string, string> = {};
 
     for (const b of blocks) {
@@ -243,17 +300,37 @@ export const Editor: React.FC<EditorProps> = ({
         h1 += 1;
         h2 = 0;
         h3 = 0;
+        h4 = 0;
+        h5 = 0;
         map[b.id] = `${h1}`;
       } else if (b.type === 'h2') {
         if (h1 === 0) h1 = 1;
         h2 += 1;
         h3 = 0;
+        h4 = 0;
+        h5 = 0;
         map[b.id] = `${h1}.${h2}`;
       } else if (b.type === 'h3') {
         if (h1 === 0) h1 = 1;
         if (h2 === 0) h2 = 1;
         h3 += 1;
+        h4 = 0;
+        h5 = 0;
         map[b.id] = `${h1}.${h2}.${h3}`;
+      } else if (b.type === 'h4') {
+        if (h1 === 0) h1 = 1;
+        if (h2 === 0) h2 = 1;
+        if (h3 === 0) h3 = 1;
+        h4 += 1;
+        h5 = 0;
+        map[b.id] = `${h1}.${h2}.${h3}.${h4}`;
+      } else if (b.type === 'h5') {
+        if (h1 === 0) h1 = 1;
+        if (h2 === 0) h2 = 1;
+        if (h3 === 0) h3 = 1;
+        if (h4 === 0) h4 = 1;
+        h5 += 1;
+        map[b.id] = `${h1}.${h2}.${h3}.${h4}.${h5}`;
       }
     }
     return map;
@@ -401,7 +478,11 @@ export const Editor: React.FC<EditorProps> = ({
 
             {/* Conteúdo de cada tipo de bloco */}
             <div className="flex-1 min-w-0">
-              {(block.type === 'h1' || block.type === 'h2' || block.type === 'h3') && (
+              {(block.type === 'h1' ||
+                block.type === 'h2' ||
+                block.type === 'h3' ||
+                block.type === 'h4' ||
+                block.type === 'h5') && (
                 <div className="flex items-baseline gap-2">
                   <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded select-none">
                     {sectionNumbers[block.id]}
@@ -425,15 +506,48 @@ export const Editor: React.FC<EditorProps> = ({
                         ? 'TÍTULO DA SEÇÃO PRIMÁRIA'
                         : block.type === 'h2'
                           ? 'Título da subseção secundária'
-                          : 'Título da subseção terciária'
+                          : block.type === 'h3'
+                            ? 'Título da subseção terciária'
+                            : block.type === 'h4'
+                              ? 'Título da subseção quaternária (1.1.1.1)'
+                              : 'Título da subseção quinária (1.1.1.1.1)'
                     }
                     className={`w-full border-none bg-transparent focus:outline-none placeholder-neutral-300 ${
                       block.type === 'h1'
                         ? 'font-bold text-lg text-neutral-900 uppercase tracking-wide'
                         : block.type === 'h2'
                           ? 'font-bold text-base text-neutral-900'
-                          : 'italic font-medium text-sm text-neutral-800'
+                          : block.type === 'h3'
+                            ? 'italic font-medium text-sm text-neutral-800'
+                            : block.type === 'h4'
+                              ? 'underline font-normal text-sm text-neutral-800'
+                              : 'font-normal text-sm text-neutral-800'
                     }`}
+                  />
+                </div>
+              )}
+
+              {block.type === 'unnumbered_heading' && (
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-[10px] font-bold text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded select-none">
+                    S/N
+                  </span>
+                  <input
+                    type="text"
+                    value={block.content}
+                    autoFocus={focusedBlockId === block.id}
+                    onChange={(e) => updateBlockContent(block.id, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addBlock(block.id, 'paragraph');
+                      } else if (e.key === 'Backspace' && !block.content) {
+                        e.preventDefault();
+                        removeBlock(block.id);
+                      }
+                    }}
+                    placeholder="TÍTULO SEM NUMERAÇÃO (EX: ERRATA, CONCLUSÃO LIVRE)"
+                    className="w-full border-none bg-transparent focus:outline-none placeholder-neutral-300 font-bold text-base text-neutral-900 uppercase tracking-wide"
                   />
                 </div>
               )}
@@ -528,6 +642,109 @@ export const Editor: React.FC<EditorProps> = ({
                 </div>
               )}
 
+              {block.type === 'equation' && (
+                <div className="border border-indigo-200 rounded-xl p-4 bg-indigo-50/30 space-y-3 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-indigo-900 flex items-center gap-1.5">
+                      <Sigma className="w-4 h-4 text-indigo-600" />
+                      Equação Matemática / Fórmula Científica (Typst Math)
+                    </span>
+                    <span className="text-[10px] text-neutral-500">
+                      Clique nos botões abaixo para inserir símbolos sem saber código
+                    </span>
+                  </div>
+
+                  {/* Barra Visual de Símbolos e Estruturas Matemáticas */}
+                  <div className="flex flex-wrap gap-1 bg-white p-2 rounded-lg border border-neutral-200">
+                    {[
+                      { label: 'Fração (a/b)', snippet: '(a) / (b) ' },
+                      { label: 'Potência (x²)', snippet: 'x^2 ' },
+                      { label: 'Índice (x₁)', snippet: 'x_1 ' },
+                      { label: 'Raiz √x', snippet: 'sqrt(x) ' },
+                      { label: 'Somatório ∑', snippet: 'sum_(i=1)^n ' },
+                      { label: 'Integral ∫', snippet: 'integral_a^b ' },
+                      { label: 'Limite', snippet: 'lim_(x -> oo) ' },
+                      { label: 'Matriz 2×2', snippet: 'mat(a, b; c, d) ' },
+                      { label: 'α', snippet: 'alpha ' },
+                      { label: 'β', snippet: 'beta ' },
+                      { label: 'Δ', snippet: 'Delta ' },
+                      { label: 'π', snippet: 'pi ' },
+                      { label: '≠', snippet: '!= ' },
+                      { label: '≤', snippet: '<= ' },
+                      { label: '≥', snippet: '>= ' },
+                      { label: '≈', snippet: 'approx ' },
+                    ].map((btn) => (
+                      <button
+                        key={btn.label}
+                        type="button"
+                        onClick={() => updateBlockContent(block.id, `${block.content}${btn.snippet}`)}
+                        className="px-2 py-1 text-[11px] font-mono bg-neutral-50 hover:bg-indigo-100 text-neutral-800 rounded border border-neutral-200 transition-colors"
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <input
+                    type="text"
+                    value={block.content}
+                    autoFocus={focusedBlockId === block.id}
+                    onChange={(e) => updateBlockContent(block.id, e.target.value)}
+                    placeholder="Ex: f(x) = sum_(i=1)^n (x_i - mu)^2 / sigma^2"
+                    className="w-full font-mono text-xs px-3 py-2 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+              )}
+
+              {block.type === 'code' && (
+                <div className="border border-sky-200 rounded-xl p-4 bg-neutral-50/80 space-y-3 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-neutral-800 flex items-center gap-1.5">
+                      <Code2 className="w-4 h-4 text-sky-600" />
+                      Bloco de Código-Fonte / Algoritmo
+                    </span>
+                    <select
+                      value={block.meta?.language || 'python'}
+                      onChange={(e) => updateBlockMeta(block.id, { language: e.target.value })}
+                      className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-sky-600"
+                    >
+                      <option value="python">Python</option>
+                      <option value="javascript">JavaScript / TypeScript</option>
+                      <option value="sql">SQL</option>
+                      <option value="c">C / C++</option>
+                      <option value="java">Java</option>
+                      <option value="r">R</option>
+                      <option value="txt">Pseudocódigo / Texto</option>
+                    </select>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={block.meta?.caption || ''}
+                    onChange={(e) => updateBlockMeta(block.id, { caption: e.target.value })}
+                    placeholder="Título do Algoritmo / Código (ex: Cálculo da regressão linear)"
+                    className="w-full text-xs px-2.5 py-1.5 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-sky-600"
+                  />
+
+                  <textarea
+                    rows={5}
+                    value={block.content}
+                    autoFocus={focusedBlockId === block.id}
+                    onChange={(e) => updateBlockContent(block.id, e.target.value)}
+                    placeholder="Cole ou digite o código-fonte aqui..."
+                    className="w-full font-mono text-xs p-3 bg-neutral-900 text-neutral-100 rounded-lg focus:outline-none leading-relaxed"
+                  />
+
+                  <input
+                    type="text"
+                    value={block.meta?.source || ''}
+                    onChange={(e) => updateBlockMeta(block.id, { source: e.target.value })}
+                    placeholder="Fonte (ex: Elaborado pelo autor)"
+                    className="w-full text-xs px-2.5 py-1.5 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-sky-600"
+                  />
+                </div>
+              )}
+
               {block.type === 'image' && (
                 <div className="border border-neutral-200 rounded-xl p-4 bg-neutral-50/70 space-y-3">
                   <div className="flex items-center justify-between text-xs text-neutral-500">
@@ -535,19 +752,35 @@ export const Editor: React.FC<EditorProps> = ({
                       <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
                       Figura ABNT (NBR 14724 — Legenda acima, fonte abaixo)
                     </span>
-                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-neutral-200 hover:bg-neutral-100 text-neutral-700 font-medium text-[11px] shadow-2xs">
-                      <Upload className="w-3 h-3 text-blue-600" />
-                      <span>{block.meta?.imageDataUrl ? 'Trocar imagem' : 'Enviar imagem'}</span>
-                      <input
-                        type="file"
-                        accept="image/png,image/jpeg,image/svg+xml,image/gif"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleImageUpload(block.id, file);
-                        }}
-                        className="hidden"
-                      />
-                    </label>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={block.meta?.imageWidthPct || 75}
+                        onChange={(e) =>
+                          updateBlockMeta(block.id, {
+                            imageWidthPct: Number(e.target.value) as 50 | 75 | 100,
+                          })
+                        }
+                        title="Largura da imagem na folha A4 do PDF"
+                        className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded text-neutral-700"
+                      >
+                        <option value={50}>Largura: 50%</option>
+                        <option value={75}>Largura: 75%</option>
+                        <option value={100}>Largura: 100%</option>
+                      </select>
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-neutral-200 hover:bg-neutral-100 text-neutral-700 font-medium text-[11px] shadow-2xs">
+                        <Upload className="w-3 h-3 text-blue-600" />
+                        <span>{block.meta?.imageDataUrl ? 'Trocar imagem' : 'Enviar imagem'}</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/svg+xml,image/gif"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleImageUpload(block.id, file);
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
                   </div>
 
                   {/* Legenda no topo */}
@@ -596,12 +829,21 @@ export const Editor: React.FC<EditorProps> = ({
                 </div>
               )}
 
-              {block.type === 'table' && (
+              {(block.type === 'table' || block.type === 'box') && (
                 <div className="border border-neutral-200 rounded-xl p-4 bg-neutral-50/70 space-y-3 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-neutral-700 flex items-center gap-1.5">
-                      <TableIcon className="w-3.5 h-3.5 text-purple-600" />
-                      Tabela ABNT / IBGE
+                      {block.type === 'box' ? (
+                        <>
+                          <LayoutGrid className="w-3.5 h-3.5 text-teal-600" />
+                          Quadro ABNT (Fechado nas laterais — dados textuais)
+                        </>
+                      ) : (
+                        <>
+                          <TableIcon className="w-3.5 h-3.5 text-purple-600" />
+                          Tabela ABNT / IBGE (Aberta nas laterais — dados numéricos)
+                        </>
+                      )}
                     </span>
                     <div className="flex items-center gap-1.5">
                       <button

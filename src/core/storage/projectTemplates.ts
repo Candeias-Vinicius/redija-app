@@ -36,6 +36,12 @@ export const PROJECT_TEMPLATES: ProjectTemplateInfo[] = [
     description: 'Estrutura para qualificação ou seleção de pós-graduação: Tema, Problema, Justificativa, Objetivos e Metodologia.',
     badge: 'NBR 15287',
   },
+  {
+    type: 'em_branco',
+    label: 'Documento em Branco (100% Livre)',
+    description: 'Começa do zero com apenas um bloco vazio para você montar a estrutura e personalizar as normas como preferir.',
+    badge: 'LIVRE',
+  },
 ];
 
 export function createProjectFromTemplate(
@@ -235,6 +241,43 @@ export function createProjectFromTemplate(
           type: 'paragraph',
           content:
             'Classifique a pesquisa quanto à abordagem, natureza e procedimentos técnicos para coleta e análise de dados.',
+        },
+      ],
+      references: [],
+    };
+  }
+
+  if (templateType === 'em_branco') {
+    return {
+      id,
+      name: customName || 'Documento em Branco',
+      templateType: 'em_branco',
+      templateConfig: {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        preset: 'custom',
+        includeCoverPage: false,
+        includeTitlePage: false,
+        includeToc: false,
+      },
+      updatedAt: now,
+      metadata: {
+        title: 'Título do Documento',
+        subtitle: '',
+        author: 'Autor',
+        advisor: '',
+        nature: '',
+        institution: '',
+        course: '',
+        location: 'São Paulo',
+        year: currentYear,
+        abstract: '',
+        keywords: [],
+      },
+      blocks: [
+        {
+          id: crypto.randomUUID(),
+          type: 'paragraph',
+          content: '',
         },
       ],
       references: [],

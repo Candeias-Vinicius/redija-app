@@ -123,6 +123,25 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
     parts.push(transpileReferences(project.references, cfg));
   }
 
+  // Elementos Pós-Textuais Opcionais (NBR 14724): Apêndices e Anexos
+  if (project.metadata.appendices?.trim()) {
+    parts.push(
+      '',
+      '#pagebreak(weak: true)',
+      '#heading(numbering: none)[APÊNDICES]',
+      escapeMarkup(project.metadata.appendices.trim()),
+    );
+  }
+
+  if (project.metadata.annexes?.trim()) {
+    parts.push(
+      '',
+      '#pagebreak(weak: true)',
+      '#heading(numbering: none)[ANEXOS]',
+      escapeMarkup(project.metadata.annexes.trim()),
+    );
+  }
+
   return parts.join('\n');
 }
 
@@ -170,6 +189,7 @@ function generateShowRule(
 
   if (m.includeFiguresList) args.push('lista-figuras: true');
   if (m.includeTablesList) args.push('lista-tabelas: true');
+  if (m.abbreviations?.trim()) args.push(`siglas: ${typstContent(m.abbreviations)}`);
 
   // Parâmetros de personalização do template / norma
   if (cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {
@@ -238,11 +258,19 @@ function transpileBlock(
   switch (block.type) {
     case 'h1':
     case 'h2':
-    case 'h3': {
+    case 'h3':
+    case 'h4':
+    case 'h5': {
       const title = stripManualNumbering(plainText);
       if (!title) return null;
       const level = Number(block.type[1]);
       return `${'='.repeat(level)} ${escapeMarkup(title)}`;
+    }
+
+    case 'unnumbered_heading': {
+      const title = stripManualNumbering(plainText);
+      if (!title) return null;
+      return `#heading(numbering: none)[${escapeMarkup(title.toUpperCase())}]`;
     }
 
     case 'paragraph':
@@ -266,21 +294,46 @@ function transpileBlock(
       return `#citacao(${refArg})[${richContent}]`;
     }
 
+    case 'equation': {
+      const expr = block.content.trim();
+      if (!expr) return null;
+      // Expressão em modo display do Typst ($ expr $)
+      return `$ ${expr} $`;
+    }
+
+    case 'code': {
+      const rawCode = block.content.trim();
+      if (!rawCode) return null;
+      const caption = block.meta?.caption?.trim();
+      const source = block.meta?.source?.trim();
+      const lang = (block.meta?.language || 'txt').replace(/[^a-zA-Z0-9_-]/g, '');
+      const args: string[] = [];
+      if (caption) args.push(`legenda: ${typstContent(caption)}`);
+      if (source) args.push(`fonte: ${typstContent(source)}`);
+      const argsStr = args.length > 0 ? `(${args.join(', ')})` : '';
+      return `#codigo${argsStr}[\n\`\`\`${lang}\n${rawCode}\n\`\`\`\n]`;
+    }
+
     case 'image': {
       const caption = block.meta?.caption?.trim() || 'Sem legenda';
       const source = block.meta?.source?.trim() || 'do autor';
+      const widthPct = block.meta?.imageWidthPct || 80;
       if (includeBinaryImages && block.meta?.imageDataUrl) {
         const parsed = parseDataUrl(block.meta.imageDataUrl);
         if (parsed) {
           const virtualPath = getVirtualImagePath(block.id, parsed.ext);
-          return `#figura(legenda: ${typstContent(caption)}, fonte: ${typstContent(source)}, imagem: image(${typstString(virtualPath)}, width: 80%))`;
+          return `#figura(legenda: ${typstContent(caption)}, fonte: ${typstContent(source)}, imagem: image(${typstString(virtualPath)}, width: ${widthPct}%))`;
         }
       }
       return `#figura(legenda: ${typstContent(caption)}, fonte: ${typstContent(source)})`;
     }
 
-    case 'table': {
-      const caption = block.meta?.caption?.trim() || 'Tabela de dados';
+    case 'table':
+    case 'box': {
+      const isBox = block.type === 'box';
+      const macroName = isBox ? 'quadro' : 'tabela';
+      const caption =
+        block.meta?.caption?.trim() || (isBox ? 'Quadro comparativo' : 'Tabela de dados');
       const source = block.meta?.source?.trim() || 'do autor';
       const headers = block.meta?.headers?.length
         ? block.meta.headers
@@ -299,11 +352,16 @@ function transpileBlock(
         )
         .join(', ');
 
-      return `#tabela(legenda: ${typstContent(caption)}, fonte: ${typstContent(source)})[
+      // Na ABNT/IBGE, Tabela é aberta nas laterais (stroke x: none), enquanto Quadro é fechado nos 4 lados
+      const strokeRule = isBox
+        ? '0.5pt + luma(140)'
+        : '(x: none, y: 0.5pt + luma(160))';
+
+      return `#${macroName}(legenda: ${typstContent(caption)}, fonte: ${typstContent(source)})[
   #table(
     columns: (${Array(colCount).fill('1fr').join(', ')}),
     align: left,
-    stroke: (x: none, y: 0.5pt + luma(160)),
+    stroke: ${strokeRule},
     table.header(${headerCells}),
     ${bodyCells}
   )

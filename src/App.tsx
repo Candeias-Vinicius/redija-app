@@ -27,7 +27,10 @@ import {
   loadInitialActiveProject,
   saveProject,
   listProjects,
+  listTrashedProjects,
   duplicateProject,
+  moveProjectToTrash,
+  restoreProjectFromTrash,
   deleteProject,
   setActiveProjectId,
   serializeBackup,
@@ -39,6 +42,7 @@ const fallbackInitialProject = createProjectFromTemplate('tcc');
 export const App: React.FC = () => {
   const [project, setProject] = useState<DocumentProject>(fallbackInitialProject);
   const [projects, setProjects] = useState<DocumentProject[]>([fallbackInitialProject]);
+  const [trashedProjects, setTrashedProjects] = useState<DocumentProject[]>([]);
   const [isStorageReady, setIsStorageReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const [showCode, setShowCode] = useState(false);
@@ -47,6 +51,27 @@ export const App: React.FC = () => {
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('redija:darkMode') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (darkMode) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    try {
+      localStorage.setItem('redija:darkMode', darkMode ? '1' : '0');
+    } catch {
+      // Ignorar se localStorage estiver bloqueado
+    }
+  }, [darkMode]);
 
   const skipNextAutoSaveRef = useRef(true);
 
@@ -54,11 +79,12 @@ export const App: React.FC = () => {
   useEffect(() => {
     let mounted = true;
     loadInitialActiveProject()
-      .then(({ activeProject, allProjects }) => {
+      .then(({ activeProject, allProjects, trashedProjects: initialTrash }) => {
         if (!mounted) return;
         skipNextAutoSaveRef.current = true;
         setProject(activeProject);
         setProjects(allProjects);
+        setTrashedProjects(initialTrash);
         setIsStorageReady(true);
       })
       .catch((err) => {
@@ -167,16 +193,38 @@ export const App: React.FC = () => {
     setActiveProjectId(cloned.id);
   };
 
-  const handleDeleteProject = async (id: string) => {
+  const handleMoveToTrash = async (id: string) => {
     if (projects.length <= 1) return;
-    await deleteProject(id);
+    await moveProjectToTrash(id);
     const all = await listProjects();
+    const trashed = await listTrashedProjects();
     setProjects(all);
+    setTrashedProjects(trashed);
     if (id === project.id && all.length > 0) {
       skipNextAutoSaveRef.current = true;
       setProject(all[0]);
       setActiveProjectId(all[0].id);
     }
+  };
+
+  const handleRestoreFromTrash = async (id: string) => {
+    const restored = await restoreProjectFromTrash(id);
+    if (!restored) return;
+    const all = await listProjects();
+    const trashed = await listTrashedProjects();
+    setProjects(all);
+    setTrashedProjects(trashed);
+    skipNextAutoSaveRef.current = true;
+    setProject(restored);
+    setActiveProjectId(restored.id);
+  };
+
+  const handlePermanentDelete = async (id: string) => {
+    await deleteProject(id);
+    const all = await listProjects();
+    const trashed = await listTrashedProjects();
+    setProjects(all);
+    setTrashedProjects(trashed);
   };
 
   const handleExportBackup = (targetProject: DocumentProject) => {
@@ -250,6 +298,8 @@ export const App: React.FC = () => {
         projectName={project.name}
         projectsCount={projects.length}
         saveStatus={saveStatus}
+        darkMode={darkMode}
+        onToggleDarkMode={() => setDarkMode((prev) => !prev)}
         onOpenProjectsModal={() => setIsProjectsModalOpen(true)}
         onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
         onOpenWelcomeModal={() => setIsWelcomeModalOpen(true)}
@@ -296,12 +346,15 @@ export const App: React.FC = () => {
         isOpen={isProjectsModalOpen}
         onClose={() => setIsProjectsModalOpen(false)}
         projects={projects}
+        trashedProjects={trashedProjects}
         activeProjectId={project.id}
         onSelectProject={handleSelectProject}
         onCreateProject={handleCreateProject}
         onRenameProject={handleRenameProject}
         onDuplicateProject={handleDuplicateProject}
-        onDeleteProject={handleDeleteProject}
+        onMoveToTrash={handleMoveToTrash}
+        onRestoreFromTrash={handleRestoreFromTrash}
+        onPermanentDelete={handlePermanentDelete}
         onExportBackup={handleExportBackup}
         onImportBackup={handleImportBackup}
       />

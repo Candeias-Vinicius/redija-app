@@ -7,6 +7,8 @@ import { DocumentProject, RedijaBackupFile } from '@/types/document';
 import { createProjectFromTemplate } from './projectTemplates';
 
 const ACTIVE_PROJECT_KEY = 'redija:activeProjectId';
+export const TRASH_RETENTION_DAYS = 30;
+const TRASH_RETENTION_MS = TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 
 export class RedijaDatabase extends Dexie {
   projects!: Table<DocumentProject, string>;
@@ -16,16 +18,60 @@ export class RedijaDatabase extends Dexie {
     this.version(1).stores({
       projects: 'id, updatedAt, name, templateType',
     });
+    this.version(2).stores({
+      projects: 'id, updatedAt, name, templateType, deletedAt',
+    });
   }
 }
 
 export const db = new RedijaDatabase();
 
 /**
- * Lista todos os projetos ordenados pela data de atualização (mais recente primeiro).
+ * Lista todos os projetos ATIVOS (não excluídos), ordenados pela data de atualização.
  */
 export async function listProjects(): Promise<DocumentProject[]> {
-  return db.projects.orderBy('updatedAt').reverse().toArray();
+  const all = await db.projects.orderBy('updatedAt').reverse().toArray();
+  return all.filter((p) => !p.deletedAt);
+}
+
+/**
+ * Lista os projetos que estão na Lixeira (`deletedAt` preenchido), mais recentes primeiro.
+ */
+export async function listTrashedProjects(): Promise<DocumentProject[]> {
+  const all = await db.projects.toArray();
+  return all
+    .filter((p) => Boolean(p.deletedAt))
+    .sort((a, b) => (b.deletedAt || '').localeCompare(a.deletedAt || ''));
+}
+
+/**
+ * Calcula quantos dias restam na lixeira antes da exclusão definitiva (30 dias).
+ */
+export function getRemainingTrashDays(deletedAt?: string | null): number {
+  if (!deletedAt) return TRASH_RETENTION_DAYS;
+  const deletedTime = new Date(deletedAt).getTime();
+  if (Number.isNaN(deletedTime)) return TRASH_RETENTION_DAYS;
+  const elapsedMs = Date.now() - deletedTime;
+  const remainingMs = TRASH_RETENTION_MS - elapsedMs;
+  return Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
+}
+
+/**
+ * Remove definitivamente os projetos cuja permanência na lixeira ultrapassou 30 dias.
+ */
+export async function purgeExpiredTrash(): Promise<number> {
+  const trashed = await listTrashedProjects();
+  const now = Date.now();
+  let purgedCount = 0;
+
+  for (const proj of trashed) {
+    const deletedTime = new Date(proj.deletedAt!).getTime();
+    if (!Number.isNaN(deletedTime) && now - deletedTime >= TRASH_RETENTION_MS) {
+      await db.projects.delete(proj.id);
+      purgedCount++;
+    }
+  }
+  return purgedCount;
 }
 
 /**
@@ -69,21 +115,53 @@ export async function duplicateProject(id: string): Promise<DocumentProject | un
 }
 
 /**
- * Exclui um projeto do IndexedDB.
+ * Move um projeto para a Lixeira (retenção de 30 dias).
+ */
+export async function moveProjectToTrash(id: string): Promise<DocumentProject | undefined> {
+  const target = await db.projects.get(id);
+  if (!target) return undefined;
+  const trashed: DocumentProject = {
+    ...target,
+    deletedAt: new Date().toISOString(),
+  };
+  await db.projects.put(trashed);
+  return trashed;
+}
+
+/**
+ * Restaura um projeto da Lixeira para a lista principal.
+ */
+export async function restoreProjectFromTrash(id: string): Promise<DocumentProject | undefined> {
+  const target = await db.projects.get(id);
+  if (!target) return undefined;
+  const restored: DocumentProject = {
+    ...target,
+    deletedAt: null,
+    updatedAt: new Date().toISOString(),
+  };
+  await db.projects.put(restored);
+  return restored;
+}
+
+/**
+ * Exclui permanentemente um projeto do IndexedDB.
  */
 export async function deleteProject(id: string): Promise<void> {
   await db.projects.delete(id);
 }
 
 /**
- * Garante que exista ao menos um projeto inicial no banco e retorna
- * o projeto ativo (ou o mais recente).
+ * Garante que exista ao menos um projeto inicial no banco, limpa itens expirados
+ * da lixeira (> 30 dias) e retorna o projeto ativo (ou o mais recente).
  */
 export async function loadInitialActiveProject(): Promise<{
   activeProject: DocumentProject;
   allProjects: DocumentProject[];
+  trashedProjects: DocumentProject[];
 }> {
+  await purgeExpiredTrash();
   let all = await listProjects();
+  const trashedProjects = await listTrashedProjects();
 
   if (all.length === 0) {
     const starter = createProjectFromTemplate('tcc');
@@ -103,7 +181,7 @@ export async function loadInitialActiveProject(): Promise<{
 
   setActiveProjectId(activeProject.id);
 
-  return { activeProject, allProjects: all };
+  return { activeProject, allProjects: all, trashedProjects };
 }
 
 export function setActiveProjectId(id: string): void {

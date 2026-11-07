@@ -9,12 +9,16 @@ import {
   ChevronDown,
   HelpCircle,
   Sliders,
+  Moon,
+  Sun,
 } from 'lucide-react';
 
 interface HeaderProps {
   projectName: string;
   projectsCount: number;
   saveStatus: 'saved' | 'saving';
+  darkMode: boolean;
+  onToggleDarkMode: () => void;
   onOpenProjectsModal: () => void;
   onOpenTemplateCustomizer: () => void;
   onOpenWelcomeModal: () => void;
@@ -29,6 +33,8 @@ export const Header: React.FC<HeaderProps> = ({
   projectName,
   projectsCount,
   saveStatus,
+  darkMode,
+  onToggleDarkMode,
   onOpenProjectsModal,
   onOpenTemplateCustomizer,
   onOpenWelcomeModal,
@@ -85,6 +91,22 @@ export const Header: React.FC<HeaderProps> = ({
             </>
           )}
         </div>
+
+        <button
+          onClick={onToggleDarkMode}
+          className="p-1.5 text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 rounded-md transition-colors"
+          title={
+            darkMode
+              ? 'Alternar para Modo Claro (Diurno)'
+              : 'Alternar para Modo Escuro Ergonômico (Noturno)'
+          }
+        >
+          {darkMode ? (
+            <Sun className="w-4 h-4 text-amber-400" />
+          ) : (
+            <Moon className="w-4 h-4" />
+          )}
+        </button>
 
         <button
           onClick={onOpenWelcomeModal}

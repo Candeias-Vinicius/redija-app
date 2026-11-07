@@ -4,8 +4,104 @@
 
 @layer base {
   body {
-    @apply font-sans antialiased text-neutral-800 bg-neutral-100;
+    @apply font-sans antialiased text-neutral-800 bg-neutral-100 transition-colors duration-200;
   }
+
+  html.dark body {
+    background-color: #0f172a;
+    color: #e2e8f0;
+  }
+}
+
+/* =====================================================================
+   Modo Escuro Ergonômico (Psicologia das Cores — Slate Profundo + Marfim)
+   Evita o preto puro (#000) para eliminar o efeito de astigmatismo/halation
+   em sessões prolongadas de escrita acadêmica noturna.
+   ===================================================================== */
+html.dark .bg-white {
+  background-color: #1e293b !important;
+}
+
+html.dark .bg-neutral-50,
+html.dark .bg-neutral-50\/60,
+html.dark .bg-neutral-50\/70,
+html.dark .bg-neutral-50\/80,
+html.dark .bg-neutral-50\/90 {
+  background-color: #0f172a !important;
+}
+
+html.dark .bg-neutral-100 {
+  background-color: #0b1120 !important;
+}
+
+html.dark .bg-neutral-200,
+html.dark .bg-neutral-200\/80 {
+  background-color: #334155 !important;
+}
+
+html.dark .border-neutral-100,
+html.dark .border-neutral-200,
+html.dark .border-neutral-200\/70,
+html.dark .border-neutral-300 {
+  border-color: #334155 !important;
+}
+
+html.dark .divide-neutral-50 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-neutral-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #334155 !important;
+}
+
+html.dark .text-neutral-900,
+html.dark .text-neutral-800 {
+  color: #f1f5f9 !important;
+}
+
+html.dark .text-neutral-700,
+html.dark .text-neutral-600 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-neutral-500,
+html.dark .text-neutral-400 {
+  color: #94a3b8 !important;
+}
+
+html.dark .bg-emerald-50,
+html.dark .bg-emerald-50\/30,
+html.dark .bg-emerald-50\/40,
+html.dark .bg-emerald-50\/60,
+html.dark .bg-emerald-50\/70 {
+  background-color: rgba(16, 185, 129, 0.14) !important;
+}
+
+html.dark .text-emerald-800,
+html.dark .text-emerald-900,
+html.dark .text-emerald-700 {
+  color: #6ee7b7 !important;
+}
+
+html.dark .border-emerald-200 {
+  border-color: rgba(52, 211, 153, 0.35) !important;
+}
+
+html.dark input,
+html.dark textarea,
+html.dark select {
+  color: #f1f5f9;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Filtro de Papel Noturno opcional para as folhas A4 do PDF */
+.pdf-paper-night {
+  filter: invert(0.88) hue-rotate(180deg) contrast(0.95);
 }
 
 /* Custom scrollbars */

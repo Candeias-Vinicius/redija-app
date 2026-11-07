@@ -22,6 +22,8 @@ import {
   ZoomIn,
   ZoomOut,
   FileText,
+  Moon,
+  Sun,
 } from 'lucide-react';
 
 interface PdfPreviewProps {
@@ -38,6 +40,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({ project, showCode }) => 
   const [diagnostics, setDiagnostics] = useState<FriendlyDiagnostic[]>([]);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [zoom, setZoom] = useState<number>(100);
+  const [nightPaper, setNightPaper] = useState<boolean>(false);
 
   const artifactRef = useRef<Uint8Array | null>(null);
   const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
@@ -153,25 +156,50 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({ project, showCode }) => 
 
         <div className="flex items-center gap-2">
           {!showCode && (
-            <div className="flex items-center gap-1 mr-1">
+            <>
               <button
-                onClick={() => setZoom((z) => Math.max(70, z - 15))}
-                className="p-1 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/60 rounded"
-                title="Diminuir zoom"
+                type="button"
+                onClick={() => setNightPaper(!nightPaper)}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
+                  nightPaper
+                    ? 'bg-slate-800 text-amber-300 border-slate-700'
+                    : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-100'
+                }`}
+                title="Alternar folha A4 entre Papel Branco e Papel Noturno (não afeta o PDF baixado)"
               >
-                <ZoomOut className="w-3.5 h-3.5" />
+                {nightPaper ? (
+                  <>
+                    <Sun className="w-3 h-3 text-amber-400" />
+                    <span>Papel Claro</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="w-3 h-3" />
+                    <span>Papel Noturno</span>
+                  </>
+                )}
               </button>
-              <span className="text-[11px] font-mono text-neutral-500 w-9 text-center">
-                {zoom}%
-              </span>
-              <button
-                onClick={() => setZoom((z) => Math.min(145, z + 15))}
-                className="p-1 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/60 rounded"
-                title="Aumentar zoom"
-              >
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
-            </div>
+
+              <div className="flex items-center gap-1 mr-1">
+                <button
+                  onClick={() => setZoom((z) => Math.max(70, z - 15))}
+                  className="p-1 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/60 rounded"
+                  title="Diminuir zoom"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-[11px] font-mono text-neutral-500 w-9 text-center">
+                  {zoom}%
+                </span>
+                <button
+                  onClick={() => setZoom((z) => Math.min(145, z + 15))}
+                  className="p-1 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/60 rounded"
+                  title="Aumentar zoom"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </>
           )}
 
           <button
@@ -233,7 +261,9 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({ project, showCode }) => 
             return (
               <div key={index} className="flex flex-col items-center gap-1.5">
                 <div
-                  className="bg-white rounded-sm shadow-md border border-neutral-200 overflow-hidden transition-all"
+                  className={`bg-white rounded-sm shadow-md border border-neutral-200 overflow-hidden transition-all ${
+                    nightPaper ? 'pdf-paper-night' : ''
+                  }`}
                   style={{
                     width: `${scaledWidthPx}px`,
                     height: `${pageHeightPx}px`,

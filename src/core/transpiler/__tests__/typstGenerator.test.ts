@@ -321,4 +321,59 @@ describe('Typst compilation integration', () => {
     const pdfBuffer = compiler.pdf(compileResult.result!);
     expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
   });
+
+  it('compiles equations, code blocks, ABNT box (quadro), h4/h5, abbreviations, appendices, and annexes', () => {
+    const project = createSampleProject({
+      metadata: {
+        ...createSampleProject().metadata,
+        abbreviations: 'ABNT — Associação Brasileira de Normas Técnicas',
+        appendices: 'APÊNDICE A — Roteiro de entrevista estruturada.',
+        annexes: 'ANEXO A — Documento oficial da instituição.',
+      },
+      blocks: [
+        ...createSampleProject().blocks,
+        { id: 'h4_1', type: 'h4', content: 'Subseção Quaternária' },
+        { id: 'h5_1', type: 'h5', content: 'Subseção Quinária' },
+        { id: 'unnum_1', type: 'unnumbered_heading', content: 'Agradecimentos Especiais' },
+        { id: 'eq_1', type: 'equation', content: 'f(x) = sum_(i=1)^n (x_i - mu)^2 / sigma^2' },
+        {
+          id: 'code_1',
+          type: 'code',
+          content: 'def media(valores):\n    return sum(valores) / len(valores)',
+          meta: {
+            caption: 'Cálculo da média aritmética',
+            source: 'Elaborado pelo autor',
+            language: 'python',
+          },
+        },
+        {
+          id: 'box_1',
+          type: 'box',
+          content: '',
+          meta: {
+            caption: 'Quadro comparativo de abordagens',
+            source: 'Dados da pesquisa (2026)',
+            headers: ['Abordagem', 'Característica'],
+            rows: [['Qualitativa', 'Análise interpretativa']],
+          },
+        },
+      ],
+    });
+
+    const standalone = generateStandaloneTypst(project);
+    expect(standalone).toContain('==== Subseção Quaternária');
+    expect(standalone).toContain('===== Subseção Quinária');
+    expect(standalone).toContain('#heading(numbering: none)[AGRADECIMENTOS ESPECIAIS]');
+    expect(standalone).toContain('$ f(x) = sum_(i=1)^n (x_i - mu)^2 / sigma^2 $');
+    expect(standalone).toContain('#codigo(');
+    expect(standalone).toContain('#quadro(');
+    expect(standalone).toContain('APÊNDICES');
+    expect(standalone).toContain('ANEXOS');
+
+    const compiler = NodeCompiler.create();
+    const compileResult = compiler.compile({ mainFileContent: standalone });
+    expect(compileResult.hasError()).toBe(false);
+    const pdfBuffer = compiler.pdf(compileResult.result!);
+    expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+  });
 });

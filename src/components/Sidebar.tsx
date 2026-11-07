@@ -37,6 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [openCapa, setOpenCapa] = useState(true);
   const [openPreTextual, setOpenPreTextual] = useState(false);
   const [openResumo, setOpenResumo] = useState(false);
+  const [openPosTextual, setOpenPosTextual] = useState(false);
   const [openRefs, setOpenRefs] = useState(true);
   const [openLinter, setOpenLinter] = useState(true);
   const [copiedRefId, setCopiedRefId] = useState<string | null>(null);
@@ -297,6 +298,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className="w-full text-xs px-2 py-1 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 />
               </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                  Lista de Abreviaturas e Siglas (Opcional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={metadata.abbreviations || ''}
+                  onChange={(e) => updateField('abbreviations', e.target.value)}
+                  placeholder="Ex: ABNT — Associação Brasileira de Normas Técnicas&#10;IBGE — Instituto Brasileiro de Geografia e Estatística"
+                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                />
+              </div>
             </div>
           )}
         </div>
@@ -462,6 +476,54 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 ))
               )}
+            </div>
+          )}
+        </div>
+
+        {/* Seção Pós-Textuais Opcionais (Apêndices e Anexos) */}
+        <div className="p-3">
+          <button
+            onClick={() => setOpenPosTextual(!openPosTextual)}
+            className="w-full flex items-center justify-between text-left text-xs font-semibold text-neutral-700 py-1.5 hover:text-neutral-900"
+          >
+            <span className="flex items-center gap-2">
+              <Layers className="w-3.5 h-3.5 text-neutral-400" />
+              Apêndices & Anexos (Pós-Textual)
+            </span>
+            {openPosTextual ? (
+              <ChevronDown className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5" />
+            )}
+          </button>
+
+          {openPosTextual && (
+            <div className="space-y-3 mt-2.5 pl-2 text-xs">
+              <div>
+                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                  Apêndices — Elaborados pelo próprio autor (Opcional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={metadata.appendices || ''}
+                  onChange={(e) => updateField('appendices', e.target.value)}
+                  placeholder="Ex: APÊNDICE A — Questionário aplicado aos participantes..."
+                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                  Anexos — Documentos de terceiros (Opcional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={metadata.annexes || ''}
+                  onChange={(e) => updateField('annexes', e.target.value)}
+                  placeholder="Ex: ANEXO A — Parecer do Comitê de Ética..."
+                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                />
+              </div>
             </div>
           )}
         </div>

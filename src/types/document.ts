@@ -2,10 +2,16 @@ export type BlockType =
   | 'h1'
   | 'h2'
   | 'h3'
+  | 'h4'
+  | 'h5'
+  | 'unnumbered_heading'
   | 'paragraph'
   | 'quote_long'
+  | 'equation'
+  | 'code'
   | 'image'
   | 'table'
+  | 'box'
   | 'footnote'
   | 'pagebreak'
   | 'bullet'
@@ -24,8 +30,11 @@ export interface Block {
     url?: string;
     imageDataUrl?: string;
     imageMime?: string;
+    imageWidthPct?: 50 | 75 | 100;
     headers?: string[];
     rows?: string[][];
+    language?: string;
+    equationNumbered?: boolean;
   };
 }
 
@@ -50,6 +59,10 @@ export interface DocumentMetadata {
   foreignKeywords?: string[];
   includeFiguresList?: boolean;
   includeTablesList?: boolean;
+  // Lista de Abreviaturas e Siglas (pré-textual) e Apêndices / Anexos (pós-textuais)
+  abbreviations?: string;
+  appendices?: string;
+  annexes?: string;
   // Brasão / Logotipo da Instituição na capa (Data URL)
   institutionLogoDataUrl?: string;
 }
@@ -116,7 +129,12 @@ export interface AcademicReference {
   doi?: string;
 }
 
-export type ProjectTemplateType = 'tcc' | 'artigo' | 'relatorio' | 'projeto_pesquisa';
+export type ProjectTemplateType =
+  | 'tcc'
+  | 'artigo'
+  | 'relatorio'
+  | 'projeto_pesquisa'
+  | 'em_branco';
 
 export interface DocumentProject {
   id: string;
@@ -127,6 +145,7 @@ export interface DocumentProject {
   blocks: Block[];
   references: AcademicReference[];
   updatedAt: string;
+  deletedAt?: string | null;
 }
 
 export interface RedijaBackupFile {
