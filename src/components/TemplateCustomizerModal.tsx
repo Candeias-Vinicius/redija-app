@@ -398,7 +398,7 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                 >
                   <option value="1.5">1,5 linhas (ABNT)</option>
                   <option value="1.0">Simples (1,0)</option>
-                  <option value="2.0">Duplo (2,0 — APA)</option>
+                  <option value="2.0">Duplo (2,0)</option>
                 </select>
               </div>
 
@@ -522,9 +522,9 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                   }
                   className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
                 >
-                  <option value="uppercase">MAIÚSCULAS — (SILVA, 2023) [NBR 10520:2002]</option>
+                  <option value="uppercase">MAIÚSCULAS: (SILVA, 2023) [NBR 10520:2002]</option>
                   <option value="titlecase">
-                    Inicial Maiúscula — (Silva, 2023) [NBR 10520:2023 / APA]
+                    Inicial Maiúscula: (Silva, 2023) [NBR 10520:2023]
                   </option>
                 </select>
               </div>

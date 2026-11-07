@@ -205,10 +205,11 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           onClick={onOpenWelcomeModal}
-          className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-md transition-colors"
-          title="Sobre o RedijaApp e guia rápido"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 transition-colors"
+          title="Documentação das Normas ABNT atendidas e guia rápido"
         >
-          <HelpCircle className="w-4 h-4" />
+          <HelpCircle className="w-3.5 h-3.5 text-emerald-600" />
+          <span className="hidden xl:inline">Normas ABNT</span>
         </button>
 
         <button

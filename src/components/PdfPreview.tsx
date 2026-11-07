@@ -132,7 +132,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
   }, [pages, showCode, compileTimeMs]);
 
   const basePageWidthPx = isFullWidth
-    ? Math.min(720, Math.max(360, widthPx - 80))
+    ? 680
     : Math.max(260, widthPx - 64);
   const scaledWidthPx = Math.round((basePageWidthPx * zoom) / 100);
 

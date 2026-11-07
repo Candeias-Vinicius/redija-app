@@ -41,6 +41,7 @@ interface EditorProps {
   metadata?: DocumentMetadata;
   references: AcademicReference[];
   citationStyle?: 'uppercase' | 'titlecase';
+  isFullWidth?: boolean;
   onOpenReferenceModal?: () => void;
   onChangeBlocks: (blocks: Block[]) => void;
   onMinimize?: () => void;
@@ -93,63 +94,63 @@ const SLASH_OPTIONS: SlashMenuOption[] = [
   {
     type: 'h4',
     label: 'Seção Quaternária (1.1.1.1)',
-    description: 'Subseção de 4º nível sublinhada (NBR 6024)',
+    description: 'Subseção de 4º nível sublinhada',
     keywords: 'titulo 4 h4 subsecao quaternaria',
     icon: <Heading4 className="w-4 h-4 text-neutral-700" />,
   },
   {
     type: 'h5',
     label: 'Seção Quinária (1.1.1.1.1)',
-    description: 'Subseção de 5º nível regular (NBR 6024)',
+    description: 'Subseção de 5º nível regular',
     keywords: 'titulo 5 h5 subsecao quinaria',
     icon: <Heading5 className="w-4 h-4 text-neutral-700" />,
   },
   {
     type: 'unnumbered_heading',
     label: 'Título Sem Numeração',
-    description: 'Seção em maiúsculas sem número (ex: Errata, Conclusão livre)',
+    description: 'Seção em maiúsculas sem número',
     keywords: 'titulo sem numero h0 secao livre',
     icon: <Hash className="w-4 h-4 text-neutral-500" />,
   },
   {
     type: 'quote_long',
     label: 'Citação Direta Longa',
-    description: 'Mais de 3 linhas: recuo de 4 cm, fonte 10 pt (NBR 10520)',
+    description: 'Para trechos com mais de 3 linhas',
     keywords: 'citacao longa direta recuo 4cm autor',
     icon: <Quote className="w-4 h-4 text-emerald-600" />,
   },
   {
     type: 'equation',
     label: 'Equação Matemática / Fórmula',
-    description: 'Fórmula científica com botões visuais (fração, raiz, somatório, integral)',
+    description: 'Fórmula científica com botões visuais',
     keywords: 'equacao formula matematica fisica calculo soma integral',
     icon: <Sigma className="w-4 h-4 text-indigo-600" />,
   },
   {
     type: 'code',
     label: 'Bloco de Código / Algoritmo',
-    description: 'Trecho de código-fonte formatado em fonte monoespaçada com legenda',
+    description: 'Trecho de código-fonte com legenda e fonte',
     keywords: 'codigo algoritmo programacao python javascript sql',
     icon: <Code2 className="w-4 h-4 text-sky-600" />,
   },
   {
     type: 'image',
     label: 'Figura com Upload',
-    description: 'Ilustração/gráfico com legenda no topo, fonte abaixo e controle de largura',
+    description: 'Ilustração ou gráfico com legenda, fonte e controle de largura',
     keywords: 'figura imagem foto grafico upload ilustracao',
     icon: <ImageIcon className="w-4 h-4 text-blue-600" />,
   },
   {
     type: 'table',
-    label: 'Tabela ABNT / IBGE (Aberta)',
-    description: 'Tabela estatística aberta nas laterais com título no topo e fonte abaixo',
+    label: 'Tabela (Dados Numéricos)',
+    description: 'Tabela estatística com laterais abertas',
     keywords: 'tabela ibge dados estatisticos linhas colunas',
     icon: <TableIcon className="w-4 h-4 text-purple-600" />,
   },
   {
     type: 'box',
-    label: 'Quadro ABNT (Fechado)',
-    description: 'Quadro comparativo fechado com bordas nos 4 lados (NBR 14724)',
+    label: 'Quadro (Dados Textuais)',
+    description: 'Quadro comparativo fechado com bordas nos 4 lados',
     keywords: 'quadro comparativo bordas fechado texto',
     icon: <LayoutGrid className="w-4 h-4 text-teal-600" />,
   },
@@ -216,6 +217,7 @@ export const Editor: React.FC<EditorProps> = ({
   metadata,
   references,
   citationStyle = 'uppercase',
+  isFullWidth = false,
   onOpenReferenceModal,
   onChangeBlocks,
   onMinimize,
@@ -351,7 +353,7 @@ export const Editor: React.FC<EditorProps> = ({
     });
   };
 
-  // Calcula numeração progressiva automática (1 a 1.1.1.1.1 — NBR 6024) para exibição visual no editor
+  // Calcula numeração progressiva automática (1 a 1.1.1.1.1) para exibição visual no editor
   const computeSectionNumbers = (): Record<string, string> => {
     let h1 = 0;
     let h2 = 0;
@@ -415,7 +417,11 @@ export const Editor: React.FC<EditorProps> = ({
 
   return (
     <div className="flex-1 h-full overflow-y-auto bg-white py-8 pl-24 pr-8 sm:pl-28 sm:pr-14 flex justify-center">
-      <div className="w-full max-w-2xl space-y-3 pb-28">
+      <div
+        className={`w-full ${
+          isFullWidth ? 'max-w-5xl' : 'max-w-2xl'
+        } space-y-3 pb-28 transition-all duration-200`}
+      >
         {/* Dica rápida no topo do editor */}
         <div className="mb-6 pb-3 border-b border-neutral-100 flex items-center justify-between gap-2 text-xs text-neutral-400">
           <span>
@@ -694,7 +700,7 @@ export const Editor: React.FC<EditorProps> = ({
                   <div className="flex items-center justify-between text-emerald-700 font-semibold">
                     <span className="flex items-center gap-1.5">
                       <Quote className="w-3.5 h-3.5" />
-                      Citação Direta Longa (ABNT NBR 10520 — Recuo 4 cm, fonte 10 pt)
+                      Citação Direta Longa
                     </span>
                   </div>
                   <RichTextInput
@@ -736,10 +742,10 @@ export const Editor: React.FC<EditorProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-indigo-900 flex items-center gap-1.5">
                       <Sigma className="w-4 h-4 text-indigo-600" />
-                      Equação Matemática / Fórmula Científica (Typst Math)
+                      Equação Matemática
                     </span>
                     <span className="text-[10px] text-neutral-500">
-                      Clique nos botões abaixo para inserir símbolos sem saber código
+                      Clique nos botões abaixo para inserir símbolos
                     </span>
                   </div>
 
@@ -880,7 +886,7 @@ export const Editor: React.FC<EditorProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
                     <span className="font-semibold text-neutral-700 flex items-center gap-1.5">
                       <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
-                      Figura ABNT (NBR 14724 — Legenda acima, fonte abaixo)
+                      Figura
                     </span>
                     <div className="flex items-center gap-2">
                       <select
@@ -1032,12 +1038,12 @@ export const Editor: React.FC<EditorProps> = ({
                       {block.type === 'box' ? (
                         <>
                           <LayoutGrid className="w-3.5 h-3.5 text-teal-600" />
-                          Quadro ABNT (Fechado nas laterais — dados textuais)
+                          Quadro
                         </>
                       ) : (
                         <>
                           <TableIcon className="w-3.5 h-3.5 text-purple-600" />
-                          Tabela ABNT / IBGE (Aberta nas laterais — dados numéricos)
+                          Tabela
                         </>
                       )}
                     </span>

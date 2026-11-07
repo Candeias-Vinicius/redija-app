@@ -354,7 +354,7 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[11px] font-semibold text-neutral-700">
-                  Capturas de Tela / Imagens (Opcional — máx. {MAX_BUG_REPORT_IMAGES} imagens)
+                  Capturas de Tela / Imagens (Opcional, máx. {MAX_BUG_REPORT_IMAGES} imagens)
                 </label>
                 <span className="text-[10px] text-neutral-500">
                   {screenshots.length}/{MAX_BUG_REPORT_IMAGES} anexos •{' '}

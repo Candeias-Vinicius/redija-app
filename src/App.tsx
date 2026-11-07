@@ -601,6 +601,7 @@ export const App: React.FC = () => {
             metadata={project.metadata}
             references={project.references}
             citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
+            isFullWidth={!showSidebar && !showPreview}
             onOpenReferenceModal={() => {
               setEditingReference(null);
               setIsModalOpen(true);

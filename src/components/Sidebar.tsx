@@ -358,7 +358,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onChange={(e) =>
                           updateField('committeeMembers', e.target.value.split('\n'))
                         }
-                        placeholder={'Prof. Dr. Carlos Eduardo — Convidado\nProfa. Dra. Ana Beatriz — Avaliadora'}
+                        placeholder={'Prof. Dr. Carlos Eduardo (Convidado)\nProfa. Dra. Ana Beatriz (Avaliadora)'}
                         className="w-full text-xs p-2 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
                       />
                     </div>
@@ -450,20 +450,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   rows={3}
                   value={metadata.abbreviations || ''}
                   onChange={(e) => updateField('abbreviations', e.target.value)}
-                  placeholder="Ex: ABNT — Associação Brasileira de Normas Técnicas&#10;IBGE — Instituto Brasileiro de Geografia e Estatística"
+                  placeholder="Ex: ABNT: Associação Brasileira de Normas Técnicas&#10;IBGE: Instituto Brasileiro de Geografia e Estatística"
                   className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 />
               </div>
 
               <div>
                 <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Lista de Símbolos (Opcional — Ex: Unidades físicas/matemáticas)
+                  Lista de Símbolos (Opcional)
                 </label>
                 <textarea
                   rows={2}
                   value={metadata.symbols || ''}
                   onChange={(e) => updateField('symbols', e.target.value)}
-                  placeholder="Ex: Ω — Ohm (Resistência elétrica)&#10;λ — Comprimento de onda"
+                  placeholder="Ex: Ω: Ohm (Resistência elétrica)&#10;λ: Comprimento de onda"
                   className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 />
               </div>
@@ -535,7 +535,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               <div className="pt-2 border-t border-neutral-100">
                 <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Abstract (Língua Estrangeira — Opcional)
+                  Abstract (Língua Estrangeira, Opcional)
                 </label>
                 <textarea
                   rows={3}
@@ -763,7 +763,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="space-y-3 mt-2.5 pl-2 text-xs">
               <div>
                 <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Glossário — Definição de termos técnicos (Opcional)
+                  Glossário (Definição de termos técnicos, Opcional)
                 </label>
                 <textarea
                   rows={2}
@@ -776,26 +776,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               <div>
                 <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Apêndices — Elaborados pelo próprio autor (Opcional)
+                  Apêndices (Elaborados pelo autor, Opcional)
                 </label>
                 <textarea
                   rows={3}
                   value={metadata.appendices || ''}
                   onChange={(e) => updateField('appendices', e.target.value)}
-                  placeholder="Ex: APÊNDICE A — Questionário aplicado aos participantes..."
+                  placeholder="Ex: APÊNDICE A - Questionário aplicado aos participantes..."
                   className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 />
               </div>
 
               <div>
                 <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Anexos — Documentos de terceiros (Opcional)
+                  Anexos (Documentos de terceiros, Opcional)
                 </label>
                 <textarea
                   rows={3}
                   value={metadata.annexes || ''}
                   onChange={(e) => updateField('annexes', e.target.value)}
-                  placeholder="Ex: ANEXO A — Parecer do Comitê de Ética..."
+                  placeholder="Ex: ANEXO A - Parecer do Comitê de Ética..."
                   className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 />
               </div>
