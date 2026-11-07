@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DocumentProject } from '@/types/document';
 import {
   generateTypstFiles,
-  generateStandaloneTypst,
   extractBinaryAssets,
 } from '@/core/transpiler/typstGenerator';
+import { exportToBibtex } from '@/core/transpiler/abntLinter';
 import {
   compileToVector,
   getVectorPagesInfo,
@@ -25,6 +25,9 @@ import {
   Moon,
   Sun,
   PanelRightClose,
+  FolderArchive,
+  Code2,
+  Terminal,
 } from 'lucide-react';
 
 interface PdfPreviewProps {
@@ -32,7 +35,10 @@ interface PdfPreviewProps {
   isFullWidth?: boolean;
   project: DocumentProject;
   showCode: boolean;
+  onToggleCode?: () => void;
   onMinimize?: () => void;
+  onExportProjectZip?: () => void;
+  isExportingProject?: boolean;
 }
 
 export const PdfPreview: React.FC<PdfPreviewProps> = ({
@@ -40,9 +46,13 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
   isFullWidth = false,
   project,
   showCode,
+  onToggleCode,
   onMinimize,
+  onExportProjectZip,
+  isExportingProject = false,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [codeTab, setCodeTab] = useState<'main' | 'abnt' | 'bibtex'>('main');
   const [isCompiling, setIsCompiling] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   const [compileTimeMs, setCompileTimeMs] = useState<number | null>(null);
@@ -56,10 +66,20 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
   const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
   const latestCompileId = useRef(0);
 
-  const typstCode = generateStandaloneTypst(project);
+  const typstFiles = generateTypstFiles(project);
+  const bibtexCode =
+    project.references.length > 0
+      ? exportToBibtex(project.references)
+      : '// Nenhuma referência cadastrada ainda no projeto.';
+
+  const getCurrentCode = () => {
+    if (codeTab === 'abnt') return typstFiles['abnt.typ'];
+    if (codeTab === 'bibtex') return bibtexCode;
+    return typstFiles['main.typ'];
+  };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(typstCode);
+    navigator.clipboard.writeText(getCurrentCode());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -144,34 +164,34 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
       } border-l border-neutral-200 bg-neutral-100 flex flex-col h-full overflow-hidden`}
     >
       {/* Top Bar do Preview */}
-      <div className="h-10 shrink-0 border-b border-neutral-200 bg-neutral-50 px-4 flex items-center justify-between text-xs text-neutral-600">
-        <div className="flex items-center gap-2">
+      <div className="h-10 shrink-0 border-b border-neutral-200 bg-neutral-50 px-3 flex items-center justify-between text-xs text-neutral-600">
+        <div className="flex items-center gap-1.5 overflow-hidden">
           {showCode ? (
-            <>
-              <FileCode className="w-3.5 h-3.5 text-neutral-500" />
-              <span className="font-medium">Código Typst Gerado</span>
-            </>
+            <div className="flex items-center gap-1.5 font-medium text-neutral-900">
+              <FileCode className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>Código Typst</span>
+            </div>
           ) : (
-            <>
-              <Eye className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="font-medium">Prévia PDF Real (Typst WASM)</span>
+            <div className="flex items-center gap-1.5 truncate">
+              <Eye className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span className="font-medium truncate">Prévia PDF</span>
               {isCompiling ? (
-                <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded shrink-0">
                   <Loader2 className="w-3 h-3 animate-spin" />
-                  {isInitialized ? 'Compilando...' : 'Iniciando WASM...'}
+                  {isInitialized ? 'Compilando...' : 'WASM...'}
                 </span>
               ) : (
                 compileTimeMs !== null && (
-                  <span className="text-[11px] text-neutral-400">
-                    • {pages.length} {pages.length === 1 ? 'página' : 'páginas'} ({compileTimeMs} ms)
+                  <span className="text-[11px] text-neutral-400 shrink-0 hidden sm:inline">
+                    • {pages.length} pág ({compileTimeMs}ms)
                   </span>
                 )
               )}
-            </>
+            </div>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           {!showCode && (
             <>
               <button
@@ -182,30 +202,30 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
                     ? 'bg-slate-800 text-amber-300 border-slate-700'
                     : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-100'
                 }`}
-                title="Alternar folha A4 entre Papel Branco e Papel Noturno (não afeta o PDF baixado)"
+                title="Alternar folha A4 entre Papel Branco e Papel Noturno"
               >
                 {nightPaper ? (
                   <>
                     <Sun className="w-3 h-3 text-amber-400" />
-                    <span>Papel Claro</span>
+                    <span className="hidden sm:inline">Claro</span>
                   </>
                 ) : (
                   <>
                     <Moon className="w-3 h-3" />
-                    <span>Papel Noturno</span>
+                    <span className="hidden sm:inline">Noturno</span>
                   </>
                 )}
               </button>
 
-              <div className="flex items-center gap-1 mr-1">
+              <div className="hidden sm:flex items-center gap-0.5 mr-0.5">
                 <button
                   onClick={() => setZoom((z) => Math.max(70, z - 15))}
                   className="p-1 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/60 rounded"
                   title="Diminuir zoom"
                 >
-                  <ZoomOut className="w-3.5 h-3.5" />
+                  <ZoomOut className="w-3 h-3" />
                 </button>
-                <span className="text-[11px] font-mono text-neutral-500 w-9 text-center">
+                <span className="text-[11px] font-mono text-neutral-500 w-8 text-center">
                   {zoom}%
                 </span>
                 <button
@@ -213,35 +233,67 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
                   className="p-1 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/60 rounded"
                   title="Aumentar zoom"
                 >
-                  <ZoomIn className="w-3.5 h-3.5" />
+                  <ZoomIn className="w-3 h-3" />
                 </button>
               </div>
             </>
           )}
 
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1 text-[11px] text-neutral-500 hover:text-neutral-900 transition-colors"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3 h-3 text-emerald-600" />
-                <span className="text-emerald-600">Copiado</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3 h-3" />
-                <span>Copiar .typ</span>
-              </>
-            )}
-          </button>
+          {/* Botão de Alternar entre Ver PDF e Ver Código */}
+          {onToggleCode && (
+            <button
+              type="button"
+              onClick={onToggleCode}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium border transition-colors ${
+                showCode
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-semibold'
+                  : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-100'
+              }`}
+              title={showCode ? 'Retornar para a visualização do PDF diagramado' : 'Visualizar código Typst gerado'}
+            >
+              {showCode ? (
+                <>
+                  <Eye className="w-3 h-3 text-emerald-600" />
+                  <span>Ver PDF</span>
+                </>
+              ) : (
+                <>
+                  <Code2 className="w-3 h-3 text-neutral-500" />
+                  <span>Ver Typst</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Botão Baixar Projeto Completo (.zip) */}
+          {onExportProjectZip && (
+            <button
+              type="button"
+              onClick={onExportProjectZip}
+              disabled={isExportingProject}
+              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded bg-neutral-900 hover:bg-black disabled:opacity-60 text-white shadow-xs transition-colors"
+              title="Baixar projeto completo em .zip com imagens, fontes e arquivos .typ para uso no VS Code ou Typst CLI"
+            >
+              {isExportingProject ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />
+                  <span>Gerando...</span>
+                </>
+              ) : (
+                <>
+                  <FolderArchive className="w-3 h-3 text-emerald-400" />
+                  <span>Baixar Projeto</span>
+                </>
+              )}
+            </button>
+          )}
 
           {onMinimize && (
             <button
               type="button"
               onClick={onMinimize}
-              className="p-1 ml-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded transition-colors"
-              title="Minimizar aba do PDF"
+              className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded transition-colors"
+              title="Minimizar painel lateral"
             >
               <PanelRightClose className="w-4 h-4" />
             </button>
@@ -268,8 +320,100 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
       {/* Conteúdo: Código ou Páginas A4 Reais Renderizadas pelo Typst */}
       <div className="flex-1 overflow-y-auto p-6 pb-16 flex flex-col items-center gap-6">
         {showCode ? (
-          <div className="w-full bg-neutral-900 text-neutral-100 p-4 rounded-lg font-mono text-xs overflow-x-auto shadow-inner leading-relaxed select-text">
-            <pre>{typstCode}</pre>
+          <div className="w-full flex flex-col gap-3 max-w-4xl">
+            {/* Banner Informativo sobre Liberdade e Portabilidade */}
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+              <div className="flex items-start gap-2">
+                <Terminal className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-emerald-900">
+                    Seu documento 100% aberto e sem dependência
+                  </p>
+                  <p className="text-[11px] text-emerald-800 leading-snug">
+                    O RedijaApp compila código Typst padrão. Você pode baixar o projeto completo com todas as imagens, modelo ABNT e BibTeX para editar no VS Code ou compilar via terminal.
+                  </p>
+                </div>
+              </div>
+
+              {onExportProjectZip && (
+                <button
+                  type="button"
+                  onClick={onExportProjectZip}
+                  disabled={isExportingProject}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold text-xs shadow-xs shrink-0 transition-colors"
+                >
+                  {isExportingProject ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <FolderArchive className="w-3.5 h-3.5" />
+                  )}
+                  <span>Baixar Projeto (.zip)</span>
+                </button>
+              )}
+            </div>
+
+            {/* Abas de Navegação entre Arquivos do Projeto */}
+            <div className="flex items-center justify-between gap-2 border-b border-neutral-300 pb-1">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCodeTab('main')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-t-md transition-colors ${
+                    codeTab === 'main'
+                      ? 'bg-neutral-900 text-white'
+                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'
+                  }`}
+                >
+                  main.typ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCodeTab('abnt')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-t-md transition-colors ${
+                    codeTab === 'abnt'
+                      ? 'bg-neutral-900 text-white'
+                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'
+                  }`}
+                >
+                  abnt.typ (Modelo)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCodeTab('bibtex')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-t-md transition-colors ${
+                    codeTab === 'bibtex'
+                      ? 'bg-neutral-900 text-white'
+                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'
+                  }`}
+                >
+                  referencias.bib
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200 rounded transition-colors"
+                title="Copiar código do arquivo ativo"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700 font-semibold">Copiado</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copiar Arquivo</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Visualizador do Código */}
+            <div className="w-full bg-neutral-900 text-neutral-100 p-4 rounded-xl font-mono text-xs overflow-x-auto shadow-xl leading-relaxed select-text border border-neutral-800">
+              <pre>{getCurrentCode()}</pre>
+            </div>
           </div>
         ) : !isInitialized && isCompiling ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-neutral-500">

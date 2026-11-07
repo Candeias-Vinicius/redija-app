@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { FolderOpen, Plus, Upload } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Editor } from '@/components/Editor';
@@ -8,6 +9,17 @@ import { ProjectsModal } from '@/components/ProjectsModal';
 import { WelcomeModal } from '@/components/WelcomeModal';
 import { TemplateCustomizerModal } from '@/components/TemplateCustomizerModal';
 import { BugReportModal } from '@/components/BugReportModal';
+import { ShareModal } from '@/components/ShareModal';
+import { AccountSettingsModal } from '@/components/AccountSettingsModal';
+import { BackupNoticeBanner } from '@/components/BackupNoticeBanner';
+import { LoginScreen } from '@/components/LoginScreen';
+import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
+import {
+  saveProjectToDrive,
+  listDriveProjects,
+  loadProjectFromDrive,
+  deleteAllUserDriveProjects,
+} from '@/core/storage/googleDriveService';
 import {
   DocumentProject,
   DocumentMetadata,
@@ -23,10 +35,22 @@ import {
   extractBinaryAssets,
 } from '@/core/transpiler/typstGenerator';
 import { compileToPdf } from '@/core/typst/typstClient';
-import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
 import {
+  exportTypstProjectZip,
+  getCleanProjectSlug,
+} from '@/core/transpiler/projectExporter';
+import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
+import { autoMergeProjects } from '@/core/storage/projectMerger';
+import { importDocumentFile } from '@/core/storage/documentImporter';
+import {
+  realtimeCollab,
+  CollaboratorPresence,
+} from '@/core/collaboration/RealtimeCollabManager';
+import {
+  db,
   loadInitialActiveProject,
   saveProject,
+  getProject,
   listProjects,
   listTrashedProjects,
   duplicateProject,
@@ -35,7 +59,6 @@ import {
   deleteProject,
   setActiveProjectId,
   serializeBackup,
-  parseBackup,
 } from '@/core/storage/db';
 
 const fallbackInitialProject = createProjectFromTemplate('tcc');
@@ -61,6 +84,53 @@ export const App: React.FC = () => {
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  // Google Auth, Drive Sync e Colaboração
+  const {
+    user,
+    isAuthenticated,
+    isLoading: isAuthLoading,
+    error: authError,
+    isConfigured: isAuthConfigured,
+    login,
+    loginDevMock,
+    logout,
+    revokeAccess,
+    getValidAccessToken,
+  } = useGoogleAuth();
+
+  const [isGuestMode, setIsGuestMode] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('redija:guestMode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const [rawDriveSyncStatus, setRawDriveSyncStatus] = useState<
+    'synced' | 'syncing' | 'error'
+  >('synced');
+  const driveSyncStatus = !isAuthenticated || !user ? 'local' : rawDriveSyncStatus;
+
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
+  const [isSyncingDrive, setIsSyncingDrive] = useState(false);
+  const [activeCollaborators, setActiveCollaborators] = useState<CollaboratorPresence[]>([]);
+
+  // Sincronização Google Drive: trava contra chamadas concorrentes e deduplicação de assinaturas
+  const isDriveSyncingRef = useRef(false);
+  const driveFileIdByProjectIdRef = useRef<Record<string, string>>({});
+  const lastSyncedSignatureRef = useRef<Record<string, string>>({});
+
+  const getProjectContentSignature = useCallback((p: DocumentProject): string => {
+    return JSON.stringify({
+      name: p.name,
+      metadata: p.metadata,
+      blocks: p.blocks,
+      references: p.references,
+      templateConfig: p.templateConfig,
+    });
+  }, []);
 
   // Histórico Undo / Redo (Ctrl+Z / Ctrl+Y)
   const [past, setPast] = useState<HistorySnapshot[]>([]);
@@ -273,10 +343,15 @@ export const App: React.FC = () => {
       .then(({ activeProject, allProjects, trashedProjects: initialTrash }) => {
         if (!mounted) return;
         skipNextAutoSaveRef.current = true;
-        setProject(activeProject);
+        if (activeProject) {
+          setProject(activeProject);
+        }
         setProjects(allProjects);
         setTrashedProjects(initialTrash);
         setIsStorageReady(true);
+        if (allProjects.length === 0) {
+          setIsProjectsModalOpen(true);
+        }
       })
       .catch((err) => {
         console.error('Erro ao inicializar IndexedDB:', err);
@@ -317,8 +392,358 @@ export const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, [project, isStorageReady]);
 
+  // Sincronização em segundo plano com o Google Drive (Debounce de 3.5 segundos)
+  useEffect(() => {
+    if (!isStorageReady || !isAuthenticated || !user) {
+      return;
+    }
+
+    const driveTimer = setTimeout(async () => {
+      // Se já houver um upload em andamento para o Drive, aguarda o próximo ciclo
+      if (isDriveSyncingRef.current) {
+        return;
+      }
+
+      const knownFileId = project.driveFileId || driveFileIdByProjectIdRef.current[project.id];
+      const signature = getProjectContentSignature(project);
+
+      // Se o conteúdo já foi sincronizado e já temos o driveFileId, evita requisições redundantes
+      if (knownFileId && lastSyncedSignatureRef.current[project.id] === signature) {
+        return;
+      }
+
+      isDriveSyncingRef.current = true;
+      setRawDriveSyncStatus('syncing');
+
+      try {
+        const token = await getValidAccessToken();
+        if (!token) {
+          setRawDriveSyncStatus('error');
+          return;
+        }
+
+        const projectToSync: DocumentProject = {
+          ...project,
+          driveFileId: knownFileId,
+        };
+
+        const { fileId, modifiedTime } = await saveProjectToDrive(projectToSync, token);
+        driveFileIdByProjectIdRef.current[project.id] = fileId;
+        lastSyncedSignatureRef.current[project.id] = signature;
+        setRawDriveSyncStatus('synced');
+
+        // Atualiza driveFileId no estado do projeto de forma funcional para não perder edições recentes
+        setProject((prev) => {
+          if (prev.id !== project.id) return prev;
+          return {
+            ...prev,
+            driveFileId: fileId,
+            driveSyncedAt: modifiedTime,
+            ownerEmail: prev.ownerEmail || user.email,
+          };
+        });
+
+        // Grava no IndexedDB sem alterar o updatedAt (evita ciclo repetitivo de auto-save)
+        const currentInDb = await getProject(project.id);
+        if (currentInDb) {
+          const updatedDb = {
+            ...currentInDb,
+            driveFileId: fileId,
+            driveSyncedAt: modifiedTime,
+            ownerEmail: currentInDb.ownerEmail || user.email,
+          };
+          await saveProject(updatedDb, false);
+          const all = await listProjects();
+          setProjects(all);
+        }
+      } catch (err) {
+        console.warn('Erro ao sincronizar com Google Drive:', err);
+        setRawDriveSyncStatus('error');
+      } finally {
+        isDriveSyncingRef.current = false;
+      }
+    }, 3500);
+
+    return () => clearTimeout(driveTimer);
+  }, [project, isStorageReady, isAuthenticated, user, getValidAccessToken, getProjectContentSignature]);
+
+  /**
+   * Garante que o projeto ativo esteja gravado no Google Drive antes de compartilhar.
+   */
+  const handleEnsureProjectSavedToDrive = async (): Promise<string | null> => {
+    try {
+      let token = await getValidAccessToken();
+      if (!token) {
+        token = await login(false);
+      }
+      if (!token) return null;
+
+      const knownFileId = project.driveFileId || driveFileIdByProjectIdRef.current[project.id];
+      const projectToSync: DocumentProject = {
+        ...project,
+        driveFileId: knownFileId,
+      };
+
+      setRawDriveSyncStatus('syncing');
+      const { fileId, modifiedTime } = await saveProjectToDrive(projectToSync, token);
+      driveFileIdByProjectIdRef.current[project.id] = fileId;
+      lastSyncedSignatureRef.current[project.id] = getProjectContentSignature(project);
+
+      setProject((prev) => ({
+        ...prev,
+        driveFileId: fileId,
+        driveSyncedAt: modifiedTime,
+        ownerEmail: prev.ownerEmail || user?.email,
+      }));
+
+      const currentInDb = await getProject(project.id);
+      if (currentInDb) {
+        await saveProject(
+          {
+            ...currentInDb,
+            driveFileId: fileId,
+            driveSyncedAt: modifiedTime,
+            ownerEmail: currentInDb.ownerEmail || user?.email,
+          },
+          false,
+        );
+        const all = await listProjects();
+        setProjects(all);
+      }
+
+      setRawDriveSyncStatus('synced');
+      return fileId;
+    } catch (err) {
+      console.error('Falha ao garantir salvamento no Drive:', err);
+      return null;
+    }
+  };
+
+  const handleLoginClick = async (): Promise<string | null> => {
+    if (!isAuthConfigured) {
+      loginDevMock();
+      return 'mock_dev_token_xyz';
+    } else {
+      return await login(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    setIsGuestMode(false);
+    try {
+      sessionStorage.removeItem('redija:guestMode');
+    } catch {
+      // Ignora
+    }
+  };
+
+  const handleRevokeAccess = async () => {
+    await revokeAccess();
+    setIsGuestMode(false);
+    try {
+      sessionStorage.removeItem('redija:guestMode');
+    } catch {
+      // Ignora
+    }
+  };
+
+  const handleDeleteAccountAndData = async () => {
+    try {
+      const token = await getValidAccessToken();
+      if (token) {
+        await deleteAllUserDriveProjects(token);
+      }
+    } catch (err) {
+      console.warn('Erro ao deletar arquivos do Google Drive:', err);
+    }
+
+    try {
+      await db.projects.clear();
+      const fresh = createProjectFromTemplate('tcc');
+      await saveProject(fresh);
+      await setActiveProjectId(fresh.id);
+      setProject(fresh);
+      setProjects([fresh]);
+      setTrashedProjects([]);
+    } catch (err) {
+      console.warn('Erro ao limpar cache local na exclusão:', err);
+    }
+
+    await revokeAccess();
+    setIsGuestMode(false);
+    try {
+      sessionStorage.removeItem('redija:guestMode');
+    } catch {
+      // Ignora
+    }
+  };
+
+  /**
+   * Sincroniza a lista de projetos trazendo arquivos existentes do Google Drive para o Dexie.
+   */
+  const handleSyncFromDrive = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setIsSyncingDrive(true);
+    try {
+      const token = await getValidAccessToken();
+      if (!token) return;
+
+      const driveSummaries = await listDriveProjects(token);
+      const currentProjects = await listProjects();
+      let hasNewOrUpdated = false;
+
+      // Filtra duplicatas existentes no Drive mantendo apenas o arquivo mais recente de cada projeto
+      const seenNames = new Set<string>();
+
+      for (const summary of driveSummaries) {
+        const normName = summary.name.trim().toLowerCase();
+        if (seenNames.has(normName)) {
+          continue;
+        }
+        seenNames.add(normName);
+
+        const existsLocally = currentProjects.find((p) => p.driveFileId === summary.id);
+        if (existsLocally) {
+          driveFileIdByProjectIdRef.current[existsLocally.id] = summary.id;
+          // Se o arquivo no Google Drive foi atualizado por um colaborador (mais recente que o sync local)
+          const remoteTime = new Date(summary.modifiedTime).getTime();
+          const localTime = new Date(existsLocally.driveSyncedAt || existsLocally.updatedAt).getTime();
+          if (remoteTime > localTime + 2000) {
+            try {
+              const remoteLoaded = await loadProjectFromDrive(summary.id, token);
+              const { mergedProject, hasMergedRemoteChanges } = autoMergeProjects(
+                existsLocally,
+                remoteLoaded
+              );
+              if (hasMergedRemoteChanges) {
+                await saveProject(mergedProject, false);
+                hasNewOrUpdated = true;
+              }
+            } catch (err) {
+              console.warn(`Erro ao mesclar alterações do Drive para ${summary.name}:`, err);
+            }
+          }
+        } else {
+          const matchByName = currentProjects.find(
+            (p) =>
+              !p.driveFileId &&
+              p.name.trim().toLowerCase() === normName
+          );
+          if (matchByName) {
+            matchByName.driveFileId = summary.id;
+            matchByName.driveSyncedAt = summary.modifiedTime;
+            matchByName.ownerEmail = user?.email;
+            await saveProject(matchByName, false);
+            driveFileIdByProjectIdRef.current[matchByName.id] = summary.id;
+            hasNewOrUpdated = true;
+          } else {
+            try {
+              const loaded = await loadProjectFromDrive(summary.id, token);
+              await saveProject(loaded, false);
+              driveFileIdByProjectIdRef.current[loaded.id] = summary.id;
+              hasNewOrUpdated = true;
+            } catch (err) {
+              console.warn(`Não foi possível carregar projeto ${summary.name}:`, err);
+            }
+          }
+        }
+      }
+
+      if (hasNewOrUpdated) {
+        const all = await listProjects();
+        setProjects(all);
+        // Se o projeto ativo recebeu vinculação, atualiza estado ativo
+        const activeUpdated = all.find((p) => p.id === project.id);
+        if (activeUpdated && activeUpdated.driveFileId !== project.driveFileId) {
+          setProject(activeUpdated);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao listar projetos do Drive:', err);
+    } finally {
+      setIsSyncingDrive(false);
+    }
+  }, [isAuthenticated, getValidAccessToken, user, project.id, project.driveFileId]);
+
+  // Sincroniza projetos do Google Drive automaticamente em segundo plano ao logar
+  useEffect(() => {
+    if (!isAuthenticated || !isStorageReady) return;
+
+    let isMounted = true;
+    (async () => {
+      await Promise.resolve();
+      if (isMounted) {
+        await handleSyncFromDrive();
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, isStorageReady, handleSyncFromDrive]);
+
+  // Sincronização inteligente ao voltar para a aba do navegador
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        handleSyncFromDrive();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [isAuthenticated, handleSyncFromDrive]);
+
+  // Colaboração em tempo real P2P (Nível 3: WebRTC DataChannels + BroadcastChannel)
+  useEffect(() => {
+    if (!isAuthenticated || !user || !project.driveFileId) {
+      realtimeCollab.disconnect();
+      return;
+    }
+
+    realtimeCollab.connect(project.driveFileId, user);
+
+    const unsubPresence = realtimeCollab.onPresenceChange((presences) => {
+      setActiveCollaborators(presences);
+    });
+
+    const unsubRemoteUpdate = realtimeCollab.onRemoteBlockUpdate(({ blockId, content, meta }) => {
+      setProject((prev) => {
+        const target = prev.blocks.find((b) => b.id === blockId);
+        if (!target || target.content === content) return prev;
+        return {
+          ...prev,
+          blocks: prev.blocks.map((b) =>
+            b.id === blockId ? { ...b, content, meta: meta ?? b.meta } : b
+          ),
+        };
+      });
+    });
+
+    const unsubRemoteSync = realtimeCollab.onRemoteBlocksSync((remoteBlocks) => {
+      setProject((prev) => {
+        const { mergedProject, hasMergedRemoteChanges } = autoMergeProjects(prev, {
+          ...prev,
+          blocks: remoteBlocks,
+        });
+        return hasMergedRemoteChanges ? mergedProject : prev;
+      });
+    });
+
+    return () => {
+      unsubPresence();
+      unsubRemoteUpdate();
+      unsubRemoteSync();
+      realtimeCollab.disconnect();
+    };
+  }, [isAuthenticated, user, project.driveFileId]);
+
   const handleMetadataChange = (metadata: DocumentMetadata) => {
     setProject((prev) => {
+      if (JSON.stringify(prev.metadata) === JSON.stringify(metadata)) {
+        return prev;
+      }
       recordHistorySnapshot(prev);
       return { ...prev, metadata };
     });
@@ -326,6 +751,9 @@ export const App: React.FC = () => {
 
   const handleTemplateConfigChange = (templateConfig: TemplateConfig) => {
     setProject((prev) => {
+      if (JSON.stringify(prev.templateConfig) === JSON.stringify(templateConfig)) {
+        return prev;
+      }
       recordHistorySnapshot(prev, true);
       return { ...prev, templateConfig };
     });
@@ -333,9 +761,60 @@ export const App: React.FC = () => {
 
   const handleBlocksChange = (blocks: Block[]) => {
     setProject((prev) => {
-      const isStructuralChange = blocks.length !== prev.blocks.length;
-      recordHistorySnapshot(prev, isStructuralChange);
-      return { ...prev, blocks };
+      if (prev.blocks === blocks) return prev;
+
+      const isLengthDifferent = prev.blocks.length !== blocks.length;
+      let hasOrderChanged = false;
+      let modifiedBlock: Block | null = null;
+      let isIdentical = !isLengthDifferent;
+
+      if (!isLengthDifferent) {
+        for (let i = 0; i < blocks.length; i++) {
+          const pb = prev.blocks[i];
+          const nb = blocks[i];
+          if (pb.id !== nb.id) {
+            hasOrderChanged = true;
+            isIdentical = false;
+            break;
+          }
+          if (
+            pb.type !== nb.type ||
+            pb.content !== nb.content ||
+            JSON.stringify(pb.meta) !== JSON.stringify(nb.meta)
+          ) {
+            isIdentical = false;
+            modifiedBlock = nb;
+          }
+        }
+      }
+
+      if (isIdentical) {
+        return prev;
+      }
+
+      const isStructural = isLengthDifferent || hasOrderChanged;
+      const now = Date.now();
+
+      if (isStructural) {
+        const updatedBlocks = blocks.map((b) => (b.updatedAt ? b : { ...b, updatedAt: now }));
+        recordHistorySnapshot(prev, true);
+        realtimeCollab.broadcastBlocksSync(updatedBlocks);
+        return { ...prev, blocks: updatedBlocks };
+      }
+
+      // Edição pontual de conteúdo ou metadados de bloco existente
+      const updatedBlocks = blocks.map((b) =>
+        b.id === modifiedBlock?.id ? { ...b, updatedAt: now } : b
+      );
+      recordHistorySnapshot(prev, false);
+      if (modifiedBlock) {
+        realtimeCollab.broadcastBlockUpdate(
+          modifiedBlock.id,
+          modifiedBlock.content,
+          modifiedBlock.meta
+        );
+      }
+      return { ...prev, blocks: updatedBlocks };
     });
   };
 
@@ -426,16 +905,19 @@ export const App: React.FC = () => {
   };
 
   const handleMoveToTrash = async (id: string) => {
-    if (projects.length <= 1) return;
     await moveProjectToTrash(id);
     const all = await listProjects();
     const trashed = await listTrashedProjects();
     setProjects(all);
     setTrashedProjects(trashed);
-    if (id === project.id && all.length > 0) {
-      skipNextAutoSaveRef.current = true;
-      setProject(all[0]);
-      setActiveProjectId(all[0].id);
+    if (all.length > 0) {
+      if (id === project.id) {
+        skipNextAutoSaveRef.current = true;
+        setProject(all[0]);
+        setActiveProjectId(all[0].id);
+      }
+    } else {
+      setIsProjectsModalOpen(true);
     }
   };
 
@@ -472,16 +954,18 @@ export const App: React.FC = () => {
 
   const handleImportBackup = async (file: File) => {
     try {
-      const content = await file.text();
-      const imported = parseBackup(content);
+      const imported = await importDocumentFile(file);
       await saveProject(imported, false);
       const all = await listProjects();
       setProjects(all);
       skipNextAutoSaveRef.current = true;
+      setPast([]);
+      setFuture([]);
       setProject(imported);
       setActiveProjectId(imported.id);
+      setIsProjectsModalOpen(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao importar arquivo .redija.');
+      alert(err instanceof Error ? err.message : 'Erro ao importar documento.');
     }
   };
 
@@ -513,6 +997,25 @@ export const App: React.FC = () => {
     }
   };
 
+  const [isExportingProject, setIsExportingProject] = useState(false);
+
+  const handleExportProjectZip = async () => {
+    setIsExportingProject(true);
+    try {
+      const zipBlob = await exportTypstProjectZip(project);
+      const url = URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${getCleanProjectSlug(project.name)}_typst.zip`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Erro ao exportar pacote do projeto:', err);
+    } finally {
+      setIsExportingProject(false);
+    }
+  };
+
   const handleExportTypst = () => {
     const code = generateStandaloneTypst(project);
     const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
@@ -524,12 +1027,44 @@ export const App: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  if (!isAuthenticated && !isGuestMode) {
+    return (
+      <LoginScreen
+        onLogin={() => login(false)}
+        onLoginDevMock={loginDevMock}
+        onContinueAsGuest={() => {
+          setIsGuestMode(true);
+          try {
+            sessionStorage.setItem('redija:guestMode', 'true');
+          } catch {
+            // Ignora
+          }
+        }}
+        isLoading={isAuthLoading}
+        error={authError}
+        isConfigured={isAuthConfigured}
+        darkMode={darkMode}
+        onToggleDarkMode={() => setDarkMode((prev) => !prev)}
+      />
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col bg-neutral-100 select-none overflow-hidden">
+      {/* Alerta de Recomendação de Backup para Usuários sem Login */}
+      <BackupNoticeBanner
+        isAuthenticated={isAuthenticated}
+        onLogin={handleLoginClick}
+        onLoginDevMock={loginDevMock}
+        isConfigured={isAuthConfigured}
+        isLoading={isAuthLoading}
+      />
+
       <Header
         projectName={project.name}
         projectsCount={projects.length}
         saveStatus={saveStatus}
+        driveSyncStatus={driveSyncStatus}
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode((prev) => !prev)}
         canUndo={past.length > 0}
@@ -549,11 +1084,50 @@ export const App: React.FC = () => {
         onDownloadPdf={handleDownloadPdf}
         isExportingPdf={isExportingPdf}
         onExportTypst={handleExportTypst}
+        onExportProjectZip={handleExportProjectZip}
+        isExportingProject={isExportingProject}
         showCode={showCode}
         setShowCode={setShowCode}
+        user={user}
+        isAuthenticated={isAuthenticated}
+        isAuthLoading={isAuthLoading}
+        activeCollaborators={activeCollaborators}
+        onLogin={handleLoginClick}
+        onLogout={handleLogout}
+        onOpenShareModal={() => setIsShareModalOpen(true)}
+        onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
       />
 
-      <div className="flex-1 flex overflow-hidden min-h-0">
+      {projects.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-neutral-50 dark:bg-neutral-900 text-center">
+          <div className="w-16 h-16 rounded-3xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 shadow-xs">
+            <FolderOpen className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">
+            Nenhum trabalho criado ainda
+          </h2>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-sm mb-6 leading-relaxed">
+            Comece escolhendo um modelo com estrutura ABNT pré-configurada ou importe um arquivo existente.
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsProjectsModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Criar Primeiro Trabalho</span>
+            </button>
+            <button
+              onClick={() => setIsProjectsModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700 text-xs font-semibold rounded-xl transition-colors"
+            >
+              <Upload className="w-4 h-4 text-emerald-600" />
+              <span>Importar Trabalho</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Painel Esquerdo: Metadados ABNT e Referências */}
         {showSidebar && (
           <Sidebar
@@ -602,11 +1176,13 @@ export const App: React.FC = () => {
             references={project.references}
             citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
             isFullWidth={!showSidebar && !showPreview}
+            activeCollaborators={activeCollaborators}
             onOpenReferenceModal={() => {
               setEditingReference(null);
               setIsModalOpen(true);
             }}
             onChangeBlocks={handleBlocksChange}
+            onFocusBlock={(blockId) => realtimeCollab.broadcastCursor(blockId)}
             onMinimize={toggleEditor}
           />
         )}
@@ -634,12 +1210,16 @@ export const App: React.FC = () => {
           <PdfPreview
             project={project}
             showCode={showCode}
+            onToggleCode={() => setShowCode(!showCode)}
+            onExportProjectZip={handleExportProjectZip}
+            isExportingProject={isExportingProject}
             widthPx={previewWidth}
             isFullWidth={!showEditor}
             onMinimize={togglePreview}
           />
         )}
       </div>
+      )}
 
       <ReferenceModal
         isOpen={isModalOpen}
@@ -668,6 +1248,31 @@ export const App: React.FC = () => {
         onPermanentDelete={handlePermanentDelete}
         onExportBackup={handleExportBackup}
         onImportBackup={handleImportBackup}
+        isAuthenticated={isAuthenticated}
+        onSyncFromDrive={handleSyncFromDrive}
+        isSyncingDrive={isSyncingDrive}
+      />
+
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        projectName={project.name}
+        driveFileId={project.driveFileId}
+        getAccessToken={getValidAccessToken}
+        currentUserEmail={user?.email}
+        onEnsureProjectSavedToDrive={handleEnsureProjectSavedToDrive}
+      />
+
+      <AccountSettingsModal
+        isOpen={isAccountSettingsOpen}
+        onClose={() => setIsAccountSettingsOpen(false)}
+        user={user}
+        onLogout={handleLogout}
+        onRevokeAccess={handleRevokeAccess}
+        onDeleteAccountAndData={handleDeleteAccountAndData}
+        getAccessToken={getValidAccessToken}
+        projectsCount={projects.length}
+        syncedProjectsCount={projects.filter((p) => Boolean(p.driveFileId)).length}
       />
 
       <WelcomeModal

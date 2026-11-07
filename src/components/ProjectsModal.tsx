@@ -17,6 +17,9 @@ import {
   RotateCcw,
   AlertTriangle,
   Clock,
+  Cloud,
+  Users,
+  RefreshCw,
 } from 'lucide-react';
 
 interface ProjectsModalProps {
@@ -34,6 +37,9 @@ interface ProjectsModalProps {
   onPermanentDelete: (id: string) => void;
   onExportBackup: (project: DocumentProject) => void;
   onImportBackup: (file: File) => void;
+  isAuthenticated?: boolean;
+  onSyncFromDrive?: () => Promise<void>;
+  isSyncingDrive?: boolean;
 }
 
 export const ProjectsModal: React.FC<ProjectsModalProps> = ({
@@ -51,6 +57,9 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
   onPermanentDelete,
   onExportBackup,
   onImportBackup,
+  isAuthenticated,
+  onSyncFromDrive,
+  isSyncingDrive,
 }) => {
   const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
   const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplateType>('tcc');
@@ -135,20 +144,31 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {isAuthenticated && onSyncFromDrive && (
+              <button
+                onClick={onSyncFromDrive}
+                disabled={isSyncingDrive}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                title="Buscar trabalhos no seu Google Drive e atualizar lista"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingDrive ? 'animate-spin' : ''}`} />
+                <span>{isSyncingDrive ? 'Buscando...' : 'Atualizar do Drive'}</span>
+              </button>
+            )}
             <input
               ref={fileInputRef}
               type="file"
-              accept=".redija,.json"
+              accept=".redija,.docx,.zip,.json"
               onChange={handleFileChange}
               className="hidden"
             />
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 transition-colors"
-              title="Importar arquivo de backup .redija"
+              title="Importar documento Word (.docx), pacote (.zip do Redija ou Overleaf) ou backup (.redija)"
             >
               <Upload className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Importar .redija</span>
+              <span>Importar Projeto</span>
             </button>
             <button
               onClick={onClose}
@@ -193,7 +213,20 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
 
             {activeTab === 'active' ? (
               <div className="space-y-2">
-                {projects.map((proj) => {
+                {projects.length === 0 ? (
+                  <div className="text-center py-12 px-4 space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                      <FolderOpen className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-xs text-neutral-800">Nenhum trabalho criado ainda</p>
+                      <p className="text-[11px] text-neutral-500 mt-1 max-w-xs mx-auto leading-relaxed">
+                        Escolha um modelo ao lado para iniciar seu primeiro trabalho acadêmico ou importe um arquivo existente.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  projects.map((proj) => {
                   const isActive = proj.id === activeProjectId;
                   const isEditing = editingId === proj.id;
                   const updatedDate = new Date(proj.updatedAt).toLocaleString('pt-BR', {
@@ -244,7 +277,7 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                               }}
                               className="text-left w-full"
                             >
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <FileText
                                   className={`w-3.5 h-3.5 shrink-0 ${
                                     isActive ? 'text-emerald-600' : 'text-neutral-400'
@@ -254,12 +287,35 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                                   {proj.name}
                                 </span>
                                 {isActive && (
-                                  <span className="text-[10px] font-semibold bg-emerald-600 text-white px-1.5 py-0.5 rounded">
+                                  <span className="text-[10px] font-semibold bg-emerald-600 text-white px-1.5 py-0.2 rounded">
                                     Ativo
+                                  </span>
+                                )}
+                                {proj.driveFileId && (
+                                  <span
+                                    className="text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded flex items-center gap-1"
+                                    title="Sincronizado com Google Drive"
+                                  >
+                                    <Cloud className="w-2.5 h-2.5" />
+                                    <span>Drive</span>
+                                  </span>
+                                )}
+                                {proj.isSharedWithMe && (
+                                  <span
+                                    className="text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded flex items-center gap-1"
+                                    title={`Compartilhado por ${proj.sharedBy?.name || 'um colega'}`}
+                                  >
+                                    <Users className="w-2.5 h-2.5" />
+                                    <span>Compartilhado</span>
                                   </span>
                                 )}
                               </div>
                               <p className="text-[11px] text-neutral-500 truncate mt-1">
+                                {proj.isSharedWithMe && proj.sharedBy?.name ? (
+                                  <span className="text-blue-600 font-medium mr-1">
+                                    De: {proj.sharedBy.name} •
+                                  </span>
+                                ) : null}
                                 {proj.metadata.title || 'Sem título definido'}
                               </p>
                               <p className="text-[10px] text-neutral-400 mt-1">
@@ -292,20 +348,18 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                           >
                             <Download className="w-3.5 h-3.5" />
                           </button>
-                          {projects.length > 1 && (
-                            <button
-                              onClick={() => openDeleteConfirm(proj, 'trash')}
-                              className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded"
-                              title="Mover para a Lixeira"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => openDeleteConfirm(proj, 'trash')}
+                            className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded"
+                            title="Mover para a Lixeira"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     </div>
                   );
-                })}
+                }))}
               </div>
             ) : (
               /* Aba da Lixeira */
@@ -431,13 +485,29 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
               </div>
             </div>
 
-            <button
-              type="submit"
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Criar Novo Trabalho</span>
-            </button>
+            <div className="space-y-2">
+              <button
+                type="submit"
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Criar Novo Trabalho</span>
+              </button>
+
+              <div className="pt-2 border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 font-medium text-xs transition-colors"
+                >
+                  <Upload className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Importar Word (.docx) ou ZIP (Redija / Overleaf)</span>
+                </button>
+                <p className="text-[10px] text-neutral-500 text-center mt-1">
+                  O formato e conteúdo são identificados e convertidos automaticamente.
+                </p>
+              </div>
+            </div>
           </form>
         </div>
 

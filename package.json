@@ -28,7 +28,10 @@
     "@tiptap/starter-kit": "^3.33.0",
     "clsx": "^2.1.1",
     "dexie": "^4.4.7",
+    "jszip": "^3.10.2",
     "lucide-react": "^1.16.0",
+    "mammoth": "^1.13.0",
+    "peerjs": "^1.5.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^3.5.0"
@@ -37,6 +40,7 @@
     "@eslint/js": "^10.0.1",
     "@myriaddreamin/typst-ts-node-compiler": "^0.7.0",
     "@playwright/test": "^1.65.0",
+    "@types/jszip": "^3.4.0",
     "@types/node": "^26.6.6",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",

@@ -21,6 +21,7 @@ export interface Block {
   id: string;
   type: BlockType;
   content: string;
+  updatedAt?: number;
   meta?: {
     author?: string;
     year?: string;
@@ -154,6 +155,17 @@ export interface DocumentProject {
   references: AcademicReference[];
   updatedAt: string;
   deletedAt?: string | null;
+
+  // Gestão de Usuário e Google Drive Sync
+  ownerEmail?: string;
+  driveFileId?: string;
+  driveSyncedAt?: string;
+  isSharedWithMe?: boolean;
+  sharedBy?: {
+    name?: string;
+    email?: string;
+    photoLink?: string;
+  };
 }
 
 export interface RedijaBackupFile {

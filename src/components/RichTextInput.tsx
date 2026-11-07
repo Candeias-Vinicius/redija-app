@@ -131,7 +131,26 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
     },
     onUpdate: ({ editor: ed }) => {
       const html = ed.getHTML();
-      onChange(html === '<p></p>' ? '' : html);
+      const normalized = html === '<p></p>' ? '' : html;
+      const normalizedValue = value === '<p></p>' ? '' : value;
+      if (normalized === normalizedValue) return;
+
+      // Se a única diferença for o wrapping inicial de <p> (ex: plain text "Olá" vs "<p>Olá</p>"),
+      // não dispara onChange no primeiro clique/foco
+      const plainHtml = stripHtmlTags(normalized).trim();
+      const plainValue = stripHtmlTags(normalizedValue).trim();
+      const hasMarkup =
+        normalized.includes('<strong>') ||
+        normalized.includes('<em>') ||
+        normalized.includes('<u>') ||
+        normalized.includes('<sup>') ||
+        normalized.includes('<sub>');
+
+      if (plainHtml === plainValue && !hasMarkup && !normalizedValue.startsWith('<')) {
+        return;
+      }
+
+      onChange(normalized);
     },
     onSelectionUpdate: ({ editor: ed }) => {
       const { from, to } = ed.state.selection;
