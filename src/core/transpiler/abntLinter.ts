@@ -37,6 +37,7 @@ export function getPrimarySurname(authors: string): string {
 export function formatShortCitation(
   ref: AcademicReference,
   style: 'uppercase' | 'titlecase' = 'uppercase',
+  page?: string,
 ): string {
   const rawSurname = getPrimarySurname(ref.authors);
   const surname =
@@ -44,7 +45,21 @@ export function formatShortCitation(
       ? rawSurname.toLowerCase().replace(/(?:^|[\s-])(\S)/g, (m) => m.toUpperCase())
       : rawSurname;
   const year = ref.year?.trim() || 's.d.';
-  return `(${surname}, ${year})`;
+  const pagePart = page?.trim() ? `, p. ${page.trim()}` : '';
+  return `(${surname}, ${year}${pagePart})`;
+}
+
+/**
+ * Gera a chamada narrativa com o autor na frase: `Silva (2023)` ou `Silva (2023, p. 42)`.
+ */
+export function formatNarrativeCitation(ref: AcademicReference, page?: string): string {
+  const rawSurname = getPrimarySurname(ref.authors);
+  const surname = rawSurname
+    .toLowerCase()
+    .replace(/(?:^|[\s-])(\S)/g, (m) => m.toUpperCase());
+  const year = ref.year?.trim() || 's.d.';
+  const pagePart = page?.trim() ? `, p. ${page.trim()}` : '';
+  return `${surname} (${year}${pagePart})`;
 }
 
 /**

@@ -326,6 +326,7 @@ export const App: React.FC = () => {
           blocks={project.blocks}
           references={project.references}
           citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
+          onOpenReferenceModal={() => setIsModalOpen(true)}
           onChangeBlocks={handleBlocksChange}
         />
 

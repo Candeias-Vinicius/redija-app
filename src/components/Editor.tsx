@@ -27,17 +27,19 @@ import {
   Upload,
   Search,
   X,
+  Bookmark,
 } from 'lucide-react';
 
 interface EditorProps {
   blocks: Block[];
   references: AcademicReference[];
   citationStyle?: 'uppercase' | 'titlecase';
+  onOpenReferenceModal?: () => void;
   onChangeBlocks: (blocks: Block[]) => void;
 }
 
 interface SlashMenuOption {
-  type: BlockType;
+  type: BlockType | 'action_cite';
   label: string;
   description: string;
   keywords: string;
@@ -45,6 +47,13 @@ interface SlashMenuOption {
 }
 
 const SLASH_OPTIONS: SlashMenuOption[] = [
+  {
+    type: 'action_cite',
+    label: 'Chamar Referência no Texto (@)',
+    description: 'Insere (SOBRENOME, ANO) ou Autor (ANO) a partir das suas referências',
+    keywords: 'referencia citacao curta autor data parenteses chamar @',
+    icon: <Bookmark className="w-4 h-4 text-emerald-600" />,
+  },
   {
     type: 'paragraph',
     label: 'Parágrafo ABNT',
@@ -198,11 +207,13 @@ export const Editor: React.FC<EditorProps> = ({
   blocks,
   references,
   citationStyle = 'uppercase',
+  onOpenReferenceModal,
   onChangeBlocks,
 }) => {
   const [activeMenuBlockId, setActiveMenuBlockId] = useState<string | null>(null);
   const [menuSearch, setMenuSearch] = useState('');
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
+  const [citationTriggerByBlock, setCitationTriggerByBlock] = useState<Record<string, number>>({});
 
   const updateBlockContent = (id: string, content: string) => {
     onChangeBlocks(blocks.map((b) => (b.id === id ? { ...b, content } : b)));
@@ -254,6 +265,24 @@ export const Editor: React.FC<EditorProps> = ({
     const [moved] = next.splice(index, 1);
     next.splice(targetIndex, 0, moved);
     onChangeBlocks(next);
+  };
+
+  const handleSelectSlashOption = (id: string, type: BlockType | 'action_cite') => {
+    setActiveMenuBlockId(null);
+    setMenuSearch('');
+    if (type === 'action_cite') {
+      // Garante que o bloco seja parágrafo e abre o seletor de referência
+      onChangeBlocks(
+        blocks.map((b) => (b.id === id ? { ...b, type: 'paragraph' } : b)),
+      );
+      setCitationTriggerByBlock((prev) => ({
+        ...prev,
+        [id]: (prev[id] ?? 0) + 1,
+      }));
+      setFocusedBlockId(id);
+      return;
+    }
+    changeBlockType(id, type);
   };
 
   const changeBlockType = (id: string, type: BlockType) => {
@@ -431,7 +460,7 @@ export const Editor: React.FC<EditorProps> = ({
                         setActiveMenuBlockId(null);
                       } else if (e.key === 'Enter' && filteredOptions.length > 0) {
                         e.preventDefault();
-                        changeBlockType(block.id, filteredOptions[0].type);
+                        handleSelectSlashOption(block.id, filteredOptions[0].type);
                       }
                     }}
                     autoFocus
@@ -457,7 +486,7 @@ export const Editor: React.FC<EditorProps> = ({
                       <button
                         key={opt.type}
                         type="button"
-                        onClick={() => changeBlockType(block.id, opt.type)}
+                        onClick={() => handleSelectSlashOption(block.id, opt.type)}
                         className="w-full flex items-start gap-2.5 px-3 py-2 hover:bg-emerald-50/70 text-left transition-colors"
                       >
                         <div className="mt-0.5 p-1.5 rounded-md bg-neutral-100 shrink-0">
@@ -558,6 +587,8 @@ export const Editor: React.FC<EditorProps> = ({
                   references={references}
                   citationStyle={citationStyle}
                   autoFocus={focusedBlockId === block.id}
+                  openCitationTrigger={citationTriggerByBlock[block.id] ?? 0}
+                  onOpenNewReferenceModal={onOpenReferenceModal}
                   onChange={(html) => updateBlockContent(block.id, html)}
                   onEnter={() => addBlock(block.id, 'paragraph')}
                   onBackspaceEmpty={() => removeBlock(block.id)}
