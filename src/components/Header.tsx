@@ -14,6 +14,9 @@ import {
   Undo2,
   Redo2,
   Bug,
+  PanelLeft,
+  FileEdit,
+  Eye,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -26,6 +29,12 @@ interface HeaderProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  showSidebar: boolean;
+  showEditor: boolean;
+  showPreview: boolean;
+  onToggleSidebar: () => void;
+  onToggleEditor: () => void;
+  onTogglePreview: () => void;
   onOpenProjectsModal: () => void;
   onOpenTemplateCustomizer: () => void;
   onOpenBugReportModal: () => void;
@@ -47,6 +56,12 @@ export const Header: React.FC<HeaderProps> = ({
   canRedo,
   onUndo,
   onRedo,
+  showSidebar,
+  showEditor,
+  showPreview,
+  onToggleSidebar,
+  onToggleEditor,
+  onTogglePreview,
   onOpenProjectsModal,
   onOpenTemplateCustomizer,
   onOpenBugReportModal,
@@ -108,6 +123,51 @@ export const Header: React.FC<HeaderProps> = ({
             title="Refazer alteração no documento (Ctrl+Y)"
           >
             <Redo2 className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Alternadores de Abas Visíveis (Minimizar / Restaurar qualquer aba) */}
+        <div className="hidden lg:flex items-center gap-1 ml-1 pl-2 border-l border-neutral-200">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium border transition-colors ${
+              showSidebar
+                ? 'bg-emerald-50/70 border-emerald-200 text-emerald-800'
+                : 'bg-white border-neutral-200 text-neutral-400 hover:text-neutral-700'
+            }`}
+            title={showSidebar ? 'Minimizar aba Estrutura & Referências' : 'Mostrar aba Estrutura & Referências'}
+          >
+            <PanelLeft className="w-3.5 h-3.5" />
+            <span>Estrutura</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onToggleEditor}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium border transition-colors ${
+              showEditor
+                ? 'bg-emerald-50/70 border-emerald-200 text-emerald-800'
+                : 'bg-white border-neutral-200 text-neutral-400 hover:text-neutral-700'
+            }`}
+            title={showEditor ? 'Minimizar aba Texto' : 'Mostrar aba Texto'}
+          >
+            <FileEdit className="w-3.5 h-3.5" />
+            <span>Texto</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onTogglePreview}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium border transition-colors ${
+              showPreview
+                ? 'bg-emerald-50/70 border-emerald-200 text-emerald-800'
+                : 'bg-white border-neutral-200 text-neutral-400 hover:text-neutral-700'
+            }`}
+            title={showPreview ? 'Minimizar aba PDF' : 'Mostrar aba PDF'}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>PDF</span>
           </button>
         </div>
       </div>

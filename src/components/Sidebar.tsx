@@ -24,6 +24,7 @@ import {
   Download,
   Sliders,
   Pencil,
+  PanelLeftClose,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -36,6 +37,7 @@ interface SidebarProps {
   onEditReference?: (ref: AcademicReference) => void;
   onOpenTemplateCustomizer?: () => void;
   onRemoveReference: (id: string) => void;
+  onMinimize?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -48,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onEditReference,
   onOpenTemplateCustomizer,
   onRemoveReference,
+  onMinimize,
 }) => {
   const [openCapa, setOpenCapa] = useState(true);
   const [openPreTextual, setOpenPreTextual] = useState(false);
@@ -124,18 +127,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside
       style={{ width: `${widthPx}px` }}
-      className="shrink-0 border-r border-neutral-200 bg-white flex flex-col h-[calc(100vh-3.5rem)] overflow-y-auto"
+      className="shrink-0 border-r border-neutral-200 bg-white flex flex-col h-full overflow-y-auto"
     >
-      <div className="p-4 border-b border-neutral-100">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-          Estrutura ABNT (NBR 14724)
-        </h2>
-        <p className="text-xs text-neutral-500 mt-0.5">
-          Configure capa, elementos pré-textuais, resumo e referências.
-        </p>
+      <div className="p-3.5 border-b border-neutral-100 flex items-start justify-between gap-2 sticky top-0 bg-white z-10">
+        <div>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+            Estrutura ABNT (NBR 14724)
+          </h2>
+          <p className="text-[11px] text-neutral-500 mt-0.5">
+            Capa, pré-textuais, resumo e referências.
+          </p>
+        </div>
+        {onMinimize && (
+          <button
+            type="button"
+            onClick={onMinimize}
+            className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors shrink-0"
+            title="Minimizar aba lateral esquerda"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-      <div className="divide-y divide-neutral-100 flex-1">
+      <div className="divide-y divide-neutral-100 flex-1 pb-12">
         {/* Seção da Capa e Folha de Rosto */}
         <div className="p-3">
           <button

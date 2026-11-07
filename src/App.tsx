@@ -85,6 +85,25 @@ export const App: React.FC = () => {
     }
   });
   const [resizingPane, setResizingPane] = useState<'sidebar' | 'preview' | null>(null);
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [showEditor, setShowEditor] = useState(true);
+  const [showPreview, setShowPreview] = useState(true);
+
+  const toggleSidebar = () => {
+    // Impede que as 3 abas fiquem ocultas ao mesmo tempo
+    if (showSidebar && !showEditor && !showPreview) return;
+    setShowSidebar((prev) => !prev);
+  };
+
+  const toggleEditor = () => {
+    if (showEditor && !showSidebar && !showPreview) return;
+    setShowEditor((prev) => !prev);
+  };
+
+  const togglePreview = () => {
+    if (showPreview && !showSidebar && !showEditor) return;
+    setShowPreview((prev) => !prev);
+  };
 
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try {
@@ -506,7 +525,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-100 select-none">
+    <div className="h-screen flex flex-col bg-neutral-100 select-none overflow-hidden">
       <Header
         projectName={project.name}
         projectsCount={projects.length}
@@ -517,6 +536,12 @@ export const App: React.FC = () => {
         canRedo={future.length > 0}
         onUndo={handleUndo}
         onRedo={handleRedo}
+        showSidebar={showSidebar}
+        showEditor={showEditor}
+        showPreview={showPreview}
+        onToggleSidebar={toggleSidebar}
+        onToggleEditor={toggleEditor}
+        onTogglePreview={togglePreview}
         onOpenProjectsModal={() => setIsProjectsModalOpen(true)}
         onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
         onOpenBugReportModal={() => setIsBugReportOpen(true)}
@@ -528,77 +553,91 @@ export const App: React.FC = () => {
         setShowCode={setShowCode}
       />
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Painel Esquerdo: Metadados ABNT e Referências */}
-        <Sidebar
-          project={project}
-          metadata={project.metadata}
-          onChangeMetadata={handleMetadataChange}
-          references={project.references}
-          onOpenReferenceModal={() => {
-            setEditingReference(null);
-            setIsModalOpen(true);
-          }}
-          onEditReference={(ref) => {
-            setEditingReference(ref);
-            setIsModalOpen(true);
-          }}
-          onRemoveReference={handleRemoveReference}
-          onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
-          widthPx={sidebarWidth}
-        />
+        {showSidebar && (
+          <Sidebar
+            project={project}
+            metadata={project.metadata}
+            onChangeMetadata={handleMetadataChange}
+            references={project.references}
+            onOpenReferenceModal={() => {
+              setEditingReference(null);
+              setIsModalOpen(true);
+            }}
+            onEditReference={(ref) => {
+              setEditingReference(ref);
+              setIsModalOpen(true);
+            }}
+            onRemoveReference={handleRemoveReference}
+            onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
+            onMinimize={toggleSidebar}
+            widthPx={!showEditor && !showPreview ? window.innerWidth : sidebarWidth}
+          />
+        )}
 
         {/* Divisor Redimensionável: Sidebar <-> Editor */}
-        <div
-          onMouseDown={(e) => {
-            e.preventDefault();
-            setResizingPane('sidebar');
-          }}
-          title="Arraste para redimensionar a barra lateral"
-          className={`w-1.5 cursor-col-resize shrink-0 flex items-center justify-center transition-colors group ${
-            resizingPane === 'sidebar'
-              ? 'bg-emerald-500'
-              : 'bg-neutral-200/60 hover:bg-emerald-500/60'
-          }`}
-        >
-          <div className="w-0.5 h-8 rounded-full bg-neutral-400/60 group-hover:bg-white" />
-        </div>
+        {showSidebar && (showEditor || showPreview) && (
+          <div
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setResizingPane('sidebar');
+            }}
+            title="Arraste para redimensionar a barra lateral"
+            className={`w-1.5 cursor-col-resize shrink-0 flex items-center justify-center transition-colors group ${
+              resizingPane === 'sidebar'
+                ? 'bg-emerald-500'
+                : 'bg-neutral-200/60 hover:bg-emerald-500/60'
+            }`}
+          >
+            <div className="w-0.5 h-8 rounded-full bg-neutral-400/60 group-hover:bg-white" />
+          </div>
+        )}
 
         {/* Centro: Editor Visual Estilo Notion */}
-        <Editor
-          blocks={project.blocks}
-          metadata={project.metadata}
-          references={project.references}
-          citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
-          onOpenReferenceModal={() => {
-            setEditingReference(null);
-            setIsModalOpen(true);
-          }}
-          onChangeBlocks={handleBlocksChange}
-        />
+        {showEditor && (
+          <Editor
+            blocks={project.blocks}
+            metadata={project.metadata}
+            references={project.references}
+            citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
+            onOpenReferenceModal={() => {
+              setEditingReference(null);
+              setIsModalOpen(true);
+            }}
+            onChangeBlocks={handleBlocksChange}
+            onMinimize={toggleEditor}
+          />
+        )}
 
         {/* Divisor Redimensionável: Editor <-> Preview PDF */}
-        <div
-          onMouseDown={(e) => {
-            e.preventDefault();
-            setResizingPane('preview');
-          }}
-          title="Arraste para redimensionar o painel do PDF e o editor"
-          className={`w-1.5 cursor-col-resize shrink-0 flex items-center justify-center transition-colors group ${
-            resizingPane === 'preview'
-              ? 'bg-emerald-500'
-              : 'bg-neutral-200/60 hover:bg-emerald-500/60'
-          }`}
-        >
-          <div className="w-0.5 h-8 rounded-full bg-neutral-400/60 group-hover:bg-white" />
-        </div>
+        {showEditor && showPreview && (
+          <div
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setResizingPane('preview');
+            }}
+            title="Arraste para redimensionar o painel do PDF e o editor"
+            className={`w-1.5 cursor-col-resize shrink-0 flex items-center justify-center transition-colors group ${
+              resizingPane === 'preview'
+                ? 'bg-emerald-500'
+                : 'bg-neutral-200/60 hover:bg-emerald-500/60'
+            }`}
+          >
+            <div className="w-0.5 h-8 rounded-full bg-neutral-400/60 group-hover:bg-white" />
+          </div>
+        )}
 
         {/* Painel Direito: Preview A4 ABNT ou Código Typst */}
-        <PdfPreview
-          project={project}
-          showCode={showCode}
-          widthPx={previewWidth}
-        />
+        {showPreview && (
+          <PdfPreview
+            project={project}
+            showCode={showCode}
+            widthPx={previewWidth}
+            isFullWidth={!showEditor}
+            onMinimize={togglePreview}
+          />
+        )}
       </div>
 
       <ReferenceModal

@@ -24,18 +24,23 @@ import {
   FileText,
   Moon,
   Sun,
+  PanelRightClose,
 } from 'lucide-react';
 
 interface PdfPreviewProps {
   widthPx?: number;
+  isFullWidth?: boolean;
   project: DocumentProject;
   showCode: boolean;
+  onMinimize?: () => void;
 }
 
 export const PdfPreview: React.FC<PdfPreviewProps> = ({
   widthPx = 500,
+  isFullWidth = false,
   project,
   showCode,
+  onMinimize,
 }) => {
   const [copied, setCopied] = useState(false);
   const [isCompiling, setIsCompiling] = useState(true);
@@ -126,16 +131,20 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
     };
   }, [pages, showCode, compileTimeMs]);
 
-  const basePageWidthPx = Math.max(260, widthPx - 64);
+  const basePageWidthPx = isFullWidth
+    ? Math.min(720, Math.max(360, widthPx - 80))
+    : Math.max(260, widthPx - 64);
   const scaledWidthPx = Math.round((basePageWidthPx * zoom) / 100);
 
   return (
     <aside
-      style={{ width: `${widthPx}px` }}
-      className="shrink-0 border-l border-neutral-200 bg-neutral-100 flex flex-col h-[calc(100vh-3.5rem)]"
+      style={isFullWidth ? undefined : { width: `${widthPx}px` }}
+      className={`${
+        isFullWidth ? 'flex-1' : 'shrink-0'
+      } border-l border-neutral-200 bg-neutral-100 flex flex-col h-full overflow-hidden`}
     >
       {/* Top Bar do Preview */}
-      <div className="h-10 border-b border-neutral-200 bg-neutral-50 px-4 flex items-center justify-between text-xs text-neutral-600">
+      <div className="h-10 shrink-0 border-b border-neutral-200 bg-neutral-50 px-4 flex items-center justify-between text-xs text-neutral-600">
         <div className="flex items-center gap-2">
           {showCode ? (
             <>
@@ -226,12 +235,23 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
               </>
             )}
           </button>
+
+          {onMinimize && (
+            <button
+              type="button"
+              onClick={onMinimize}
+              className="p-1 ml-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded transition-colors"
+              title="Minimizar aba do PDF"
+            >
+              <PanelRightClose className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Painel de Diagnósticos / Erros */}
       {(diagnostics.length > 0 || runtimeError) && (
-        <div className="bg-red-50 border-b border-red-200 px-4 py-2.5 text-xs text-red-800 space-y-1">
+        <div className="bg-red-50 border-b border-red-200 px-4 py-2.5 text-xs text-red-800 space-y-1 shrink-0">
           <div className="flex items-center gap-1.5 font-semibold text-red-900">
             <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
             <span>Atenção na compilação do documento</span>
@@ -246,7 +266,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
       )}
 
       {/* Conteúdo: Código ou Páginas A4 Reais Renderizadas pelo Typst */}
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center gap-6">
+      <div className="flex-1 overflow-y-auto p-6 pb-16 flex flex-col items-center gap-6">
         {showCode ? (
           <div className="w-full bg-neutral-900 text-neutral-100 p-4 rounded-lg font-mono text-xs overflow-x-auto shadow-inner leading-relaxed select-text">
             <pre>{typstCode}</pre>

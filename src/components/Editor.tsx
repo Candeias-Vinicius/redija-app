@@ -33,6 +33,7 @@ import {
   Search,
   X,
   Bookmark,
+  Minimize2,
 } from 'lucide-react';
 
 interface EditorProps {
@@ -42,6 +43,7 @@ interface EditorProps {
   citationStyle?: 'uppercase' | 'titlecase';
   onOpenReferenceModal?: () => void;
   onChangeBlocks: (blocks: Block[]) => void;
+  onMinimize?: () => void;
 }
 
 interface SlashMenuOption {
@@ -216,6 +218,7 @@ export const Editor: React.FC<EditorProps> = ({
   citationStyle = 'uppercase',
   onOpenReferenceModal,
   onChangeBlocks,
+  onMinimize,
 }) => {
   const [activeMenuBlockId, setActiveMenuBlockId] = useState<string | null>(null);
   const [menuSearch, setMenuSearch] = useState('');
@@ -411,14 +414,26 @@ export const Editor: React.FC<EditorProps> = ({
   });
 
   return (
-    <div className="flex-1 overflow-y-auto bg-white py-10 pl-24 pr-8 sm:pl-28 sm:pr-14 flex justify-center">
-      <div className="w-full max-w-2xl space-y-3 pb-24">
+    <div className="flex-1 h-full overflow-y-auto bg-white py-8 pl-24 pr-8 sm:pl-28 sm:pr-14 flex justify-center">
+      <div className="w-full max-w-2xl space-y-3 pb-28">
         {/* Dica rápida no topo do editor */}
-        <div className="mb-6 pb-3 border-b border-neutral-100 flex items-center justify-between text-xs text-neutral-400">
+        <div className="mb-6 pb-3 border-b border-neutral-100 flex items-center justify-between gap-2 text-xs text-neutral-400">
           <span>
             Dica: digite <kbd className="px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded border border-neutral-200 font-mono">/</kbd> em um bloco vazio para abrir os blocos ABNT ou selecione texto para formatar.
           </span>
-          <span>{blocks.length} blocos</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span>{blocks.length} blocos</span>
+            {onMinimize && (
+              <button
+                type="button"
+                onClick={onMinimize}
+                className="p-1 rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+                title="Minimizar aba de texto (focar na estrutura ou no PDF)"
+              >
+                <Minimize2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {blocks.map((block) => (
