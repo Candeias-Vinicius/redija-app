@@ -14,6 +14,7 @@ interface RichTextInputProps {
   value: string;
   onChange: (html: string) => void;
   references?: AcademicReference[];
+  citationStyle?: 'uppercase' | 'titlecase';
   placeholder?: string;
   className?: string;
   autoFocus?: boolean;
@@ -26,6 +27,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
   value,
   onChange,
   references = [],
+  citationStyle = 'uppercase',
   placeholder = 'Digite seu texto ou "/" para comandos...',
   className = '',
   autoFocus = false,
@@ -203,7 +205,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
           </div>
           <div className="max-h-48 overflow-y-auto divide-y divide-neutral-50">
             {references.map((ref) => {
-              const cite = formatShortCitation(ref);
+              const cite = formatShortCitation(ref, citationStyle);
               return (
                 <button
                   key={ref.id}

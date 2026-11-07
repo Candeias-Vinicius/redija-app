@@ -32,10 +32,17 @@ export function getPrimarySurname(authors: string): string {
 }
 
 /**
- * Gera a citação curta autor-data no padrão ABNT NBR 10520: `(SILVA, 2023)`.
+ * Gera a citação curta autor-data no padrão ABNT NBR 10520: `(SILVA, 2023)` ou `(Silva, 2023)`.
  */
-export function formatShortCitation(ref: AcademicReference): string {
-  const surname = getPrimarySurname(ref.authors);
+export function formatShortCitation(
+  ref: AcademicReference,
+  style: 'uppercase' | 'titlecase' = 'uppercase',
+): string {
+  const rawSurname = getPrimarySurname(ref.authors);
+  const surname =
+    style === 'titlecase'
+      ? rawSurname.toLowerCase().replace(/(?:^|[\s-])(\S)/g, (m) => m.toUpperCase())
+      : rawSurname;
   const year = ref.year?.trim() || 's.d.';
   return `(${surname}, ${year})`;
 }

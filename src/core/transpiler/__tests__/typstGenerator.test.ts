@@ -286,4 +286,39 @@ describe('Typst compilation integration', () => {
     const pdfBuffer = compiler.pdf(compileResult.result!);
     expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
   });
+
+  it('compiles customized template (sans-serif, 2 columns, no cover, titlecase citations, italic refs)', () => {
+    const project = createSampleProject({
+      templateConfig: {
+        preset: 'article_2col',
+        fontFamily: 'sans',
+        fontSizePt: 10,
+        lineSpacing: '1.0',
+        paragraphIndentCm: 0.75,
+        marginTopCm: 2.5,
+        marginLeftCm: 2,
+        marginBottomCm: 2,
+        marginRightCm: 2,
+        columns: 2,
+        includeCoverPage: false,
+        includeTitlePage: false,
+        includeToc: false,
+        citationStyle: 'titlecase',
+        referenceHighlight: 'italic',
+      },
+    });
+
+    const standalone = generateStandaloneTypst(project);
+    expect(standalone).toContain('fonte: "sans"');
+    expect(standalone).toContain('colunas: 2');
+    expect(standalone).toContain('incluir-capa: false');
+    expect(standalone).toContain('Silva, 2023, p. 42');
+    expect(standalone).toContain('#emph[Engenharia de Software Moderna]');
+
+    const compiler = NodeCompiler.create();
+    const compileResult = compiler.compile({ mainFileContent: standalone });
+    expect(compileResult.hasError()).toBe(false);
+    const pdfBuffer = compiler.pdf(compileResult.result!);
+    expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+  });
 });

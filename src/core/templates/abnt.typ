@@ -11,14 +11,16 @@
 // =====================================================================
 
 // Fontes em ordem de preferência. As primeiras são livres e têm as
-// mesmas métricas da Times New Roman (embutidas no navegador).
+// mesmas métricas da Times New Roman ou Arial (embutidas no navegador).
 #let fontes-serifadas = ("Tinos", "TeX Gyre Termes", "Liberation Serif", "Times New Roman")
+#let fontes-sem-serifa = ("Arimo", "Liberation Sans", "Arial", "Helvetica")
 
 // Espaçamentos (o "leading" do Typst é o espaço entre linhas, não a altura
-// total da linha; os valores abaixo aproximam o espaçamento 1,5 e simples
-// do Word para fonte de 12 pt).
+// total da linha; os valores abaixo aproximam o espaçamento 1,5, simples e
+// duplo do Word para fonte de 12 pt).
 #let entrelinha-1-5 = 1.05em
 #let entrelinha-simples = 0.5em
+#let entrelinha-dupla = 1.55em
 #let recuo-paragrafo = 1.25cm
 
 // ---------------------------------------------------------------------
@@ -90,7 +92,7 @@
 }
 
 // ---------------------------------------------------------------------
-// Função principal do modelo
+// Função principal do modelo (configurável por norma / universidade)
 // ---------------------------------------------------------------------
 #let abnt(
   instituicao: "",
@@ -102,6 +104,7 @@
   orientador: none,
   local: "",
   ano: "",
+  logo: none,
   dedicatoria: none,
   agradecimentos: none,
   epigrafe: none,
@@ -112,26 +115,48 @@
   keywords: (),
   lista-figuras: false,
   lista-tabelas: false,
+  // Parâmetros de personalização de norma / layout
+  fonte: "serif",
+  tamanho-fonte: 12pt,
+  entrelinha: entrelinha-1-5,
+  recuo: recuo-paragrafo,
+  margem-superior: 3cm,
+  margem-esquerda: 3cm,
+  margem-inferior: 2cm,
+  margem-direita: 2cm,
+  colunas: 1,
+  incluir-capa: true,
+  incluir-folha-rosto: true,
+  incluir-sumario: true,
   body,
 ) = {
   set document(title: titulo, author: autor)
 
+  let familia-fonte = if fonte == "sans" { fontes-sem-serifa } else { fontes-serifadas }
+
   set page(
     paper: "a4",
-    margin: (top: 3cm, left: 3cm, bottom: 2cm, right: 2cm),
+    margin: (
+      top: margem-superior,
+      left: margem-esquerda,
+      bottom: margem-inferior,
+      right: margem-direita,
+    ),
     header: none,
   )
 
-  set text(font: fontes-serifadas, size: 12pt, lang: "pt", region: "br")
-  set par(justify: true, leading: entrelinha-1-5, spacing: entrelinha-1-5, first-line-indent: 0pt)
+  set text(font: familia-fonte, size: tamanho-fonte, lang: "pt", region: "br")
+  set par(justify: true, leading: entrelinha, spacing: entrelinha, first-line-indent: 0pt)
 
   // Títulos: numeração progressiva (NBR 6024)
   set heading(numbering: "1.1")
-  show heading: set text(size: 12pt)
+  show heading: set text(size: tamanho-fonte)
   show heading: set block(above: 1.5em, below: 1.5em)
   show heading.where(level: 1): it => {
-    // Seções primárias começam em página nova
-    pagebreak(weak: true)
+    // Em trabalhos de 1 coluna com capa, seções primárias começam em página nova
+    if incluir-capa and colunas == 1 {
+      pagebreak(weak: true)
+    }
     text(weight: "bold", upper(it))
   }
   show heading.where(level: 2): it => text(weight: "bold", it)
@@ -149,10 +174,13 @@
   ] else [#upper(titulo)]
 
   // ------------------------------- CAPA -------------------------------
-  // A capa não é contada na paginação.
-  {
+  if incluir-capa {
     set par(first-line-indent: 0pt, justify: false)
     align(center)[
+      #if logo != none {
+        logo
+        v(0.8em)
+      }
       #text(weight: "bold")[#upper(instituicao)] \
       #upper(curso)
 
@@ -168,11 +196,11 @@
   }
 
   // -------------------------- FOLHA DE ROSTO --------------------------
-  // A contagem de páginas começa aqui (mas o número só aparece a partir
-  // da parte textual).
-  pagebreak()
-  counter(page).update(1)
-  {
+  if incluir-folha-rosto {
+    if incluir-capa {
+      pagebreak()
+    }
+    counter(page).update(1)
     set par(first-line-indent: 0pt, justify: false)
     align(center)[
       #text(weight: "bold")[#upper(autor)]
@@ -194,7 +222,30 @@
     }
     v(1fr)
     align(center, text(weight: "bold")[#local \ #ano])
+  } else if not incluir-capa {
+    // Modo Artigo Científico (sem capa e sem folha de rosto): cabeçalho direto no topo
+    counter(page).update(1)
+    set par(first-line-indent: 0pt, justify: false)
+    align(center)[
+      #if logo != none {
+        logo
+        v(0.5em)
+      }
+      #if instituicao != "" [
+        #text(size: 10pt)[#upper(instituicao) — #curso] \
+        #v(0.4em)
+      ]
+      #text(size: 14pt, weight: "bold")[#titulo-completo] \
+      #v(0.5em)
+      #text(size: 11pt, weight: "bold")[#autor]
+      #if orientador != none [
+        \ #text(size: 10pt)[Orientador(a): #orientador]
+      ]
+    ]
+    v(1em)
   }
+
+  let tem-pre-textual = incluir-capa or incluir-folha-rosto
 
   // --------------------------- DEDICATÓRIA ----------------------------
   if dedicatoria != none {
@@ -207,7 +258,7 @@
   // ------------------------- AGRADECIMENTOS ---------------------------
   if agradecimentos != none {
     pagebreak()
-    set par(first-line-indent: (amount: recuo-paragrafo, all: true), leading: entrelinha-1-5)
+    set par(first-line-indent: (amount: recuo, all: true), leading: entrelinha)
     align(center, text(weight: "bold")[AGRADECIMENTOS])
     v(1.5em)
     agradecimentos
@@ -229,26 +280,34 @@
 
   // ------------------------------ RESUMO ------------------------------
   if resumo != none {
-    pagebreak()
+    if tem-pre-textual {
+      pagebreak()
+    } else {
+      v(0.8em)
+    }
     set par(first-line-indent: 0pt, leading: entrelinha-simples, spacing: entrelinha-simples)
     align(center, text(weight: "bold")[RESUMO])
-    v(1.5em)
+    v(1em)
     resumo
     if palavras-chave.len() > 0 {
-      v(1.5em)
+      v(1em)
       [*Palavras-chave:* #palavras-chave.join(". ").]
     }
   }
 
   // ----------------------------- ABSTRACT -----------------------------
   if abstract != none {
-    pagebreak()
+    if tem-pre-textual {
+      pagebreak()
+    } else {
+      v(1em)
+    }
     set par(first-line-indent: 0pt, leading: entrelinha-simples, spacing: entrelinha-simples)
     align(center, text(weight: "bold")[ABSTRACT])
-    v(1.5em)
+    v(1em)
     abstract
     if keywords.len() > 0 {
-      v(1.5em)
+      v(1em)
       [*Keywords:* #keywords.join(". ").]
     }
   }
@@ -272,18 +331,23 @@
   }
 
   // ------------------------------ SUMÁRIO -----------------------------
-  pagebreak()
-  {
+  if incluir-sumario {
+    pagebreak()
     set par(first-line-indent: 0pt)
     align(center, text(weight: "bold")[SUMÁRIO])
     v(1.5em)
     outline(title: none, indent: auto)
+  } else if not tem-pre-textual {
+    v(1.5em)
   }
 
   // -------------------------- PARTE TEXTUAL ---------------------------
   // A partir daqui o número da página aparece no canto superior direito.
-  set page(header: context align(right, text(size: 10pt, counter(page).display())))
+  set page(
+    header: context align(right, text(size: 10pt, counter(page).display())),
+    columns: colunas,
+  )
   // `all: true`: a ABNT recua também o primeiro parágrafo após um título.
-  set par(first-line-indent: (amount: recuo-paragrafo, all: true))
+  set par(first-line-indent: (amount: recuo, all: true))
   body
 }

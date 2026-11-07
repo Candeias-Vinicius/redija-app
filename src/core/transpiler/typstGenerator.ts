@@ -1,4 +1,10 @@
-import { Block, AcademicReference, DocumentProject } from '@/types/document';
+import {
+  Block,
+  AcademicReference,
+  DocumentProject,
+  DEFAULT_TEMPLATE_CONFIG,
+  TemplateConfig,
+} from '@/types/document';
 import {
   escapeMarkup,
   richTextToTypst,
@@ -33,10 +39,18 @@ export function generateTypstFiles(project: DocumentProject): Record<string, str
 
 /**
  * Extrai também os arquivos binários de imagem (`Uint8Array`) a partir dos
- * Data URLs salvos nos blocos de figura, para mapeamento no WASM compiler.
+ * Data URLs salvos nos blocos de figura e no logo da instituição, para
+ * mapeamento no WASM compiler.
  */
 export function extractBinaryAssets(project: DocumentProject): Record<string, Uint8Array> {
   const assets: Record<string, Uint8Array> = {};
+
+  if (project.metadata.institutionLogoDataUrl) {
+    const parsedLogo = parseDataUrl(project.metadata.institutionLogoDataUrl);
+    if (parsedLogo) {
+      assets[`/assets/logo_instituicao.${parsedLogo.ext}`] = parsedLogo.bytes;
+    }
+  }
 
   for (const block of project.blocks) {
     if (block.type === 'image' && block.meta?.imageDataUrl) {
@@ -90,21 +104,33 @@ export function generateStandaloneTypst(project: DocumentProject): string {
 
 /** Gera apenas o conteúdo do main.typ. */
 export function generateMain(project: DocumentProject, includeBinaryImages = false): string {
-  const parts: string[] = [IMPORT_LINE, generateShowRule(project), ''];
+  const cfg: TemplateConfig = {
+    ...DEFAULT_TEMPLATE_CONFIG,
+    ...(project.templateConfig ?? {}),
+  };
+  const parts: string[] = [
+    IMPORT_LINE,
+    generateShowRule(project, cfg, includeBinaryImages),
+    '',
+  ];
 
   for (const block of project.blocks) {
-    const code = transpileBlock(block, includeBinaryImages);
+    const code = transpileBlock(block, includeBinaryImages, cfg);
     if (code !== null) parts.push(code, '');
   }
 
   if (project.references.length > 0) {
-    parts.push(transpileReferences(project.references));
+    parts.push(transpileReferences(project.references, cfg));
   }
 
   return parts.join('\n');
 }
 
-function generateShowRule(project: DocumentProject): string {
+function generateShowRule(
+  project: DocumentProject,
+  cfg: TemplateConfig,
+  includeBinaryImages = false,
+): string {
   const m = project.metadata;
   const args: string[] = [
     `instituicao: ${typstString(m.institution)}`,
@@ -116,6 +142,15 @@ function generateShowRule(project: DocumentProject): string {
   if (m.nature?.trim()) args.push(`natureza: ${typstContent(m.nature)}`);
   if (m.advisor?.trim()) args.push(`orientador: ${typstString(m.advisor)}`);
   args.push(`local: ${typstString(m.location)}`, `ano: ${typstString(m.year)}`);
+
+  if (includeBinaryImages && m.institutionLogoDataUrl) {
+    const parsedLogo = parseDataUrl(m.institutionLogoDataUrl);
+    if (parsedLogo) {
+      const logoPath = `/assets/logo_instituicao.${parsedLogo.ext}`;
+      args.push(`logo: image(${typstString(logoPath)}, height: 2.2cm)`);
+    }
+  }
+
   if (m.dedicatory?.trim()) args.push(`dedicatoria: ${typstContent(m.dedicatory)}`);
   if (m.acknowledgments?.trim()) args.push(`agradecimentos: ${typstContent(m.acknowledgments)}`);
   if (m.epigraph?.trim()) args.push(`epigrafe: ${typstContent(m.epigraph)}`);
@@ -136,6 +171,50 @@ function generateShowRule(project: DocumentProject): string {
   if (m.includeFiguresList) args.push('lista-figuras: true');
   if (m.includeTablesList) args.push('lista-tabelas: true');
 
+  // Parâmetros de personalização do template / norma
+  if (cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {
+    args.push(`fonte: ${typstString(cfg.fontFamily)}`);
+  }
+  if (cfg.fontSizePt !== DEFAULT_TEMPLATE_CONFIG.fontSizePt) {
+    args.push(`tamanho-fonte: ${cfg.fontSizePt}pt`);
+  }
+  if (cfg.lineSpacing !== DEFAULT_TEMPLATE_CONFIG.lineSpacing) {
+    const leadingVar =
+      cfg.lineSpacing === '1.0'
+        ? 'entrelinha-simples'
+        : cfg.lineSpacing === '2.0'
+          ? 'entrelinha-dupla'
+          : 'entrelinha-1-5';
+    args.push(`entrelinha: ${leadingVar}`);
+  }
+  if (cfg.paragraphIndentCm !== DEFAULT_TEMPLATE_CONFIG.paragraphIndentCm) {
+    args.push(`recuo: ${cfg.paragraphIndentCm}cm`);
+  }
+  if (cfg.marginTopCm !== DEFAULT_TEMPLATE_CONFIG.marginTopCm) {
+    args.push(`margem-superior: ${cfg.marginTopCm}cm`);
+  }
+  if (cfg.marginLeftCm !== DEFAULT_TEMPLATE_CONFIG.marginLeftCm) {
+    args.push(`margem-esquerda: ${cfg.marginLeftCm}cm`);
+  }
+  if (cfg.marginBottomCm !== DEFAULT_TEMPLATE_CONFIG.marginBottomCm) {
+    args.push(`margem-inferior: ${cfg.marginBottomCm}cm`);
+  }
+  if (cfg.marginRightCm !== DEFAULT_TEMPLATE_CONFIG.marginRightCm) {
+    args.push(`margem-direita: ${cfg.marginRightCm}cm`);
+  }
+  if (cfg.columns !== DEFAULT_TEMPLATE_CONFIG.columns) {
+    args.push(`colunas: ${cfg.columns}`);
+  }
+  if (cfg.includeCoverPage !== DEFAULT_TEMPLATE_CONFIG.includeCoverPage) {
+    args.push(`incluir-capa: ${cfg.includeCoverPage}`);
+  }
+  if (cfg.includeTitlePage !== DEFAULT_TEMPLATE_CONFIG.includeTitlePage) {
+    args.push(`incluir-folha-rosto: ${cfg.includeTitlePage}`);
+  }
+  if (cfg.includeToc !== DEFAULT_TEMPLATE_CONFIG.includeToc) {
+    args.push(`incluir-sumario: ${cfg.includeToc}`);
+  }
+
   return `#show: abnt.with(\n  ${args.join(',\n  ')},\n)`;
 }
 
@@ -148,7 +227,11 @@ export function stripManualNumbering(title: string): string {
   return title.replace(/^\s*\d+(\.\d+)*\.?\s+/, '').trim();
 }
 
-function transpileBlock(block: Block, includeBinaryImages = false): string | null {
+function transpileBlock(
+  block: Block,
+  includeBinaryImages = false,
+  cfg: TemplateConfig = DEFAULT_TEMPLATE_CONFIG,
+): string | null {
   const plainText = stripHtmlTags(block.content);
   const richContent = richTextToTypst(block.content);
 
@@ -173,7 +256,12 @@ function transpileBlock(block: Block, includeBinaryImages = false): string | nul
 
     case 'quote_long': {
       if (!plainText) return null;
-      const ref = formatCitationReference(block.meta?.author, block.meta?.year, block.meta?.page);
+      const ref = formatCitationReference(
+        block.meta?.author,
+        block.meta?.year,
+        block.meta?.page,
+        cfg.citationStyle,
+      );
       const refArg = ref ? `referencia: ${typstContent(ref)}` : '';
       return `#citacao(${refArg})[${richContent}]`;
     }
@@ -233,39 +321,68 @@ function transpileBlock(block: Block, includeBinaryImages = false): string | nul
   }
 }
 
-/** Monta a chamada autor-data da citação: (SILVA, 2023, p. 42). */
-export function formatCitationReference(author?: string, year?: string, page?: string): string {
+/** Formata o sobrenome do autor conforme o estilo (MAIÚSCULAS ou Inicial Maiúscula). */
+export function formatAuthorCase(
+  rawAuthor: string,
+  style: 'uppercase' | 'titlecase' = 'uppercase',
+): string {
+  const trimmed = rawAuthor.trim();
+  if (!trimmed) return '';
+  if (style === 'titlecase') {
+    return trimmed
+      .toLowerCase()
+      .replace(/(?:^|[\s-;])(\S)/g, (match) => match.toUpperCase());
+  }
+  return trimmed.toUpperCase();
+}
+
+/** Monta a chamada autor-data da citação: (SILVA, 2023, p. 42) ou (Silva, 2023, p. 42). */
+export function formatCitationReference(
+  author?: string,
+  year?: string,
+  page?: string,
+  citationStyle: 'uppercase' | 'titlecase' = 'uppercase',
+): string {
   const parts: string[] = [];
-  if (author?.trim()) parts.push(author.trim().toUpperCase());
+  if (author?.trim()) parts.push(formatAuthorCase(author, citationStyle));
   if (year?.trim()) parts.push(year.trim());
   if (page?.trim()) parts.push(`p. ${page.trim()}`);
   return parts.join(', ');
 }
 
-function transpileReferences(references: AcademicReference[]): string {
+function transpileReferences(
+  references: AcademicReference[],
+  cfg: TemplateConfig = DEFAULT_TEMPLATE_CONFIG,
+): string {
   const sorted = [...references].sort((a, b) =>
     a.authors.localeCompare(b.authors, 'pt-BR', { sensitivity: 'base' }),
   );
-  const items = sorted.map((ref) => `  ${transpileReference(ref)},`);
+  const items = sorted.map((ref) => `  ${transpileReference(ref, cfg)},`);
   return `#referencias(\n${items.join('\n')}\n)`;
 }
 
 /**
- * Formato NBR 6023 para livros, artigos de periódico, teses/TCCs, sites e legislação.
+ * Formato NBR 6023 para livros, artigos de periódico, teses/TCCs, sites e legislação,
+ * respeitando a preferência de destaque (negrito ou itálico).
  */
-export function transpileReference(ref: AcademicReference): string {
+export function transpileReference(
+  ref: AcademicReference,
+  cfg: TemplateConfig = DEFAULT_TEMPLATE_CONFIG,
+): string {
   const e = escapeMarkup;
   const type = ref.type || 'book';
   const authors = e(ref.authors.trim().toUpperCase());
   const title = e(ref.title.trim());
   const subtitle = ref.subtitle?.trim() ? `: ${e(ref.subtitle.trim())}` : '';
   const year = e(ref.year?.trim() || '[s. d.]');
+  const hl = (text: string) =>
+    cfg.referenceHighlight === 'italic' ? `#emph[${text}]` : `#strong[${text}]`;
 
   let out: string;
 
   if (type === 'article' && ref.journal?.trim()) {
     // Artigo de periódico: AUTOR. Título: subtítulo. **Revista**, Local, v. X, n. Y, p. Z, Ano.
-    out = `${authors}. ${title}${subtitle}. #strong[${e(ref.journal.trim())}]`;
+    out = `${authors}. ${title}${subtitle}. ${hl(e(ref.journal.trim()))}`;
     if (ref.city?.trim()) out += `, ${e(ref.city.trim())}`;
     if (ref.volume?.trim()) out += `, v. ${e(ref.volume.trim())}`;
     if (ref.issue?.trim()) out += `, n. ${e(ref.issue.trim())}`;
@@ -276,10 +393,10 @@ export function transpileReference(ref: AcademicReference): string {
     const degree = e(ref.degree?.trim() || 'Trabalho de Conclusão de Curso');
     const inst = e(ref.institution?.trim() || ref.publisher?.trim() || 'Instituição');
     const city = e(ref.city?.trim() || '[S. l.]');
-    out = `${authors}. #strong[${title}]${subtitle}. ${year}. ${degree} — ${inst}, ${city}, ${year}.`;
+    out = `${authors}. ${hl(title)}${subtitle}. ${year}. ${degree} — ${inst}, ${city}, ${year}.`;
   } else {
     // Livro / Site / Legislação: AUTOR. **Título**: subtítulo. Edição. Local: Editora, Ano.
-    out = `${authors}. #strong[${title}]${subtitle}.`;
+    out = `${authors}. ${hl(title)}${subtitle}.`;
     if (ref.edition?.trim()) out += ` ${e(ref.edition.trim())}. ed.`;
     const city = e(ref.city?.trim() || '[S. l.]');
     const pub = e(ref.publisher?.trim() || '[s. n.]');

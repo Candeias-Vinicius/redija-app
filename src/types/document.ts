@@ -50,7 +50,47 @@ export interface DocumentMetadata {
   foreignKeywords?: string[];
   includeFiguresList?: boolean;
   includeTablesList?: boolean;
+  // Brasão / Logotipo da Instituição na capa (Data URL)
+  institutionLogoDataUrl?: string;
 }
+
+export type NormPresetId = 'abnt_classic' | 'abnt_2023' | 'article_2col' | 'apa_7' | 'custom';
+
+export interface TemplateConfig {
+  preset: NormPresetId;
+  fontFamily: 'serif' | 'sans';
+  fontSizePt: 10 | 11 | 12;
+  lineSpacing: '1.5' | '1.0' | '2.0';
+  paragraphIndentCm: number;
+  marginTopCm: number;
+  marginLeftCm: number;
+  marginBottomCm: number;
+  marginRightCm: number;
+  columns: 1 | 2;
+  includeCoverPage: boolean;
+  includeTitlePage: boolean;
+  includeToc: boolean;
+  citationStyle: 'uppercase' | 'titlecase';
+  referenceHighlight: 'bold' | 'italic';
+}
+
+export const DEFAULT_TEMPLATE_CONFIG: TemplateConfig = {
+  preset: 'abnt_classic',
+  fontFamily: 'serif',
+  fontSizePt: 12,
+  lineSpacing: '1.5',
+  paragraphIndentCm: 1.25,
+  marginTopCm: 3,
+  marginLeftCm: 3,
+  marginBottomCm: 2,
+  marginRightCm: 2,
+  columns: 1,
+  includeCoverPage: true,
+  includeTitlePage: true,
+  includeToc: true,
+  citationStyle: 'uppercase',
+  referenceHighlight: 'bold',
+};
 
 export type ReferenceType = 'book' | 'article' | 'thesis' | 'website' | 'legislation';
 
@@ -82,6 +122,7 @@ export interface DocumentProject {
   id: string;
   name: string;
   templateType?: ProjectTemplateType;
+  templateConfig?: TemplateConfig;
   metadata: DocumentMetadata;
   blocks: Block[];
   references: AcademicReference[];

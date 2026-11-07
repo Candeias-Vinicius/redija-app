@@ -26,6 +26,7 @@ import {
 interface EditorProps {
   blocks: Block[];
   references: AcademicReference[];
+  citationStyle?: 'uppercase' | 'titlecase';
   onChangeBlocks: (blocks: Block[]) => void;
 }
 
@@ -138,7 +139,12 @@ function createDefaultMetaForType(type: BlockType): Block['meta'] {
   return undefined;
 }
 
-export const Editor: React.FC<EditorProps> = ({ blocks, references, onChangeBlocks }) => {
+export const Editor: React.FC<EditorProps> = ({
+  blocks,
+  references,
+  citationStyle = 'uppercase',
+  onChangeBlocks,
+}) => {
   const [activeMenuBlockId, setActiveMenuBlockId] = useState<string | null>(null);
   const [menuSearch, setMenuSearch] = useState('');
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
@@ -436,6 +442,7 @@ export const Editor: React.FC<EditorProps> = ({ blocks, references, onChangeBloc
                 <RichTextInput
                   value={block.content}
                   references={references}
+                  citationStyle={citationStyle}
                   autoFocus={focusedBlockId === block.id}
                   onChange={(html) => updateBlockContent(block.id, html)}
                   onEnter={() => addBlock(block.id, 'paragraph')}

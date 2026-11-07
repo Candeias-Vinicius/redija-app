@@ -8,6 +8,7 @@ import {
   FolderOpen,
   ChevronDown,
   HelpCircle,
+  Sliders,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -15,6 +16,7 @@ interface HeaderProps {
   projectsCount: number;
   saveStatus: 'saved' | 'saving';
   onOpenProjectsModal: () => void;
+  onOpenTemplateCustomizer: () => void;
   onOpenWelcomeModal: () => void;
   onDownloadPdf: () => void;
   isExportingPdf: boolean;
@@ -28,6 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
   projectsCount,
   saveStatus,
   onOpenProjectsModal,
+  onOpenTemplateCustomizer,
   onOpenWelcomeModal,
   onDownloadPdf,
   isExportingPdf,
@@ -89,6 +92,15 @@ export const Header: React.FC<HeaderProps> = ({
           title="Sobre o RedijaApp e guia rápido"
         >
           <HelpCircle className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={onOpenTemplateCustomizer}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-emerald-200 bg-emerald-50/70 text-emerald-800 hover:bg-emerald-100/70 transition-colors"
+          title="Personalizar norma (ABNT, APA, Artigo 2 colunas), fonte, margens e brasão da universidade"
+        >
+          <Sliders className="w-3.5 h-3.5 text-emerald-600" />
+          <span>Norma & Layout</span>
         </button>
 
         <button

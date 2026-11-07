@@ -2,7 +2,7 @@
 // RedijaApp — Modelos Iniciais de Trabalhos Acadêmicos (ABNT)
 // =====================================================================
 
-import { DocumentProject, ProjectTemplateType } from '@/types/document';
+import { DocumentProject, ProjectTemplateType, DEFAULT_TEMPLATE_CONFIG } from '@/types/document';
 
 export interface ProjectTemplateInfo {
   type: ProjectTemplateType;
@@ -51,6 +51,24 @@ export function createProjectFromTemplate(
       id,
       name: customName || 'Novo Artigo Científico',
       templateType: 'artigo',
+      templateConfig: {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        preset: 'article_2col',
+        fontFamily: 'serif',
+        fontSizePt: 10,
+        lineSpacing: '1.0',
+        paragraphIndentCm: 0.75,
+        marginTopCm: 2.5,
+        marginLeftCm: 2,
+        marginBottomCm: 2,
+        marginRightCm: 2,
+        columns: 2,
+        includeCoverPage: false,
+        includeTitlePage: false,
+        includeToc: false,
+        citationStyle: 'titlecase',
+        referenceHighlight: 'italic',
+      },
       updatedAt: now,
       metadata: {
         title: 'Título do Artigo Científico',

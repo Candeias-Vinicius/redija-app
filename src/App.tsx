@@ -6,12 +6,15 @@ import { PdfPreview } from '@/components/PdfPreview';
 import { ReferenceModal } from '@/components/ReferenceModal';
 import { ProjectsModal } from '@/components/ProjectsModal';
 import { WelcomeModal } from '@/components/WelcomeModal';
+import { TemplateCustomizerModal } from '@/components/TemplateCustomizerModal';
 import {
   DocumentProject,
   DocumentMetadata,
   Block,
   AcademicReference,
   ProjectTemplateType,
+  TemplateConfig,
+  DEFAULT_TEMPLATE_CONFIG,
 } from '@/types/document';
 import {
   generateStandaloneTypst,
@@ -42,6 +45,7 @@ export const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const skipNextAutoSaveRef = useRef(true);
@@ -98,6 +102,10 @@ export const App: React.FC = () => {
 
   const handleMetadataChange = (metadata: DocumentMetadata) => {
     setProject((prev) => ({ ...prev, metadata }));
+  };
+
+  const handleTemplateConfigChange = (templateConfig: TemplateConfig) => {
+    setProject((prev) => ({ ...prev, templateConfig }));
   };
 
   const handleBlocksChange = (blocks: Block[]) => {
@@ -243,6 +251,7 @@ export const App: React.FC = () => {
         projectsCount={projects.length}
         saveStatus={saveStatus}
         onOpenProjectsModal={() => setIsProjectsModalOpen(true)}
+        onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
         onOpenWelcomeModal={() => setIsWelcomeModalOpen(true)}
         onDownloadPdf={handleDownloadPdf}
         isExportingPdf={isExportingPdf}
@@ -266,6 +275,7 @@ export const App: React.FC = () => {
         <Editor
           blocks={project.blocks}
           references={project.references}
+          citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
           onChangeBlocks={handleBlocksChange}
         />
 
@@ -299,6 +309,15 @@ export const App: React.FC = () => {
       <WelcomeModal
         isOpen={isWelcomeModalOpen}
         onClose={() => setIsWelcomeModalOpen(false)}
+      />
+
+      <TemplateCustomizerModal
+        isOpen={isCustomizerOpen}
+        onClose={() => setIsCustomizerOpen(false)}
+        config={project.templateConfig ?? DEFAULT_TEMPLATE_CONFIG}
+        metadata={project.metadata}
+        onChangeConfig={handleTemplateConfigChange}
+        onChangeMetadata={handleMetadataChange}
       />
     </div>
   );

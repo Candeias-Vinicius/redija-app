@@ -35,6 +35,8 @@ const FONT_FILES = [
   'fonts/Tinos-Bold.ttf',
   'fonts/Tinos-Italic.ttf',
   'fonts/Tinos-BoldItalic.ttf',
+  'fonts/Arimo-Regular.ttf',
+  'fonts/Arimo-Italic.ttf',
 ];
 
 let compilerPromise: Promise<TypstCompiler> | null = null;
