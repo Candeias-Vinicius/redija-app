@@ -13,25 +13,67 @@ describe('Google Drive Service (BYOS & Colaboração)', () => {
     vi.restoreAllMocks();
   });
 
-  it('cria novo arquivo no Drive via POST multipart quando o projeto não tem driveFileId', async () => {
+  it('cria novo arquivo no Drive via POST multipart quando o projeto não tem driveFileId e não existe no Drive', async () => {
     const mockProject = createProjectFromTemplate('tcc', 'Meu Trabalho');
     const fakeToken = 'mock_access_token_123';
 
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ id: 'drive_file_abc', modifiedTime: '2026-11-07T04:00:00Z' }),
-    } as Response);
+    // 1. Busca por appProperties (não encontra)
+    // 2. Busca por nome (não encontra)
+    // 3. Criação POST multipart
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ files: [] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ files: [] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'drive_file_abc', modifiedTime: '2026-11-07T04:00:00Z' }),
+      } as Response);
 
     const result = await saveProjectToDrive(mockProject, fakeToken);
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const [url, options] = fetchSpy.mock.calls[0];
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    const [url, options] = fetchSpy.mock.calls[2];
     expect(url).toContain('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
     expect(options?.method).toBe('POST');
     expect(options?.headers).toMatchObject({
       Authorization: `Bearer ${fakeToken}`,
     });
     expect(result.fileId).toBe('drive_file_abc');
+  });
+
+  it('reaproveita e atualiza arquivo existente no Drive via PATCH quando projeto local ainda não tem driveFileId (evita duplicatas)', async () => {
+    const mockProject = createProjectFromTemplate('tcc', 'Meu Trabalho');
+    const fakeToken = 'mock_access_token_123';
+
+    // 1. Busca por appProperties (encontra arquivo já criado no Drive)
+    // 2. PATCH metadata
+    // 3. PATCH media
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          files: [{ id: 'existing_drive_found', modifiedTime: '2026-11-07T02:00:00Z' }],
+        }),
+      } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'existing_drive_found' }),
+      } as Response);
+
+    const result = await saveProjectToDrive(mockProject, fakeToken);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    const [urlPatch] = fetchSpy.mock.calls[1];
+    expect(urlPatch).toContain('https://www.googleapis.com/drive/v3/files/existing_drive_found');
+    expect(result.fileId).toBe('existing_drive_found');
   });
 
   it('atualiza arquivo existente no Drive via PATCH quando o projeto já possui driveFileId', async () => {

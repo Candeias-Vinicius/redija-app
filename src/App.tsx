@@ -40,6 +40,7 @@ import {
   db,
   loadInitialActiveProject,
   saveProject,
+  getProject,
   listProjects,
   listTrashedProjects,
   duplicateProject,
@@ -105,6 +106,21 @@ export const App: React.FC = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
   const [isSyncingDrive, setIsSyncingDrive] = useState(false);
+
+  // Sincronização Google Drive: trava contra chamadas concorrentes e deduplicação de assinaturas
+  const isDriveSyncingRef = useRef(false);
+  const driveFileIdByProjectIdRef = useRef<Record<string, string>>({});
+  const lastSyncedSignatureRef = useRef<Record<string, string>>({});
+
+  const getProjectContentSignature = useCallback((p: DocumentProject): string => {
+    return JSON.stringify({
+      name: p.name,
+      metadata: p.metadata,
+      blocks: p.blocks,
+      references: p.references,
+      templateConfig: p.templateConfig,
+    });
+  }, []);
 
   // Histórico Undo / Redo (Ctrl+Z / Ctrl+Y)
   const [past, setPast] = useState<HistorySnapshot[]>([]);
@@ -368,7 +384,22 @@ export const App: React.FC = () => {
     }
 
     const driveTimer = setTimeout(async () => {
+      // Se já houver um upload em andamento para o Drive, aguarda o próximo ciclo
+      if (isDriveSyncingRef.current) {
+        return;
+      }
+
+      const knownFileId = project.driveFileId || driveFileIdByProjectIdRef.current[project.id];
+      const signature = getProjectContentSignature(project);
+
+      // Se o conteúdo já foi sincronizado e já temos o driveFileId, evita requisições redundantes
+      if (knownFileId && lastSyncedSignatureRef.current[project.id] === signature) {
+        return;
+      }
+
+      isDriveSyncingRef.current = true;
       setRawDriveSyncStatus('syncing');
+
       try {
         const token = await getValidAccessToken();
         if (!token) {
@@ -376,31 +407,50 @@ export const App: React.FC = () => {
           return;
         }
 
-        const { fileId, modifiedTime } = await saveProjectToDrive(project, token);
+        const projectToSync: DocumentProject = {
+          ...project,
+          driveFileId: knownFileId,
+        };
+
+        const { fileId, modifiedTime } = await saveProjectToDrive(projectToSync, token);
+        driveFileIdByProjectIdRef.current[project.id] = fileId;
+        lastSyncedSignatureRef.current[project.id] = signature;
         setRawDriveSyncStatus('synced');
 
-        // Se o projeto ainda não tinha driveFileId, vincula agora e grava no IndexedDB
-        if (project.driveFileId !== fileId) {
-          const updated = {
-            ...project,
+        // Atualiza driveFileId no estado do projeto de forma funcional para não perder edições recentes
+        setProject((prev) => {
+          if (prev.id !== project.id) return prev;
+          return {
+            ...prev,
             driveFileId: fileId,
             driveSyncedAt: modifiedTime,
-            ownerEmail: project.ownerEmail || user.email,
+            ownerEmail: prev.ownerEmail || user.email,
           };
-          await saveProject(updated);
+        });
+
+        // Grava no IndexedDB sem alterar o updatedAt (evita ciclo repetitivo de auto-save)
+        const currentInDb = await getProject(project.id);
+        if (currentInDb) {
+          const updatedDb = {
+            ...currentInDb,
+            driveFileId: fileId,
+            driveSyncedAt: modifiedTime,
+            ownerEmail: currentInDb.ownerEmail || user.email,
+          };
+          await saveProject(updatedDb, false);
           const all = await listProjects();
           setProjects(all);
-          skipNextAutoSaveRef.current = true;
-          setProject(updated);
         }
       } catch (err) {
         console.warn('Erro ao sincronizar com Google Drive:', err);
         setRawDriveSyncStatus('error');
+      } finally {
+        isDriveSyncingRef.current = false;
       }
     }, 3500);
 
     return () => clearTimeout(driveTimer);
-  }, [project, isStorageReady, isAuthenticated, user, getValidAccessToken]);
+  }, [project, isStorageReady, isAuthenticated, user, getValidAccessToken, getProjectContentSignature]);
 
   /**
    * Garante que o projeto ativo esteja gravado no Google Drive antes de compartilhar.
@@ -413,14 +463,39 @@ export const App: React.FC = () => {
       }
       if (!token) return null;
 
+      const knownFileId = project.driveFileId || driveFileIdByProjectIdRef.current[project.id];
+      const projectToSync: DocumentProject = {
+        ...project,
+        driveFileId: knownFileId,
+      };
+
       setRawDriveSyncStatus('syncing');
-      const { fileId, modifiedTime } = await saveProjectToDrive(project, token);
+      const { fileId, modifiedTime } = await saveProjectToDrive(projectToSync, token);
+      driveFileIdByProjectIdRef.current[project.id] = fileId;
+      lastSyncedSignatureRef.current[project.id] = getProjectContentSignature(project);
+
       setProject((prev) => ({
         ...prev,
         driveFileId: fileId,
         driveSyncedAt: modifiedTime,
         ownerEmail: prev.ownerEmail || user?.email,
       }));
+
+      const currentInDb = await getProject(project.id);
+      if (currentInDb) {
+        await saveProject(
+          {
+            ...currentInDb,
+            driveFileId: fileId,
+            driveSyncedAt: modifiedTime,
+            ownerEmail: currentInDb.ownerEmail || user?.email,
+          },
+          false,
+        );
+        const all = await listProjects();
+        setProjects(all);
+      }
+
       setRawDriveSyncStatus('synced');
       return fileId;
     } catch (err) {
@@ -503,9 +578,19 @@ export const App: React.FC = () => {
       const currentProjects = await listProjects();
       let hasNewOrUpdated = false;
 
+      // Filtra duplicatas existentes no Drive mantendo apenas o arquivo mais recente de cada projeto
+      const seenNames = new Set<string>();
+
       for (const summary of driveSummaries) {
+        const normName = summary.name.trim().toLowerCase();
+        if (seenNames.has(normName)) {
+          continue;
+        }
+        seenNames.add(normName);
+
         const existsLocally = currentProjects.find((p) => p.driveFileId === summary.id);
         if (existsLocally) {
+          driveFileIdByProjectIdRef.current[existsLocally.id] = summary.id;
           // Se o arquivo no Google Drive foi atualizado por um colaborador (mais recente que o sync local)
           const remoteTime = new Date(summary.modifiedTime).getTime();
           const localTime = new Date(existsLocally.driveSyncedAt || existsLocally.updatedAt).getTime();
@@ -517,7 +602,7 @@ export const App: React.FC = () => {
                 remoteLoaded
               );
               if (hasMergedRemoteChanges) {
-                await saveProject(mergedProject);
+                await saveProject(mergedProject, false);
                 hasNewOrUpdated = true;
               }
             } catch (err) {
@@ -528,18 +613,20 @@ export const App: React.FC = () => {
           const matchByName = currentProjects.find(
             (p) =>
               !p.driveFileId &&
-              p.name.trim().toLowerCase() === summary.name.trim().toLowerCase()
+              p.name.trim().toLowerCase() === normName
           );
           if (matchByName) {
             matchByName.driveFileId = summary.id;
             matchByName.driveSyncedAt = summary.modifiedTime;
             matchByName.ownerEmail = user?.email;
-            await saveProject(matchByName);
+            await saveProject(matchByName, false);
+            driveFileIdByProjectIdRef.current[matchByName.id] = summary.id;
             hasNewOrUpdated = true;
           } else {
             try {
               const loaded = await loadProjectFromDrive(summary.id, token);
-              await saveProject(loaded);
+              await saveProject(loaded, false);
+              driveFileIdByProjectIdRef.current[loaded.id] = summary.id;
               hasNewOrUpdated = true;
             } catch (err) {
               console.warn(`Não foi possível carregar projeto ${summary.name}:`, err);

@@ -45,8 +45,75 @@ interface GoogleDrivePermissionApi {
 }
 
 /**
+ * Busca no Google Drive se já existe um arquivo .redija correspondente a este projeto.
+ * Prioriza a busca pela propriedade appProperties (redijaProjectId) e, em seguida,
+ * pelo nome exato do arquivo (.redija), evitando a criação de arquivos duplicados.
+ */
+export async function findDriveFileForProject(
+  project: DocumentProject,
+  accessToken: string
+): Promise<{ id: string; modifiedTime: string } | null> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    return null;
+  }
+
+  const cleanName = project.name.replace(/\.redija$/i, '').trim() || 'Sem Titulo';
+  const fileName = `${cleanName}.redija`;
+
+  // 1. Tenta buscar por appProperties (vínculo unívoco pelo ID do projeto)
+  try {
+    const propQuery = encodeURIComponent(
+      `appProperties has { key='redijaProjectId' and value='${project.id}' } and trashed = false`
+    );
+    const propRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${propQuery}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+    if (propRes.ok) {
+      const data = await propRes.json();
+      if (data.files && data.files.length > 0) {
+        return {
+          id: data.files[0].id,
+          modifiedTime: data.files[0].modifiedTime || new Date().toISOString(),
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Erro ao consultar Drive por appProperties:', err);
+  }
+
+  // 2. Se não encontrou por appProperties, busca pelo nome exato do arquivo
+  try {
+    const safeName = fileName.replace(/'/g, "\\'");
+    const nameQuery = encodeURIComponent(`name = '${safeName}' and trashed = false`);
+    const nameRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${nameQuery}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+    if (nameRes.ok) {
+      const data = await nameRes.json();
+      if (data.files && data.files.length > 0) {
+        return {
+          id: data.files[0].id,
+          modifiedTime: data.files[0].modifiedTime || new Date().toISOString(),
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Erro ao consultar Drive por nome de arquivo:', err);
+  }
+
+  return null;
+}
+
+/**
  * Cria ou atualiza o arquivo `.redija` no Google Drive.
- * Se o projeto já tem `driveFileId`, executa PATCH; caso contrário, executa POST (multipart).
+ * Se o projeto já tem `driveFileId` ou já possui um arquivo com o mesmo ID/nome no Drive,
+ * executa PATCH no mesmo arquivo. Caso contrário, executa POST (multipart).
  */
 export async function saveProjectToDrive(
   project: DocumentProject,
@@ -71,45 +138,67 @@ export async function saveProjectToDrive(
   const cleanName = project.name.replace(/\.redija$/i, '').trim() || 'Sem Titulo';
   const fileName = `${cleanName}.redija`;
 
+  let targetFileId = project.driveFileId;
+
+  // Se o projeto local não possui driveFileId registrado, verifica antes no Drive
+  // se já existe um arquivo com esse nome ou ID para reaproveitá-lo e não gerar duplicata
+  if (!targetFileId) {
+    const existing = await findDriveFileForProject(project, accessToken);
+    if (existing) {
+      targetFileId = existing.id;
+    }
+  }
+
   // CENÁRIO A: ATUALIZAR ARQUIVO EXISTENTE NO DRIVE
-  if (project.driveFileId) {
-    // 1. Atualiza metadados (nome caso tenha mudado)
-    await fetch(`https://www.googleapis.com/drive/v3/files/${project.driveFileId}`, {
+  if (targetFileId) {
+    // 1. Atualiza metadados (nome caso tenha mudado e vincula appProperties)
+    const patchMetaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${targetFileId}`, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name: fileName }),
+      body: JSON.stringify({
+        name: fileName,
+        appProperties: {
+          redijaProjectId: project.id,
+        },
+      }),
     });
 
-    // 2. Atualiza o conteúdo do arquivo
-    const updateRes = await fetch(
-      `https://www.googleapis.com/upload/drive/v3/files/${project.driveFileId}?uploadType=media`,
-      {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': REDIJA_MIME_TYPE,
-        },
-        body: fileContent,
-      }
-    );
+    if (patchMetaRes.ok) {
+      // 2. Atualiza o conteúdo do arquivo
+      const updateRes = await fetch(
+        `https://www.googleapis.com/upload/drive/v3/files/${targetFileId}?uploadType=media`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': REDIJA_MIME_TYPE,
+          },
+          body: fileContent,
+        }
+      );
 
-    if (!updateRes.ok) {
-      const err = await updateRes.json().catch(() => ({}));
+      if (updateRes.ok) {
+        const data = await updateRes.json().catch(() => ({}));
+        return { fileId: data.id || targetFileId, modifiedTime: new Date().toISOString() };
+      }
+    } else if (patchMetaRes.status !== 404) {
+      const err = await patchMetaRes.json().catch(() => ({}));
       throw new Error(err.error?.message || 'Falha ao sincronizar alterações no Google Drive.');
     }
-
-    const data = await updateRes.json();
-    return { fileId: data.id, modifiedTime: new Date().toISOString() };
+    // Se recebeu 404 (arquivo foi apagado no Drive pelo usuário), continua abaixo para recriar
   }
 
-  // CENÁRIO B: CRIAR NOVO ARQUIVO NO DRIVE (Multipart)
+  // CENÁRIO B: CRIAR NOVO ARQUIVO NO DRIVE (Multipart com appProperties)
   const metadata = {
     name: fileName,
     mimeType: REDIJA_MIME_TYPE,
     description: 'Documento científico criado com RedijaApp',
+    appProperties: {
+      redijaProjectId: project.id,
+    },
   };
 
   const form = new FormData();
@@ -131,7 +220,7 @@ export async function saveProjectToDrive(
   }
 
   const data = await createRes.json();
-  return { fileId: data.id, modifiedTime: data.modifiedTime };
+  return { fileId: data.id, modifiedTime: data.modifiedTime || new Date().toISOString() };
 }
 
 /**
