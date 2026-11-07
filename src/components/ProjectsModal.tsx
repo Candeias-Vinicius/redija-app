@@ -213,7 +213,20 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
 
             {activeTab === 'active' ? (
               <div className="space-y-2">
-                {projects.map((proj) => {
+                {projects.length === 0 ? (
+                  <div className="text-center py-12 px-4 space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                      <FolderOpen className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-xs text-neutral-800">Nenhum trabalho criado ainda</p>
+                      <p className="text-[11px] text-neutral-500 mt-1 max-w-xs mx-auto leading-relaxed">
+                        Escolha um modelo ao lado para iniciar seu primeiro trabalho acadêmico ou importe um arquivo existente.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  projects.map((proj) => {
                   const isActive = proj.id === activeProjectId;
                   const isEditing = editingId === proj.id;
                   const updatedDate = new Date(proj.updatedAt).toLocaleString('pt-BR', {
@@ -335,20 +348,18 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                           >
                             <Download className="w-3.5 h-3.5" />
                           </button>
-                          {projects.length > 1 && (
-                            <button
-                              onClick={() => openDeleteConfirm(proj, 'trash')}
-                              className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded"
-                              title="Mover para a Lixeira"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => openDeleteConfirm(proj, 'trash')}
+                            className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded"
+                            title="Mover para a Lixeira"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     </div>
                   );
-                })}
+                }))}
               </div>
             ) : (
               /* Aba da Lixeira */

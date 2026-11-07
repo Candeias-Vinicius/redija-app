@@ -28,11 +28,10 @@ describe('Persistência IndexedDB (Dexie) e Backup .redija', () => {
     await db.projects.clear();
   });
 
-  it('cria automaticamente um projeto inicial TCC quando o banco está vazio', async () => {
+  it('retorna lista vazia quando o banco está vazio sem criar projetos automáticos', async () => {
     const { activeProject, allProjects } = await loadInitialActiveProject();
-    expect(allProjects).toHaveLength(1);
-    expect(activeProject.id).toBe(allProjects[0].id);
-    expect(activeProject.templateType).toBe('tcc');
+    expect(allProjects).toHaveLength(0);
+    expect(activeProject).toBeNull();
   });
 
   it('salva, duplica e exclui projetos no IndexedDB', async () => {

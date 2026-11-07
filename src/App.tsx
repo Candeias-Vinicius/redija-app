@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { FolderOpen, Plus, Upload } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Editor } from '@/components/Editor';
@@ -342,10 +343,15 @@ export const App: React.FC = () => {
       .then(({ activeProject, allProjects, trashedProjects: initialTrash }) => {
         if (!mounted) return;
         skipNextAutoSaveRef.current = true;
-        setProject(activeProject);
+        if (activeProject) {
+          setProject(activeProject);
+        }
         setProjects(allProjects);
         setTrashedProjects(initialTrash);
         setIsStorageReady(true);
+        if (allProjects.length === 0) {
+          setIsProjectsModalOpen(true);
+        }
       })
       .catch((err) => {
         console.error('Erro ao inicializar IndexedDB:', err);
@@ -899,16 +905,19 @@ export const App: React.FC = () => {
   };
 
   const handleMoveToTrash = async (id: string) => {
-    if (projects.length <= 1) return;
     await moveProjectToTrash(id);
     const all = await listProjects();
     const trashed = await listTrashedProjects();
     setProjects(all);
     setTrashedProjects(trashed);
-    if (id === project.id && all.length > 0) {
-      skipNextAutoSaveRef.current = true;
-      setProject(all[0]);
-      setActiveProjectId(all[0].id);
+    if (all.length > 0) {
+      if (id === project.id) {
+        skipNextAutoSaveRef.current = true;
+        setProject(all[0]);
+        setActiveProjectId(all[0].id);
+      }
+    } else {
+      setIsProjectsModalOpen(true);
     }
   };
 
@@ -1089,7 +1098,36 @@ export const App: React.FC = () => {
         onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
       />
 
-      <div className="flex-1 flex overflow-hidden min-h-0">
+      {projects.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-neutral-50 dark:bg-neutral-900 text-center">
+          <div className="w-16 h-16 rounded-3xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 shadow-xs">
+            <FolderOpen className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">
+            Nenhum trabalho criado ainda
+          </h2>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-sm mb-6 leading-relaxed">
+            Comece escolhendo um modelo com estrutura ABNT pré-configurada ou importe um arquivo existente.
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsProjectsModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Criar Primeiro Trabalho</span>
+            </button>
+            <button
+              onClick={() => setIsProjectsModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700 text-xs font-semibold rounded-xl transition-colors"
+            >
+              <Upload className="w-4 h-4 text-emerald-600" />
+              <span>Importar Trabalho</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Painel Esquerdo: Metadados ABNT e Referências */}
         {showSidebar && (
           <Sidebar
@@ -1181,6 +1219,7 @@ export const App: React.FC = () => {
           />
         )}
       </div>
+      )}
 
       <ReferenceModal
         isOpen={isModalOpen}

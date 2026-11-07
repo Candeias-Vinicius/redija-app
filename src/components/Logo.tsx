@@ -15,7 +15,7 @@ export const Logo: React.FC<LogoProps> = ({
 }) => {
   // Ajuste de altura do ícone do logotipo
   const iconHeight =
-    size === 'sm' ? 'h-7' : size === 'md' ? 'h-10' : size === 'lg' ? 'h-14' : 'h-20';
+    size === 'sm' ? 'h-8' : size === 'md' ? 'h-12' : size === 'lg' ? 'h-16 md:h-20' : 'h-28';
 
   // Tipografia da palavra RedijaApp
   const textClass =
@@ -24,8 +24,8 @@ export const Logo: React.FC<LogoProps> = ({
       : size === 'md'
         ? 'text-xl'
         : size === 'lg'
-          ? 'text-2xl'
-          : 'text-3xl';
+          ? 'text-2xl md:text-3xl'
+          : 'text-4xl';
 
   const redijaColor =
     variant === 'dark'

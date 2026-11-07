@@ -220,7 +220,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
             {/* Cabeçalho de Marca Único: Logotipo Oficial RedijaApp */}
             <div className="relative z-10 flex items-center justify-between">
-              <Logo size="md" variant={isDark ? 'dark' : 'light'} />
+              <Logo size="lg" variant={isDark ? 'dark' : 'light'} />
             </div>
 
             {/* Conteúdo Dinâmico do Slide do Carrossel */}
@@ -346,20 +346,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             {/* Topo do Card de Login */}
             <div className="space-y-5">
               <div className="space-y-2">
-                <div
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                    isDark
-                      ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800'
-                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                  }`}
-                >
-                  <Sparkles
-                    className={`w-3.5 h-3.5 ${
-                      isDark ? 'text-emerald-400' : 'text-emerald-600'
-                    }`}
-                  />
-                  <span>Acesso Acadêmico</span>
-                </div>
                 <h1
                   className={`text-2xl font-bold tracking-tight ${
                     isDark ? 'text-white' : 'text-slate-900'

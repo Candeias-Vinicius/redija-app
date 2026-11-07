@@ -1,10 +1,9 @@
 // =====================================================================
-// RedijaApp — Camada de Persistência Local (IndexedDB via Dexie)
+// RedijaApp: Camada de Persistência Local (IndexedDB via Dexie)
 // =====================================================================
 
 import Dexie, { type Table } from 'dexie';
 import { DocumentProject, RedijaBackupFile } from '@/types/document';
-import { createProjectFromTemplate } from './projectTemplates';
 import { validateProjectQuota } from './imageQuota';
 
 const ACTIVE_PROJECT_KEY = 'redija:activeProjectId';
@@ -183,23 +182,17 @@ export async function deleteProject(id: string): Promise<void> {
 }
 
 /**
- * Garante que exista ao menos um projeto inicial no banco, limpa itens expirados
- * da lixeira (> 30 dias) e retorna o projeto ativo (ou o mais recente).
+ * Carrega a lista de projetos do banco IndexedDB e o projeto ativo (se houver).
+ * Se o banco estiver vazio, retorna lista vazia sem criar projetos automaticamente.
  */
 export async function loadInitialActiveProject(): Promise<{
-  activeProject: DocumentProject;
+  activeProject: DocumentProject | null;
   allProjects: DocumentProject[];
   trashedProjects: DocumentProject[];
 }> {
   await purgeExpiredTrash();
-  let all = await listProjects();
+  const all = await listProjects();
   const trashedProjects = await listTrashedProjects();
-
-  if (all.length === 0) {
-    const starter = createProjectFromTemplate('tcc');
-    await db.projects.put(starter);
-    all = [starter];
-  }
 
   let activeId: string | null = null;
   try {
@@ -209,9 +202,11 @@ export async function loadInitialActiveProject(): Promise<{
   }
 
   const found = activeId ? all.find((p) => p.id === activeId) : undefined;
-  const activeProject = found ?? all[0];
+  const activeProject = found ?? (all.length > 0 ? all[0] : null);
 
-  setActiveProjectId(activeProject.id);
+  if (activeProject) {
+    setActiveProjectId(activeProject.id);
+  }
 
   return { activeProject, allProjects: all, trashedProjects };
 }
