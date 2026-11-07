@@ -55,6 +55,7 @@ export const App: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const [showCode, setShowCode] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingReference, setEditingReference] = useState<AcademicReference | null>(null);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
@@ -329,6 +330,17 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleUpdateReference = (updatedRef: AcademicReference) => {
+    setProject((prev) => {
+      recordHistorySnapshot(prev, true);
+      return {
+        ...prev,
+        references: prev.references.map((r) => (r.id === updatedRef.id ? updatedRef : r)),
+      };
+    });
+    setEditingReference(null);
+  };
+
   const handleAddMultipleReferences = (refs: AcademicReference[]) => {
     setProject((prev) => {
       recordHistorySnapshot(prev, true);
@@ -523,7 +535,14 @@ export const App: React.FC = () => {
           metadata={project.metadata}
           onChangeMetadata={handleMetadataChange}
           references={project.references}
-          onOpenReferenceModal={() => setIsModalOpen(true)}
+          onOpenReferenceModal={() => {
+            setEditingReference(null);
+            setIsModalOpen(true);
+          }}
+          onEditReference={(ref) => {
+            setEditingReference(ref);
+            setIsModalOpen(true);
+          }}
           onRemoveReference={handleRemoveReference}
           onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
           widthPx={sidebarWidth}
@@ -551,7 +570,10 @@ export const App: React.FC = () => {
           metadata={project.metadata}
           references={project.references}
           citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
-          onOpenReferenceModal={() => setIsModalOpen(true)}
+          onOpenReferenceModal={() => {
+            setEditingReference(null);
+            setIsModalOpen(true);
+          }}
           onChangeBlocks={handleBlocksChange}
         />
 
@@ -581,8 +603,13 @@ export const App: React.FC = () => {
 
       <ReferenceModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingReference(null);
+        }}
+        editingReference={editingReference}
         onAddReference={handleAddReference}
+        onUpdateReference={handleUpdateReference}
         onAddMultipleReferences={handleAddMultipleReferences}
       />
 

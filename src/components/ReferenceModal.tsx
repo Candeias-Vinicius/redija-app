@@ -6,7 +6,9 @@ import { X, BookmarkPlus, Search, Loader2, Sparkles, Upload, FileCode2 } from 'l
 interface ReferenceModalProps {
   isOpen: boolean;
   onClose: () => void;
+  editingReference?: AcademicReference | null;
   onAddReference: (ref: AcademicReference) => void;
+  onUpdateReference?: (ref: AcademicReference) => void;
   onAddMultipleReferences?: (refs: AcademicReference[]) => void;
 }
 
@@ -21,7 +23,9 @@ const REFERENCE_TYPES: Array<{ value: ReferenceType; label: string }> = [
 export const ReferenceModal: React.FC<ReferenceModalProps> = ({
   isOpen,
   onClose,
+  editingReference = null,
   onAddReference,
+  onUpdateReference,
   onAddMultipleReferences,
 }) => {
   const [activeTab, setActiveTab] = useState<'form' | 'bibtex'>('form');
@@ -49,6 +53,49 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
   const [degree, setDegree] = useState('');
   const [url, setUrl] = useState('');
   const [doi, setDoi] = useState('');
+  const [lastSyncedRefId, setLastSyncedRefId] = useState<string | null>(null);
+
+  const currentRefId = isOpen ? (editingReference?.id ?? '__new__') : null;
+  if (currentRefId !== lastSyncedRefId) {
+    setLastSyncedRefId(currentRefId);
+    if (editingReference) {
+      setActiveTab('form');
+      setType(editingReference.type || 'book');
+      setAuthors(editingReference.authors || '');
+      setTitle(editingReference.title || '');
+      setSubtitle(editingReference.subtitle || '');
+      setEdition(editingReference.edition || '');
+      setCity(editingReference.city || '');
+      setPublisher(editingReference.publisher || '');
+      setYear(editingReference.year || String(new Date().getFullYear()));
+      setJournal(editingReference.journal || '');
+      setVolume(editingReference.volume || '');
+      setIssue(editingReference.issue || '');
+      setPages(editingReference.pages || '');
+      setInstitution(editingReference.institution || '');
+      setDegree(editingReference.degree || '');
+      setUrl(editingReference.url || '');
+      setDoi(editingReference.doi || '');
+    } else if (isOpen) {
+      setType('book');
+      setDoiQuery('');
+      setAuthors('');
+      setTitle('');
+      setSubtitle('');
+      setEdition('');
+      setCity('');
+      setPublisher('');
+      setYear(String(new Date().getFullYear()));
+      setJournal('');
+      setVolume('');
+      setIssue('');
+      setPages('');
+      setInstitution('');
+      setDegree('');
+      setUrl('');
+      setDoi('');
+    }
+  }
 
   if (!isOpen) return null;
 
@@ -82,8 +129,8 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
     e.preventDefault();
     if (!authors || !title) return;
 
-    onAddReference({
-      id: crypto.randomUUID(),
+    const payload: AcademicReference = {
+      id: editingReference ? editingReference.id : crypto.randomUUID(),
       type,
       authors,
       title,
@@ -100,25 +147,17 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
       degree: degree || undefined,
       doi: doi || undefined,
       url: url || undefined,
-      accessDate: url ? new Date().toLocaleDateString('pt-BR') : undefined,
-    });
+      accessDate: url
+        ? editingReference?.accessDate || new Date().toLocaleDateString('pt-BR')
+        : undefined,
+    };
 
-    // Reset fields
-    setDoiQuery('');
-    setAuthors('');
-    setTitle('');
-    setSubtitle('');
-    setEdition('');
-    setCity('');
-    setPublisher('');
-    setJournal('');
-    setVolume('');
-    setIssue('');
-    setPages('');
-    setInstitution('');
-    setDegree('');
-    setDoi('');
-    setUrl('');
+    if (editingReference && onUpdateReference) {
+      onUpdateReference(payload);
+    } else {
+      onAddReference(payload);
+    }
+
     onClose();
   };
 
@@ -155,7 +194,9 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
           <div className="flex items-center gap-2">
             <BookmarkPlus className="w-4 h-4 text-emerald-600" />
             <h3 className="font-semibold text-sm text-neutral-900">
-              Nova Referência Bibliográfica (ABNT NBR 6023)
+              {editingReference
+                ? 'Editar Referência Bibliográfica (ABNT NBR 6023)'
+                : 'Nova Referência Bibliográfica (ABNT NBR 6023)'}
             </h3>
           </div>
           <button

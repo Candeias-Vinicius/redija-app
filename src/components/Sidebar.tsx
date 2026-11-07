@@ -23,6 +23,7 @@ import {
   Search,
   Download,
   Sliders,
+  Pencil,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -32,6 +33,7 @@ interface SidebarProps {
   onChangeMetadata: (meta: DocumentMetadata) => void;
   references: AcademicReference[];
   onOpenReferenceModal: () => void;
+  onEditReference?: (ref: AcademicReference) => void;
   onOpenTemplateCustomizer?: () => void;
   onRemoveReference: (id: string) => void;
 }
@@ -43,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onChangeMetadata,
   references,
   onOpenReferenceModal,
+  onEditReference,
   onOpenTemplateCustomizer,
   onRemoveReference,
 }) => {
@@ -206,6 +209,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               <div>
                 <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                  Coorientador(a) (Opcional)
+                </label>
+                <input
+                  type="text"
+                  value={metadata.coadvisor || ''}
+                  onChange={(e) => updateField('coadvisor', e.target.value)}
+                  className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                  placeholder="Ex: Profa. Dra. Nome da Coorientadora"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
                   Natureza do Trabalho (Folha de Rosto)
                 </label>
                 <textarea
@@ -293,6 +309,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {openPreTextual && (
             <div className="space-y-3 mt-2.5 pl-2 text-xs">
               <div className="space-y-1.5">
+                <label className="flex items-center gap-2 cursor-pointer text-neutral-700 font-medium">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(metadata.includeApprovalPage)}
+                    onChange={(e) => updateField('includeApprovalPage', e.target.checked)}
+                    className="rounded text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span>Incluir Folha de Aprovação (Banca Examinadora)</span>
+                </label>
+
+                {metadata.includeApprovalPage && (
+                  <div className="p-2.5 rounded-lg bg-neutral-50 border border-neutral-200 space-y-2 my-1">
+                    <div>
+                      <label className="text-[10px] font-medium text-neutral-500 block mb-0.5">
+                        Data de Aprovação (deixe em branco p/ linha de preenchimento)
+                      </label>
+                      <input
+                        type="text"
+                        value={metadata.approvalDate || ''}
+                        onChange={(e) => updateField('approvalDate', e.target.value)}
+                        placeholder="Ex: 10 de dezembro de 2026"
+                        className="w-full text-xs px-2 py-1 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-medium text-neutral-500 block mb-0.5">
+                        Membros da Banca Examinadora (1 por linha)
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={(metadata.committeeMembers ?? []).join('\n')}
+                        onChange={(e) =>
+                          updateField('committeeMembers', e.target.value.split('\n'))
+                        }
+                        placeholder={'Prof. Dr. Carlos Eduardo — Convidado\nProfa. Dra. Ana Beatriz — Avaliadora'}
+                        className="w-full text-xs p-2 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
                   <input
                     type="checkbox"
@@ -301,6 +358,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     className="rounded text-emerald-600 focus:ring-emerald-500"
                   />
                   <span>Gerar Lista de Ilustrações automática</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(metadata.includeBoxesList)}
+                    onChange={(e) => updateField('includeBoxesList', e.target.checked)}
+                    className="rounded text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span>Gerar Lista de Quadros automática</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
@@ -369,6 +436,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   value={metadata.abbreviations || ''}
                   onChange={(e) => updateField('abbreviations', e.target.value)}
                   placeholder="Ex: ABNT — Associação Brasileira de Normas Técnicas&#10;IBGE — Instituto Brasileiro de Geografia e Estatística"
+                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                  Lista de Símbolos (Opcional — Ex: Unidades físicas/matemáticas)
+                </label>
+                <textarea
+                  rows={2}
+                  value={metadata.symbols || ''}
+                  onChange={(e) => updateField('symbols', e.target.value)}
+                  placeholder="Ex: Ω — Ohm (Resistência elétrica)&#10;λ — Comprimento de onda"
                   className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 />
               </div>
@@ -596,6 +676,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <Copy className="w-3.5 h-3.5" />
                               )}
                             </button>
+                            {onEditReference && (
+                              <button
+                                onClick={() => onEditReference(ref)}
+                                className="p-1 text-neutral-400 hover:text-blue-600 rounded"
+                                title="Editar esta referência"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             <button
                               onClick={() => onRemoveReference(ref.id)}
                               className="p-1 text-neutral-400 hover:text-red-500 rounded"
@@ -657,6 +746,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {openPosTextual && (
             <div className="space-y-3 mt-2.5 pl-2 text-xs">
+              <div>
+                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                  Glossário — Definição de termos técnicos (Opcional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={metadata.glossary || ''}
+                  onChange={(e) => updateField('glossary', e.target.value)}
+                  placeholder="Ex: WebAssembly: Formato de instrução binária para execução na web..."
+                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+
               <div>
                 <label className="text-[11px] font-medium text-neutral-500 block mb-1">
                   Apêndices — Elaborados pelo próprio autor (Opcional)

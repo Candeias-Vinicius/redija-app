@@ -147,9 +147,13 @@
   subtitulo: none,
   natureza: none,
   orientador: none,
+  coorientador: none,
   local: "",
   ano: "",
   logo: none,
+  incluir-folha-aprovacao: false,
+  data-aprovacao: none,
+  banca: (),
   dedicatoria: none,
   agradecimentos: none,
   epigrafe: none,
@@ -159,8 +163,10 @@
   abstract: none,
   keywords: (),
   lista-figuras: false,
+  lista-quadros: false,
   lista-tabelas: false,
   siglas: none,
+  simbolos: none,
   // Parâmetros de personalização de norma / layout
   fonte: "serif",
   tamanho-fonte: 12pt,
@@ -267,6 +273,10 @@
 
           Orientador(a): #orientador
         ]
+        if coorientador != none [
+
+          Coorientador(a): #coorientador
+        ]
       }))
     }
     v(1fr)
@@ -290,11 +300,60 @@
       #if orientador != none [
         \ #text(size: 10pt)[Orientador(a): #orientador]
       ]
+      #if coorientador != none [
+        \ #text(size: 10pt)[Coorientador(a): #coorientador]
+      ]
     ]
     v(1em)
   }
 
   let tem-pre-textual = incluir-capa or incluir-folha-rosto
+
+  // ----------------------- FOLHA DE APROVAÇÃO -------------------------
+  if incluir-folha-aprovacao {
+    pagebreak()
+    set par(first-line-indent: 0pt, justify: false)
+    align(center)[
+      #text(weight: "bold")[#upper(autor)]
+
+      #v(2em)
+      #text(weight: "bold")[#titulo-completo]
+    ]
+    v(2em)
+    if natureza != none {
+      align(right, block(width: 55%, {
+        set par(leading: entrelinha-simples, justify: true)
+        set text(size: 11pt)
+        natureza
+      }))
+    }
+    v(2em)
+    if data-aprovacao != none and data-aprovacao != "" [
+      Aprovado em: #data-aprovacao.
+    ] else [
+      Aprovado em: \_\_\_\_/\_\_\_\_/\_\_\_\_\_\_\_\_.
+    ]
+
+    v(2.5em)
+    align(center)[
+      #text(weight: "bold")[BANCA EXAMINADORA]
+      #v(2.5em)
+
+      #if orientador != none [
+        #line(length: 65%, stroke: 0.5pt)
+        #v(0.2em)
+        #text(size: 11pt)[#orientador (Orientador(a)) \ #instituicao]
+        #v(2.2em)
+      ]
+
+      #for membro in banca [
+        #line(length: 65%, stroke: 0.5pt)
+        #v(0.2em)
+        #text(size: 11pt)[#membro]
+        #v(2.2em)
+      ]
+    ]
+  }
 
   // --------------------------- DEDICATÓRIA ----------------------------
   if dedicatoria != none {
@@ -370,6 +429,15 @@
     outline(title: none, target: figure.where(kind: image))
   }
 
+  // ------------------------- LISTA DE QUADROS -------------------------
+  if lista-quadros {
+    pagebreak()
+    set par(first-line-indent: 0pt)
+    align(center, text(weight: "bold")[LISTA DE QUADROS])
+    v(1.5em)
+    outline(title: none, target: figure.where(kind: "quadro"))
+  }
+
   // ------------------------- LISTA DE TABELAS -------------------------
   if lista-tabelas {
     pagebreak()
@@ -386,6 +454,15 @@
     align(center, text(weight: "bold")[LISTA DE ABREVIATURAS E SIGLAS])
     v(1.5em)
     siglas
+  }
+
+  // ----------------------- LISTA DE SÍMBOLOS --------------------------
+  if simbolos != none {
+    pagebreak()
+    set par(first-line-indent: 0pt, leading: entrelinha-simples)
+    align(center, text(weight: "bold")[LISTA DE SÍMBOLOS])
+    v(1.5em)
+    simbolos
   }
 
   // ------------------------------ SUMÁRIO -----------------------------

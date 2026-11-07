@@ -123,7 +123,16 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
     parts.push(transpileReferences(project.references, cfg));
   }
 
-  // Elementos Pós-Textuais Opcionais (NBR 14724): Apêndices e Anexos
+  // Elementos Pós-Textuais Opcionais (NBR 14724): Glossário, Apêndices e Anexos
+  if (project.metadata.glossary?.trim()) {
+    parts.push(
+      '',
+      '#pagebreak(weak: true)',
+      '#heading(numbering: none)[GLOSSÁRIO]',
+      escapeMarkup(project.metadata.glossary.trim()),
+    );
+  }
+
   if (project.metadata.appendices?.trim()) {
     parts.push(
       '',
@@ -160,6 +169,7 @@ function generateShowRule(
   if (m.subtitle?.trim()) args.push(`subtitulo: ${typstString(m.subtitle)}`);
   if (m.nature?.trim()) args.push(`natureza: ${typstContent(m.nature)}`);
   if (m.advisor?.trim()) args.push(`orientador: ${typstString(m.advisor)}`);
+  if (m.coadvisor?.trim()) args.push(`coorientador: ${typstString(m.coadvisor)}`);
   args.push(`local: ${typstString(m.location)}`, `ano: ${typstString(m.year)}`);
 
   if (includeBinaryImages && m.institutionLogoDataUrl) {
@@ -167,6 +177,17 @@ function generateShowRule(
     if (parsedLogo) {
       const logoPath = `/assets/logo_instituicao.${parsedLogo.ext}`;
       args.push(`logo: image(${typstString(logoPath)}, height: 2.2cm)`);
+    }
+  }
+
+  if (m.includeApprovalPage) {
+    args.push('incluir-folha-aprovacao: true');
+    if (m.approvalDate?.trim()) {
+      args.push(`data-aprovacao: ${typstString(m.approvalDate.trim())}`);
+    }
+    const members = (m.committeeMembers ?? []).map((c) => c.trim()).filter(Boolean);
+    if (members.length > 0) {
+      args.push(`banca: (${members.map(typstString).join(', ')},)`);
     }
   }
 
@@ -188,8 +209,10 @@ function generateShowRule(
   }
 
   if (m.includeFiguresList) args.push('lista-figuras: true');
+  if (m.includeBoxesList) args.push('lista-quadros: true');
   if (m.includeTablesList) args.push('lista-tabelas: true');
   if (m.abbreviations?.trim()) args.push(`siglas: ${typstContent(m.abbreviations)}`);
+  if (m.symbols?.trim()) args.push(`simbolos: ${typstContent(m.symbols)}`);
 
   // Parâmetros de personalização do template / norma
   if (cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {

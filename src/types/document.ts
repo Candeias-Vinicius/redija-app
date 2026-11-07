@@ -43,6 +43,7 @@ export interface DocumentMetadata {
   subtitle?: string;
   author: string;
   advisor: string;
+  coadvisor?: string;
   nature?: string;
   institution: string;
   course: string;
@@ -50,6 +51,10 @@ export interface DocumentMetadata {
   year: string;
   abstract: string;
   keywords: string[];
+  // Folha de Aprovação (NBR 14724)
+  includeApprovalPage?: boolean;
+  approvalDate?: string;
+  committeeMembers?: string[];
   // Elementos pré-textuais opcionais (NBR 14724)
   dedicatory?: string;
   acknowledgments?: string;
@@ -59,8 +64,11 @@ export interface DocumentMetadata {
   foreignKeywords?: string[];
   includeFiguresList?: boolean;
   includeTablesList?: boolean;
-  // Lista de Abreviaturas e Siglas (pré-textual) e Apêndices / Anexos (pós-textuais)
+  includeBoxesList?: boolean;
+  // Lista de Abreviaturas, Siglas e Símbolos (pré-textuais) e Glossário / Apêndices / Anexos (pós-textuais)
   abbreviations?: string;
+  symbols?: string;
+  glossary?: string;
   appendices?: string;
   annexes?: string;
   // Brasão / Logotipo da Instituição na capa (Data URL)

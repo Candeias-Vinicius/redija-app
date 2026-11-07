@@ -363,7 +363,17 @@ describe('Typst compilation integration', () => {
     const project = createSampleProject({
       metadata: {
         ...createSampleProject().metadata,
+        coadvisor: 'Profa. Dra. Helena Costa',
+        includeApprovalPage: true,
+        approvalDate: '12 de dezembro de 2026',
+        committeeMembers: [
+          'Prof. Dr. Marcos Rocha — Avaliador Interno',
+          'Profa. Dra. Cláudia Lima — Avaliadora Externa',
+        ],
+        includeBoxesList: true,
         abbreviations: 'ABNT — Associação Brasileira de Normas Técnicas',
+        symbols: 'Ω — Ohm',
+        glossary: 'WebAssembly: Formato binário de execução web.',
         appendices: 'APÊNDICE A — Roteiro de entrevista estruturada.',
         annexes: 'ANEXO A — Documento oficial da instituição.',
       },
@@ -398,6 +408,11 @@ describe('Typst compilation integration', () => {
     });
 
     const standalone = generateStandaloneTypst(project);
+    expect(standalone).toContain('coorientador: "Profa. Dra. Helena Costa"');
+    expect(standalone).toContain('incluir-folha-aprovacao: true');
+    expect(standalone).toContain('lista-quadros: true');
+    expect(standalone).toContain('simbolos: [Ω — Ohm]');
+    expect(standalone).toContain('GLOSSÁRIO');
     expect(standalone).toContain('==== Subseção Quaternária');
     expect(standalone).toContain('===== Subseção Quinária');
     expect(standalone).toContain('#heading(numbering: none)[AGRADECIMENTOS ESPECIAIS]');
