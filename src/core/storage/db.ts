@@ -58,21 +58,39 @@ export async function checkStoragePersistence(): Promise<boolean> {
 }
 
 /**
- * Lista todos os projetos ATIVOS (não excluídos), ordenados pela data de atualização.
+ * Lista projetos ATIVOS (não excluídos), filtrando por proprietário quando especificado.
+ * - Se `ownerEmail` for omitido/undefined: retorna todos os projetos (compatibilidade com testes e rotinas globais).
+ * - Se `ownerEmail` for 'local' ou vazio: retorna apenas projetos locais (sem ownerEmail ou marcado como 'local').
+ * - Se `ownerEmail` for um e-mail específico (ex: 'aluno@gmail.com'): retorna apenas projetos daquele usuário.
  */
-export async function listProjects(): Promise<DocumentProject[]> {
+export async function listProjects(ownerEmail?: string | null): Promise<DocumentProject[]> {
   const all = await db.projects.orderBy('updatedAt').reverse().toArray();
-  return all.filter((p) => !p.deletedAt);
+  const active = all.filter((p) => !p.deletedAt);
+  if (ownerEmail === undefined) {
+    return active;
+  }
+  if (!ownerEmail || ownerEmail === 'local') {
+    return active.filter((p) => !p.ownerEmail || p.ownerEmail === 'local');
+  }
+  return active.filter((p) => p.ownerEmail === ownerEmail);
 }
 
 /**
- * Lista os projetos que estão na Lixeira (`deletedAt` preenchido), mais recentes primeiro.
+ * Lista os projetos que estão na Lixeira (`deletedAt` preenchido), mais recentes primeiro,
+ * filtrando por proprietário quando especificado.
  */
-export async function listTrashedProjects(): Promise<DocumentProject[]> {
+export async function listTrashedProjects(ownerEmail?: string | null): Promise<DocumentProject[]> {
   const all = await db.projects.toArray();
-  return all
+  const trashed = all
     .filter((p) => Boolean(p.deletedAt))
     .sort((a, b) => (b.deletedAt || '').localeCompare(a.deletedAt || ''));
+  if (ownerEmail === undefined) {
+    return trashed;
+  }
+  if (!ownerEmail || ownerEmail === 'local') {
+    return trashed.filter((p) => !p.ownerEmail || p.ownerEmail === 'local');
+  }
+  return trashed.filter((p) => p.ownerEmail === ownerEmail);
 }
 
 /**
@@ -182,21 +200,27 @@ export async function deleteProject(id: string): Promise<void> {
 }
 
 /**
- * Carrega a lista de projetos do banco IndexedDB e o projeto ativo (se houver).
- * Se o banco estiver vazio, retorna lista vazia sem criar projetos automaticamente.
+ * Carrega a lista de projetos do banco IndexedDB e o projeto ativo da sessão atual (se houver).
+ * Isola projetos locais de projetos de contas Google.
+ * Se o banco estiver vazio para esta sessão, retorna lista vazia sem criar projetos automaticamente.
  */
-export async function loadInitialActiveProject(): Promise<{
+export async function loadInitialActiveProject(ownerEmail?: string | null): Promise<{
   activeProject: DocumentProject | null;
   allProjects: DocumentProject[];
   trashedProjects: DocumentProject[];
 }> {
   await purgeExpiredTrash();
-  const all = await listProjects();
-  const trashedProjects = await listTrashedProjects();
+  const all = await listProjects(ownerEmail);
+  const trashedProjects = await listTrashedProjects(ownerEmail);
+
+  const scopeKey =
+    ownerEmail && ownerEmail !== 'local'
+      ? `${ACTIVE_PROJECT_KEY}:${ownerEmail}`
+      : `${ACTIVE_PROJECT_KEY}:local`;
 
   let activeId: string | null = null;
   try {
-    activeId = localStorage.getItem(ACTIVE_PROJECT_KEY);
+    activeId = localStorage.getItem(scopeKey) || localStorage.getItem(ACTIVE_PROJECT_KEY);
   } catch {
     activeId = null;
   }
@@ -205,15 +229,20 @@ export async function loadInitialActiveProject(): Promise<{
   const activeProject = found ?? (all.length > 0 ? all[0] : null);
 
   if (activeProject) {
-    setActiveProjectId(activeProject.id);
+    setActiveProjectId(activeProject.id, ownerEmail);
   }
 
   return { activeProject, allProjects: all, trashedProjects };
 }
 
-export function setActiveProjectId(id: string): void {
+export function setActiveProjectId(id: string, ownerEmail?: string | null): void {
   try {
     localStorage.setItem(ACTIVE_PROJECT_KEY, id);
+    const scopeKey =
+      ownerEmail && ownerEmail !== 'local'
+        ? `${ACTIVE_PROJECT_KEY}:${ownerEmail}`
+        : `${ACTIVE_PROJECT_KEY}:local`;
+    localStorage.setItem(scopeKey, id);
   } catch {
     // Ignorar se localStorage estiver indisponível
   }

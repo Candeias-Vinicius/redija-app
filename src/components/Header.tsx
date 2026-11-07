@@ -22,6 +22,8 @@ import {
   LogIn,
   LogOut,
   Settings,
+  User,
+  HardDrive,
 } from 'lucide-react';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
@@ -64,6 +66,8 @@ interface HeaderProps {
   onLogout: () => void;
   onOpenShareModal: () => void;
   onOpenAccountSettings: () => void;
+  isGuestMode?: boolean;
+  onExitGuestMode?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -101,6 +105,8 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onOpenShareModal,
   onOpenAccountSettings,
+  isGuestMode = false,
+  onExitGuestMode,
 }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false);
@@ -495,38 +501,98 @@ export const Header: React.FC<HeaderProps> = ({
                     className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-left"
                   >
                     <LogOut className="w-3.5 h-3.5 text-red-500" />
-                    <span>Sair</span>
+                    <span>Sair da Conta Google</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={onToggleDarkMode}
-              className="p-1.5 text-neutral-500 hover:text-neutral-800 dark:hover:text-white rounded-lg transition-colors"
-              title={darkMode ? 'Modo Claro' : 'Modo Escuro'}
-            >
-              {darkMode ? (
-                <Sun className="w-3.5 h-3.5 text-amber-400" />
-              ) : (
-                <Moon className="w-3.5 h-3.5" />
-              )}
-            </button>
+          <div className="flex items-center gap-2">
+            {/* Botão rápido para conectar com Google */}
             <button
               onClick={onLogin}
               disabled={isAuthLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-700 text-neutral-800 dark:text-white border border-neutral-300 dark:border-neutral-700 shadow-xs transition-all"
-              title="Conectar com conta Google"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-700 text-neutral-800 dark:text-white border border-neutral-300 dark:border-neutral-700 shadow-xs transition-all"
+              title="Conectar com conta Google para sincronizar e colaborar"
             >
               {isAuthLoading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
               ) : (
                 <LogIn className="w-3.5 h-3.5 text-emerald-600" />
               )}
-              <span className="hidden sm:inline">Entrar com Google</span>
+              <span className="hidden md:inline">Entrar com Google</span>
             </button>
+
+            {/* Menu Perfil Local */}
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-750 transition-colors text-neutral-800 dark:text-neutral-200"
+                title={isGuestMode ? "Sessão Local Ativa (Navegador)" : "Sessão Local (Navegador)"}
+              >
+                <div className="w-5 h-5 rounded-full bg-neutral-300 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 flex items-center justify-center text-[10px] font-bold">
+                  <User className="w-3 h-3" />
+                </div>
+                <span className="text-xs font-medium hidden sm:inline">Perfil Local</span>
+                <ChevronDown className="w-3 h-3 text-neutral-400" />
+              </button>
+
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-64 rounded-xl bg-white dark:bg-neutral-900 shadow-xl border border-neutral-200 dark:border-neutral-800 py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-100 divide-y divide-neutral-100 dark:divide-neutral-800">
+                  <div className="px-3.5 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                        <HardDrive className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-neutral-900 dark:text-white truncate">
+                          Perfil Local
+                        </p>
+                        <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                          Salvo neste dispositivo
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-2 leading-relaxed bg-neutral-50 dark:bg-neutral-800/60 p-2 rounded-lg">
+                      Seus trabalhos locais ficam salvos isolados. Ao sair, outro colega pode logar com a conta dele sem acessar seus arquivos.
+                    </p>
+                  </div>
+
+                  <div className="py-1">
+                    <button
+                      onClick={onToggleDarkMode}
+                      className="w-full flex items-center justify-between px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        {darkMode ? (
+                          <Sun className="w-3.5 h-3.5 text-amber-400" />
+                        ) : (
+                          <Moon className="w-3.5 h-3.5 text-neutral-500" />
+                        )}
+                        <span>Aparência</span>
+                      </div>
+                      <span className="text-[10px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-1.5 py-0.5 rounded">
+                        {darkMode ? 'Escuro' : 'Claro'}
+                      </span>
+                    </button>
+                  </div>
+
+                  <div className="py-1">
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        onExitGuestMode?.();
+                      }}
+                      className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-left font-medium"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-red-500" />
+                      <span>Sair do Perfil Local</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

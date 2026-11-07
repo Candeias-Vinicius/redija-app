@@ -131,4 +131,39 @@ describe('Persistência IndexedDB (Dexie) e Backup .redija', () => {
     expect(nearLimitCheck.valid).toBe(false);
     expect(nearLimitCheck.error).toContain('150 MB');
   });
+
+  it('isola estritamente os projetos do Perfil Local dos projetos de contas Google', async () => {
+    // 1. Projeto criado no perfil local
+    const localProj = createProjectFromTemplate('tcc', 'Meu TCC Local');
+    localProj.ownerEmail = 'local';
+    await saveProject(localProj, false);
+
+    // 2. Projeto criado por um colega autenticado no Google
+    const colleagueProj = createProjectFromTemplate('artigo', 'Artigo do Colega');
+    colleagueProj.ownerEmail = 'colega@gmail.com';
+    await saveProject(colleagueProj, false);
+
+    // Consulta de projetos do Perfil Local: vê apenas o seu próprio trabalho
+    const localList = await listProjects('local');
+    expect(localList).toHaveLength(1);
+    expect(localList[0].name).toBe('Meu TCC Local');
+
+    // Consulta de projetos do Colega Google: vê apenas o artigo dele
+    const colleagueList = await listProjects('colega@gmail.com');
+    expect(colleagueList).toHaveLength(1);
+    expect(colleagueList[0].name).toBe('Artigo do Colega');
+
+    // Consulta global (sem filtro): retorna todos para compatibilidade interna
+    const allList = await listProjects();
+    expect(allList).toHaveLength(2);
+
+    // loadInitialActiveProject carrega isoladamente cada perfil
+    const localSession = await loadInitialActiveProject('local');
+    expect(localSession.allProjects).toHaveLength(1);
+    expect(localSession.activeProject?.name).toBe('Meu TCC Local');
+
+    const colleagueSession = await loadInitialActiveProject('colega@gmail.com');
+    expect(colleagueSession.allProjects).toHaveLength(1);
+    expect(colleagueSession.activeProject?.name).toBe('Artigo do Colega');
+  });
 });

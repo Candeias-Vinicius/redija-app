@@ -47,7 +47,6 @@ import {
   CollaboratorPresence,
 } from '@/core/collaboration/RealtimeCollabManager';
 import {
-  db,
   loadInitialActiveProject,
   saveProject,
   getProject,
@@ -111,6 +110,7 @@ export const App: React.FC = () => {
     'synced' | 'syncing' | 'error'
   >('synced');
   const driveSyncStatus = !isAuthenticated || !user ? 'local' : rawDriveSyncStatus;
+  const activeOwner = isAuthenticated && user ? user.email : 'local';
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
@@ -336,15 +336,24 @@ export const App: React.FC = () => {
 
   const skipNextAutoSaveRef = useRef(true);
 
-  // Carrega o projeto ativo do IndexedDB ao iniciar
+  // Carrega os projetos do IndexedDB isolados pelo perfil atual (Google ou Perfil Local)
   useEffect(() => {
+    // Se não estiver autenticado nem em modo convidado (ou seja, na LoginScreen), não carrega
+    if (!isAuthenticated && !isGuestMode) {
+      return;
+    }
+
     let mounted = true;
-    loadInitialActiveProject()
+    skipNextAutoSaveRef.current = true;
+
+    loadInitialActiveProject(activeOwner)
       .then(({ activeProject, allProjects, trashedProjects: initialTrash }) => {
         if (!mounted) return;
         skipNextAutoSaveRef.current = true;
         if (activeProject) {
           setProject(activeProject);
+        } else {
+          setProject(fallbackInitialProject);
         }
         setProjects(allProjects);
         setTrashedProjects(initialTrash);
@@ -354,18 +363,18 @@ export const App: React.FC = () => {
         }
       })
       .catch((err) => {
-        console.error('Erro ao inicializar IndexedDB:', err);
+        console.error('Erro ao inicializar IndexedDB para sessão:', err);
         if (mounted) setIsStorageReady(true);
       });
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [activeOwner, isAuthenticated, isGuestMode]);
 
   // Auto-save com debounce sempre que o projeto ativo sofrer alterações
   useEffect(() => {
-    if (!isStorageReady) return;
+    if (!isStorageReady || projects.length === 0) return;
     if (skipNextAutoSaveRef.current) {
       skipNextAutoSaveRef.current = false;
       return;
@@ -374,14 +383,22 @@ export const App: React.FC = () => {
     setSaveStatus('saving');
     const timer = setTimeout(async () => {
       try {
-        const saved = await saveProject(project);
-        const all = await listProjects();
+        const toSave: DocumentProject = {
+          ...project,
+          ownerEmail: project.ownerEmail || activeOwner,
+        };
+        const saved = await saveProject(toSave);
+        const all = await listProjects(activeOwner);
         setProjects(all);
         setSaveStatus('saved');
         // Mantém updatedAt sincronizado sem disparar novo ciclo de auto-save
         if (saved.updatedAt !== project.updatedAt) {
           skipNextAutoSaveRef.current = true;
-          setProject((prev) => ({ ...prev, updatedAt: saved.updatedAt }));
+          setProject((prev) => ({
+            ...prev,
+            updatedAt: saved.updatedAt,
+            ownerEmail: saved.ownerEmail,
+          }));
         }
       } catch (err) {
         console.error('Erro ao salvar no IndexedDB:', err);
@@ -390,11 +407,17 @@ export const App: React.FC = () => {
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [project, isStorageReady]);
+  }, [project, isStorageReady, projects.length, activeOwner]);
 
   // Sincronização em segundo plano com o Google Drive (Debounce de 3.5 segundos)
   useEffect(() => {
-    if (!isStorageReady || !isAuthenticated || !user) {
+    if (!isStorageReady || !isAuthenticated || !user || projects.length === 0) {
+      return;
+    }
+
+    // Blindagem de segurança: nunca envia para o Google Drive arquivos do Perfil Local
+    // ou que pertençam a outro usuário
+    if (project.ownerEmail && project.ownerEmail !== user.email) {
       return;
     }
 
@@ -425,6 +448,7 @@ export const App: React.FC = () => {
         const projectToSync: DocumentProject = {
           ...project,
           driveFileId: knownFileId,
+          ownerEmail: user.email,
         };
 
         const { fileId, modifiedTime } = await saveProjectToDrive(projectToSync, token);
@@ -439,7 +463,7 @@ export const App: React.FC = () => {
             ...prev,
             driveFileId: fileId,
             driveSyncedAt: modifiedTime,
-            ownerEmail: prev.ownerEmail || user.email,
+            ownerEmail: user.email,
           };
         });
 
@@ -450,10 +474,10 @@ export const App: React.FC = () => {
             ...currentInDb,
             driveFileId: fileId,
             driveSyncedAt: modifiedTime,
-            ownerEmail: currentInDb.ownerEmail || user.email,
+            ownerEmail: user.email,
           };
           await saveProject(updatedDb, false);
-          const all = await listProjects();
+          const all = await listProjects(user.email);
           setProjects(all);
         }
       } catch (err) {
@@ -465,7 +489,7 @@ export const App: React.FC = () => {
     }, 3500);
 
     return () => clearTimeout(driveTimer);
-  }, [project, isStorageReady, isAuthenticated, user, getValidAccessToken, getProjectContentSignature]);
+  }, [project, isStorageReady, isAuthenticated, user, projects.length, getValidAccessToken, getProjectContentSignature]);
 
   /**
    * Garante que o projeto ativo esteja gravado no Google Drive antes de compartilhar.
@@ -536,6 +560,21 @@ export const App: React.FC = () => {
     } catch {
       // Ignora
     }
+    setProjects([]);
+    setTrashedProjects([]);
+    setProject(fallbackInitialProject);
+  };
+
+  const handleExitGuestMode = () => {
+    setIsGuestMode(false);
+    try {
+      sessionStorage.removeItem('redija:guestMode');
+    } catch {
+      // Ignora
+    }
+    setProjects([]);
+    setTrashedProjects([]);
+    setProject(fallbackInitialProject);
   };
 
   const handleRevokeAccess = async () => {
@@ -546,6 +585,9 @@ export const App: React.FC = () => {
     } catch {
       // Ignora
     }
+    setProjects([]);
+    setTrashedProjects([]);
+    setProject(fallbackInitialProject);
   };
 
   const handleDeleteAccountAndData = async () => {
@@ -559,13 +601,15 @@ export const App: React.FC = () => {
     }
 
     try {
-      await db.projects.clear();
-      const fresh = createProjectFromTemplate('tcc');
-      await saveProject(fresh);
-      await setActiveProjectId(fresh.id);
-      setProject(fresh);
-      setProjects([fresh]);
+      if (user?.email) {
+        const userProjects = await listProjects(user.email);
+        for (const p of userProjects) {
+          await deleteProject(p.id);
+        }
+      }
+      setProjects([]);
       setTrashedProjects([]);
+      setProject(fallbackInitialProject);
     } catch (err) {
       console.warn('Erro ao limpar cache local na exclusão:', err);
     }
@@ -583,14 +627,15 @@ export const App: React.FC = () => {
    * Sincroniza a lista de projetos trazendo arquivos existentes do Google Drive para o Dexie.
    */
   const handleSyncFromDrive = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user) return;
     setIsSyncingDrive(true);
     try {
       const token = await getValidAccessToken();
       if (!token) return;
 
       const driveSummaries = await listDriveProjects(token);
-      const currentProjects = await listProjects();
+      // Lista APENAS os projetos locais pertencentes a este usuário Google
+      const currentProjects = await listProjects(user.email);
       let hasNewOrUpdated = false;
 
       // Filtra duplicatas existentes no Drive mantendo apenas o arquivo mais recente de cada projeto
@@ -612,6 +657,7 @@ export const App: React.FC = () => {
           if (remoteTime > localTime + 2000) {
             try {
               const remoteLoaded = await loadProjectFromDrive(summary.id, token);
+              remoteLoaded.ownerEmail = user.email;
               const { mergedProject, hasMergedRemoteChanges } = autoMergeProjects(
                 existsLocally,
                 remoteLoaded
@@ -633,13 +679,14 @@ export const App: React.FC = () => {
           if (matchByName) {
             matchByName.driveFileId = summary.id;
             matchByName.driveSyncedAt = summary.modifiedTime;
-            matchByName.ownerEmail = user?.email;
+            matchByName.ownerEmail = user.email;
             await saveProject(matchByName, false);
             driveFileIdByProjectIdRef.current[matchByName.id] = summary.id;
             hasNewOrUpdated = true;
           } else {
             try {
               const loaded = await loadProjectFromDrive(summary.id, token);
+              loaded.ownerEmail = user.email;
               await saveProject(loaded, false);
               driveFileIdByProjectIdRef.current[loaded.id] = summary.id;
               hasNewOrUpdated = true;
@@ -651,7 +698,7 @@ export const App: React.FC = () => {
       }
 
       if (hasNewOrUpdated) {
-        const all = await listProjects();
+        const all = await listProjects(user.email);
         setProjects(all);
         // Se o projeto ativo recebeu vinculação, atualiza estado ativo
         const activeUpdated = all.find((p) => p.id === project.id);
@@ -864,7 +911,7 @@ export const App: React.FC = () => {
     setPast([]);
     setFuture([]);
     setProject(selected);
-    setActiveProjectId(selected.id);
+    setActiveProjectId(selected.id, activeOwner);
   };
 
   const handleCreateProject = async (
@@ -872,21 +919,22 @@ export const App: React.FC = () => {
     customName?: string,
   ) => {
     const newProj = createProjectFromTemplate(templateType, customName);
+    newProj.ownerEmail = activeOwner;
     await saveProject(newProj, false);
-    const all = await listProjects();
+    const all = await listProjects(activeOwner);
     setProjects(all);
     skipNextAutoSaveRef.current = true;
     setPast([]);
     setFuture([]);
     setProject(newProj);
-    setActiveProjectId(newProj.id);
+    setActiveProjectId(newProj.id, activeOwner);
   };
 
   const handleRenameProject = async (id: string, newName: string) => {
     const target = projects.find((p) => p.id === id);
     if (!target) return;
     const updated = await saveProject({ ...target, name: newName });
-    const all = await listProjects();
+    const all = await listProjects(activeOwner);
     setProjects(all);
     if (id === project.id) {
       skipNextAutoSaveRef.current = true;
@@ -897,24 +945,26 @@ export const App: React.FC = () => {
   const handleDuplicateProject = async (id: string) => {
     const cloned = await duplicateProject(id);
     if (!cloned) return;
-    const all = await listProjects();
+    cloned.ownerEmail = activeOwner;
+    await saveProject(cloned, false);
+    const all = await listProjects(activeOwner);
     setProjects(all);
     skipNextAutoSaveRef.current = true;
     setProject(cloned);
-    setActiveProjectId(cloned.id);
+    setActiveProjectId(cloned.id, activeOwner);
   };
 
   const handleMoveToTrash = async (id: string) => {
     await moveProjectToTrash(id);
-    const all = await listProjects();
-    const trashed = await listTrashedProjects();
+    const all = await listProjects(activeOwner);
+    const trashed = await listTrashedProjects(activeOwner);
     setProjects(all);
     setTrashedProjects(trashed);
     if (all.length > 0) {
       if (id === project.id) {
         skipNextAutoSaveRef.current = true;
         setProject(all[0]);
-        setActiveProjectId(all[0].id);
+        setActiveProjectId(all[0].id, activeOwner);
       }
     } else {
       setIsProjectsModalOpen(true);
@@ -924,19 +974,19 @@ export const App: React.FC = () => {
   const handleRestoreFromTrash = async (id: string) => {
     const restored = await restoreProjectFromTrash(id);
     if (!restored) return;
-    const all = await listProjects();
-    const trashed = await listTrashedProjects();
+    const all = await listProjects(activeOwner);
+    const trashed = await listTrashedProjects(activeOwner);
     setProjects(all);
     setTrashedProjects(trashed);
     skipNextAutoSaveRef.current = true;
     setProject(restored);
-    setActiveProjectId(restored.id);
+    setActiveProjectId(restored.id, activeOwner);
   };
 
   const handlePermanentDelete = async (id: string) => {
     await deleteProject(id);
-    const all = await listProjects();
-    const trashed = await listTrashedProjects();
+    const all = await listProjects(activeOwner);
+    const trashed = await listTrashedProjects(activeOwner);
     setProjects(all);
     setTrashedProjects(trashed);
   };
@@ -955,14 +1005,15 @@ export const App: React.FC = () => {
   const handleImportBackup = async (file: File) => {
     try {
       const imported = await importDocumentFile(file);
+      imported.ownerEmail = activeOwner;
       await saveProject(imported, false);
-      const all = await listProjects();
+      const all = await listProjects(activeOwner);
       setProjects(all);
       skipNextAutoSaveRef.current = true;
       setPast([]);
       setFuture([]);
       setProject(imported);
-      setActiveProjectId(imported.id);
+      setActiveProjectId(imported.id, activeOwner);
       setIsProjectsModalOpen(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao importar documento.');
@@ -1094,6 +1145,8 @@ export const App: React.FC = () => {
         activeCollaborators={activeCollaborators}
         onLogin={handleLoginClick}
         onLogout={handleLogout}
+        isGuestMode={isGuestMode}
+        onExitGuestMode={handleExitGuestMode}
         onOpenShareModal={() => setIsShareModalOpen(true)}
         onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
       />
