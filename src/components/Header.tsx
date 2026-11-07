@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
+import { Logo } from './Logo';
 
 interface HeaderProps {
   projectName: string;
@@ -125,17 +126,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="h-14 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3 flex items-center justify-between sticky top-0 z-30 transition-colors">
       {/* Lado Esquerdo: Marca, Projeto e Navegação de Abas */}
       <div className="flex items-center gap-2.5 min-w-0">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-            R
-          </div>
-          <span className="font-bold text-sm text-neutral-900 dark:text-white tracking-tight hidden sm:inline">
-            Redija
-          </span>
-          <span className="text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-400 px-1.5 py-0.2 rounded uppercase tracking-wider hidden sm:inline">
-            ABNT
-          </span>
-        </div>
+        <Logo size="sm" />
 
         <span className="text-neutral-300 dark:text-neutral-700 hidden sm:inline">/</span>
 
