@@ -25,6 +25,7 @@ import {
   Moon,
   Sun,
   PanelRightClose,
+  Download,
 } from 'lucide-react';
 
 interface PdfPreviewProps {
@@ -222,6 +223,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
           <button
             onClick={handleCopy}
             className="flex items-center gap-1 text-[11px] text-neutral-500 hover:text-neutral-900 transition-colors"
+            title="Copiar código Typst para a área de transferência"
           >
             {copied ? (
               <>
@@ -234,6 +236,23 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
                 <span>Copiar .typ</span>
               </>
             )}
+          </button>
+
+          <button
+            onClick={() => {
+              const blob = new Blob([typstCode], { type: 'text/plain;charset=utf-8' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `${project.name.toLowerCase().replace(/\s+/g, '_')}.typ`;
+              link.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="flex items-center gap-1 text-[11px] text-neutral-500 hover:text-neutral-900 transition-colors ml-1"
+            title="Baixar arquivo fonte .typ"
+          >
+            <Download className="w-3 h-3" />
+            <span>Baixar .typ</span>
           </button>
 
           {onMinimize && (
