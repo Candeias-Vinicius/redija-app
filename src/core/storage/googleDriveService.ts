@@ -268,6 +268,47 @@ export async function restoreDriveProject(fileId: string, accessToken: string): 
   }
 }
 
+/**
+ * Exclui permanentemente um arquivo .redija do Google Drive.
+ */
+export async function deleteDriveProject(fileId: string, accessToken: string): Promise<void> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    await new Promise((r) => setTimeout(r, 150));
+    return;
+  }
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok && res.status !== 404) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || 'Erro ao excluir arquivo no Google Drive.');
+  }
+}
+
+/**
+ * Exclui todos os arquivos .redija do usuário no Google Drive (usado na exclusão total de conta).
+ */
+export async function deleteAllUserDriveProjects(accessToken: string): Promise<number> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    await new Promise((r) => setTimeout(r, 400));
+    return 2;
+  }
+  const projects = await listDriveProjects(accessToken);
+  const ownProjects = projects.filter((p) => !p.isSharedWithMe);
+  let deletedCount = 0;
+  for (const p of ownProjects) {
+    try {
+      await deleteDriveProject(p.id, accessToken);
+      deletedCount++;
+    } catch (err) {
+      console.warn(`Erro ao excluir arquivo ${p.id} do Drive:`, err);
+    }
+  }
+  return deletedCount;
+}
+
 // ============================================================================
 // COMPARTILHAMENTO E PERMISSÕES (Google Drive Permissions API)
 // ============================================================================

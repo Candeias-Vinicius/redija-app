@@ -24,6 +24,7 @@ interface GoogleAuthContextValue {
   login: (promptConsent?: boolean) => Promise<string | null>;
   loginDevMock: () => void;
   logout: () => void;
+  revokeAccess: () => Promise<void>;
   getValidAccessToken: () => Promise<string | null>;
   clearError: () => void;
 }
@@ -236,6 +237,26 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     localStorage.removeItem(USER_PROFILE_STORAGE_KEY);
   }, []);
 
+  /**
+   * Revoga expressamente todas as permissões concedidas pelo usuário no Google (Desconexão profunda).
+   */
+  const revokeAccess = useCallback(async (): Promise<void> => {
+    try {
+      const token = accessTokenRef.current || (await getValidAccessToken());
+      if (token && typeof window.google?.accounts?.oauth2?.revoke === 'function') {
+        await new Promise<void>((resolve) => {
+          window.google!.accounts.oauth2.revoke(token, () => {
+            resolve();
+          });
+        });
+      }
+    } catch (err) {
+      console.warn('Erro ao revogar permissões no Google:', err);
+    } finally {
+      logout();
+    }
+  }, [getValidAccessToken, logout]);
+
   // Tenta renovação silenciosa inicial em segundo plano ao abrir o app caso haja perfil salvo
   useEffect(() => {
     if (user && isConfigured) {
@@ -256,6 +277,7 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         login,
         loginDevMock,
         logout,
+        revokeAccess,
         getValidAccessToken,
         clearError,
       }}

@@ -17,6 +17,7 @@ import {
   saveProjectToDrive,
   listDriveProjects,
   loadProjectFromDrive,
+  deleteAllUserDriveProjects,
 } from '@/core/storage/googleDriveService';
 import {
   DocumentProject,
@@ -35,6 +36,7 @@ import {
 import { compileToPdf } from '@/core/typst/typstClient';
 import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
 import {
+  db,
   loadInitialActiveProject,
   saveProject,
   listProjects,
@@ -82,6 +84,7 @@ export const App: React.FC = () => {
     login,
     loginDevMock,
     logout,
+    revokeAccess,
     getValidAccessToken,
   } = useGoogleAuth();
 
@@ -375,15 +378,19 @@ export const App: React.FC = () => {
         const { fileId, modifiedTime } = await saveProjectToDrive(project, token);
         setRawDriveSyncStatus('synced');
 
-        // Se o projeto ainda não tinha driveFileId, vincula agora
+        // Se o projeto ainda não tinha driveFileId, vincula agora e grava no IndexedDB
         if (project.driveFileId !== fileId) {
-          skipNextAutoSaveRef.current = true;
-          setProject((prev) => ({
-            ...prev,
+          const updated = {
+            ...project,
             driveFileId: fileId,
             driveSyncedAt: modifiedTime,
-            ownerEmail: prev.ownerEmail || user.email,
-          }));
+            ownerEmail: project.ownerEmail || user.email,
+          };
+          await saveProject(updated);
+          const all = await listProjects();
+          setProjects(all);
+          skipNextAutoSaveRef.current = true;
+          setProject(updated);
         }
       } catch (err) {
         console.warn('Erro ao sincronizar com Google Drive:', err);
@@ -440,10 +447,51 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleRevokeAccess = async () => {
+    await revokeAccess();
+    setIsGuestMode(false);
+    try {
+      sessionStorage.removeItem('redija:guestMode');
+    } catch {
+      // Ignora
+    }
+  };
+
+  const handleDeleteAccountAndData = async () => {
+    try {
+      const token = await getValidAccessToken();
+      if (token) {
+        await deleteAllUserDriveProjects(token);
+      }
+    } catch (err) {
+      console.warn('Erro ao deletar arquivos do Google Drive:', err);
+    }
+
+    try {
+      await db.projects.clear();
+      const fresh = createProjectFromTemplate('tcc');
+      await saveProject(fresh);
+      await setActiveProjectId(fresh.id);
+      setProject(fresh);
+      setProjects([fresh]);
+      setTrashedProjects([]);
+    } catch (err) {
+      console.warn('Erro ao limpar cache local na exclusão:', err);
+    }
+
+    await revokeAccess();
+    setIsGuestMode(false);
+    try {
+      sessionStorage.removeItem('redija:guestMode');
+    } catch {
+      // Ignora
+    }
+  };
+
   /**
    * Sincroniza a lista de projetos trazendo arquivos existentes do Google Drive para o Dexie.
    */
-  const handleSyncFromDrive = async () => {
+  const handleSyncFromDrive = useCallback(async () => {
     if (!isAuthenticated) return;
     setIsSyncingDrive(true);
     try {
@@ -451,17 +499,31 @@ export const App: React.FC = () => {
       if (!token) return;
 
       const driveSummaries = await listDriveProjects(token);
+      const currentProjects = await listProjects();
       let hasNewOrUpdated = false;
 
       for (const summary of driveSummaries) {
-        const existsLocally = projects.find((p) => p.driveFileId === summary.id);
+        const existsLocally = currentProjects.find((p) => p.driveFileId === summary.id);
         if (!existsLocally) {
-          try {
-            const loaded = await loadProjectFromDrive(summary.id, token);
-            await saveProject(loaded);
+          const matchByName = currentProjects.find(
+            (p) =>
+              !p.driveFileId &&
+              p.name.trim().toLowerCase() === summary.name.trim().toLowerCase()
+          );
+          if (matchByName) {
+            matchByName.driveFileId = summary.id;
+            matchByName.driveSyncedAt = summary.modifiedTime;
+            matchByName.ownerEmail = user?.email;
+            await saveProject(matchByName);
             hasNewOrUpdated = true;
-          } catch (err) {
-            console.warn(`Não foi possível carregar projeto ${summary.name}:`, err);
+          } else {
+            try {
+              const loaded = await loadProjectFromDrive(summary.id, token);
+              await saveProject(loaded);
+              hasNewOrUpdated = true;
+            } catch (err) {
+              console.warn(`Não foi possível carregar projeto ${summary.name}:`, err);
+            }
           }
         }
       }
@@ -469,13 +531,35 @@ export const App: React.FC = () => {
       if (hasNewOrUpdated) {
         const all = await listProjects();
         setProjects(all);
+        // Se o projeto ativo recebeu vinculação, atualiza estado ativo
+        const activeUpdated = all.find((p) => p.id === project.id);
+        if (activeUpdated && activeUpdated.driveFileId !== project.driveFileId) {
+          setProject(activeUpdated);
+        }
       }
     } catch (err) {
       console.error('Erro ao listar projetos do Drive:', err);
     } finally {
       setIsSyncingDrive(false);
     }
-  };
+  }, [isAuthenticated, getValidAccessToken, user, project.id, project.driveFileId]);
+
+  // Sincroniza projetos do Google Drive automaticamente em segundo plano ao logar
+  useEffect(() => {
+    if (!isAuthenticated || !isStorageReady) return;
+
+    let isMounted = true;
+    (async () => {
+      await Promise.resolve();
+      if (isMounted) {
+        await handleSyncFromDrive();
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, isStorageReady, handleSyncFromDrive]);
 
   const handleMetadataChange = (metadata: DocumentMetadata) => {
     setProject((prev) => {
@@ -885,6 +969,9 @@ export const App: React.FC = () => {
         onClose={() => setIsAccountSettingsOpen(false)}
         user={user}
         onLogout={handleLogout}
+        onRevokeAccess={handleRevokeAccess}
+        onDeleteAccountAndData={handleDeleteAccountAndData}
+        getAccessToken={getValidAccessToken}
         projectsCount={projects.length}
         syncedProjectsCount={projects.filter((p) => Boolean(p.driveFileId)).length}
       />

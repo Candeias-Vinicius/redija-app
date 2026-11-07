@@ -258,15 +258,15 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden sm:inline">Compartilhar</span>
         </button>
 
-        {/* Menu Dropdown de Opções (Agrupa Norma & Layout, Ver Typst, Guia ABNT, Relatar Problema) */}
+        {/* Menu Dropdown de Ferramentas (Agrupa Norma & Layout, Ver Typst, Guia ABNT, Relatar Problema) */}
         <div className="relative" ref={optionsMenuRef}>
           <button
             onClick={() => setIsOptionsMenuOpen(!isOptionsMenuOpen)}
-            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-            title="Normas, visualização e opções do documento"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+            title="Ferramentas, normas e visualização do documento"
           >
             <Sliders className="w-3.5 h-3.5 text-neutral-500" />
-            <span className="hidden sm:inline">Opções</span>
+            <span className="hidden sm:inline">Ferramentas</span>
             <ChevronDown className="w-3 h-3 text-neutral-400" />
           </button>
 
@@ -437,7 +437,7 @@ export const Header: React.FC<HeaderProps> = ({
                     className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-left"
                   >
                     <LogOut className="w-3.5 h-3.5 text-red-500" />
-                    <span>Sair da Conta Google</span>
+                    <span>Sair</span>
                   </button>
                 </div>
               </div>
