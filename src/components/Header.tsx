@@ -114,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   return (
-    <header className="h-13 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3 flex items-center justify-between sticky top-0 z-30 transition-colors">
+    <header className="h-14 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3 flex items-center justify-between sticky top-0 z-30 transition-colors">
       {/* Lado Esquerdo: Marca, Projeto e Navegação de Abas */}
       <div className="flex items-center gap-2.5 min-w-0">
         <div className="flex items-center gap-2">
