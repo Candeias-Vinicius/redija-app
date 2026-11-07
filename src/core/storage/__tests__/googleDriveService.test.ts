@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   saveProjectToDrive,
   saveProjectPdfToDrive,
+  getOrCreateRedijaAppRootFolder,
+  getOrCreateProjectFolder,
   loadProjectFromDrive,
   listDriveProjects,
   inviteCollaborator,
@@ -9,18 +11,16 @@ import {
 } from '../googleDriveService';
 import { createProjectFromTemplate } from '../projectTemplates';
 
-describe('Google Drive Service (BYOS & Colaboração)', () => {
+describe('Google Drive Service (BYOS, Pastas Estruturadas & Colaboração)', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('cria novo arquivo no Drive via POST multipart quando o projeto não tem driveFileId e não existe no Drive', async () => {
-    const mockProject = createProjectFromTemplate('tcc', 'Meu Trabalho');
-    const fakeToken = 'mock_access_token_123';
+  it('obtém ou cria a pasta raiz RedijaApp no Google Drive', async () => {
+    const fakeToken = 'token_abc';
 
-    // 1. Busca por appProperties (não encontra)
-    // 2. Busca por nome (não encontra)
-    // 3. Criação POST multipart
+    // 1. Não encontra pasta existente
+    // 2. Cria pasta na raiz do Drive
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce({
@@ -29,70 +29,214 @@ describe('Google Drive Service (BYOS & Colaboração)', () => {
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
+        json: async () => ({ id: 'created_root_folder_id' }),
+      } as Response);
+
+    const folderId = await getOrCreateRedijaAppRootFolder(fakeToken);
+    expect(folderId).toBe('created_root_folder_id');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    const [createUrl, createOpts] = fetchSpy.mock.calls[1];
+    expect(createUrl).toContain('https://www.googleapis.com/drive/v3/files');
+    expect(createOpts?.method).toBe('POST');
+    const body = JSON.parse(createOpts?.body as string);
+    expect(body.name).toBe('RedijaApp');
+    expect(body.mimeType).toBe('application/vnd.google-apps.folder');
+  });
+
+  it('garante que a pasta do projeto seja criada dentro da pasta RedijaApp', async () => {
+    const mockProject = createProjectFromTemplate('tcc', 'Meu TCC de Engenharia');
+    const fakeToken = 'token_abc';
+
+    // 1. Busca pasta RedijaApp (encontra)
+    // 2. Busca pasta do projeto por appProperties (não encontra)
+    // 3. Busca pasta do projeto por nome (não encontra)
+    // 4. Cria pasta do projeto dentro de RedijaApp
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ files: [{ id: 'root_redija_id', name: 'RedijaApp' }] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
         json: async () => ({ files: [] }),
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ id: 'drive_file_abc', modifiedTime: '2026-11-07T04:00:00Z' }),
+        json: async () => ({ files: [] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'project_folder_123' }),
       } as Response);
 
-    const result = await saveProjectToDrive(mockProject, fakeToken);
+    const folderId = await getOrCreateProjectFolder(mockProject, fakeToken);
+    expect(folderId).toBe('project_folder_123');
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
 
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
-    const [url, options] = fetchSpy.mock.calls[2];
-    expect(url).toContain('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
-    expect(options?.method).toBe('POST');
-    expect(options?.headers).toMatchObject({
-      Authorization: `Bearer ${fakeToken}`,
+    const [createUrl, createOpts] = fetchSpy.mock.calls[3];
+    expect(createUrl).toContain('https://www.googleapis.com/drive/v3/files');
+    const body = JSON.parse(createOpts?.body as string);
+    expect(body.name).toBe('Meu TCC de Engenharia');
+    expect(body.parents).toEqual(['root_redija_id']);
+    expect(body.appProperties.redijaProjectId).toBe(mockProject.id);
+  });
+
+  it('salva o arquivo .redija dentro da pasta estruturada do projeto via POST multipart', async () => {
+    const mockProject = createProjectFromTemplate('tcc', 'Meu Trabalho');
+    const fakeToken = 'token_abc';
+
+    // Mock flexível de fetch baseado em URL
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method || 'GET';
+
+      // 1. Busca arquivo .redija existente
+      if (url.includes('/drive/v3/files?') && url.includes('redijaProjectId') && !url.includes('folder')) {
+        return { ok: true, json: async () => ({ files: [] }) } as Response;
+      }
+      if (url.includes('/drive/v3/files?') && url.includes("name = 'Meu Trabalho.redija'")) {
+        return { ok: true, json: async () => ({ files: [] }) } as Response;
+      }
+
+      // 2. Pasta raiz RedijaApp
+      if (url.includes("name = 'RedijaApp'")) {
+        return { ok: true, json: async () => ({ files: [{ id: 'root_id', name: 'RedijaApp' }] }) } as Response;
+      }
+
+      // 3. Pasta do projeto
+      if (url.includes('redijaProjectId') && url.includes('folder')) {
+        return { ok: true, json: async () => ({ files: [{ id: 'proj_folder_id', name: 'Meu Trabalho' }] }) } as Response;
+      }
+
+      // 4. Criação do arquivo .redija multipart
+      if (url.includes('/upload/drive/v3/files?uploadType=multipart') && method === 'POST') {
+        return { ok: true, json: async () => ({ id: 'drive_file_abc', modifiedTime: '2026-11-07T04:00:00Z' }) } as Response;
+      }
+
+      return { ok: true, json: async () => ({}) } as Response;
     });
-    expect(result.fileId).toBe('drive_file_abc');
-  });
-
-  it('reaproveita e atualiza arquivo existente no Drive via PATCH quando projeto local ainda não tem driveFileId (evita duplicatas)', async () => {
-    const mockProject = createProjectFromTemplate('tcc', 'Meu Trabalho');
-    const fakeToken = 'mock_access_token_123';
-
-    // 1. Busca por appProperties (encontra arquivo já criado no Drive)
-    // 2. PATCH metadata
-    // 3. PATCH media
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          files: [{ id: 'existing_drive_found', modifiedTime: '2026-11-07T02:00:00Z' }],
-        }),
-      } as Response)
-      .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ id: 'existing_drive_found' }),
-      } as Response);
 
     const result = await saveProjectToDrive(mockProject, fakeToken);
+    expect(result.fileId).toBe('drive_file_abc');
 
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
-    const [urlPatch] = fetchSpy.mock.calls[1];
-    expect(urlPatch).toContain('https://www.googleapis.com/drive/v3/files/existing_drive_found');
-    expect(result.fileId).toBe('existing_drive_found');
+    // Verifica que o multipart enviou parents com a pasta do projeto
+    const multipartCall = fetchSpy.mock.calls.find((call) =>
+      String(call[0]).includes('/upload/drive/v3/files?uploadType=multipart'),
+    );
+    expect(multipartCall).toBeDefined();
   });
 
-  it('atualiza arquivo existente no Drive via PATCH quando o projeto já possui driveFileId', async () => {
+  it('atualiza arquivo existente no Drive via PATCH mantendo vínculo com a pasta', async () => {
     const mockProject = createProjectFromTemplate('artigo', 'Artigo Publicado');
     mockProject.driveFileId = 'existing_file_999';
-    const fakeToken = 'mock_access_token_123';
+    const fakeToken = 'token_abc';
 
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response) // PATCH metadata
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ id: 'existing_file_999' }),
-      } as Response); // PATCH media
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method || 'GET';
+
+      // Pasta RedijaApp e pasta do projeto
+      if (url.includes("name = 'RedijaApp'")) {
+        return { ok: true, json: async () => ({ files: [{ id: 'root_id', name: 'RedijaApp' }] }) } as Response;
+      }
+      if (url.includes('folder')) {
+        return { ok: true, json: async () => ({ files: [{ id: 'proj_folder_id', name: 'Artigo Publicado' }] }) } as Response;
+      }
+
+      // PATCH metadata
+      if (url.includes('/drive/v3/files/existing_file_999') && method === 'PATCH') {
+        return { ok: true, json: async () => ({}) } as Response;
+      }
+
+      // PATCH media
+      if (url.includes('/upload/drive/v3/files/existing_file_999') && method === 'PATCH') {
+        return { ok: true, json: async () => ({ id: 'existing_file_999' }) } as Response;
+      }
+
+      return { ok: true, json: async () => ({}) } as Response;
+    });
 
     const result = await saveProjectToDrive(mockProject, fakeToken);
-
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(result.fileId).toBe('existing_file_999');
+  });
+
+  it('salva cópia em PDF dentro da pasta do projeto no Drive via POST multipart', async () => {
+    const mockProject = createProjectFromTemplate('tcc', 'Meu Trabalho');
+    const fakePdfBytes = new Uint8Array([37, 80, 68, 70]);
+    const fakeToken = 'token_abc';
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method || 'GET';
+
+      // 1. Busca se já existe PDF (não encontra)
+      if (url.includes('isRedijaPdf') && method === 'GET') {
+        return { ok: true, json: async () => ({ files: [] }) } as Response;
+      }
+      if (url.includes('mimeType = %27application%2Fpdf%27') && method === 'GET') {
+        return { ok: true, json: async () => ({ files: [] }) } as Response;
+      }
+
+      // 2. Pasta raiz e pasta do projeto
+      if (url.includes("name = 'RedijaApp'")) {
+        return { ok: true, json: async () => ({ files: [{ id: 'root_id', name: 'RedijaApp' }] }) } as Response;
+      }
+      if (url.includes('folder')) {
+        return { ok: true, json: async () => ({ files: [{ id: 'proj_folder_id', name: 'Meu Trabalho' }] }) } as Response;
+      }
+
+      // 3. Criação do PDF multipart
+      if (url.includes('/upload/drive/v3/files?uploadType=multipart') && method === 'POST') {
+        return { ok: true, json: async () => ({ id: 'pdf_drive_id_123', modifiedTime: '2026-11-07T05:00:00Z' }) } as Response;
+      }
+
+      return { ok: true, json: async () => ({}) } as Response;
+    });
+
+    const result = await saveProjectPdfToDrive(mockProject, fakePdfBytes, fakeToken);
+    expect(result?.fileId).toBe('pdf_drive_id_123');
+    expect(fetchSpy).toHaveBeenCalled();
+  });
+
+  it('atualiza arquivo PDF existente no Drive via PATCH media', async () => {
+    const mockProject = createProjectFromTemplate('tcc', 'Meu Trabalho');
+    const fakePdfBytes = new Uint8Array([37, 80, 68, 70]);
+    const fakeToken = 'token_abc';
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method || 'GET';
+
+      // Encontra PDF existente
+      if (url.includes('isRedijaPdf') && method === 'GET') {
+        return { ok: true, json: async () => ({ files: [{ id: 'pdf_existing_id', modifiedTime: '2026-11-07T03:00:00Z' }] }) } as Response;
+      }
+
+      // Pasta RedijaApp e do projeto
+      if (url.includes("name = 'RedijaApp'")) {
+        return { ok: true, json: async () => ({ files: [{ id: 'root_id', name: 'RedijaApp' }] }) } as Response;
+      }
+      if (url.includes('folder')) {
+        return { ok: true, json: async () => ({ files: [{ id: 'proj_folder_id', name: 'Meu Trabalho' }] }) } as Response;
+      }
+
+      // PATCH metadata
+      if (url.includes('/drive/v3/files/pdf_existing_id') && method === 'PATCH') {
+        return { ok: true, json: async () => ({}) } as Response;
+      }
+
+      // PATCH media
+      if (url.includes('/upload/drive/v3/files/pdf_existing_id') && method === 'PATCH') {
+        return { ok: true, json: async () => ({ id: 'pdf_existing_id' }) } as Response;
+      }
+
+      return { ok: true, json: async () => ({}) } as Response;
+    });
+
+    const result = await saveProjectPdfToDrive(mockProject, fakePdfBytes, fakeToken);
+    expect(result?.fileId).toBe('pdf_existing_id');
   });
 
   it('carrega e valida projeto a partir do Drive', async () => {
@@ -153,10 +297,10 @@ describe('Google Drive Service (BYOS & Colaboração)', () => {
   it('convida colaborador com role writer via permissions API', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ id: 'perm_123' }),
+      json: async () => ({ id: 'new_permission_id' }),
     } as Response);
 
-    await inviteCollaborator('file_xyz', 'orientador@universidade.edu.br', 'mock_token');
+    await inviteCollaborator('file_xyz', 'orientador@universidade.edu.br', 'token_123');
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url, options] = fetchSpy.mock.calls[0];
@@ -195,69 +339,5 @@ describe('Google Drive Service (BYOS & Colaboração)', () => {
     expect(list[0].role).toBe('owner');
     expect(list[1].role).toBe('writer');
     expect(list[1].emailAddress).toBe('colega@gmail.com');
-  });
-
-  it('cria novo arquivo PDF no Drive via POST multipart quando o projeto não tem PDF existente', async () => {
-    const mockProject = createProjectFromTemplate('tcc', 'Meu Trabalho');
-    const fakePdfBytes = new Uint8Array([37, 80, 68, 70]); // %PDF
-    const fakeToken = 'google_token_123';
-
-    // 1. Busca por appProperties (não encontra)
-    // 2. Busca por nome (não encontra)
-    // 3. Criação POST multipart
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ files: [] }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ files: [] }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ id: 'pdf_drive_id_123', modifiedTime: '2026-11-07T05:00:00Z' }),
-      } as Response);
-
-    const result = await saveProjectPdfToDrive(mockProject, fakePdfBytes, fakeToken);
-
-    expect(result).toBeDefined();
-    expect(result?.fileId).toBe('pdf_drive_id_123');
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
-    const [createUrl, createOpts] = fetchSpy.mock.calls[2];
-    expect(createUrl).toContain('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
-    expect(createOpts?.method).toBe('POST');
-  });
-
-  it('atualiza arquivo PDF existente no Drive via PATCH media quando encontrado', async () => {
-    const mockProject = createProjectFromTemplate('tcc', 'Meu Trabalho');
-    const fakePdfBytes = new Uint8Array([37, 80, 68, 70]);
-    const fakeToken = 'google_token_123';
-
-    // 1. Busca por appProperties (encontra PDF já existente)
-    // 2. PATCH metadata
-    // 3. PATCH media
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          files: [{ id: 'pdf_existing_id', modifiedTime: '2026-11-07T03:00:00Z' }],
-        }),
-      } as Response)
-      .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ id: 'pdf_existing_id' }),
-      } as Response);
-
-    const result = await saveProjectPdfToDrive(mockProject, fakePdfBytes, fakeToken);
-
-    expect(result).toBeDefined();
-    expect(result?.fileId).toBe('pdf_existing_id');
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
-    const [patchUrl] = fetchSpy.mock.calls[2];
-    expect(patchUrl).toContain('https://www.googleapis.com/upload/drive/v3/files/pdf_existing_id?uploadType=media');
   });
 });

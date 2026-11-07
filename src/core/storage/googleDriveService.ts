@@ -111,7 +111,168 @@ export async function findDriveFileForProject(
 }
 
 /**
- * Cria ou atualiza o arquivo `.redija` no Google Drive.
+ * Garante que a pasta principal "RedijaApp" exista no Google Drive do usuário.
+ * Retorna o ID da pasta raiz "RedijaApp".
+ */
+export async function getOrCreateRedijaAppRootFolder(
+  accessToken: string,
+): Promise<string | null> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    return 'mock_root_folder_redija';
+  }
+
+  try {
+    const q = encodeURIComponent(
+      "name = 'RedijaApp' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+    );
+    const searchRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (searchRes.ok) {
+      const data = await searchRes.json();
+      if (data.files && data.files.length > 0) {
+        return data.files[0].id;
+      }
+    }
+
+    // Se não encontrou, cria a pasta "RedijaApp" na raiz
+    const createRes = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: 'RedijaApp',
+        mimeType: 'application/vnd.google-apps.folder',
+        description: 'Pasta de trabalhos acadêmicos gerenciada pelo RedijaApp',
+      }),
+    });
+
+    if (createRes.ok) {
+      const created = await createRes.json();
+      return created.id;
+    }
+  } catch (err) {
+    console.warn('Erro ao obter ou criar pasta RedijaApp no Drive:', err);
+  }
+  return null;
+}
+
+/**
+ * Garante que exista uma subpasta dedicada para o projeto dentro de "RedijaApp".
+ * Ex: "RedijaApp / Meu TCC /"
+ * Retorna o ID da pasta do projeto.
+ */
+export async function getOrCreateProjectFolder(
+  project: DocumentProject,
+  accessToken: string,
+): Promise<string | null> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    return `mock_project_folder_${project.id}`;
+  }
+
+  const rootFolderId = await getOrCreateRedijaAppRootFolder(accessToken);
+  const cleanName = project.name.replace(/\.redija$/i, '').trim() || 'Sem Titulo';
+
+  try {
+    // 1. Busca se já existe uma pasta vinculada a este projeto por appProperties
+    const propQuery = encodeURIComponent(
+      `appProperties has { key='redijaProjectId' and value='${project.id}' } and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+    );
+    const searchRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${propQuery}&fields=files(id,name)&pageSize=1`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+
+    let existingFolderId: string | null = null;
+    let existingFolderName: string | null = null;
+
+    if (searchRes.ok) {
+      const data = await searchRes.json();
+      if (data.files && data.files.length > 0) {
+        existingFolderId = data.files[0].id;
+        existingFolderName = data.files[0].name;
+      }
+    }
+
+    // Se não encontrou por appProperties, busca dentro da pasta RedijaApp pelo nome do projeto
+    if (!existingFolderId && rootFolderId) {
+      const safeName = cleanName.replace(/'/g, "\\'");
+      const nameQuery = encodeURIComponent(
+        `'${rootFolderId}' in parents and name = '${safeName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      );
+      const nameSearch = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${nameQuery}&fields=files(id,name)&pageSize=1`,
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+      if (nameSearch.ok) {
+        const nameData = await nameSearch.json();
+        if (nameData.files && nameData.files.length > 0) {
+          existingFolderId = nameData.files[0].id;
+          existingFolderName = nameData.files[0].name;
+        }
+      }
+    }
+
+    if (existingFolderId) {
+      // Se o projeto foi renomeado, atualiza o nome da pasta também
+      if (existingFolderName !== cleanName) {
+        await fetch(`https://www.googleapis.com/drive/v3/files/${existingFolderId}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: cleanName,
+            appProperties: {
+              redijaProjectId: project.id,
+              isProjectFolder: 'true',
+            },
+          }),
+        }).catch(() => null);
+      }
+      return existingFolderId;
+    }
+
+    // 2. Se a pasta não existe, cria a pasta do projeto dentro de RedijaApp
+    const metadata: Record<string, unknown> = {
+      name: cleanName,
+      mimeType: 'application/vnd.google-apps.folder',
+      description: `Pasta de arquivos do trabalho ${cleanName}`,
+      appProperties: {
+        redijaProjectId: project.id,
+        isProjectFolder: 'true',
+      },
+    };
+    if (rootFolderId) {
+      metadata.parents = [rootFolderId];
+    }
+
+    const createRes = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(metadata),
+    });
+
+    if (createRes.ok) {
+      const created = await createRes.json();
+      return created.id;
+    }
+  } catch (err) {
+    console.warn('Erro ao obter ou criar pasta do projeto no Drive:', err);
+  }
+
+  return rootFolderId;
+}
+
+/**
+ * Cria ou atualiza o arquivo `.redija` no Google Drive dentro da pasta estruturada do projeto.
  * Se o projeto já tem `driveFileId` ou já possui um arquivo com o mesmo ID/nome no Drive,
  * executa PATCH no mesmo arquivo. Caso contrário, executa POST (multipart).
  */
@@ -149,10 +310,17 @@ export async function saveProjectToDrive(
     }
   }
 
+  // Garante a existência da pasta dedicada do projeto dentro de RedijaApp/
+  const projectFolderId = await getOrCreateProjectFolder(project, accessToken);
+
   // CENÁRIO A: ATUALIZAR ARQUIVO EXISTENTE NO DRIVE
   if (targetFileId) {
-    // 1. Atualiza metadados (nome caso tenha mudado e vincula appProperties)
-    const patchMetaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${targetFileId}`, {
+    // 1. Atualiza metadados (nome caso tenha mudado e vincula appProperties e pasta)
+    const patchUrl = projectFolderId
+      ? `https://www.googleapis.com/drive/v3/files/${targetFileId}?addParents=${projectFolderId}`
+      : `https://www.googleapis.com/drive/v3/files/${targetFileId}`;
+
+    const patchMetaRes = await fetch(patchUrl, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -191,8 +359,8 @@ export async function saveProjectToDrive(
     // Se recebeu 404 (arquivo foi apagado no Drive pelo usuário), continua abaixo para recriar
   }
 
-  // CENÁRIO B: CRIAR NOVO ARQUIVO NO DRIVE (Multipart com appProperties)
-  const metadata = {
+  // CENÁRIO B: CRIAR NOVO ARQUIVO NO DRIVE (Multipart com appProperties e pasta pai)
+  const metadata: Record<string, unknown> = {
     name: fileName,
     mimeType: REDIJA_MIME_TYPE,
     description: 'Documento científico criado com RedijaApp',
@@ -200,6 +368,9 @@ export async function saveProjectToDrive(
       redijaProjectId: project.id,
     },
   };
+  if (projectFolderId) {
+    metadata.parents = [projectFolderId];
+  }
 
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
@@ -287,10 +458,17 @@ export async function saveProjectPdfToDrive(
     }
   }
 
+  // Garante a existência da pasta dedicada do projeto dentro de RedijaApp/
+  const projectFolderId = await getOrCreateProjectFolder(project, accessToken);
+
   // CENÁRIO A: ATUALIZAR ARQUIVO PDF EXISTENTE
   if (existingFileId) {
-    // Atualiza metadados / nome caso o projeto tenha sido renomeado
-    await fetch(`https://www.googleapis.com/drive/v3/files/${existingFileId}`, {
+    // Atualiza metadados / nome caso o projeto tenha sido renomeado e garante pasta pai
+    const patchUrl = projectFolderId
+      ? `https://www.googleapis.com/drive/v3/files/${existingFileId}?addParents=${projectFolderId}`
+      : `https://www.googleapis.com/drive/v3/files/${existingFileId}`;
+
+    await fetch(patchUrl, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -324,8 +502,8 @@ export async function saveProjectPdfToDrive(
     }
   }
 
-  // CENÁRIO B: CRIAR NOVO ARQUIVO PDF NO DRIVE (Multipart)
-  const metadata = {
+  // CENÁRIO B: CRIAR NOVO ARQUIVO PDF NO DRIVE (Multipart com pasta pai)
+  const metadata: Record<string, unknown> = {
     name: fileName,
     mimeType: 'application/pdf',
     description: 'Documento acadêmico ABNT gerado pelo RedijaApp (visualizável no Google Drive)',
@@ -334,6 +512,9 @@ export async function saveProjectPdfToDrive(
       isRedijaPdf: 'true',
     },
   };
+  if (projectFolderId) {
+    metadata.parents = [projectFolderId];
+  }
 
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));

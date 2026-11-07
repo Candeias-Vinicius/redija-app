@@ -947,7 +947,39 @@ export const App: React.FC = () => {
     templateType: ProjectTemplateType,
     customName?: string,
   ) => {
-    const newProj = createProjectFromTemplate(templateType, customName);
+    let finalName = (customName || '').trim();
+    if (finalName) {
+      const alreadyExists = projects.some(
+        (p) => p.name.trim().toLowerCase() === finalName.toLowerCase(),
+      );
+      if (alreadyExists) {
+        alert(
+          `Já existe um trabalho ativo com o nome "${finalName}". Escolha um nome diferente para evitar substituição.`,
+        );
+        return;
+      }
+    } else {
+      // Gera nome padrão único baseado no template
+      const defaultBase =
+        templateType === 'tcc'
+          ? 'Trabalho de Conclusão de Curso'
+          : templateType === 'artigo'
+          ? 'Novo Artigo Científico'
+          : templateType === 'relatorio'
+          ? 'Novo Relatório Técnico'
+          : templateType === 'projeto_pesquisa'
+          ? 'Novo Projeto de Pesquisa'
+          : 'Novo Documento';
+      let candidate = defaultBase;
+      let counter = 2;
+      while (projects.some((p) => p.name.trim().toLowerCase() === candidate.toLowerCase())) {
+        candidate = `${defaultBase} (${counter})`;
+        counter++;
+      }
+      finalName = candidate;
+    }
+
+    const newProj = createProjectFromTemplate(templateType, finalName);
     newProj.ownerEmail = activeOwner;
     await saveProject(newProj, false);
     const all = await listProjects(activeOwner);
@@ -960,9 +992,23 @@ export const App: React.FC = () => {
   };
 
   const handleRenameProject = async (id: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
     const target = projects.find((p) => p.id === id);
     if (!target) return;
-    const updated = await saveProject({ ...target, name: newName });
+    if (target.name.trim().toLowerCase() === trimmed.toLowerCase()) return;
+
+    const alreadyExists = projects.some(
+      (p) => p.id !== id && p.name.trim().toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (alreadyExists) {
+      alert(
+        `Já existe outro trabalho com o nome "${trimmed}". Escolha um nome diferente para evitar substituição.`,
+      );
+      return;
+    }
+
+    const updated = await saveProject({ ...target, name: trimmed });
     const all = await listProjects(activeOwner);
     setProjects(all);
     if (id === project.id) {
@@ -972,8 +1018,20 @@ export const App: React.FC = () => {
   };
 
   const handleDuplicateProject = async (id: string) => {
+    const original = projects.find((p) => p.id === id);
+    if (!original) return;
     const cloned = await duplicateProject(id);
     if (!cloned) return;
+
+    // Garante nome único para a duplicata (ex: "Artigo (Cópia)", "Artigo (Cópia 2)")
+    const baseCopyName = `${original.name} (Cópia)`;
+    let uniqueName = baseCopyName;
+    let counter = 2;
+    while (projects.some((p) => p.name.trim().toLowerCase() === uniqueName.toLowerCase())) {
+      uniqueName = `${original.name} (Cópia ${counter})`;
+      counter++;
+    }
+    cloned.name = uniqueName;
     cloned.ownerEmail = activeOwner;
     await saveProject(cloned, false);
     const all = await listProjects(activeOwner);
