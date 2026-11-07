@@ -15,6 +15,8 @@ import {
   Loader2,
   Sun,
   Moon,
+  Lock,
+  FileText,
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -25,6 +27,8 @@ interface LoginScreenProps {
   isLoading: boolean;
   error: string | null;
   isConfigured: boolean;
+  darkMode?: boolean;
+  onToggleDarkMode?: () => void;
 }
 
 interface ShowcaseSlide {
@@ -42,23 +46,32 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   isLoading,
   error,
   isConfigured,
+  darkMode,
+  onToggleDarkMode,
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
+
+  // Fallback local se darkMode não for passado
+  const [localDark, setLocalDark] = useState(() => {
     return document.documentElement.classList.contains('dark');
   });
 
-  // Alternador de tema claro/escuro na tela de login
-  const toggleTheme = () => {
-    const nextDark = !isDarkMode;
-    setIsDarkMode(nextDark);
-    if (nextDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('redija:darkMode', '1');
+  const isDark = darkMode !== undefined ? darkMode : localDark;
+
+  const handleToggle = () => {
+    if (onToggleDarkMode) {
+      onToggleDarkMode();
     } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('redija:darkMode', '0');
+      const next = !localDark;
+      setLocalDark(next);
+      if (next) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('redija:darkMode', '1');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('redija:darkMode', '0');
+      }
     }
   };
 
@@ -69,7 +82,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       title: 'Adeus às brigas com margens e sumários manuais',
       description:
         'O Redija cuida de 100% da diagramação normativa em tempo real: margens de 3-3-2-2 cm, citações longas com recuo de 4 cm e referências formatadas pela NBR 6023.',
-      icon: <BookOpen className="w-6 h-6 text-emerald-400" />,
+      icon: <BookOpen className="w-6 h-6 text-emerald-500" />,
       highlights: [
         'Capa, folha de rosto e folha de aprovação automáticas',
         'Citações diretas curtas e longas com regras da NBR 10520',
@@ -81,7 +94,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       title: 'Compilação instantânea do PDF direto no navegador',
       description:
         'Chega de esperar minutos ou decifrar erros crípticos do LaTeX. O Redija compila seu trabalho com o motor Typst em WebAssembly com visualização ao vivo lado a lado.',
-      icon: <Zap className="w-6 h-6 text-teal-400" />,
+      icon: <Zap className="w-6 h-6 text-teal-500" />,
       highlights: [
         'Renderização do PDF em milissegundos sem servidores externos',
         'Zoom de 50% a 200% e inspeção de código fonte em abas',
@@ -93,7 +106,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       title: 'Escreva simultaneamente com seu orientador ou grupo',
       description:
         'Conexão direta WebRTC entre navegadores: veja os avatares dos colegas online e acompanhe quem está editando cada parágrafo com cursores ao vivo.',
-      icon: <Users className="w-6 h-6 text-blue-400" />,
+      icon: <Users className="w-6 h-6 text-blue-500" />,
       highlights: [
         'Comunicação direta ponto a ponto (P2P) sem intermediários',
         'Mesclagem inteligente com timestamps por bloco (Auto-Merge)',
@@ -105,7 +118,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       title: 'Importe do Word ou Overleaf e exporte tudo em ZIP',
       description:
         'Traga documentos Word (.docx) com tabelas e imagens, importe projetos inteiros do Overleaf (.zip), ou exporte seu projeto Typst completo com referências BibTeX.',
-      icon: <FolderSync className="w-6 h-6 text-amber-400" />,
+      icon: <FolderSync className="w-6 h-6 text-amber-500" />,
       highlights: [
         'Conversão inteligente de .docx preservando seções e figuras',
         'Leitor automático de pacotes .zip do Redija ou LaTeX',
@@ -117,7 +130,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       title: 'Seus dados protegidos no seu próprio Google Drive',
       description:
         'Arquitetura Local-First transparente: o documento fica salvo no cache local do seu computador para você escrever offline e sincroniza com a sua conta Google pessoal.',
-      icon: <Cloud className="w-6 h-6 text-emerald-400" />,
+      icon: <Cloud className="w-6 h-6 text-emerald-500" />,
       highlights: [
         'Zero custo com servidores de banco de dados proprietários',
         'Total conformidade com privacidade e posse total dos seus arquivos',
@@ -126,7 +139,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     },
   ];
 
-  // Rotação automática suave dos slides a cada 6 segundos
+  // Rotação automática dos slides a cada 6 segundos
   useEffect(() => {
     if (isPaused) return;
     const timer = setInterval(() => {
@@ -138,56 +151,116 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const activeSlide = slides[currentSlide];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 flex flex-col justify-between selection:bg-emerald-200 dark:selection:bg-emerald-950 selection:text-emerald-900 dark:selection:text-emerald-200 relative overflow-hidden transition-colors duration-300">
-      {/* Luzes de fundo sutis (Glow ambiente para tema claro e escuro) */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-200/40 dark:bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/2 -right-32 w-96 h-96 bg-teal-200/30 dark:bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div
+      className={`min-h-screen flex flex-col justify-between relative overflow-hidden transition-colors duration-300 ${
+        isDark
+          ? 'bg-[#080c14] text-slate-100 selection:bg-emerald-950 selection:text-emerald-200'
+          : 'bg-slate-100 text-slate-800 selection:bg-emerald-200 selection:text-emerald-900'
+      }`}
+    >
+      {/* Luzes de fundo sutis (Glow ambiente adaptativo) */}
+      <div
+        className={`absolute -top-32 -left-32 w-96 h-96 rounded-full blur-3xl pointer-events-none ${
+          isDark ? 'bg-emerald-500/10' : 'bg-emerald-200/50'
+        }`}
+      />
+      <div
+        className={`absolute top-1/2 -right-32 w-96 h-96 rounded-full blur-3xl pointer-events-none ${
+          isDark ? 'bg-cyan-500/10' : 'bg-teal-200/40'
+        }`}
+      />
 
       {/* Botão de alternar tema no canto superior direito */}
       <div className="absolute top-4 right-4 z-20">
         <button
-          onClick={toggleTheme}
-          className="p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800 shadow-xs transition-colors"
-          title={isDarkMode ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
+          onClick={handleToggle}
+          className={`p-2.5 rounded-xl border backdrop-blur-md shadow-xs transition-colors ${
+            isDark
+              ? 'border-slate-800 bg-slate-900/80 text-slate-300 hover:text-white hover:bg-slate-800'
+              : 'border-slate-300 bg-white/90 text-slate-700 hover:text-slate-900 hover:bg-white'
+          }`}
+          title={isDark ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
         >
-          {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+          {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
         </button>
       </div>
 
       {/* Conteúdo Principal Split-Screen */}
       <main className="relative z-10 flex-1 flex items-center justify-center p-4 md:p-8 lg:p-12">
-        <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-2xl shadow-slate-200/60 dark:shadow-black/50 overflow-hidden min-h-[640px] transition-colors">
+        <div
+          className={`w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 rounded-3xl border shadow-2xl overflow-hidden min-h-[640px] transition-colors ${
+            isDark
+              ? 'bg-slate-900/90 border-slate-800/90 shadow-black/70'
+              : 'bg-white border-slate-200/90 shadow-slate-300/60'
+          }`}
+        >
           {/* ============================================================ */}
           {/* LADO ESQUERDO: SHOWCASE DA PLATAFORMA & CARROSSEL DE RECURSOS */}
           {/* ============================================================ */}
           <div
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
-            className="lg:col-span-7 bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-white p-8 md:p-12 flex flex-col justify-between relative overflow-hidden"
+            className={`lg:col-span-7 p-8 md:p-12 flex flex-col justify-between relative overflow-hidden transition-colors border-b lg:border-b-0 lg:border-r ${
+              isDark
+                ? 'bg-gradient-to-br from-[#0c1322] via-[#09101d] to-[#041913] text-white border-slate-800/80'
+                : 'bg-gradient-to-br from-emerald-50/70 via-slate-50 to-teal-50/50 text-slate-900 border-slate-200/80'
+            }`}
           >
-            {/* Efeito decorativo sutil no fundo escuro */}
-            <div className="absolute -top-24 -right-24 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+            {/* Efeito decorativo sutil no fundo */}
+            <div
+              className={`absolute -top-24 -right-24 w-80 h-80 rounded-full blur-3xl pointer-events-none ${
+                isDark ? 'bg-emerald-500/10' : 'bg-emerald-300/20'
+              }`}
+            />
+            <div
+              className={`absolute -bottom-24 -left-24 w-80 h-80 rounded-full blur-3xl pointer-events-none ${
+                isDark ? 'bg-cyan-500/10' : 'bg-teal-300/20'
+              }`}
+            />
 
-            {/* Cabeçalho de Marca Único: Logotipo oficial RedijaApp */}
+            {/* Cabeçalho de Marca Único: Logotipo Oficial RedijaApp */}
             <div className="relative z-10 flex items-center justify-between">
-              <Logo size="md" variant="dark" />
+              {isDark ? (
+                <Logo size="md" />
+              ) : (
+                <div className="bg-[#0b0f19] p-1.5 px-3 rounded-2xl shadow-md border border-slate-800/80 inline-block">
+                  <Logo size="md" />
+                </div>
+              )}
             </div>
 
             {/* Conteúdo Dinâmico do Slide do Carrossel */}
             <div className="relative z-10 my-8 space-y-6">
               {/* Badge do Slide */}
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-semibold bg-white/10 backdrop-blur-md border border-white/15 text-emerald-300">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <div
+                className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-semibold backdrop-blur-md border ${
+                  isDark
+                    ? 'bg-white/10 border-white/15 text-emerald-300'
+                    : 'bg-emerald-100/80 border-emerald-300 text-emerald-900'
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full animate-pulse ${
+                    isDark ? 'bg-emerald-400' : 'bg-emerald-600'
+                  }`}
+                />
                 <span>{activeSlide.badge}</span>
               </div>
 
               {/* Título e Descrição */}
               <div className="space-y-3">
-                <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight leading-tight">
+                <h2
+                  className={`text-2xl md:text-3xl font-extrabold tracking-tight leading-tight ${
+                    isDark ? 'text-white' : 'text-slate-900'
+                  }`}
+                >
                   {activeSlide.title}
                 </h2>
-                <p className="text-sm md:text-base text-slate-300 leading-relaxed max-w-xl">
+                <p
+                  className={`text-sm md:text-base leading-relaxed max-w-xl ${
+                    isDark ? 'text-slate-300' : 'text-slate-600'
+                  }`}
+                >
                   {activeSlide.description}
                 </p>
               </div>
@@ -195,8 +268,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               {/* Lista de Destaques Rápidos com Ícones */}
               <div className="space-y-2 pt-2">
                 {activeSlide.highlights.map((highlight, index) => (
-                  <div key={index} className="flex items-start gap-2.5 text-xs md:text-sm text-slate-200">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div
+                    key={index}
+                    className={`flex items-start gap-2.5 text-xs md:text-sm ${
+                      isDark ? 'text-slate-200' : 'text-slate-700 font-medium'
+                    }`}
+                  >
+                    <CheckCircle2
+                      className={`w-4 h-4 shrink-0 mt-0.5 ${
+                        isDark ? 'text-emerald-400' : 'text-emerald-600'
+                      }`}
+                    />
                     <span>{highlight}</span>
                   </div>
                 ))}
@@ -204,7 +286,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </div>
 
             {/* Controles de Navegação do Carrossel */}
-            <div className="relative z-10 pt-4 border-t border-slate-700/60 flex items-center justify-between">
+            <div
+              className={`relative z-10 pt-4 border-t flex items-center justify-between ${
+                isDark ? 'border-slate-800' : 'border-slate-200'
+              }`}
+            >
               {/* Indicadores de bolinha (Dots) */}
               <div className="flex items-center gap-2">
                 {slides.map((_, idx) => (
@@ -213,8 +299,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     onClick={() => setCurrentSlide(idx)}
                     className={`h-2 rounded-full transition-all ${
                       currentSlide === idx
-                        ? 'w-8 bg-emerald-400'
-                        : 'w-2 bg-slate-600 hover:bg-slate-500'
+                        ? isDark
+                          ? 'w-8 bg-emerald-400'
+                          : 'w-8 bg-emerald-600'
+                        : isDark
+                          ? 'w-2 bg-slate-700 hover:bg-slate-600'
+                          : 'w-2 bg-slate-300 hover:bg-slate-400'
                     }`}
                     title={`Ir para slide ${idx + 1}`}
                   />
@@ -227,14 +317,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   onClick={() =>
                     setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
                   }
-                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-colors"
+                  className={`p-1.5 rounded-lg transition-colors ${
+                    isDark
+                      ? 'bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white'
+                      : 'bg-slate-200/80 hover:bg-slate-300 text-slate-700'
+                  }`}
                   title="Slide anterior"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setCurrentSlide((prev) => (prev + 1) % slides.length)}
-                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-colors"
+                  className={`p-1.5 rounded-lg transition-colors ${
+                    isDark
+                      ? 'bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white'
+                      : 'bg-slate-200/80 hover:bg-slate-300 text-slate-700'
+                  }`}
                   title="Próximo slide"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -244,28 +342,60 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           </div>
 
           {/* ============================================================ */}
-          {/* LADO DIREITO: CARD DE AUTENTICAÇÃO LIMPO (SEM REPETIR O LOGO) */}
+          {/* LADO DIREITO: CARD DE AUTENTICAÇÃO LIMPO                     */}
           {/* ============================================================ */}
-          <div className="lg:col-span-5 bg-white dark:bg-slate-900/95 p-8 md:p-12 flex flex-col justify-between transition-colors">
+          <div
+            className={`lg:col-span-5 p-8 md:p-10 flex flex-col justify-between transition-colors ${
+              isDark ? 'bg-slate-900/95 text-white' : 'bg-white text-slate-900'
+            }`}
+          >
             {/* Topo do Card de Login */}
-            <div className="space-y-6">
+            <div className="space-y-5">
               <div className="space-y-2">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <div
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                    isDark
+                      ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  }`}
+                >
+                  <Sparkles
+                    className={`w-3.5 h-3.5 ${
+                      isDark ? 'text-emerald-400' : 'text-emerald-600'
+                    }`}
+                  />
                   <span>Acesso Acadêmico</span>
                 </div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                <h1
+                  className={`text-2xl font-bold tracking-tight ${
+                    isDark ? 'text-white' : 'text-slate-900'
+                  }`}
+                >
                   Entre no seu espaço
                 </h1>
-                <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                <p
+                  className={`text-xs md:text-sm leading-relaxed ${
+                    isDark ? 'text-slate-400' : 'text-slate-500'
+                  }`}
+                >
                   Conecte sua conta para carregar seus trabalhos sincronizados com segurança no Google Drive.
                 </p>
               </div>
 
               {/* Mensagem de Erro, se houver */}
               {error && (
-                <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300 space-y-1">
-                  <p className="font-semibold flex items-center gap-1.5 text-red-800 dark:text-red-200">
+                <div
+                  className={`p-3.5 rounded-xl border text-xs space-y-1 ${
+                    isDark
+                      ? 'bg-red-950/60 border-red-800 text-red-300'
+                      : 'bg-red-50 border-red-200 text-red-700'
+                  }`}
+                >
+                  <p
+                    className={`font-semibold flex items-center gap-1.5 ${
+                      isDark ? 'text-red-200' : 'text-red-800'
+                    }`}
+                  >
                     <AlertTriangle className="w-4 h-4 shrink-0" />
                     <span>Erro de Autenticação</span>
                   </p>
@@ -275,12 +405,30 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
               {/* Alerta se Client ID não configurado no .env */}
               {!isConfigured && (
-                <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200 space-y-2">
-                  <p className="font-semibold flex items-center gap-1.5 text-amber-900 dark:text-amber-100">
-                    <HelpCircle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div
+                  className={`p-3.5 rounded-xl border text-xs space-y-2 ${
+                    isDark
+                      ? 'bg-amber-950/60 border-amber-800 text-amber-200'
+                      : 'bg-amber-50 border-amber-200 text-amber-800'
+                  }`}
+                >
+                  <p
+                    className={`font-semibold flex items-center gap-1.5 ${
+                      isDark ? 'text-amber-100' : 'text-amber-900'
+                    }`}
+                  >
+                    <HelpCircle
+                      className={`w-4 h-4 shrink-0 ${
+                        isDark ? 'text-amber-400' : 'text-amber-600'
+                      }`}
+                    />
                     <span>Modo de Desenvolvimento</span>
                   </p>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  <p
+                    className={`text-[11px] leading-relaxed ${
+                      isDark ? 'text-slate-300' : 'text-slate-600'
+                    }`}
+                  >
                     Para testes rápidos locais sem credencial Google Cloud:
                   </p>
                   <button
@@ -297,11 +445,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               <button
                 onClick={() => onLogin()}
                 disabled={isLoading}
-                className="w-full py-3.5 px-4 rounded-xl border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-800 dark:text-white font-semibold text-sm transition-all shadow-sm hover:shadow-md disabled:opacity-50 flex items-center justify-center gap-3 relative group"
+                className={`w-full py-3.5 px-4 rounded-xl border font-semibold text-sm transition-all shadow-sm hover:shadow-md disabled:opacity-50 flex items-center justify-center gap-3 relative group ${
+                  isDark
+                    ? 'border-slate-700 hover:border-slate-600 bg-slate-800 hover:bg-slate-750 text-white'
+                    : 'border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800'
+                }`}
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
+                    <Loader2
+                      className={`w-4 h-4 animate-spin ${
+                        isDark ? 'text-emerald-400' : 'text-emerald-600'
+                      }`}
+                    />
                     <span>Conectando com o Google...</span>
                   </>
                 ) : (
@@ -331,25 +487,138 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               </button>
 
               {/* Botão de Modo Convidado */}
-              <div className="pt-2 text-center">
+              <div className="text-center pt-1">
                 <button
                   onClick={onContinueAsGuest}
-                  className="text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors font-medium"
+                  className={`text-xs transition-colors font-medium ${
+                    isDark
+                      ? 'text-slate-400 hover:text-emerald-400'
+                      : 'text-slate-500 hover:text-emerald-700'
+                  }`}
                 >
                   Prefere testar sem conta agora?{' '}
                   <span className="underline font-semibold">Continuar como Convidado</span>
                 </button>
               </div>
+
+              {/* ============================================================ */}
+              {/* AS 3 PÍLULAS INFORMATIVAS RESTAURADAS (EMBAIXO DO GOOGLE)   */}
+              {/* ============================================================ */}
+              <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
+                <div
+                  className={`p-2.5 rounded-xl border transition-colors ${
+                    isDark
+                      ? 'border-slate-800 bg-slate-850/80 text-slate-300'
+                      : 'border-slate-200/90 bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  <Lock
+                    className={`w-3.5 h-3.5 mx-auto mb-1 ${
+                      isDark ? 'text-emerald-400' : 'text-emerald-600'
+                    }`}
+                  />
+                  <p
+                    className={`font-semibold text-xs ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}
+                  >
+                    Drive Próprio
+                  </p>
+                  <p
+                    className={`text-[10px] mt-0.5 leading-snug ${
+                      isDark ? 'text-slate-400' : 'text-slate-500'
+                    }`}
+                  >
+                    Seus arquivos sob seu controle
+                  </p>
+                </div>
+
+                <div
+                  className={`p-2.5 rounded-xl border transition-colors ${
+                    isDark
+                      ? 'border-slate-800 bg-slate-850/80 text-slate-300'
+                      : 'border-slate-200/90 bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  <Users
+                    className={`w-3.5 h-3.5 mx-auto mb-1 ${
+                      isDark ? 'text-emerald-400' : 'text-emerald-600'
+                    }`}
+                  />
+                  <p
+                    className={`font-semibold text-xs ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}
+                  >
+                    Colaboração
+                  </p>
+                  <p
+                    className={`text-[10px] mt-0.5 leading-snug ${
+                      isDark ? 'text-slate-400' : 'text-slate-500'
+                    }`}
+                  >
+                    Compartilhe com orientadores
+                  </p>
+                </div>
+
+                <div
+                  className={`p-2.5 rounded-xl border transition-colors ${
+                    isDark
+                      ? 'border-slate-800 bg-slate-850/80 text-slate-300'
+                      : 'border-slate-200/90 bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  <FileText
+                    className={`w-3.5 h-3.5 mx-auto mb-1 ${
+                      isDark ? 'text-emerald-400' : 'text-emerald-600'
+                    }`}
+                  />
+                  <p
+                    className={`font-semibold text-xs ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}
+                  >
+                    100% ABNT
+                  </p>
+                  <p
+                    className={`text-[10px] mt-0.5 leading-snug ${
+                      isDark ? 'text-slate-400' : 'text-slate-500'
+                    }`}
+                  >
+                    PDF oficial e automático
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Garantias de Segurança e Privacidade no Rodapé do Card */}
-            <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
-              <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <div
+              className={`pt-5 border-t space-y-2 ${
+                isDark ? 'border-slate-800' : 'border-slate-100'
+              }`}
+            >
+              <div
+                className={`flex items-center gap-2 text-xs ${
+                  isDark ? 'text-slate-400' : 'text-slate-600'
+                }`}
+              >
+                <ShieldCheck
+                  className={`w-4 h-4 shrink-0 ${
+                    isDark ? 'text-emerald-400' : 'text-emerald-600'
+                  }`}
+                />
                 <span className="font-medium">100% Gratuito: sem planos ou assinaturas</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                <Cloud className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <div
+                className={`flex items-center gap-2 text-xs ${
+                  isDark ? 'text-slate-400' : 'text-slate-600'
+                }`}
+              >
+                <Cloud
+                  className={`w-4 h-4 shrink-0 ${
+                    isDark ? 'text-emerald-400' : 'text-emerald-600'
+                  }`}
+                />
                 <span className="font-medium">Arquivos salvos no seu próprio Google Drive</span>
               </div>
             </div>
@@ -358,7 +627,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       </main>
 
       {/* Rodapé da Página */}
-      <footer className="relative z-10 py-4 px-6 text-center text-xs text-slate-400 dark:text-slate-500">
+      <footer
+        className={`relative z-10 py-4 px-6 text-center text-xs transition-colors ${
+          isDark ? 'text-slate-500' : 'text-slate-400'
+        }`}
+      >
         <p>RedijaApp: Editor Acadêmico Normatizado com Motor Typst WASM • Todos os direitos reservados.</p>
       </footer>
     </div>

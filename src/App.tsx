@@ -1034,6 +1034,8 @@ export const App: React.FC = () => {
         isLoading={isAuthLoading}
         error={authError}
         isConfigured={isAuthConfigured}
+        darkMode={darkMode}
+        onToggleDarkMode={() => setDarkMode((prev) => !prev)}
       />
     );
   }
