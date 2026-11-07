@@ -23,6 +23,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
+import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
 
 interface HeaderProps {
   projectName: string;
@@ -54,6 +55,7 @@ interface HeaderProps {
   user: GoogleUserProfile | null;
   isAuthenticated: boolean;
   isAuthLoading: boolean;
+  activeCollaborators?: CollaboratorPresence[];
   onLogin: () => void;
   onLogout: () => void;
   onOpenShareModal: () => void;
@@ -88,6 +90,7 @@ export const Header: React.FC<HeaderProps> = ({
   user,
   isAuthenticated,
   isAuthLoading,
+  activeCollaborators = [],
   onLogin,
   onLogout,
   onOpenShareModal,
@@ -247,6 +250,43 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
         </div>
+
+        {/* Presença de Colaboradores em Tempo Real (Nível 3 P2P) */}
+        {activeCollaborators.length > 0 && (
+          <div
+            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 animate-in fade-in duration-200"
+            title={`${activeCollaborators.length} colaborador(es) editando ao vivo agora`}
+          >
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <div className="flex items-center -space-x-1.5">
+              {activeCollaborators.slice(0, 3).map((c) => (
+                <div
+                  key={c.peerId}
+                  title={`${c.user.name} (${c.user.email}) — Online agora`}
+                  className="w-5 h-5 rounded-full ring-1 ring-white dark:ring-neutral-900 overflow-hidden bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-neutral-700 dark:text-neutral-200 shrink-0"
+                >
+                  {c.user.picture ? (
+                    <img
+                      src={c.user.picture}
+                      alt={c.user.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    c.user.name.charAt(0).toUpperCase()
+                  )}
+                </div>
+              ))}
+            </div>
+            <span className="text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 hidden md:inline">
+              {activeCollaborators.length === 1
+                ? '1 online'
+                : `${activeCollaborators.length} online`}
+            </span>
+          </div>
+        )}
 
         {/* Botão Compartilhar */}
         <button

@@ -21,6 +21,7 @@ export interface Block {
   id: string;
   type: BlockType;
   content: string;
+  updatedAt?: number;
   meta?: {
     author?: string;
     year?: string;

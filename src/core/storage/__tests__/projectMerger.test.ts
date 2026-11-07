@@ -142,4 +142,28 @@ describe('projectMerger — Mesclagem Automática por Blocos (Nível 2)', () => 
     expect(result.mergedProject.metadata.advisor).toBe('Prof. Dr. Orientador');
     expect(result.mergedProject.blocks.length).toBe(2);
   });
+
+  it('adota a versão mais recente com base no updatedAt do bloco durante concorrência', () => {
+    const localBlocks: Block[] = [
+      {
+        id: 'b1',
+        type: 'paragraph',
+        content: '<p>Edição local antiga</p>',
+        updatedAt: 1000,
+      },
+    ];
+
+    const remoteBlocks: Block[] = [
+      {
+        id: 'b1',
+        type: 'paragraph',
+        content: '<p>Edição remota mais recente feita pelo orientador</p>',
+        updatedAt: 2000,
+      },
+    ];
+
+    const merged = mergeBlocks(localBlocks, remoteBlocks);
+    expect(merged.length).toBe(1);
+    expect(merged[0].content).toBe('<p>Edição remota mais recente feita pelo orientador</p>');
+  });
 });

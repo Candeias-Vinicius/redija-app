@@ -37,6 +37,10 @@ import { compileToPdf } from '@/core/typst/typstClient';
 import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
 import { autoMergeProjects } from '@/core/storage/projectMerger';
 import {
+  realtimeCollab,
+  CollaboratorPresence,
+} from '@/core/collaboration/RealtimeCollabManager';
+import {
   db,
   loadInitialActiveProject,
   saveProject,
@@ -105,6 +109,7 @@ export const App: React.FC = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
   const [isSyncingDrive, setIsSyncingDrive] = useState(false);
+  const [activeCollaborators, setActiveCollaborators] = useState<CollaboratorPresence[]>([]);
 
   // Histórico Undo / Redo (Ctrl+Z / Ctrl+Y)
   const [past, setPast] = useState<HistorySnapshot[]>([]);
@@ -593,6 +598,50 @@ export const App: React.FC = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [isAuthenticated, handleSyncFromDrive]);
 
+  // Colaboração em tempo real P2P (Nível 3 — WebRTC DataChannels + BroadcastChannel)
+  useEffect(() => {
+    if (!isAuthenticated || !user || !project.driveFileId) {
+      realtimeCollab.disconnect();
+      return;
+    }
+
+    realtimeCollab.connect(project.driveFileId, user);
+
+    const unsubPresence = realtimeCollab.onPresenceChange((presences) => {
+      setActiveCollaborators(presences);
+    });
+
+    const unsubRemoteUpdate = realtimeCollab.onRemoteBlockUpdate(({ blockId, content, meta }) => {
+      setProject((prev) => {
+        const target = prev.blocks.find((b) => b.id === blockId);
+        if (!target || target.content === content) return prev;
+        return {
+          ...prev,
+          blocks: prev.blocks.map((b) =>
+            b.id === blockId ? { ...b, content, meta: meta ?? b.meta } : b
+          ),
+        };
+      });
+    });
+
+    const unsubRemoteSync = realtimeCollab.onRemoteBlocksSync((remoteBlocks) => {
+      setProject((prev) => {
+        const { mergedProject, hasMergedRemoteChanges } = autoMergeProjects(prev, {
+          ...prev,
+          blocks: remoteBlocks,
+        });
+        return hasMergedRemoteChanges ? mergedProject : prev;
+      });
+    });
+
+    return () => {
+      unsubPresence();
+      unsubRemoteUpdate();
+      unsubRemoteSync();
+      realtimeCollab.disconnect();
+    };
+  }, [isAuthenticated, user, project.driveFileId]);
+
   const handleMetadataChange = (metadata: DocumentMetadata) => {
     setProject((prev) => {
       if (JSON.stringify(prev.metadata) === JSON.stringify(metadata)) {
@@ -616,29 +665,59 @@ export const App: React.FC = () => {
   const handleBlocksChange = (blocks: Block[]) => {
     setProject((prev) => {
       if (prev.blocks === blocks) return prev;
-      if (prev.blocks.length === blocks.length) {
-        let isIdentical = true;
+
+      const isLengthDifferent = prev.blocks.length !== blocks.length;
+      let hasOrderChanged = false;
+      let modifiedBlock: Block | null = null;
+      let isIdentical = !isLengthDifferent;
+
+      if (!isLengthDifferent) {
         for (let i = 0; i < blocks.length; i++) {
           const pb = prev.blocks[i];
           const nb = blocks[i];
+          if (pb.id !== nb.id) {
+            hasOrderChanged = true;
+            isIdentical = false;
+            break;
+          }
           if (
-            pb.id !== nb.id ||
             pb.type !== nb.type ||
             pb.content !== nb.content ||
             JSON.stringify(pb.meta) !== JSON.stringify(nb.meta)
           ) {
             isIdentical = false;
-            break;
+            modifiedBlock = nb;
           }
-        }
-        if (isIdentical) {
-          return prev;
         }
       }
 
-      const isStructuralChange = blocks.length !== prev.blocks.length;
-      recordHistorySnapshot(prev, isStructuralChange);
-      return { ...prev, blocks };
+      if (isIdentical) {
+        return prev;
+      }
+
+      const isStructural = isLengthDifferent || hasOrderChanged;
+      const now = Date.now();
+
+      if (isStructural) {
+        const updatedBlocks = blocks.map((b) => (b.updatedAt ? b : { ...b, updatedAt: now }));
+        recordHistorySnapshot(prev, true);
+        realtimeCollab.broadcastBlocksSync(updatedBlocks);
+        return { ...prev, blocks: updatedBlocks };
+      }
+
+      // Edição pontual de conteúdo ou metadados de bloco existente
+      const updatedBlocks = blocks.map((b) =>
+        b.id === modifiedBlock?.id ? { ...b, updatedAt: now } : b
+      );
+      recordHistorySnapshot(prev, false);
+      if (modifiedBlock) {
+        realtimeCollab.broadcastBlockUpdate(
+          modifiedBlock.id,
+          modifiedBlock.content,
+          modifiedBlock.meta
+        );
+      }
+      return { ...prev, blocks: updatedBlocks };
     });
   };
 
@@ -887,6 +966,7 @@ export const App: React.FC = () => {
         user={user}
         isAuthenticated={isAuthenticated}
         isAuthLoading={isAuthLoading}
+        activeCollaborators={activeCollaborators}
         onLogin={handleLoginClick}
         onLogout={handleLogout}
         onOpenShareModal={() => setIsShareModalOpen(true)}
@@ -942,11 +1022,13 @@ export const App: React.FC = () => {
             references={project.references}
             citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
             isFullWidth={!showSidebar && !showPreview}
+            activeCollaborators={activeCollaborators}
             onOpenReferenceModal={() => {
               setEditingReference(null);
               setIsModalOpen(true);
             }}
             onChangeBlocks={handleBlocksChange}
+            onFocusBlock={(blockId) => realtimeCollab.broadcastCursor(blockId)}
             onMinimize={toggleEditor}
           />
         )}
