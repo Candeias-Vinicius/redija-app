@@ -34,6 +34,10 @@ import {
   extractBinaryAssets,
 } from '@/core/transpiler/typstGenerator';
 import { compileToPdf } from '@/core/typst/typstClient';
+import {
+  exportTypstProjectZip,
+  getCleanProjectSlug,
+} from '@/core/transpiler/projectExporter';
 import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
 import { autoMergeProjects } from '@/core/storage/projectMerger';
 import {
@@ -903,6 +907,25 @@ export const App: React.FC = () => {
     }
   };
 
+  const [isExportingProject, setIsExportingProject] = useState(false);
+
+  const handleExportProjectZip = async () => {
+    setIsExportingProject(true);
+    try {
+      const zipBlob = await exportTypstProjectZip(project);
+      const url = URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${getCleanProjectSlug(project.name)}_typst.zip`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Erro ao exportar pacote do projeto:', err);
+    } finally {
+      setIsExportingProject(false);
+    }
+  };
+
   const handleExportTypst = () => {
     const code = generateStandaloneTypst(project);
     const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
@@ -969,6 +992,8 @@ export const App: React.FC = () => {
         onDownloadPdf={handleDownloadPdf}
         isExportingPdf={isExportingPdf}
         onExportTypst={handleExportTypst}
+        onExportProjectZip={handleExportProjectZip}
+        isExportingProject={isExportingProject}
         showCode={showCode}
         setShowCode={setShowCode}
         user={user}
@@ -1061,6 +1086,9 @@ export const App: React.FC = () => {
           <PdfPreview
             project={project}
             showCode={showCode}
+            onToggleCode={() => setShowCode(!showCode)}
+            onExportProjectZip={handleExportProjectZip}
+            isExportingProject={isExportingProject}
             widthPx={previewWidth}
             isFullWidth={!showEditor}
             onMinimize={togglePreview}

@@ -8,6 +8,7 @@ import {
   ChevronDown,
   HelpCircle,
   Sliders,
+  FolderArchive,
   Moon,
   Sun,
   Undo2,
@@ -48,6 +49,8 @@ interface HeaderProps {
   onDownloadPdf: () => void;
   isExportingPdf: boolean;
   onExportTypst: () => void;
+  onExportProjectZip?: () => void;
+  isExportingProject?: boolean;
   showCode: boolean;
   setShowCode: (val: boolean) => void;
   // Google Auth & Collab
@@ -83,6 +86,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenWelcomeModal,
   onDownloadPdf,
   isExportingPdf,
+  onExportProjectZip,
+  isExportingProject = false,
   showCode,
   setShowCode,
   user,
@@ -302,10 +307,32 @@ export const Header: React.FC<HeaderProps> = ({
                       {showCode ? 'Ocultar Typst' : 'Ver Código Typst'}
                     </p>
                     <p className="text-[10px] text-neutral-500 dark:text-neutral-400">
-                      Código-fonte gerado em tempo real
+                      Visualizar código-fonte do documento
                     </p>
                   </div>
                 </button>
+
+                {onExportProjectZip && (
+                  <button
+                    onClick={() => {
+                      setIsOptionsMenuOpen(false);
+                      onExportProjectZip();
+                    }}
+                    disabled={isExportingProject}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left disabled:opacity-60"
+                  >
+                    <FolderArchive className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="font-semibold text-neutral-900 dark:text-white flex items-center gap-1.5">
+                        <span>Exportar Projeto (.zip)</span>
+                        {isExportingProject && <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />}
+                      </p>
+                      <p className="text-[10px] text-neutral-500 dark:text-neutral-400">
+                        Código Typst com imagens para VS Code / CLI
+                      </p>
+                    </div>
+                  </button>
+                )}
 
                 <button
                   onClick={() => {
