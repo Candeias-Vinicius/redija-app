@@ -25,9 +25,11 @@ O **RedijaApp** une o melhor dos dois mundos: uma **interface visual limpa estil
 * **Citação Direta Longa Automática (NBR 10520):** Bloco visual com recuo exato de 4cm, fonte tamanho 10pt e espaçamento simples gerado automaticamente.
 * **Capa e Folha de Rosto (NBR 14724):** Preencha os campos (Instituição, Autor, Título, Cidade, Ano) e a capa é diagramada instantaneamente.
 * **Gerenciador de Referências (NBR 6023):** Cadastre livros e artigos em um formulário intuitivo; o sistema ordena e formata em caixa alta e negrito automaticamente.
-* **Transpilador Typst:** Conversão instantânea da árvore de blocos em código Typst puro e semântico.
-* **Prévia em Tempo Real:** Visualize as páginas diagramadas lado a lado enquanto digita.
-* **Exportação .typ:** Baixe o arquivo pronto para compilação ou integração.
+* **Transpilador Typst & Compilação WASM:** Conversão e compilação de PDF real em milissegundos dentro do navegador sem custos de backend.
+* **Persistência Local-First & Google Drive BYOS:** Rascunhos salvos instantaneamente no IndexedDB (Dexie) e sincronizados diretamente no Google Drive pessoal do usuário.
+* **Colaboração e Compartilhamento:** Convite de colegas por e-mail com permissões nativas gerenciadas pela Google Drive Permissions API.
+* **Prévia em Tempo Real:** Visualize as páginas diagramadas lado a lado enquanto digita com controle de zoom e modo noturno.
+* **Exportação .typ & PDF:** Baixe o PDF pronto para impressão ou o arquivo-fonte Typst.
 
 ---
 
@@ -89,12 +91,23 @@ redija-app/
    npm install
    ```
 
-3. **Inicie o servidor de desenvolvimento:**
+3. **Configure as variáveis de ambiente (Google Auth & Drive):**
+   Copie o arquivo de exemplo:
+   ```bash
+   cp .env.example .env
+   ```
+   Adicione o seu Google Client ID gerado no Google Cloud Console:
+   ```env
+   VITE_GOOGLE_CLIENT_ID=seu_client_id.apps.googleusercontent.com
+   ```
+   *(Caso não configure o `.env`, o RedijaApp oferecerá o botão "Modo Demonstração (Dev)" na tela inicial para testar toda a interface de imediato).*
+
+4. **Inicie o servidor de desenvolvimento:**
    ```bash
    npm run dev
    ```
 
-4. Abra `http://localhost:3000` no seu navegador.
+5. Abra `http://localhost:5173` no seu navegador.
 
 ---
 
