@@ -349,7 +349,7 @@ export const Editor: React.FC<EditorProps> = ({
   });
 
   return (
-    <div className="flex-1 overflow-y-auto bg-white py-10 px-6 sm:px-14 flex justify-center">
+    <div className="flex-1 overflow-y-auto bg-white py-10 pl-24 pr-8 sm:pl-28 sm:pr-14 flex justify-center">
       <div className="w-full max-w-2xl space-y-3 pb-24">
         {/* Dica rápida no topo do editor */}
         <div className="mb-6 pb-3 border-b border-neutral-100 flex items-center justify-between text-xs text-neutral-400">
@@ -362,10 +362,10 @@ export const Editor: React.FC<EditorProps> = ({
         {blocks.map((block, idx) => (
           <div
             key={block.id}
-            className="group relative flex items-start gap-2 -ml-14 pl-14 py-1.5 rounded-lg transition-colors hover:bg-neutral-50/80"
+            className="group relative flex items-start gap-2.5 -ml-24 pl-24 pr-3 py-1.5 rounded-lg transition-colors hover:bg-neutral-50/80"
           >
-            {/* Controles laterais do bloco */}
-            <div className="absolute left-0 top-2 opacity-0 group-hover:opacity-100 flex items-center gap-0.5 text-neutral-400 transition-opacity">
+            {/* Controles laterais do bloco (ficam na margem esquerda dedicada, nunca sobre o texto) */}
+            <div className="absolute left-2 top-1.5 w-20 opacity-0 group-hover:opacity-100 flex items-center justify-end gap-0.5 pr-1 text-neutral-400 transition-opacity select-none">
               <button
                 type="button"
                 onClick={() => addBlock(block.id)}
@@ -419,7 +419,7 @@ export const Editor: React.FC<EditorProps> = ({
 
             {/* Menu Slash (`/`) com Busca */}
             {activeMenuBlockId === block.id && (
-              <div className="absolute left-12 top-9 z-30 w-72 bg-white border border-neutral-200 shadow-xl rounded-xl overflow-hidden text-xs">
+              <div className="absolute left-24 top-9 z-30 w-72 bg-white border border-neutral-200 shadow-xl rounded-xl overflow-hidden text-xs">
                 <div className="p-2 border-b border-neutral-100 flex items-center gap-2 bg-neutral-50">
                   <Search className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
                   <input

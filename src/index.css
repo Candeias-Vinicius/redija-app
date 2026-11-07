@@ -75,6 +75,39 @@ html.dark .bg-emerald-50\/70 {
   background-color: rgba(16, 185, 129, 0.14) !important;
 }
 
+html.dark .bg-amber-50,
+html.dark .bg-amber-50\/70,
+html.dark .bg-amber-50\/80 {
+  background-color: rgba(245, 158, 11, 0.14) !important;
+}
+
+html.dark .text-amber-800,
+html.dark .text-amber-900,
+html.dark .text-amber-700 {
+  color: #fcd34d !important;
+}
+
+html.dark .border-amber-200,
+html.dark .border-amber-200\/80 {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
+html.dark .bg-blue-50\/60,
+html.dark .bg-indigo-50\/30 {
+  background-color: rgba(99, 102, 241, 0.14) !important;
+}
+
+html.dark .text-blue-900,
+html.dark .text-indigo-900 {
+  color: #c7d2fe !important;
+}
+
+html.dark .border-blue-200,
+html.dark .border-indigo-200,
+html.dark .border-sky-200 {
+  border-color: rgba(99, 102, 241, 0.35) !important;
+}
+
 html.dark .text-emerald-800,
 html.dark .text-emerald-900,
 html.dark .text-emerald-700 {
@@ -85,10 +118,45 @@ html.dark .border-emerald-200 {
   border-color: rgba(52, 211, 153, 0.35) !important;
 }
 
-html.dark input,
-html.dark textarea,
-html.dark select {
+html.dark input:not([type='checkbox']):not([type='radio']):not(.bg-transparent),
+html.dark textarea:not(.bg-transparent),
+html.dark select:not(.bg-transparent) {
+  background-color: #0f172a !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+}
+
+html.dark input.bg-transparent,
+html.dark textarea.bg-transparent {
+  background-color: transparent !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+html.dark input:focus,
+html.dark textarea:focus,
+html.dark select:focus {
+  border-color: #10b981 !important;
+}
+
+html.dark option {
+  background-color: #0f172a;
   color: #f1f5f9;
+}
+
+html.dark .hover\:bg-neutral-50:hover,
+html.dark .hover\:bg-neutral-50\/80:hover,
+html.dark .hover\:bg-neutral-100:hover,
+html.dark .hover\:bg-neutral-200\/60:hover {
+  background-color: rgba(51, 65, 85, 0.45) !important;
+}
+
+html.dark .ProseMirror p.is-editor-empty:first-child::before {
+  color: #64748b !important;
 }
 
 html.dark ::-webkit-scrollbar-thumb {
