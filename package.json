@@ -10,8 +10,9 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "vitest run --exclude e2e/**",
+    "test:watch": "vitest --exclude e2e/**",
+    "test:e2e": "playwright test",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.{json,js,ts,md}\""
   },
   "dependencies": {
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@myriaddreamin/typst-ts-node-compiler": "^0.7.0",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^26.6.6",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",

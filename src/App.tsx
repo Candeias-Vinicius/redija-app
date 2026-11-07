@@ -5,6 +5,7 @@ import { Editor } from '@/components/Editor';
 import { PdfPreview } from '@/components/PdfPreview';
 import { ReferenceModal } from '@/components/ReferenceModal';
 import { ProjectsModal } from '@/components/ProjectsModal';
+import { WelcomeModal } from '@/components/WelcomeModal';
 import {
   DocumentProject,
   DocumentMetadata,
@@ -40,6 +41,7 @@ export const App: React.FC = () => {
   const [showCode, setShowCode] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
+  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const skipNextAutoSaveRef = useRef(true);
@@ -241,6 +243,7 @@ export const App: React.FC = () => {
         projectsCount={projects.length}
         saveStatus={saveStatus}
         onOpenProjectsModal={() => setIsProjectsModalOpen(true)}
+        onOpenWelcomeModal={() => setIsWelcomeModalOpen(true)}
         onDownloadPdf={handleDownloadPdf}
         isExportingPdf={isExportingPdf}
         onExportTypst={handleExportTypst}
@@ -291,6 +294,11 @@ export const App: React.FC = () => {
         onDeleteProject={handleDeleteProject}
         onExportBackup={handleExportBackup}
         onImportBackup={handleImportBackup}
+      />
+
+      <WelcomeModal
+        isOpen={isWelcomeModalOpen}
+        onClose={() => setIsWelcomeModalOpen(false)}
       />
     </div>
   );

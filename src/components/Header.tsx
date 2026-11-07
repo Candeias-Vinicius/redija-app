@@ -7,6 +7,7 @@ import {
   Loader2,
   FolderOpen,
   ChevronDown,
+  HelpCircle,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -14,6 +15,7 @@ interface HeaderProps {
   projectsCount: number;
   saveStatus: 'saved' | 'saving';
   onOpenProjectsModal: () => void;
+  onOpenWelcomeModal: () => void;
   onDownloadPdf: () => void;
   isExportingPdf: boolean;
   onExportTypst: () => void;
@@ -26,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
   projectsCount,
   saveStatus,
   onOpenProjectsModal,
+  onOpenWelcomeModal,
   onDownloadPdf,
   isExportingPdf,
   onExportTypst,
@@ -79,6 +82,14 @@ export const Header: React.FC<HeaderProps> = ({
             </>
           )}
         </div>
+
+        <button
+          onClick={onOpenWelcomeModal}
+          className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-md transition-colors"
+          title="Sobre o RedijaApp e guia rápido"
+        >
+          <HelpCircle className="w-4 h-4" />
+        </button>
 
         <button
           onClick={() => setShowCode(!showCode)}
