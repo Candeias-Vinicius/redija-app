@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { NodeCompiler } from '@myriaddreamin/typst-ts-node-compiler';
-import { escapeMarkup, escapeString, typstContent, typstString } from '../escape';
 import {
+  escapeMarkup,
+  escapeString,
+  richTextToTypst,
+  stripHtmlTags,
+  typstContent,
+  typstString,
+} from '../escape';
+import {
+  extractBinaryAssets,
   formatCitationReference,
   generateMain,
   generateStandaloneTypst,
@@ -53,6 +61,30 @@ function createSampleProject(overrides?: Partial<DocumentProject>): DocumentProj
         type: 'image',
         content: '',
         meta: { caption: 'Arquitetura #1 do sistema', source: 'Dados da pesquisa (2026)' },
+      },
+      {
+        id: '8',
+        type: 'table',
+        content: '',
+        meta: {
+          caption: 'Desempenho de compilação',
+          source: 'Elaborado pelo autor (2026)',
+          headers: ['Motor', 'Tempo (ms)'],
+          rows: [
+            ['Typst WASM', '45 ms'],
+            ['LaTeX', '1200 ms'],
+          ],
+        },
+      },
+      {
+        id: '9',
+        type: 'footnote',
+        content: '<p>Nota explicativa com <strong>negrito</strong> e <em>itálico</em>.</p>',
+      },
+      {
+        id: '10',
+        type: 'pagebreak',
+        content: '',
       },
     ],
     references: [
@@ -107,6 +139,37 @@ describe('escape helpers', () => {
     );
     expect(typstString('Olá "mundo"')).toBe('"Olá \\"mundo\\""');
     expect(typstContent('Valor #1')).toBe('[Valor \\#1]');
+  });
+
+  it('converts TipTap HTML formatting to Typst markup while escaping special characters', () => {
+    const html =
+      '<p>Texto com <strong>negrito $10</strong>, <em>itálico #1</em>, <u>sublinhado</u>, H<sub>2</sub>O e x<sup>2</sup>.</p>';
+    const typst = richTextToTypst(html);
+    expect(typst).toBe(
+      'Texto com #strong[negrito \\$10], #emph[itálico \\#1], #underline[sublinhado], H#sub[2]O e x#super[2].',
+    );
+    expect(stripHtmlTags(html)).toBe(
+      'Texto com negrito $10, itálico #1, sublinhado, H2O e x2.',
+    );
+  });
+
+  it('extracts binary image assets from Data URLs', () => {
+    const pngBase64 =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const proj = createSampleProject({
+      blocks: [
+        {
+          id: 'img_1',
+          type: 'image',
+          content: '',
+          meta: { caption: 'Pixel', source: 'Autor', imageDataUrl: pngBase64 },
+        },
+      ],
+    });
+
+    const assets = extractBinaryAssets(proj);
+    expect(assets['/assets/img_img_1.png']).toBeInstanceOf(Uint8Array);
+    expect(assets['/assets/img_img_1.png'].byteLength).toBeGreaterThan(10);
   });
 });
 

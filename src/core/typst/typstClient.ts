@@ -78,7 +78,10 @@ export async function getTypstRenderer(): Promise<TypstRenderer> {
  * Compila os arquivos `.typ` para o formato intermediário vetorial (`vector`)
  * no Web Worker.
  */
-export async function compileToVector(files: Record<string, string>): Promise<VectorCompileOutput> {
+export async function compileToVector(
+  files: Record<string, string>,
+  binaryFiles?: Record<string, Uint8Array>,
+): Promise<VectorCompileOutput> {
   const worker = getWorker();
   const id = ++requestCounter;
 
@@ -89,7 +92,7 @@ export async function compileToVector(files: Record<string, string>): Promise<Ve
     error?: string;
   }>((resolve) => {
     pendingRequests.set(id, { resolve });
-    worker.postMessage({ id, type: 'compile-vector', files });
+    worker.postMessage({ id, type: 'compile-vector', files, binaryFiles });
   });
 
   return {
@@ -103,7 +106,10 @@ export async function compileToVector(files: Record<string, string>): Promise<Ve
 /**
  * Compila os arquivos `.typ` diretamente para bytes `%PDF-` no Web Worker.
  */
-export async function compileToPdf(files: Record<string, string>): Promise<PdfCompileOutput> {
+export async function compileToPdf(
+  files: Record<string, string>,
+  binaryFiles?: Record<string, Uint8Array>,
+): Promise<PdfCompileOutput> {
   const worker = getWorker();
   const id = ++requestCounter;
 
@@ -114,7 +120,7 @@ export async function compileToPdf(files: Record<string, string>): Promise<PdfCo
     error?: string;
   }>((resolve) => {
     pendingRequests.set(id, { resolve });
-    worker.postMessage({ id, type: 'compile-pdf', files });
+    worker.postMessage({ id, type: 'compile-pdf', files, binaryFiles });
   });
 
   return {

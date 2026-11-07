@@ -1,5 +1,11 @@
 import { Block, AcademicReference, DocumentProject } from '@/types/document';
-import { escapeMarkup, typstContent, typstString } from './escape';
+import {
+  escapeMarkup,
+  richTextToTypst,
+  stripHtmlTags,
+  typstContent,
+  typstString,
+} from './escape';
 import abntTemplate from '@/core/templates/abnt.typ?raw';
 
 /** Nome do arquivo do modelo dentro do projeto Typst gerado. */
@@ -8,17 +14,69 @@ export const MAIN_FILE = 'main.typ';
 
 const IMPORT_LINE = `#import "${TEMPLATE_FILE}": *`;
 
+export interface GeneratedTypstBundle {
+  textFiles: Record<string, string>;
+  binaryFiles: Record<string, Uint8Array>;
+}
+
 /**
  * Transpilador RedijaApp: converte o documento estruturado (metadados + blocos
- * + referências) em um projeto Typst com dois arquivos:
- *   - abnt.typ  → modelo com todas as regras da ABNT
- *   - main.typ  → conteúdo do usuário
+ * + referências) em um projeto Typst com dois arquivos de texto (`abnt.typ` e
+ * `main.typ`), usando caminhos virtuais para eventuais imagens enviadas.
  */
 export function generateTypstFiles(project: DocumentProject): Record<string, string> {
   return {
     [TEMPLATE_FILE]: abntTemplate,
-    [MAIN_FILE]: generateMain(project),
+    [MAIN_FILE]: generateMain(project, true),
   };
+}
+
+/**
+ * Extrai também os arquivos binários de imagem (`Uint8Array`) a partir dos
+ * Data URLs salvos nos blocos de figura, para mapeamento no WASM compiler.
+ */
+export function extractBinaryAssets(project: DocumentProject): Record<string, Uint8Array> {
+  const assets: Record<string, Uint8Array> = {};
+
+  for (const block of project.blocks) {
+    if (block.type === 'image' && block.meta?.imageDataUrl) {
+      const parsed = parseDataUrl(block.meta.imageDataUrl);
+      if (parsed) {
+        const path = getVirtualImagePath(block.id, parsed.ext);
+        assets[path] = parsed.bytes;
+      }
+    }
+  }
+
+  return assets;
+}
+
+export function getVirtualImagePath(blockId: string, ext: string): string {
+  const safeId = blockId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `/assets/img_${safeId}.${ext}`;
+}
+
+function parseDataUrl(dataUrl: string): { ext: string; bytes: Uint8Array } | null {
+  const match = dataUrl.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
+  if (!match) return null;
+
+  const mimeSubtype = match[1].toLowerCase();
+  let ext = 'png';
+  if (mimeSubtype.includes('jpeg') || mimeSubtype.includes('jpg')) ext = 'jpg';
+  else if (mimeSubtype.includes('svg')) ext = 'svg';
+  else if (mimeSubtype.includes('gif')) ext = 'gif';
+  else if (mimeSubtype.includes('webp')) ext = 'webp';
+
+  try {
+    const binaryString = atob(match[2]);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return { ext, bytes };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -26,16 +84,16 @@ export function generateTypstFiles(project: DocumentProject): Record<string, str
  * exportação e para abrir em outros editores Typst.
  */
 export function generateStandaloneTypst(project: DocumentProject): string {
-  const main = generateMain(project).replace(IMPORT_LINE, '');
+  const main = generateMain(project, false).replace(IMPORT_LINE, '');
   return `${abntTemplate}\n// ===================== DOCUMENTO =====================\n${main}`;
 }
 
 /** Gera apenas o conteúdo do main.typ. */
-export function generateMain(project: DocumentProject): string {
+export function generateMain(project: DocumentProject, includeBinaryImages = false): string {
   const parts: string[] = [IMPORT_LINE, generateShowRule(project), ''];
 
   for (const block of project.blocks) {
-    const code = transpileBlock(block);
+    const code = transpileBlock(block, includeBinaryImages);
     if (code !== null) parts.push(code, '');
   }
 
@@ -77,43 +135,88 @@ export function stripManualNumbering(title: string): string {
   return title.replace(/^\s*\d+(\.\d+)*\.?\s+/, '').trim();
 }
 
-function transpileBlock(block: Block): string | null {
-  const text = block.content.trim();
+function transpileBlock(block: Block, includeBinaryImages = false): string | null {
+  const plainText = stripHtmlTags(block.content);
+  const richContent = richTextToTypst(block.content);
 
   switch (block.type) {
     case 'h1':
     case 'h2':
     case 'h3': {
-      const title = stripManualNumbering(text);
+      const title = stripManualNumbering(plainText);
       if (!title) return null;
       const level = Number(block.type[1]);
       return `${'='.repeat(level)} ${escapeMarkup(title)}`;
     }
 
     case 'paragraph':
-      return text ? escapeMarkup(text) : null;
+      return plainText ? richContent : null;
 
     case 'bullet':
-      return text ? `- ${escapeMarkup(text)}` : null;
+      return plainText ? `- ${richContent}` : null;
 
     case 'numbered':
-      return text ? `+ ${escapeMarkup(text)}` : null;
+      return plainText ? `+ ${richContent}` : null;
 
     case 'quote_long': {
-      if (!text) return null;
+      if (!plainText) return null;
       const ref = formatCitationReference(block.meta?.author, block.meta?.year, block.meta?.page);
       const refArg = ref ? `referencia: ${typstContent(ref)}` : '';
-      return `#citacao(${refArg})${typstContent(text)}`;
+      return `#citacao(${refArg})[${richContent}]`;
     }
 
     case 'image': {
       const caption = block.meta?.caption?.trim() || 'Sem legenda';
       const source = block.meta?.source?.trim() || 'do autor';
+      if (includeBinaryImages && block.meta?.imageDataUrl) {
+        const parsed = parseDataUrl(block.meta.imageDataUrl);
+        if (parsed) {
+          const virtualPath = getVirtualImagePath(block.id, parsed.ext);
+          return `#figura(legenda: ${typstContent(caption)}, fonte: ${typstContent(source)}, imagem: image(${typstString(virtualPath)}, width: 80%))`;
+        }
+      }
       return `#figura(legenda: ${typstContent(caption)}, fonte: ${typstContent(source)})`;
     }
 
+    case 'table': {
+      const caption = block.meta?.caption?.trim() || 'Tabela de dados';
+      const source = block.meta?.source?.trim() || 'do autor';
+      const headers = block.meta?.headers?.length
+        ? block.meta.headers
+        : ['Coluna 1', 'Coluna 2'];
+      const rows = block.meta?.rows?.length
+        ? block.meta.rows
+        : [['Dado 1', 'Dado 2']];
+
+      const colCount = headers.length;
+      const headerCells = headers
+        .map((h) => `table.cell(fill: luma(240))[#strong[${escapeMarkup(h.trim())}]]`)
+        .join(', ');
+      const bodyCells = rows
+        .flatMap((row) =>
+          headers.map((_, colIdx) => `[${escapeMarkup((row[colIdx] ?? '').trim())}]`),
+        )
+        .join(', ');
+
+      return `#tabela(legenda: ${typstContent(caption)}, fonte: ${typstContent(source)})[
+  #table(
+    columns: (${Array(colCount).fill('1fr').join(', ')}),
+    align: left,
+    stroke: (x: none, y: 0.5pt + luma(160)),
+    table.header(${headerCells}),
+    ${bodyCells}
+  )
+]`;
+    }
+
+    case 'footnote':
+      return plainText ? `#footnote[${richContent}]` : null;
+
+    case 'pagebreak':
+      return '#pagebreak()';
+
     default:
-      return text ? escapeMarkup(text) : null;
+      return plainText ? richContent : null;
   }
 }
 

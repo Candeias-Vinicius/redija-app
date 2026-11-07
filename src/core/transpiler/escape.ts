@@ -48,3 +48,82 @@ export function typstString(text: string): string {
 export function typstContent(text: string): string {
   return `[${escapeMarkup(text)}]`;
 }
+
+/**
+ * Converte HTML rico (vindo do TipTap: `<strong>`, `<em>`, `<u>`, `<sup>`, `<sub>`, `<p>`, `<br>`)
+ * ou texto plano em marcação Typst com escape seguro em todos os nós de texto.
+ */
+export function richTextToTypst(input: string): string {
+  if (!input) return '';
+
+  // Se não contiver tags HTML conhecidas, faz apenas o escape normal
+  if (!/<\/?[a-z][\s\S]*>/i.test(input)) {
+    return escapeMarkup(input);
+  }
+
+  const decodeEntities = (str: string): string =>
+    str
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'");
+
+  // Tokeniza tags simples e texto
+  const tokenRegex = /<(\/?)(strong|b|em|i|u|sup|sub|br|p)\b[^>]*>/gi;
+  let result = '';
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = tokenRegex.exec(input)) !== null) {
+    const rawText = input.slice(lastIndex, match.index);
+    if (rawText) {
+      result += escapeMarkup(decodeEntities(rawText));
+    }
+
+    const isClosing = match[1] === '/';
+    const tag = match[2].toLowerCase();
+
+    if (tag === 'br') {
+      result += ' \\ ';
+    } else if (tag === 'p') {
+      if (isClosing && match.index + match[0].length < input.length) {
+        result += ' ';
+      }
+    } else if (!isClosing) {
+      if (tag === 'strong' || tag === 'b') result += '#strong[';
+      else if (tag === 'em' || tag === 'i') result += '#emph[';
+      else if (tag === 'u') result += '#underline[';
+      else if (tag === 'sup') result += '#super[';
+      else if (tag === 'sub') result += '#sub[';
+    } else {
+      result += ']';
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  const tail = input.slice(lastIndex);
+  if (tail) {
+    result += escapeMarkup(decodeEntities(tail));
+  }
+
+  return result.trim();
+}
+
+/**
+ * Remove tags HTML retornando texto puro (útil para títulos ou contagem de caracteres).
+ */
+export function stripHtmlTags(input: string): string {
+  if (!input) return '';
+  return input
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .trim();
+}

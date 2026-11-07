@@ -18,6 +18,7 @@ export interface WorkerCompileRequest {
   id: number;
   type: 'compile-vector' | 'compile-pdf';
   files: Record<string, string>;
+  binaryFiles?: Record<string, Uint8Array>;
 }
 
 export interface WorkerCompileResponse {
@@ -64,15 +65,23 @@ async function getCompiler(): Promise<TypstCompiler> {
 }
 
 self.onmessage = async (event: MessageEvent<WorkerCompileRequest>) => {
-  const { id, type, files } = event.data;
+  const { id, type, files, binaryFiles } = event.data;
   const start = performance.now();
 
   try {
     const compiler = await getCompiler();
+    compiler.resetShadow();
 
     for (const [name, content] of Object.entries(files)) {
       const virtualPath = name.startsWith('/') ? name : `/${name}`;
       compiler.addSource(virtualPath, content);
+    }
+
+    if (binaryFiles) {
+      for (const [path, bytes] of Object.entries(binaryFiles)) {
+        const virtualPath = path.startsWith('/') ? path : `/${path}`;
+        compiler.mapShadow(virtualPath, bytes);
+      }
     }
 
     const format =

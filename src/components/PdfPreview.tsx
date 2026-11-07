@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DocumentProject } from '@/types/document';
-import { generateTypstFiles, generateStandaloneTypst } from '@/core/transpiler/typstGenerator';
+import {
+  generateTypstFiles,
+  generateStandaloneTypst,
+  extractBinaryAssets,
+} from '@/core/transpiler/typstGenerator';
 import {
   compileToVector,
   getVectorPagesInfo,
@@ -56,7 +60,8 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({ project, showCode }) => 
 
       try {
         const files = generateTypstFiles(project);
-        const result = await compileToVector(files);
+        const binaryFiles = extractBinaryAssets(project);
+        const result = await compileToVector(files, binaryFiles);
 
         if (currentId !== latestCompileId.current) return;
 

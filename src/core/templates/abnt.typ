@@ -64,6 +64,20 @@
 )
 
 // ---------------------------------------------------------------------
+// Tabela com título acima e fonte abaixo (NBR 14724 / IBGE).
+// ---------------------------------------------------------------------
+#let tabela(legenda: [], fonte: [do autor], corpo) = figure(
+  kind: table,
+  supplement: [Tabela],
+  caption: legenda,
+  {
+    corpo
+    v(0.3em)
+    text(size: 10pt)[Fonte: #fonte.]
+  },
+)
+
+// ---------------------------------------------------------------------
 // Lista de referências (NBR 6023): alinhadas à esquerda, espaçamento
 // simples, separadas por uma linha em branco.
 // ---------------------------------------------------------------------
@@ -115,8 +129,9 @@
   show heading.where(level: 2): it => text(weight: "bold", it)
   show heading.where(level: 3): it => text(weight: "regular", style: "italic", it)
 
-  // Figuras: legenda acima, texto 10 pt, sem recuo
+  // Figuras e Tabelas: legenda acima, texto 10 pt, sem recuo
   show figure.where(kind: image): set figure.caption(position: top)
+  show figure.where(kind: table): set figure.caption(position: top)
   show figure.caption: set text(size: 10pt)
   show figure: set par(first-line-indent: 0pt)
   show figure: set block(above: 1.5em, below: 1.5em)

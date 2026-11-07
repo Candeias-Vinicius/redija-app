@@ -1,11 +1,14 @@
-export type BlockType = 
-  | 'h1' 
-  | 'h2' 
-  | 'h3' 
-  | 'paragraph' 
-  | 'quote_long' 
-  | 'image' 
-  | 'bullet' 
+export type BlockType =
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'paragraph'
+  | 'quote_long'
+  | 'image'
+  | 'table'
+  | 'footnote'
+  | 'pagebreak'
+  | 'bullet'
   | 'numbered';
 
 export interface Block {
@@ -19,6 +22,10 @@ export interface Block {
     caption?: string;
     source?: string;
     url?: string;
+    imageDataUrl?: string;
+    imageMime?: string;
+    headers?: string[];
+    rows?: string[][];
   };
 }
 

@@ -12,7 +12,11 @@ import {
   AcademicReference,
   ProjectTemplateType,
 } from '@/types/document';
-import { generateStandaloneTypst, generateTypstFiles } from '@/core/transpiler/typstGenerator';
+import {
+  generateStandaloneTypst,
+  generateTypstFiles,
+  extractBinaryAssets,
+} from '@/core/transpiler/typstGenerator';
 import { compileToPdf } from '@/core/typst/typstClient';
 import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
 import {
@@ -195,7 +199,8 @@ export const App: React.FC = () => {
     setIsExportingPdf(true);
     try {
       const files = generateTypstFiles(project);
-      const result = await compileToPdf(files);
+      const binaryFiles = extractBinaryAssets(project);
+      const result = await compileToPdf(files, binaryFiles);
       if (result.error || !result.pdf) {
         const msg =
           result.error ||
