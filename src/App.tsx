@@ -8,6 +8,15 @@ import { ProjectsModal } from '@/components/ProjectsModal';
 import { WelcomeModal } from '@/components/WelcomeModal';
 import { TemplateCustomizerModal } from '@/components/TemplateCustomizerModal';
 import { BugReportModal } from '@/components/BugReportModal';
+import { ShareModal } from '@/components/ShareModal';
+import { AccountSettingsModal } from '@/components/AccountSettingsModal';
+import { BackupNoticeBanner } from '@/components/BackupNoticeBanner';
+import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
+import {
+  saveProjectToDrive,
+  listDriveProjects,
+  loadProjectFromDrive,
+} from '@/core/storage/googleDriveService';
 import {
   DocumentProject,
   DocumentMetadata,
@@ -61,6 +70,22 @@ export const App: React.FC = () => {
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  // Google Auth, Drive Sync e Colaboração
+  const {
+    user,
+    isAuthenticated,
+    isLoading: isAuthLoading,
+    login,
+    logout,
+    getValidAccessToken,
+  } = useGoogleAuth();
+  const [driveSyncStatus, setDriveSyncStatus] = useState<
+    'synced' | 'syncing' | 'local' | 'error'
+  >('local');
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
+  const [isSyncingDrive, setIsSyncingDrive] = useState(false);
 
   // Histórico Undo / Redo (Ctrl+Z / Ctrl+Y)
   const [past, setPast] = useState<HistorySnapshot[]>([]);
@@ -317,6 +342,109 @@ export const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, [project, isStorageReady]);
 
+  // Sincronização em segundo plano com o Google Drive (Debounce de 3.5 segundos)
+  useEffect(() => {
+    if (!isStorageReady || !isAuthenticated || !user) {
+      setDriveSyncStatus('local');
+      return;
+    }
+
+    setDriveSyncStatus('syncing');
+
+    const driveTimer = setTimeout(async () => {
+      try {
+        const token = await getValidAccessToken();
+        if (!token) {
+          setDriveSyncStatus('error');
+          return;
+        }
+
+        const { fileId, modifiedTime } = await saveProjectToDrive(project, token);
+        setDriveSyncStatus('synced');
+
+        // Se o projeto ainda não tinha driveFileId, vincula agora
+        if (project.driveFileId !== fileId) {
+          skipNextAutoSaveRef.current = true;
+          setProject((prev) => ({
+            ...prev,
+            driveFileId: fileId,
+            driveSyncedAt: modifiedTime,
+            ownerEmail: prev.ownerEmail || user.email,
+          }));
+        }
+      } catch (err) {
+        console.warn('Erro ao sincronizar com Google Drive:', err);
+        setDriveSyncStatus('error');
+      }
+    }, 3500);
+
+    return () => clearTimeout(driveTimer);
+  }, [project, isStorageReady, isAuthenticated, user, getValidAccessToken]);
+
+  /**
+   * Garante que o projeto ativo esteja gravado no Google Drive antes de compartilhar.
+   */
+  const handleEnsureProjectSavedToDrive = async (): Promise<string | null> => {
+    try {
+      let token = await getValidAccessToken();
+      if (!token) {
+        token = await login(false);
+      }
+      if (!token) return null;
+
+      setDriveSyncStatus('syncing');
+      const { fileId, modifiedTime } = await saveProjectToDrive(project, token);
+      setProject((prev) => ({
+        ...prev,
+        driveFileId: fileId,
+        driveSyncedAt: modifiedTime,
+        ownerEmail: prev.ownerEmail || user?.email,
+      }));
+      setDriveSyncStatus('synced');
+      return fileId;
+    } catch (err) {
+      console.error('Falha ao garantir salvamento no Drive:', err);
+      return null;
+    }
+  };
+
+  /**
+   * Sincroniza a lista de projetos trazendo arquivos existentes do Google Drive para o Dexie.
+   */
+  const handleSyncFromDrive = async () => {
+    if (!isAuthenticated) return;
+    setIsSyncingDrive(true);
+    try {
+      const token = await getValidAccessToken();
+      if (!token) return;
+
+      const driveSummaries = await listDriveProjects(token);
+      let hasNewOrUpdated = false;
+
+      for (const summary of driveSummaries) {
+        const existsLocally = projects.find((p) => p.driveFileId === summary.id);
+        if (!existsLocally) {
+          try {
+            const loaded = await loadProjectFromDrive(summary.id, token);
+            await saveProject(loaded);
+            hasNewOrUpdated = true;
+          } catch (err) {
+            console.warn(`Não foi possível carregar projeto ${summary.name}:`, err);
+          }
+        }
+      }
+
+      if (hasNewOrUpdated) {
+        const all = await listProjects();
+        setProjects(all);
+      }
+    } catch (err) {
+      console.error('Erro ao listar projetos do Drive:', err);
+    } finally {
+      setIsSyncingDrive(false);
+    }
+  };
+
   const handleMetadataChange = (metadata: DocumentMetadata) => {
     setProject((prev) => {
       recordHistorySnapshot(prev);
@@ -526,10 +654,18 @@ export const App: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col bg-neutral-100 select-none overflow-hidden">
+      {/* Alerta de Recomendação de Backup para Usuários sem Login */}
+      <BackupNoticeBanner
+        isAuthenticated={isAuthenticated}
+        onLogin={() => login(false)}
+        isLoading={isAuthLoading}
+      />
+
       <Header
         projectName={project.name}
         projectsCount={projects.length}
         saveStatus={saveStatus}
+        driveSyncStatus={driveSyncStatus}
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode((prev) => !prev)}
         canUndo={past.length > 0}
@@ -551,6 +687,13 @@ export const App: React.FC = () => {
         onExportTypst={handleExportTypst}
         showCode={showCode}
         setShowCode={setShowCode}
+        user={user}
+        isAuthenticated={isAuthenticated}
+        isAuthLoading={isAuthLoading}
+        onLogin={() => login(false)}
+        onLogout={logout}
+        onOpenShareModal={() => setIsShareModalOpen(true)}
+        onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
       />
 
       <div className="flex-1 flex overflow-hidden min-h-0">
@@ -668,6 +811,28 @@ export const App: React.FC = () => {
         onPermanentDelete={handlePermanentDelete}
         onExportBackup={handleExportBackup}
         onImportBackup={handleImportBackup}
+        isAuthenticated={isAuthenticated}
+        onSyncFromDrive={handleSyncFromDrive}
+        isSyncingDrive={isSyncingDrive}
+      />
+
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        projectName={project.name}
+        driveFileId={project.driveFileId}
+        getAccessToken={getValidAccessToken}
+        currentUserEmail={user?.email}
+        onEnsureProjectSavedToDrive={handleEnsureProjectSavedToDrive}
+      />
+
+      <AccountSettingsModal
+        isOpen={isAccountSettingsOpen}
+        onClose={() => setIsAccountSettingsOpen(false)}
+        user={user}
+        onLogout={logout}
+        projectsCount={projects.length}
+        syncedProjectsCount={projects.filter((p) => Boolean(p.driveFileId)).length}
       />
 
       <WelcomeModal

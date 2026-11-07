@@ -22,10 +22,41 @@ export class RedijaDatabase extends Dexie {
     this.version(2).stores({
       projects: 'id, updatedAt, name, templateType, deletedAt',
     });
+    this.version(3).stores({
+      projects: 'id, updatedAt, name, templateType, deletedAt, driveFileId, ownerEmail',
+    });
   }
 }
 
 export const db = new RedijaDatabase();
+
+/**
+ * Solicita persistência permanente de dados ao navegador (blindagem contra despejo automático por falta de disco).
+ */
+export async function requestStoragePersistence(): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
+    try {
+      return await navigator.storage.persist();
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
+ * Verifica se o armazenamento local do navegador já possui persistência concedida.
+ */
+export async function checkStoragePersistence(): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persisted) {
+    try {
+      return await navigator.storage.persisted();
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
 
 /**
  * Lista todos os projetos ATIVOS (não excluídos), ordenados pela data de atualização.

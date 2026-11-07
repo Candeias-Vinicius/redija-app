@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Download,
   Code2,
@@ -17,12 +17,20 @@ import {
   PanelLeft,
   FileEdit,
   Eye,
+  Cloud,
+  CloudCheck,
+  Share2,
+  LogIn,
+  LogOut,
+  Settings,
 } from 'lucide-react';
+import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 
 interface HeaderProps {
   projectName: string;
   projectsCount: number;
   saveStatus: 'saved' | 'saving';
+  driveSyncStatus?: 'synced' | 'syncing' | 'local' | 'error';
   darkMode: boolean;
   onToggleDarkMode: () => void;
   canUndo: boolean;
@@ -44,12 +52,21 @@ interface HeaderProps {
   onExportTypst: () => void;
   showCode: boolean;
   setShowCode: (val: boolean) => void;
+  // Google Auth & Collab
+  user: GoogleUserProfile | null;
+  isAuthenticated: boolean;
+  isAuthLoading: boolean;
+  onLogin: () => void;
+  onLogout: () => void;
+  onOpenShareModal: () => void;
+  onOpenAccountSettings: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   projectName,
   projectsCount,
   saveStatus,
+  driveSyncStatus = 'local',
   darkMode,
   onToggleDarkMode,
   canUndo,
@@ -71,7 +88,27 @@ export const Header: React.FC<HeaderProps> = ({
   onExportTypst,
   showCode,
   setShowCode,
+  user,
+  isAuthenticated,
+  isAuthLoading,
+  onLogin,
+  onLogout,
+  onOpenShareModal,
+  onOpenAccountSettings,
 }) => {
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Fecha o menu de usuário ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   return (
     <header className="h-14 border-b border-neutral-200 bg-white px-4 flex items-center justify-between sticky top-0 z-30">
       <div className="flex items-center gap-3">
@@ -173,19 +210,49 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="hidden sm:flex items-center gap-1.5 text-xs text-neutral-500 mr-2">
-          {saveStatus === 'saving' ? (
+        {/* Status de Sincronização Local / Nuvem */}
+        <div className="hidden sm:flex items-center gap-1.5 text-xs text-neutral-500 mr-1">
+          {driveSyncStatus === 'syncing' || saveStatus === 'saving' ? (
             <>
               <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin" />
-              <span>Salvando...</span>
+              <span>{driveSyncStatus === 'syncing' ? 'Sincronizando Drive...' : 'Salvando...'}</span>
             </>
+          ) : driveSyncStatus === 'synced' ? (
+            <div
+              className="flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 cursor-default"
+              title="Este projeto está salvo e atualizado com segurança no seu Google Drive"
+            >
+              <CloudCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="font-medium text-[11px]">Salvo no Drive</span>
+            </div>
+          ) : driveSyncStatus === 'error' ? (
+            <div
+              className="flex items-center gap-1 text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 cursor-default"
+              title="Não foi possível sincronizar com o Drive no momento. O documento continua salvo localmente."
+            >
+              <Cloud className="w-3.5 h-3.5 text-amber-600" />
+              <span className="text-[11px]">Salvo localmente (offline)</span>
+            </div>
           ) : (
-            <>
+            <div
+              className="flex items-center gap-1 text-neutral-600 cursor-default"
+              title="Salvo apenas no cache deste navegador. Conecte sua conta Google para backup automático."
+            >
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               <span>Salvo no navegador</span>
-            </>
+            </div>
           )}
         </div>
+
+        {/* Botão Compartilhar */}
+        <button
+          onClick={onOpenShareModal}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+          title="Compartilhar trabalho com colegas ou orientador"
+        >
+          <Share2 className="w-3.5 h-3.5 text-emerald-600" />
+          <span className="hidden md:inline">Compartilhar</span>
+        </button>
 
         <button
           onClick={onToggleDarkMode}
@@ -270,6 +337,80 @@ export const Header: React.FC<HeaderProps> = ({
             </>
           )}
         </button>
+
+        {/* Separador e Área do Usuário / Login Google */}
+        <div className="h-5 w-px bg-neutral-200 ml-1 mr-0.5" />
+
+        {isAuthenticated && user ? (
+          <div className="relative" ref={userMenuRef}>
+            <button
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              className="flex items-center gap-1.5 p-1 rounded-full hover:bg-neutral-100 transition-colors"
+              title={`Conectado como ${user.name}`}
+            >
+              {user.picture ? (
+                <img
+                  src={user.picture}
+                  alt={user.name}
+                  className="w-7 h-7 rounded-full border border-neutral-200"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <ChevronDown className="w-3 h-3 text-neutral-500" />
+            </button>
+
+            {/* Dropdown do Usuário */}
+            {isUserMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white shadow-xl border border-neutral-200 py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
+                <div className="px-3.5 py-2 border-b border-neutral-100">
+                  <p className="font-semibold text-neutral-900 truncate">{user.name}</p>
+                  <p className="text-[11px] text-neutral-500 truncate">{user.email}</p>
+                </div>
+
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      onOpenAccountSettings();
+                    }}
+                    className="w-full flex items-center gap-2 px-3.5 py-2 text-neutral-700 hover:bg-neutral-50 transition-colors text-left"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-neutral-500" />
+                    <span>Configurações da Conta</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      onLogout();
+                    }}
+                    className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 transition-colors text-left"
+                  >
+                    <LogOut className="w-3.5 h-3.5 text-red-500" />
+                    <span>Sair da Conta Google</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={onLogin}
+            disabled={isAuthLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-300 shadow-sm transition-all"
+            title="Conectar com sua conta Google para salvar no Drive"
+          >
+            {isAuthLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+            ) : (
+              <LogIn className="w-3.5 h-3.5 text-emerald-600" />
+            )}
+            <span className="hidden sm:inline">Entrar com Google</span>
+          </button>
+        )}
       </div>
     </header>
   );
