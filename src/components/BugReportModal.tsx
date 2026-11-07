@@ -148,7 +148,8 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
     // Simula envio de e-mail para o backend da empresa (mock)
     await new Promise((resolve) => setTimeout(resolve, 1100));
 
-    const protocol = `RDJ-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+    const randomSuffix = crypto.randomUUID().slice(0, 6).toUpperCase();
+    const protocol = `RDJ-${new Date().getFullYear()}-${randomSuffix}`;
 
     const mockEmailPayload = {
       protocol,
