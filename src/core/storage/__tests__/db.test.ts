@@ -16,6 +16,12 @@ import {
   parseBackup,
 } from '../db';
 import { createProjectFromTemplate } from '../projectTemplates';
+import {
+  calculateProjectImageBytes,
+  getDataUrlByteSize,
+  MAX_PROJECT_IMAGE_BYTES,
+  validateImageUploadForProject,
+} from '../imageQuota';
 
 describe('Persistência IndexedDB (Dexie) e Backup .redija', () => {
   beforeEach(async () => {
@@ -95,5 +101,35 @@ describe('Persistência IndexedDB (Dexie) e Backup .redija', () => {
     const purged = await purgeExpiredTrash();
     expect(purged).toBe(1);
     expect(await listTrashedProjects()).toHaveLength(0);
+  });
+
+  it('controla a quota de 150 MB de imagens por projeto sem limitar a quantidade de figuras', () => {
+    const sampleDataUrl =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const byteSize = getDataUrlByteSize(sampleDataUrl);
+    expect(byteSize).toBeGreaterThan(40);
+
+    // Simula 50 figuras leves no mesmo projeto (permitido pois depende apenas do peso total <= 150 MB)
+    const blocks = Array.from({ length: 50 }, (_, idx) => ({
+      id: `img_${idx}`,
+      type: 'image' as const,
+      content: '',
+      meta: { imageDataUrl: sampleDataUrl },
+    }));
+
+    const usedBytes = calculateProjectImageBytes(blocks);
+    expect(usedBytes).toBe(byteSize * 50);
+    expect(usedBytes).toBeLessThan(MAX_PROJECT_IMAGE_BYTES);
+
+    const smallFile = new File([new Uint8Array(1024)], 'figura.png', { type: 'image/png' });
+    expect(validateImageUploadForProject(smallFile, usedBytes).valid).toBe(true);
+
+    // Bloqueia quando a soma ultrapassa 150 MB
+    const nearLimitCheck = validateImageUploadForProject(
+      smallFile,
+      MAX_PROJECT_IMAGE_BYTES - 500,
+    );
+    expect(nearLimitCheck.valid).toBe(false);
+    expect(nearLimitCheck.error).toContain('150 MB');
   });
 });

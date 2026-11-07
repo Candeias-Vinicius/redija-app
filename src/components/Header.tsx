@@ -13,6 +13,7 @@ import {
   Sun,
   Undo2,
   Redo2,
+  Bug,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -27,6 +28,7 @@ interface HeaderProps {
   onRedo: () => void;
   onOpenProjectsModal: () => void;
   onOpenTemplateCustomizer: () => void;
+  onOpenBugReportModal: () => void;
   onOpenWelcomeModal: () => void;
   onDownloadPdf: () => void;
   isExportingPdf: boolean;
@@ -47,6 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
   onRedo,
   onOpenProjectsModal,
   onOpenTemplateCustomizer,
+  onOpenBugReportModal,
   onOpenWelcomeModal,
   onDownloadPdf,
   isExportingPdf,
@@ -146,6 +149,15 @@ export const Header: React.FC<HeaderProps> = ({
           title="Sobre o RedijaApp e guia rápido"
         >
           <HelpCircle className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={onOpenBugReportModal}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-800 transition-colors"
+          title="Relatar um problema técnico, erro de formatação ou enviar sugestão"
+        >
+          <Bug className="w-3.5 h-3.5 text-amber-600" />
+          <span className="hidden md:inline">Relatar Problema</span>
         </button>
 
         <button

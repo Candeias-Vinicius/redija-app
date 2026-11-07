@@ -4,7 +4,12 @@ import {
   NormPresetId,
   DEFAULT_TEMPLATE_CONFIG,
   DocumentMetadata,
+  Block,
 } from '@/types/document';
+import {
+  calculateProjectImageBytes,
+  validateImageUploadForProject,
+} from '@/core/storage/imageQuota';
 import {
   X,
   Sliders,
@@ -22,6 +27,7 @@ interface TemplateCustomizerModalProps {
   onClose: () => void;
   config: TemplateConfig;
   metadata: DocumentMetadata;
+  blocks?: Block[];
   onChangeConfig: (config: TemplateConfig) => void;
   onChangeMetadata: (metadata: DocumentMetadata) => void;
 }
@@ -134,6 +140,7 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
   onClose,
   config,
   metadata,
+  blocks = [],
   onChangeConfig,
   onChangeMetadata,
 }) => {
@@ -155,6 +162,16 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
   };
 
   const handleLogoUpload = (file: File) => {
+    const projectBytesWithoutLogo = calculateProjectImageBytes(blocks, {
+      ...metadata,
+      institutionLogoDataUrl: undefined,
+    });
+    const check = validateImageUploadForProject(file, projectBytesWithoutLogo);
+    if (!check.valid) {
+      alert(check.error);
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {

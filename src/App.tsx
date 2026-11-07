@@ -7,6 +7,7 @@ import { ReferenceModal } from '@/components/ReferenceModal';
 import { ProjectsModal } from '@/components/ProjectsModal';
 import { WelcomeModal } from '@/components/WelcomeModal';
 import { TemplateCustomizerModal } from '@/components/TemplateCustomizerModal';
+import { BugReportModal } from '@/components/BugReportModal';
 import {
   DocumentProject,
   DocumentMetadata,
@@ -57,6 +58,7 @@ export const App: React.FC = () => {
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
+  const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // Histórico Undo / Redo (Ctrl+Z / Ctrl+Y)
@@ -505,6 +507,7 @@ export const App: React.FC = () => {
         onRedo={handleRedo}
         onOpenProjectsModal={() => setIsProjectsModalOpen(true)}
         onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
+        onOpenBugReportModal={() => setIsBugReportOpen(true)}
         onOpenWelcomeModal={() => setIsWelcomeModalOpen(true)}
         onDownloadPdf={handleDownloadPdf}
         isExportingPdf={isExportingPdf}
@@ -545,6 +548,7 @@ export const App: React.FC = () => {
         {/* Centro: Editor Visual Estilo Notion */}
         <Editor
           blocks={project.blocks}
+          metadata={project.metadata}
           references={project.references}
           citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
           onOpenReferenceModal={() => setIsModalOpen(true)}
@@ -609,8 +613,15 @@ export const App: React.FC = () => {
         onClose={() => setIsCustomizerOpen(false)}
         config={project.templateConfig ?? DEFAULT_TEMPLATE_CONFIG}
         metadata={project.metadata}
+        blocks={project.blocks}
         onChangeConfig={handleTemplateConfigChange}
         onChangeMetadata={handleMetadataChange}
+      />
+
+      <BugReportModal
+        isOpen={isBugReportOpen}
+        onClose={() => setIsBugReportOpen(false)}
+        projectName={project.name}
       />
     </div>
   );

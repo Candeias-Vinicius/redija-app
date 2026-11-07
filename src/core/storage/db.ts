@@ -5,6 +5,7 @@
 import Dexie, { type Table } from 'dexie';
 import { DocumentProject, RedijaBackupFile } from '@/types/document';
 import { createProjectFromTemplate } from './projectTemplates';
+import { validateProjectQuota } from './imageQuota';
 
 const ACTIVE_PROJECT_KEY = 'redija:activeProjectId';
 export const TRASH_RETENTION_DAYS = 30;
@@ -236,7 +237,7 @@ export function parseBackup(jsonString: string): DocumentProject {
     );
   }
 
-  return {
+  const projectToImport: DocumentProject = {
     id: crypto.randomUUID(),
     name: candidate.name,
     templateType: candidate.templateType ?? 'tcc',
@@ -252,9 +253,21 @@ export function parseBackup(jsonString: string): DocumentProject {
       year: candidate.metadata.year ?? String(new Date().getFullYear()),
       abstract: candidate.metadata.abstract ?? '',
       keywords: Array.isArray(candidate.metadata.keywords) ? candidate.metadata.keywords : [],
+      institutionLogoDataUrl: candidate.metadata.institutionLogoDataUrl,
+      abbreviations: candidate.metadata.abbreviations,
+      appendices: candidate.metadata.appendices,
+      annexes: candidate.metadata.annexes,
     },
+    templateConfig: candidate.templateConfig,
     blocks: candidate.blocks,
     references: candidate.references,
     updatedAt: new Date().toISOString(),
   };
+
+  const quotaCheck = validateProjectQuota(projectToImport);
+  if (!quotaCheck.valid) {
+    throw new Error(quotaCheck.error);
+  }
+
+  return projectToImport;
 }

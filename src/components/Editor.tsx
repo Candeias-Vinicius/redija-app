@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
-import { Block, BlockType, AcademicReference } from '@/types/document';
+import { Block, BlockType, AcademicReference, DocumentMetadata } from '@/types/document';
 import { RichTextInput } from './RichTextInput';
+import {
+  calculateProjectImageBytes,
+  formatBytes,
+  getDataUrlByteSize,
+  MAX_PROJECT_IMAGE_BYTES,
+  validateImageUploadForProject,
+} from '@/core/storage/imageQuota';
 import {
   Heading1,
   Heading2,
@@ -30,6 +37,7 @@ import {
 
 interface EditorProps {
   blocks: Block[];
+  metadata?: DocumentMetadata;
   references: AcademicReference[];
   citationStyle?: 'uppercase' | 'titlecase';
   onOpenReferenceModal?: () => void;
@@ -203,6 +211,7 @@ function createDefaultMetaForType(type: BlockType): Block['meta'] {
 
 export const Editor: React.FC<EditorProps> = ({
   blocks,
+  metadata,
   references,
   citationStyle = 'uppercase',
   onOpenReferenceModal,
@@ -215,6 +224,9 @@ export const Editor: React.FC<EditorProps> = ({
   const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null);
   const [dragOverBlockId, setDragOverBlockId] = useState<string | null>(null);
   const [dragImageBlockId, setDragImageBlockId] = useState<string | null>(null);
+  const [imageErrorByBlock, setImageErrorByBlock] = useState<Record<string, string | null>>({});
+
+  const totalProjectImageBytes = calculateProjectImageBytes(blocks, metadata);
 
   const updateBlockContent = (id: string, content: string) => {
     onChangeBlocks(blocks.map((b) => (b.id === id ? { ...b, content } : b)));
@@ -305,7 +317,17 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   const handleImageUpload = (blockId: string, file: File) => {
-    if (!file.type.startsWith('image/')) return;
+    const projectBytesExcludingThisBlock = calculateProjectImageBytes(blocks, metadata, blockId);
+    const check = validateImageUploadForProject(file, projectBytesExcludingThisBlock);
+    if (!check.valid) {
+      setImageErrorByBlock((prev) => ({
+        ...prev,
+        [blockId]: check.error || 'Imagem excede o limite do projeto.',
+      }));
+      return;
+    }
+
+    setImageErrorByBlock((prev) => ({ ...prev, [blockId]: null }));
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
@@ -319,6 +341,7 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   const handleClearImage = (blockId: string) => {
+    setImageErrorByBlock((prev) => ({ ...prev, [blockId]: null }));
     updateBlockMeta(blockId, {
       imageDataUrl: undefined,
       imageMime: undefined,
@@ -867,7 +890,7 @@ export const Editor: React.FC<EditorProps> = ({
                         </span>
                         <input
                           type="file"
-                          accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) handleImageUpload(block.id, file);
@@ -889,6 +912,43 @@ export const Editor: React.FC<EditorProps> = ({
                       )}
                     </div>
                   </div>
+
+                  {/* Barra de Quota de Armazenamento de Imagens do Projeto (150 MB) */}
+                  <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-lg bg-white border border-neutral-200 text-[11px]">
+                    <span className="text-neutral-500">
+                      Uso de imagens no projeto:{' '}
+                      <strong className="text-neutral-800">
+                        {formatBytes(totalProjectImageBytes)}
+                      </strong>{' '}
+                      / 150 MB
+                      {block.meta?.imageDataUrl && (
+                        <span className="text-neutral-400 ml-1.5">
+                          (esta figura: {formatBytes(getDataUrlByteSize(block.meta.imageDataUrl))})
+                        </span>
+                      )}
+                    </span>
+                    <div className="w-28 h-1.5 bg-neutral-200 rounded-full overflow-hidden shrink-0">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          totalProjectImageBytes / MAX_PROJECT_IMAGE_BYTES > 0.85
+                            ? 'bg-red-500'
+                            : 'bg-emerald-500'
+                        }`}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            Math.max(1, (totalProjectImageBytes / MAX_PROJECT_IMAGE_BYTES) * 100),
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {imageErrorByBlock[block.id] && (
+                    <div className="p-2 rounded-md bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium">
+                      {imageErrorByBlock[block.id]}
+                    </div>
+                  )}
 
                   {/* Legenda no topo */}
                   <div>
@@ -920,11 +980,11 @@ export const Editor: React.FC<EditorProps> = ({
                         Clique para Upload de imagem, arraste o arquivo aqui ou cole (Ctrl+V)
                       </span>
                       <span className="text-[11px] text-neutral-400 mt-0.5">
-                        Suporta PNG, JPG, WebP, SVG
+                        Suporta PNG, JPG, WebP, GIF (limite total do projeto: 150 MB)
                       </span>
                       <input
                         type="file"
-                        accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) handleImageUpload(block.id, file);
