@@ -220,13 +220,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
             {/* Cabeçalho de Marca Único: Logotipo Oficial RedijaApp */}
             <div className="relative z-10 flex items-center justify-between">
-              {isDark ? (
-                <Logo size="md" />
-              ) : (
-                <div className="bg-[#0b0f19] p-1.5 px-3 rounded-2xl shadow-md border border-slate-800/80 inline-block">
-                  <Logo size="md" />
-                </div>
-              )}
+              <Logo size="md" variant={isDark ? 'dark' : 'light'} />
             </div>
 
             {/* Conteúdo Dinâmico do Slide do Carrossel */}

@@ -9,25 +9,51 @@ export interface LogoProps {
 
 export const Logo: React.FC<LogoProps> = ({
   size = 'md',
+  showWordmark = true,
   className = '',
+  variant = 'auto',
 }) => {
-  // Ajuste de altura responsiva preservando o aspect ratio 1024x571 do logotipo original
-  const heightClass =
+  // Ajuste de altura do ícone do logotipo
+  const iconHeight =
+    size === 'sm' ? 'h-7' : size === 'md' ? 'h-10' : size === 'lg' ? 'h-14' : 'h-20';
+
+  // Tipografia da palavra RedijaApp
+  const textClass =
     size === 'sm'
-      ? 'h-8'
+      ? 'text-base'
       : size === 'md'
-        ? 'h-14'
+        ? 'text-xl'
         : size === 'lg'
-          ? 'h-20'
-          : 'h-28';
+          ? 'text-2xl'
+          : 'text-3xl';
+
+  const redijaColor =
+    variant === 'dark'
+      ? 'text-white'
+      : variant === 'light'
+        ? 'text-slate-900'
+        : 'text-slate-900 dark:text-white';
 
   return (
-    <div className={`inline-flex items-center select-none ${className}`}>
+    <div className={`inline-flex items-center gap-2.5 select-none ${className}`}>
+      {/* O Ícone Oficial do RedijaApp (Sem Fundo / Transparente) */}
       <img
-        src="/logo.jpg"
+        src="/logo.png"
         alt="RedijaApp"
-        className={`${heightClass} w-auto object-contain rounded-xl shadow-xs`}
+        className={`${iconHeight} w-auto object-contain shrink-0 drop-shadow-sm`}
       />
+
+      {/* Nome do Aplicativo (Separado do Ícone, Tipografia Limpa) */}
+      {showWordmark && (
+        <div className="flex items-center tracking-tight font-extrabold leading-none">
+          <span className={`${textClass} ${redijaColor} transition-colors`}>
+            Redija
+          </span>
+          <span className={`${textClass} text-emerald-500 dark:text-emerald-400 font-extrabold`}>
+            App
+          </span>
+        </div>
+      )}
     </div>
   );
 };
