@@ -71,8 +71,15 @@ html.dark .bg-emerald-50,
 html.dark .bg-emerald-50\/30,
 html.dark .bg-emerald-50\/40,
 html.dark .bg-emerald-50\/60,
-html.dark .bg-emerald-50\/70 {
-  background-color: rgba(16, 185, 129, 0.14) !important;
+html.dark .bg-emerald-50\/70,
+html.dark .bg-emerald-100,
+html.dark .bg-emerald-100\/70,
+html.dark .bg-emerald-100\/80 {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+}
+
+html.dark .bg-neutral-200\/70 {
+  background-color: #334155 !important;
 }
 
 html.dark .bg-amber-50,

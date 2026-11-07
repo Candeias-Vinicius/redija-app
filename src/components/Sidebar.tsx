@@ -572,12 +572,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         key={ref.id}
                         className="group p-2.5 rounded-lg bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-xs space-y-1 transition-colors"
                       >
-                        <div className="flex items-center justify-between gap-1.5">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="px-1.5 py-0.5 rounded bg-emerald-100/80 text-emerald-800 font-bold text-[10px] shrink-0">
+                        <div className="flex items-start justify-between gap-1.5">
+                          <div className="flex flex-wrap items-center gap-1 min-w-0 flex-1">
+                            <span
+                              className="px-1.5 py-0.5 rounded bg-emerald-100/80 border border-emerald-200 text-emerald-800 font-bold text-[10px] truncate max-w-[185px]"
+                              title={shortCite}
+                            >
                               {shortCite}
                             </span>
-                            <span className="px-1.5 py-0.5 rounded bg-neutral-200/70 text-neutral-600 text-[10px] shrink-0">
+                            <span className="px-1.5 py-0.5 rounded bg-neutral-200/70 text-neutral-600 font-medium text-[10px] shrink-0">
                               {typeBadgeLabel(ref.type)}
                             </span>
                           </div>
