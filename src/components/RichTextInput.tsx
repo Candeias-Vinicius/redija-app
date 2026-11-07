@@ -13,10 +13,12 @@ import {
   Subscript as SubIcon,
   Bookmark,
   Plus,
+  Search,
+  X,
 } from 'lucide-react';
 import { stripHtmlTags } from '@/core/transpiler/escape';
 import { AcademicReference } from '@/types/document';
-import { formatShortCitation, formatNarrativeCitation } from '@/core/transpiler/abntLinter';
+import { formatShortCitation } from '@/core/transpiler/abntLinter';
 
 interface RichTextInputProps {
   value: string;
@@ -49,7 +51,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
 }) => {
   const [hasSelection, setHasSelection] = useState(false);
   const [showCitationPicker, setShowCitationPicker] = useState(false);
-  const [citationPage, setCitationPage] = useState('');
+  const [citationSearch, setCitationSearch] = useState('');
   const [lastSeenTrigger, setLastSeenTrigger] = useState(openCitationTrigger);
 
   // Permite abrir o seletor de referência quando o usuário escolhe "Chamar Referência" no menu `/`
@@ -155,8 +157,20 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
   const insertReferenceText = (textToInsert: string) => {
     editor.chain().focus().insertContent(` ${textToInsert} `).run();
     setShowCitationPicker(false);
-    setCitationPage('');
+    setCitationSearch('');
   };
+
+  const filteredReferences = references.filter((ref) => {
+    if (!citationSearch.trim()) return true;
+    const q = citationSearch.toLowerCase();
+    return (
+      ref.authors.toLowerCase().includes(q) ||
+      ref.title.toLowerCase().includes(q) ||
+      ref.year.toLowerCase().includes(q) ||
+      (ref.subtitle && ref.subtitle.toLowerCase().includes(q)) ||
+      (ref.journal && ref.journal.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <div className="relative w-full">
@@ -253,27 +267,18 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
           <div className="px-3 pb-1.5 text-[10px] font-bold uppercase text-neutral-400 flex items-center justify-between border-b border-neutral-100">
             <span className="flex items-center gap-1">
               <Bookmark className="w-3 h-3 text-emerald-600" />
-              Chamar Referência no Texto (NBR 10520)
+              Selecionar Referência
             </span>
             <button
               type="button"
-              onClick={() => setShowCitationPicker(false)}
+              onClick={() => {
+                setShowCitationPicker(false);
+                setCitationSearch('');
+              }}
               className="text-neutral-400 hover:text-neutral-600"
             >
               Fechar
             </button>
-          </div>
-
-          {/* Campo opcional de página */}
-          <div className="px-3 py-1.5 bg-neutral-50 border-b border-neutral-100 flex items-center justify-between gap-2">
-            <span className="text-[11px] text-neutral-500">Página (opcional):</span>
-            <input
-              type="text"
-              value={citationPage}
-              onChange={(e) => setCitationPage(e.target.value)}
-              placeholder="Ex: 42"
-              className="w-24 px-2 py-0.5 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
-            />
           </div>
 
           {references.length === 0 ? (
@@ -289,65 +294,88 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Cadastrar Referência (DOI/ISBN)</span>
+                  <span>Cadastrar Referência (DOI/ISBN/.bib)</span>
                 </button>
               )}
             </div>
           ) : (
-            <div className="max-h-56 overflow-y-auto divide-y divide-neutral-100">
-              {references.map((ref) => {
-                const parenthetical = formatShortCitation(ref, citationStyle, citationPage);
-                const narrative = formatNarrativeCitation(ref, citationPage);
-                return (
-                  <div
-                    key={ref.id}
-                    className="px-3 py-2 hover:bg-neutral-50 transition-colors space-y-1.5"
-                  >
-                    <div className="text-[11px] font-medium text-neutral-800 truncate">
-                      {ref.title}
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          insertReferenceText(parenthetical);
-                        }}
-                        className="flex-1 px-2 py-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold text-[11px] text-center border border-emerald-200 transition-colors"
-                        title="Inserir chamada entre parênteses no final da frase"
-                      >
-                        {parenthetical}
-                      </button>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          insertReferenceText(narrative);
-                        }}
-                        className="flex-1 px-2 py-1 rounded bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-semibold text-[11px] text-center border border-neutral-200 transition-colors"
-                        title="Inserir chamada narrativa com o nome do autor fora dos parênteses (Ex: Segundo Silva (2023)...)"
-                      >
-                        {narrative}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+            <>
+              {/* Barra de busca rápida */}
+              <div className="px-2.5 py-1.5 border-b border-neutral-100">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={citationSearch}
+                    onChange={(e) => setCitationSearch(e.target.value)}
+                    placeholder="Buscar por autor, título ou ano..."
+                    autoFocus
+                    className="w-full pl-7 pr-6 py-1 text-[11px] bg-neutral-50 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                  />
+                  {citationSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setCitationSearch('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
 
-              {onOpenNewReferenceModal && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCitationPicker(false);
-                    onOpenNewReferenceModal();
-                  }}
-                  className="w-full px-3 py-2 text-center text-emerald-600 hover:bg-emerald-50 font-semibold text-[11px] flex items-center justify-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Cadastrar nova referência...</span>
-                </button>
-              )}
-            </div>
+              <div className="max-h-56 overflow-y-auto divide-y divide-neutral-100">
+                {filteredReferences.length === 0 ? (
+                  <div className="p-3 text-center text-[11px] text-neutral-400">
+                    Nenhuma referência encontrada para &ldquo;{citationSearch}&rdquo;.
+                  </div>
+                ) : (
+                  filteredReferences.map((ref) => {
+                    const formattedCall = formatShortCitation(ref, citationStyle);
+                    return (
+                      <button
+                        key={ref.id}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          insertReferenceText(formattedCall);
+                        }}
+                        className="w-full px-3 py-2 text-left hover:bg-emerald-50/70 transition-colors flex flex-col gap-0.5 group"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-emerald-700 group-hover:text-emerald-800 text-[11px]">
+                            {formattedCall}
+                          </span>
+                          <span className="text-[10px] text-neutral-400 shrink-0">
+                            {ref.year}
+                          </span>
+                        </div>
+                        <div className="text-[11px] font-medium text-neutral-800 truncate">
+                          {ref.title}
+                        </div>
+                        <div className="text-[10px] text-neutral-500 truncate">
+                          {ref.authors}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+
+                {onOpenNewReferenceModal && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCitationPicker(false);
+                      onOpenNewReferenceModal();
+                    }}
+                    className="w-full px-3 py-2 text-center text-emerald-600 hover:bg-emerald-50 font-semibold text-[11px] flex items-center justify-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Cadastrar nova referência...</span>
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}
