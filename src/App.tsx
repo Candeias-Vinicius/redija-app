@@ -251,6 +251,7 @@ export const App: React.FC = () => {
       <div className="flex-1 flex overflow-hidden">
         {/* Painel Esquerdo: Metadados ABNT e Referências */}
         <Sidebar
+          project={project}
           metadata={project.metadata}
           onChangeMetadata={handleMetadataChange}
           references={project.references}
@@ -261,6 +262,7 @@ export const App: React.FC = () => {
         {/* Centro: Editor Visual Estilo Notion */}
         <Editor
           blocks={project.blocks}
+          references={project.references}
           onChangeBlocks={handleBlocksChange}
         />
 

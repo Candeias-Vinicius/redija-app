@@ -19,6 +19,12 @@ import {
   TEMPLATE_FILE,
   transpileReference,
 } from '../typstGenerator';
+import {
+  countWords,
+  formatShortCitation,
+  getPrimarySurname,
+  runAbntLinter,
+} from '../abntLinter';
 import { DocumentProject } from '@/types/document';
 
 function createSampleProject(overrides?: Partial<DocumentProject>): DocumentProject {
@@ -38,6 +44,14 @@ function createSampleProject(overrides?: Partial<DocumentProject>): DocumentProj
       year: '2026',
       abstract: 'Resumo do trabalho com caracteres especiais como $100, #tag, 50% e *asteriscos*.',
       keywords: ['ABNT', 'Typst', 'WebAssembly'],
+      dedicatory: 'Dedico este trabalho à ciência aberta.',
+      acknowledgments: 'Agradeço aos professores e colegas.',
+      epigraph: 'Em algum lugar, algo incrível está esperando para ser descoberto.',
+      epigraphAuthor: 'Carl Sagan',
+      foreignAbstract: 'This work presents a web platform for ABNT academic writing.',
+      foreignKeywords: ['ABNT', 'Typst', 'Academic Writing'],
+      includeFiguresList: true,
+      includeTablesList: true,
     },
     blocks: [
       { id: '1', type: 'h1', content: '1 INTRODUÇÃO' },
@@ -102,11 +116,17 @@ function createSampleProject(overrides?: Partial<DocumentProject>): DocumentProj
       },
       {
         id: 'r2',
+        type: 'article',
         authors: 'ALMEIDA, Carlos',
         title: 'Compiladores e Transpiladores',
+        journal: 'Revista Brasileira de Computação',
+        volume: '15',
+        issue: '2',
+        pages: '10-25',
         city: 'Rio de Janeiro',
         publisher: 'Tech Books',
         year: '2022',
+        doi: '10.1000/rbc.2022',
       },
     ],
     ...overrides,
@@ -205,6 +225,28 @@ describe('typstGenerator helpers', () => {
     const idxSilva = main.indexOf('SILVA, MARIA');
     expect(idxAlmeida).toBeGreaterThan(-1);
     expect(idxSilva).toBeGreaterThan(idxAlmeida);
+  });
+
+  it('runs ABNT linter for word count, uncited references, and citation formatting', () => {
+    expect(countWords('<p>Um dois <strong>três</strong> quatro.</p>')).toBe(4);
+    expect(getPrimarySurname('SILVA, Roberto; SOUZA, Maria')).toBe('SILVA');
+    expect(
+      formatShortCitation({
+        id: '1',
+        authors: 'SILVA, Roberto',
+        title: 'Obra',
+        city: 'SP',
+        publisher: 'Ed',
+        year: '2024',
+      }),
+    ).toBe('(SILVA, 2024)');
+
+    const proj = createSampleProject();
+    const warnings = runAbntLinter(proj);
+    // ALMEIDA não foi citado no texto, logo o linter deve avisar
+    expect(warnings.some((w) => w.id === 'uncited-ref-r2')).toBe(true);
+    // SILVA foi citado no bloco quote_long, logo não deve aparecer como não citado
+    expect(warnings.some((w) => w.id === 'uncited-ref-r1')).toBe(false);
   });
 });
 

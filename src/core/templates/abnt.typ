@@ -102,8 +102,16 @@
   orientador: none,
   local: "",
   ano: "",
+  dedicatoria: none,
+  agradecimentos: none,
+  epigrafe: none,
+  epigrafe-autor: none,
   resumo: none,
   palavras-chave: (),
+  abstract: none,
+  keywords: (),
+  lista-figuras: false,
+  lista-tabelas: false,
   body,
 ) = {
   set document(title: titulo, author: autor)
@@ -188,6 +196,37 @@
     align(center, text(weight: "bold")[#local \ #ano])
   }
 
+  // --------------------------- DEDICATÓRIA ----------------------------
+  if dedicatoria != none {
+    pagebreak()
+    set par(first-line-indent: 0pt, leading: entrelinha-simples)
+    v(1fr)
+    align(right, block(width: 55%, align(left, dedicatoria)))
+  }
+
+  // ------------------------- AGRADECIMENTOS ---------------------------
+  if agradecimentos != none {
+    pagebreak()
+    set par(first-line-indent: (amount: recuo-paragrafo, all: true), leading: entrelinha-1-5)
+    align(center, text(weight: "bold")[AGRADECIMENTOS])
+    v(1.5em)
+    agradecimentos
+  }
+
+  // ----------------------------- EPÍGRAFE -----------------------------
+  if epigrafe != none {
+    pagebreak()
+    set par(first-line-indent: 0pt, leading: entrelinha-simples)
+    v(1fr)
+    align(right, block(width: 60%, {
+      align(left, emph(epigrafe))
+      if epigrafe-autor != none [
+        \
+        #align(right, text(size: 10pt)[(#epigrafe-autor)])
+      ]
+    }))
+  }
+
   // ------------------------------ RESUMO ------------------------------
   if resumo != none {
     pagebreak()
@@ -199,6 +238,37 @@
       v(1.5em)
       [*Palavras-chave:* #palavras-chave.join(". ").]
     }
+  }
+
+  // ----------------------------- ABSTRACT -----------------------------
+  if abstract != none {
+    pagebreak()
+    set par(first-line-indent: 0pt, leading: entrelinha-simples, spacing: entrelinha-simples)
+    align(center, text(weight: "bold")[ABSTRACT])
+    v(1.5em)
+    abstract
+    if keywords.len() > 0 {
+      v(1.5em)
+      [*Keywords:* #keywords.join(". ").]
+    }
+  }
+
+  // ----------------------- LISTA DE ILUSTRAÇÕES -----------------------
+  if lista-figuras {
+    pagebreak()
+    set par(first-line-indent: 0pt)
+    align(center, text(weight: "bold")[LISTA DE ILUSTRAÇÕES])
+    v(1.5em)
+    outline(title: none, target: figure.where(kind: image))
+  }
+
+  // ------------------------- LISTA DE TABELAS -------------------------
+  if lista-tabelas {
+    pagebreak()
+    set par(first-line-indent: 0pt)
+    align(center, text(weight: "bold")[LISTA DE TABELAS])
+    v(1.5em)
+    outline(title: none, target: figure.where(kind: table))
   }
 
   // ------------------------------ SUMÁRIO -----------------------------

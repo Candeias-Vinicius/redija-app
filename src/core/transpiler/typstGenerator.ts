@@ -116,12 +116,25 @@ function generateShowRule(project: DocumentProject): string {
   if (m.nature?.trim()) args.push(`natureza: ${typstContent(m.nature)}`);
   if (m.advisor?.trim()) args.push(`orientador: ${typstString(m.advisor)}`);
   args.push(`local: ${typstString(m.location)}`, `ano: ${typstString(m.year)}`);
+  if (m.dedicatory?.trim()) args.push(`dedicatoria: ${typstContent(m.dedicatory)}`);
+  if (m.acknowledgments?.trim()) args.push(`agradecimentos: ${typstContent(m.acknowledgments)}`);
+  if (m.epigraph?.trim()) args.push(`epigrafe: ${typstContent(m.epigraph)}`);
+  if (m.epigraphAuthor?.trim()) args.push(`epigrafe-autor: ${typstContent(m.epigraphAuthor)}`);
   if (m.abstract.trim()) args.push(`resumo: ${typstContent(m.abstract)}`);
 
   const keywords = m.keywords.map((k) => k.trim()).filter(Boolean);
   if (keywords.length > 0) {
     args.push(`palavras-chave: (${keywords.map(typstString).join(', ')},)`);
   }
+
+  if (m.foreignAbstract?.trim()) args.push(`abstract: ${typstContent(m.foreignAbstract)}`);
+  const foreignKeywords = (m.foreignKeywords ?? []).map((k) => k.trim()).filter(Boolean);
+  if (foreignKeywords.length > 0) {
+    args.push(`keywords: (${foreignKeywords.map(typstString).join(', ')},)`);
+  }
+
+  if (m.includeFiguresList) args.push('lista-figuras: true');
+  if (m.includeTablesList) args.push('lista-tabelas: true');
 
   return `#show: abnt.with(\n  ${args.join(',\n  ')},\n)`;
 }
@@ -238,16 +251,44 @@ function transpileReferences(references: AcademicReference[]): string {
 }
 
 /**
- * Formato NBR 6023 para livros:
- * SOBRENOME, Nome. **Título**: subtítulo. Edição. Local: Editora, Ano.
+ * Formato NBR 6023 para livros, artigos de periódico, teses/TCCs, sites e legislação.
  */
 export function transpileReference(ref: AcademicReference): string {
   const e = escapeMarkup;
-  let out = `${e(ref.authors.trim().toUpperCase())}. #strong[${e(ref.title.trim())}]`;
-  if (ref.subtitle?.trim()) out += `: ${e(ref.subtitle.trim())}`;
-  out += '.';
-  if (ref.edition?.trim()) out += ` ${e(ref.edition.trim())}. ed.`;
-  out += ` ${e(ref.city?.trim() || '[S. l.]')}: ${e(ref.publisher?.trim() || '[s. n.]')}, ${e(ref.year?.trim() || '[s. d.]')}.`;
+  const type = ref.type || 'book';
+  const authors = e(ref.authors.trim().toUpperCase());
+  const title = e(ref.title.trim());
+  const subtitle = ref.subtitle?.trim() ? `: ${e(ref.subtitle.trim())}` : '';
+  const year = e(ref.year?.trim() || '[s. d.]');
+
+  let out: string;
+
+  if (type === 'article' && ref.journal?.trim()) {
+    // Artigo de periódico: AUTOR. Título: subtítulo. **Revista**, Local, v. X, n. Y, p. Z, Ano.
+    out = `${authors}. ${title}${subtitle}. #strong[${e(ref.journal.trim())}]`;
+    if (ref.city?.trim()) out += `, ${e(ref.city.trim())}`;
+    if (ref.volume?.trim()) out += `, v. ${e(ref.volume.trim())}`;
+    if (ref.issue?.trim()) out += `, n. ${e(ref.issue.trim())}`;
+    if (ref.pages?.trim()) out += `, p. ${e(ref.pages.trim())}`;
+    out += `, ${year}.`;
+  } else if (type === 'thesis') {
+    // Tese / Dissertação / TCC: AUTOR. **Título**: subtítulo. Ano. Tipo — Instituição, Local, Ano.
+    const degree = e(ref.degree?.trim() || 'Trabalho de Conclusão de Curso');
+    const inst = e(ref.institution?.trim() || ref.publisher?.trim() || 'Instituição');
+    const city = e(ref.city?.trim() || '[S. l.]');
+    out = `${authors}. #strong[${title}]${subtitle}. ${year}. ${degree} — ${inst}, ${city}, ${year}.`;
+  } else {
+    // Livro / Site / Legislação: AUTOR. **Título**: subtítulo. Edição. Local: Editora, Ano.
+    out = `${authors}. #strong[${title}]${subtitle}.`;
+    if (ref.edition?.trim()) out += ` ${e(ref.edition.trim())}. ed.`;
+    const city = e(ref.city?.trim() || '[S. l.]');
+    const pub = e(ref.publisher?.trim() || '[s. n.]');
+    out += ` ${city}: ${pub}, ${year}.`;
+  }
+
+  if (ref.doi?.trim()) {
+    out += ` DOI: ${e(ref.doi.trim())}.`;
+  }
   if (ref.url?.trim()) {
     out += ` Disponível em: ${e(ref.url.trim())}.`;
     if (ref.accessDate?.trim()) out += ` Acesso em: ${e(ref.accessDate.trim())}.`;

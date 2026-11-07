@@ -41,10 +41,22 @@ export interface DocumentMetadata {
   year: string;
   abstract: string;
   keywords: string[];
+  // Elementos pré-textuais opcionais (NBR 14724)
+  dedicatory?: string;
+  acknowledgments?: string;
+  epigraph?: string;
+  epigraphAuthor?: string;
+  foreignAbstract?: string;
+  foreignKeywords?: string[];
+  includeFiguresList?: boolean;
+  includeTablesList?: boolean;
 }
+
+export type ReferenceType = 'book' | 'article' | 'thesis' | 'website' | 'legislation';
 
 export interface AcademicReference {
   id: string;
+  type?: ReferenceType;
   authors: string;
   title: string;
   subtitle?: string;
@@ -52,8 +64,16 @@ export interface AcademicReference {
   city: string;
   publisher: string;
   year: string;
+  // Campos adicionais NBR 6023
+  journal?: string;
+  volume?: string;
+  issue?: string;
+  pages?: string;
+  institution?: string;
+  degree?: string;
   url?: string;
   accessDate?: string;
+  doi?: string;
 }
 
 export type ProjectTemplateType = 'tcc' | 'artigo' | 'relatorio' | 'projeto_pesquisa';

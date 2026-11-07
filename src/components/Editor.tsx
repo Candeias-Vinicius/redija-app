@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Block, BlockType } from '@/types/document';
+import { Block, BlockType, AcademicReference } from '@/types/document';
 import { RichTextInput } from './RichTextInput';
 import {
   Heading1,
@@ -25,6 +25,7 @@ import {
 
 interface EditorProps {
   blocks: Block[];
+  references: AcademicReference[];
   onChangeBlocks: (blocks: Block[]) => void;
 }
 
@@ -137,7 +138,7 @@ function createDefaultMetaForType(type: BlockType): Block['meta'] {
   return undefined;
 }
 
-export const Editor: React.FC<EditorProps> = ({ blocks, onChangeBlocks }) => {
+export const Editor: React.FC<EditorProps> = ({ blocks, references, onChangeBlocks }) => {
   const [activeMenuBlockId, setActiveMenuBlockId] = useState<string | null>(null);
   const [menuSearch, setMenuSearch] = useState('');
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
@@ -434,6 +435,7 @@ export const Editor: React.FC<EditorProps> = ({ blocks, onChangeBlocks }) => {
               {block.type === 'paragraph' && (
                 <RichTextInput
                   value={block.content}
+                  references={references}
                   autoFocus={focusedBlockId === block.id}
                   onChange={(html) => updateBlockContent(block.id, html)}
                   onEnter={() => addBlock(block.id, 'paragraph')}
@@ -442,7 +444,7 @@ export const Editor: React.FC<EditorProps> = ({ blocks, onChangeBlocks }) => {
                     setActiveMenuBlockId(block.id);
                     setMenuSearch('');
                   }}
-                  placeholder='Digite seu parágrafo ou "/" para inserir elementos ABNT...'
+                  placeholder='Digite seu parágrafo, "/" para comandos ABNT ou "@" para citar referência...'
                   className="text-sm leading-relaxed text-neutral-800"
                 />
               )}
