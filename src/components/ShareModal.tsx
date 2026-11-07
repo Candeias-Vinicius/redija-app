@@ -49,19 +49,23 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     if (!isOpen || !driveFileId) return;
 
     let isMounted = true;
-    setIsLoading(true);
-    setError(null);
 
     getAccessToken()
       .then((token) => {
+        if (!isMounted) return;
+        setIsLoading(true);
+        setError(null);
         if (!token) throw new Error('Não foi possível obter credenciais do Google.');
         return listCollaborators(driveFileId, token);
       })
       .then((list) => {
-        if (isMounted) setCollaborators(list);
+        if (isMounted && list) setCollaborators(list);
       })
-      .catch((err) => {
-        if (isMounted) setError(err.message || 'Não foi possível carregar os colaboradores.');
+      .catch((err: unknown) => {
+        if (isMounted) {
+          const msg = err instanceof Error ? err.message : 'Não foi possível carregar os colaboradores.';
+          setError(msg);
+        }
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -106,8 +110,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       // Recarrega a lista
       const updated = await listCollaborators(fileId, token);
       setCollaborators(updated);
-    } catch (err: any) {
-      setError(err.message || 'Falha ao convidar este usuário. Verifique o e-mail digitado.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao convidar este usuário. Verifique o e-mail digitado.';
+      setError(msg);
     } finally {
       setIsInviting(false);
     }
@@ -127,8 +132,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       await removeCollaborator(driveFileId, perm.id, token);
       setCollaborators((prev) => prev.filter((c) => c.id !== perm.id));
       setSuccessMessage(`Acesso de ${perm.emailAddress} removido.`);
-    } catch (err: any) {
-      setError(err.message || 'Não foi possível revogar a permissão.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Não foi possível revogar a permissão.';
+      setError(msg);
     }
   };
 

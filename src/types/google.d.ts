@@ -9,7 +9,7 @@ declare namespace google {
         client_id: string;
         scope: string;
         callback: (response: TokenResponse) => void;
-        error_callback?: (error: any) => void;
+        error_callback?: (error: unknown) => void;
         prompt?: string;
         enable_serial_consent?: boolean;
         hint?: string;
@@ -51,3 +51,4 @@ declare namespace google {
 interface Window {
   google?: typeof google;
 }
+

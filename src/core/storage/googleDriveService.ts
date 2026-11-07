@@ -27,6 +27,23 @@ export interface Collaborator {
   photoLink?: string;
 }
 
+interface GoogleDriveApiFile {
+  id: string;
+  name: string;
+  modifiedTime: string;
+  sharedWithMeTime?: string;
+  sharingUser?: { displayName?: string; emailAddress?: string; photoLink?: string };
+  owners?: { displayName?: string; emailAddress?: string; photoLink?: string }[];
+}
+
+interface GoogleDrivePermissionApi {
+  id: string;
+  displayName?: string;
+  emailAddress?: string;
+  role?: 'owner' | 'writer' | 'reader';
+  photoLink?: string;
+}
+
 /**
  * Cria ou atualiza o arquivo `.redija` no Google Drive.
  * Se o projeto já tem `driveFileId`, executa PATCH; caso contrário, executa POST (multipart).
@@ -35,6 +52,15 @@ export async function saveProjectToDrive(
   project: DocumentProject,
   accessToken: string
 ): Promise<{ fileId: string; modifiedTime: string }> {
+  // Simulação para testes de desenvolvimento local sem credencial configurada
+  if (accessToken.startsWith('mock_dev_token')) {
+    await new Promise((r) => setTimeout(r, 400));
+    return {
+      fileId: project.driveFileId || `mock_drive_file_${Date.now()}`,
+      modifiedTime: new Date().toISOString(),
+    };
+  }
+
   const backupPayload: RedijaBackupFile = {
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
@@ -112,6 +138,27 @@ export async function saveProjectToDrive(
  * Lista todos os projetos .redija do usuário (próprios e compartilhados com ele).
  */
 export async function listDriveProjects(accessToken: string): Promise<DriveProjectSummary[]> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    return [
+      {
+        id: 'mock_drive_file_1',
+        name: 'Trabalho de Conclusão de Curso (ABNT)',
+        modifiedTime: new Date().toISOString(),
+        isSharedWithMe: false,
+      },
+      {
+        id: 'mock_drive_file_2',
+        name: 'Artigo Científico em Grupo',
+        modifiedTime: new Date(Date.now() - 3600000).toISOString(),
+        isSharedWithMe: true,
+        sharedBy: {
+          name: 'Prof. Orientador',
+          email: 'orientador@universidade.edu.br',
+        },
+      },
+    ];
+  }
+
   const query = encodeURIComponent("name contains '.redija' and trashed = false");
   const fields = encodeURIComponent(
     'files(id, name, modifiedTime, sharedWithMeTime, sharingUser, owners)'
@@ -131,7 +178,7 @@ export async function listDriveProjects(accessToken: string): Promise<DriveProje
 
   const data = await response.json();
 
-  return (data.files || []).map((f: any) => {
+  return (data.files || []).map((f: GoogleDriveApiFile) => {
     const isShared = Boolean(f.sharedWithMeTime);
     const owner = f.owners?.[0];
     const sharing = f.sharingUser;
@@ -233,6 +280,11 @@ export async function inviteCollaborator(
   emailAddress: string,
   accessToken: string
 ): Promise<void> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    await new Promise((r) => setTimeout(r, 400));
+    return;
+  }
+
   const res = await fetch(
     `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?sendNotificationEmail=true`,
     {
@@ -262,6 +314,23 @@ export async function listCollaborators(
   fileId: string,
   accessToken: string
 ): Promise<Collaborator[]> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    return [
+      {
+        id: 'perm_owner',
+        displayName: 'Vinicius Candeias (Você)',
+        emailAddress: 'vinicandeias@gmail.com',
+        role: 'owner',
+      },
+      {
+        id: 'perm_collab_1',
+        displayName: 'Prof. Dr. Orientador',
+        emailAddress: 'orientador@universidade.edu.br',
+        role: 'writer',
+      },
+    ];
+  }
+
   const fields = encodeURIComponent('permissions(id, displayName, emailAddress, role, photoLink)');
   const res = await fetch(
     `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?fields=${fields}`,
@@ -276,7 +345,7 @@ export async function listCollaborators(
   }
 
   const data = await res.json();
-  return (data.permissions || []).map((p: any) => ({
+  return (data.permissions || []).map((p: GoogleDrivePermissionApi) => ({
     id: p.id,
     displayName: p.displayName || p.emailAddress || 'Colaborador',
     emailAddress: p.emailAddress || '',
@@ -293,6 +362,10 @@ export async function removeCollaborator(
   permissionId: string,
   accessToken: string
 ): Promise<void> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    await new Promise((r) => setTimeout(r, 300));
+    return;
+  }
   const res = await fetch(
     `https://www.googleapis.com/drive/v3/files/${fileId}/permissions/${permissionId}`,
     {
@@ -306,3 +379,4 @@ export async function removeCollaborator(
     throw new Error(err.error?.message || 'Erro ao remover colaborador.');
   }
 }
+

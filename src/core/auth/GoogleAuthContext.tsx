@@ -22,6 +22,7 @@ interface GoogleAuthContextValue {
   isConfigured: boolean;
   error: string | null;
   login: (promptConsent?: boolean) => Promise<string | null>;
+  loginDevMock: () => void;
   logout: () => void;
   getValidAccessToken: () => Promise<string | null>;
   clearError: () => void;
@@ -112,8 +113,9 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               expiresIn: Number(response.expires_in) || 3599,
             });
           },
-          error_callback: (err) => {
-            reject(new Error(err?.message || 'Falha na comunicação com o Google.'));
+          error_callback: (err: unknown) => {
+            const msg = err instanceof Error ? err.message : 'Falha na comunicação com o Google.';
+            reject(new Error(msg));
           },
         });
 
@@ -142,7 +144,7 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         accessTokenRef.current = token;
         tokenExpiresAtRef.current = Date.now() + expiresIn * 1000;
         return token;
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.warn('Renovação silenciosa de token expirada:', err);
         return null;
       }
@@ -172,8 +174,8 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(profile));
 
         return token;
-      } catch (err: any) {
-        const message = err?.message || 'Falha ao autenticar com o Google.';
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Falha ao autenticar com o Google.';
         // Não exibe erro se o usuário apenas fechou a janela de login
         if (!message.includes('popup_closed') && !message.includes('access_denied')) {
           setError(message);
@@ -185,6 +187,23 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     },
     [requestTokenFromGoogle]
   );
+
+  /**
+   * Modo de teste/desenvolvimento para quando o Google Cloud Client ID ainda não estiver configurado.
+   */
+  const loginDevMock = useCallback(() => {
+    const mockUser: GoogleUserProfile = {
+      id: 'dev_mock_user_1',
+      name: 'Vinicius Candeias (Dev)',
+      email: 'vinicandeias@gmail.com',
+      picture: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces',
+    };
+    accessTokenRef.current = 'mock_dev_token_xyz';
+    tokenExpiresAtRef.current = Date.now() + 3600 * 1000;
+    setUser(mockUser);
+    setError(null);
+    localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(mockUser));
+  }, []);
 
   /**
    * Efetua Logout limpo:
@@ -235,6 +254,7 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isConfigured,
         error,
         login,
+        loginDevMock,
         logout,
         getValidAccessToken,
         clearError,
@@ -245,6 +265,7 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useGoogleAuth = (): GoogleAuthContextValue => {
   const context = useContext(GoogleAuthContext);
   if (!context) {
@@ -252,3 +273,4 @@ export const useGoogleAuth = (): GoogleAuthContextValue => {
   }
   return context;
 };
+

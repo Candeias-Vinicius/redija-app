@@ -11,6 +11,7 @@ import { BugReportModal } from '@/components/BugReportModal';
 import { ShareModal } from '@/components/ShareModal';
 import { AccountSettingsModal } from '@/components/AccountSettingsModal';
 import { BackupNoticeBanner } from '@/components/BackupNoticeBanner';
+import { LoginScreen } from '@/components/LoginScreen';
 import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
 import {
   saveProjectToDrive,
@@ -76,13 +77,27 @@ export const App: React.FC = () => {
     user,
     isAuthenticated,
     isLoading: isAuthLoading,
+    error: authError,
+    isConfigured: isAuthConfigured,
     login,
+    loginDevMock,
     logout,
     getValidAccessToken,
   } = useGoogleAuth();
-  const [driveSyncStatus, setDriveSyncStatus] = useState<
-    'synced' | 'syncing' | 'local' | 'error'
-  >('local');
+
+  const [isGuestMode, setIsGuestMode] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('redija:guestMode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const [rawDriveSyncStatus, setRawDriveSyncStatus] = useState<
+    'synced' | 'syncing' | 'error'
+  >('synced');
+  const driveSyncStatus = !isAuthenticated || !user ? 'local' : rawDriveSyncStatus;
+
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
   const [isSyncingDrive, setIsSyncingDrive] = useState(false);
@@ -345,22 +360,20 @@ export const App: React.FC = () => {
   // Sincronização em segundo plano com o Google Drive (Debounce de 3.5 segundos)
   useEffect(() => {
     if (!isStorageReady || !isAuthenticated || !user) {
-      setDriveSyncStatus('local');
       return;
     }
 
-    setDriveSyncStatus('syncing');
-
     const driveTimer = setTimeout(async () => {
+      setRawDriveSyncStatus('syncing');
       try {
         const token = await getValidAccessToken();
         if (!token) {
-          setDriveSyncStatus('error');
+          setRawDriveSyncStatus('error');
           return;
         }
 
         const { fileId, modifiedTime } = await saveProjectToDrive(project, token);
-        setDriveSyncStatus('synced');
+        setRawDriveSyncStatus('synced');
 
         // Se o projeto ainda não tinha driveFileId, vincula agora
         if (project.driveFileId !== fileId) {
@@ -374,7 +387,7 @@ export const App: React.FC = () => {
         }
       } catch (err) {
         console.warn('Erro ao sincronizar com Google Drive:', err);
-        setDriveSyncStatus('error');
+        setRawDriveSyncStatus('error');
       }
     }, 3500);
 
@@ -392,7 +405,7 @@ export const App: React.FC = () => {
       }
       if (!token) return null;
 
-      setDriveSyncStatus('syncing');
+      setRawDriveSyncStatus('syncing');
       const { fileId, modifiedTime } = await saveProjectToDrive(project, token);
       setProject((prev) => ({
         ...prev,
@@ -400,11 +413,30 @@ export const App: React.FC = () => {
         driveSyncedAt: modifiedTime,
         ownerEmail: prev.ownerEmail || user?.email,
       }));
-      setDriveSyncStatus('synced');
+      setRawDriveSyncStatus('synced');
       return fileId;
     } catch (err) {
       console.error('Falha ao garantir salvamento no Drive:', err);
       return null;
+    }
+  };
+
+  const handleLoginClick = async (): Promise<string | null> => {
+    if (!isAuthConfigured) {
+      loginDevMock();
+      return 'mock_dev_token_xyz';
+    } else {
+      return await login(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    setIsGuestMode(false);
+    try {
+      sessionStorage.removeItem('redija:guestMode');
+    } catch {
+      // Ignora
     }
   };
 
@@ -652,12 +684,34 @@ export const App: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  if (!isAuthenticated && !isGuestMode) {
+    return (
+      <LoginScreen
+        onLogin={() => login(false)}
+        onLoginDevMock={loginDevMock}
+        onContinueAsGuest={() => {
+          setIsGuestMode(true);
+          try {
+            sessionStorage.setItem('redija:guestMode', 'true');
+          } catch {
+            // Ignora
+          }
+        }}
+        isLoading={isAuthLoading}
+        error={authError}
+        isConfigured={isAuthConfigured}
+      />
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col bg-neutral-100 select-none overflow-hidden">
       {/* Alerta de Recomendação de Backup para Usuários sem Login */}
       <BackupNoticeBanner
         isAuthenticated={isAuthenticated}
-        onLogin={() => login(false)}
+        onLogin={handleLoginClick}
+        onLoginDevMock={loginDevMock}
+        isConfigured={isAuthConfigured}
         isLoading={isAuthLoading}
       />
 
@@ -690,8 +744,8 @@ export const App: React.FC = () => {
         user={user}
         isAuthenticated={isAuthenticated}
         isAuthLoading={isAuthLoading}
-        onLogin={() => login(false)}
-        onLogout={logout}
+        onLogin={handleLoginClick}
+        onLogout={handleLogout}
         onOpenShareModal={() => setIsShareModalOpen(true)}
         onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
       />
@@ -830,7 +884,7 @@ export const App: React.FC = () => {
         isOpen={isAccountSettingsOpen}
         onClose={() => setIsAccountSettingsOpen(false)}
         user={user}
-        onLogout={logout}
+        onLogout={handleLogout}
         projectsCount={projects.length}
         syncedProjectsCount={projects.filter((p) => Boolean(p.driveFileId)).length}
       />
