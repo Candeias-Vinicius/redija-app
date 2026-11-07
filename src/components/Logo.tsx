@@ -4,142 +4,248 @@ interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   showWordmark?: boolean;
   className?: string;
-  variant?: 'emerald' | 'white';
+  variant?: 'dark' | 'light' | 'auto';
 }
 
 export const Logo: React.FC<LogoProps> = ({
   size = 'md',
   showWordmark = true,
   className = '',
-  variant = 'emerald',
+  variant = 'auto',
 }) => {
-  // Dimensões do ícone
-  const dimension =
-    size === 'sm' ? 28 : size === 'md' ? 36 : size === 'lg' ? 44 : 54;
+  // Dimensões do símbolo SVG
+  const iconHeight =
+    size === 'sm' ? 28 : size === 'md' ? 38 : size === 'lg' ? 48 : 64;
+  const iconWidth = Math.round(iconHeight * 1.2);
 
+  // Tipografia da palavra RedijaApp
   const textClass =
     size === 'sm'
-      ? 'text-sm'
+      ? 'text-base'
       : size === 'md'
-        ? 'text-lg'
+        ? 'text-xl'
         : size === 'lg'
-          ? 'text-xl'
-          : 'text-2xl';
+          ? 'text-2xl'
+          : 'text-3xl';
+
+  // Cores do texto baseadas na variante
+  const redijaTextColor =
+    variant === 'dark'
+      ? 'text-white'
+      : variant === 'light'
+        ? 'text-slate-900'
+        : 'text-slate-900 dark:text-white';
 
   return (
-    <div className={`flex items-center gap-2.5 select-none ${className}`}>
-      {/* Símbolo Vetorial do Redija */}
+    <div className={`flex items-center gap-3 select-none ${className}`}>
+      {/* Símbolo Vetorial: R Neoclássico com Gradiente Esmeralda-Ciano + Três Páginas Fanning */}
       <svg
-        width={dimension}
-        height={dimension}
-        viewBox="0 0 48 48"
+        width={iconWidth}
+        height={iconHeight}
+        viewBox="0 0 100 82"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="shrink-0 drop-shadow-xs"
+        className="shrink-0 overflow-visible"
       >
         <defs>
-          {/* Gradiente principal verde esmeralda para verde-azulado acadêmico */}
-          <linearGradient id="redijaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#059669" />
-            <stop offset="100%" stopColor="#0d9488" />
-          </linearGradient>
+          {/* Brilho radial suave ao fundo (Ethereal Glow) */}
+          <radialGradient
+            id="logoGlow"
+            cx="50%"
+            cy="45%"
+            r="55%"
+            fx="50%"
+            fy="45%"
+          >
+            <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.45" />
+            <stop offset="50%" stopColor="#06b6d4" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#0284c7" stopOpacity="0" />
+          </radialGradient>
 
-          {/* Gradiente do papel com brilho suave */}
-          <linearGradient id="pageGrad" x1="20%" y1="0%" x2="80%" y2="100%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#ecfdf5" stopOpacity="0.85" />
-          </linearGradient>
-
-          {/* Gradiente do detalhe da pena de escrita */}
-          <linearGradient id="penAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+          {/* Gradiente principal da letra R (Verde Menta -> Ciano -> Azul Elétrico) */}
+          <linearGradient id="rGrad" x1="12" y1="8" x2="65" y2="65" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor="#34d399" />
-            <stop offset="100%" stopColor="#059669" />
+            <stop offset="28%" stopColor="#10b981" />
+            <stop offset="58%" stopColor="#06b6d4" />
+            <stop offset="85%" stopColor="#0284c7" />
+            <stop offset="100%" stopColor="#2563eb" />
+          </linearGradient>
+
+          {/* Brilho superior / chanfro da haste vertical do R */}
+          <linearGradient id="rSheen" x1="18" y1="8" x2="28" y2="60" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.6" />
+            <stop offset="40%" stopColor="#ffffff" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+
+          {/* Gradiente Página 1 (Inferior / Azul Intenso) */}
+          <linearGradient id="pageGrad1" x1="42" y1="56" x2="78" y2="34" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#0369a1" />
+            <stop offset="45%" stopColor="#0284c7" />
+            <stop offset="100%" stopColor="#38bdf8" />
+          </linearGradient>
+
+          {/* Gradiente Página 2 (Intermediária / Ciano Brilhante) */}
+          <linearGradient id="pageGrad2" x1="44" y1="48" x2="74" y2="20" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#0891b2" />
+            <stop offset="50%" stopColor="#06b6d4" />
+            <stop offset="100%" stopColor="#67e8f9" />
+          </linearGradient>
+
+          {/* Gradiente Página 3 (Superior / Verde Menta Acadêmico) */}
+          <linearGradient id="pageGrad3" x1="44" y1="40" x2="62" y2="10" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#059669" />
+            <stop offset="45%" stopColor="#10b981" />
+            <stop offset="100%" stopColor="#6ee7b7" />
+          </linearGradient>
+
+          {/* Brilho das bordas das páginas */}
+          <linearGradient id="edgeSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.1" />
           </linearGradient>
         </defs>
 
-        {/* Fundo arredondado com efeito Squircle */}
-        <rect
-          width="48"
-          height="48"
-          rx="12"
-          fill={variant === 'white' ? '#ffffff' : 'url(#redijaGrad)'}
-        />
+        {/* Aura de iluminação ambiente (Glow) */}
+        <circle cx="48" cy="38" r="38" fill="url(#logoGlow)" />
 
-        {/* Borda interna sutil */}
-        <rect
-          x="1"
-          y="1"
-          width="46"
-          height="46"
-          rx="11"
-          stroke={variant === 'white' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.2)'}
-          strokeWidth="1.5"
+        {/* ============================================================ */}
+        {/* PÁGINAS DO LIVRO ABERTO (FANNING PAGES)                       */}
+        {/* ============================================================ */}
+
+        {/* Página 3: Superior (Menta / Ciano) */}
+        <g>
+          {/* Corpo da página superior */}
+          <path
+            d="M44 38 C46 32 50 20 58 12 C60 9 62 10 63 13 C61 22 56 32 50 39 Z"
+            fill="url(#pageGrad3)"
+          />
+          {/* Borda externa de luz */}
+          <path
+            d="M44 38 C46 32 50 20 58 12 C60 9 62 10 63 13"
+            stroke="url(#edgeSheen)"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </g>
+
+        {/* Página 2: Intermediária (Ciano / Turquesa) */}
+        <g>
+          {/* Corpo da página intermediária */}
+          <path
+            d="M45 44 C48 37 57 26 70 19 C73 17 74 19 75 22 C70 31 62 40 52 46 Z"
+            fill="url(#pageGrad2)"
+          />
+          {/* Borda externa de luz */}
+          <path
+            d="M45 44 C48 37 57 26 70 19 C73 17 74 19 75 22"
+            stroke="url(#edgeSheen)"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </g>
+
+        {/* Página 1: Inferior (Azul Elétrico / Céu) */}
+        <g>
+          {/* Corpo da página inferior */}
+          <path
+            d="M46 50 C50 44 62 36 78 32 C81 31 82 33 82 36 C76 44 66 51 53 52 Z"
+            fill="url(#pageGrad1)"
+          />
+          {/* Borda externa de luz */}
+          <path
+            d="M46 50 C50 44 62 36 78 32 C81 31 82 33 82 36"
+            stroke="url(#edgeSheen)"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </g>
+
+        {/* ============================================================ */}
+        {/* MONOGRAMA DA LETRA "R" NEOCLÁSSICA ESTILIZADA                 */}
+        {/* ============================================================ */}
+        {/* Sombra / Glow sutil da própria letra */}
+        <path
+          d="M13 14 C17 14 20 16 20 20 L20 56 C20 59 17 61 13 61 L29 61 C25 61 22 59 22 56 L22 36 L34 36 C44 36 50 31 50 23 C50 15 44 10 33 10 L13 10 C10 10 7 8 7 6 L19 6 C17 8 15 11 13 14 Z
+             M22 17 L32 17 C39 17 43 19 43 23 C43 27 39 29 32 29 L22 29 Z"
           fill="none"
         />
 
-        {/* Folha / Página de Documento ABNT (lado esquerdo com orelha dobrada) */}
-        <path
-          d="M13 12C13 10.8954 13.8954 10 15 10H27L35 18V36C35 37.1046 34.1046 38 33 38H15C13.8954 38 13 37.1046 13 36V12Z"
-          fill={variant === 'white' ? '#ecfdf5' : 'rgba(255,255,255,0.18)'}
-        />
+        {/* Letra R completa com traço e curvas fiéis à imagem */}
+        <g>
+          {/* Haste Vertical e Serifas Superior e Inferior */}
+          {/* Corpo principal do R unificado */}
+          <path
+            d="M12 12
+               C 10 9 7 8 6 8
+               L 26 8
+               C 23 8 20 11 20 16
+               L 20 53
+               C 20 57 23 59 26 59
+               L 10 59
+               C 13 59 16 57 16 53
+               L 16 16
+               C 16 13 14 12 12 12
+               Z"
+            fill="url(#rGrad)"
+          />
 
-        {/* Orelha dobrada da página */}
-        <path
-          d="M27 10V16C27 17.1046 27.8954 18 29 18H35L27 10Z"
-          fill={variant === 'white' ? '#10b981' : '#ffffff'}
-          fillOpacity={variant === 'white' ? '0.3' : '0.4'}
-        />
+          {/* Arco Superior do R (Loop / Bojo) */}
+          <path
+            d="M20 14
+               L 34 14
+               C 44 14 49 19 49 26
+               C 49 33 43 37 34 37
+               L 20 37
+               Z"
+            fill="url(#rGrad)"
+          />
 
-        {/* Monograma "R" dinâmico: união do corpo do livro e traço da pena */}
-        {/* Haste vertical do R */}
-        <rect
-          x="18"
-          y="15"
-          width="3.5"
-          height="18"
-          rx="1.75"
-          fill={variant === 'white' ? '#059669' : '#ffffff'}
-        />
+          {/* Vazio Interno do Arco do R (Contorno Branco / Transparente) */}
+          <path
+            d="M22 20
+               L 33 20
+               C 39 20 42 22 42 25.5
+               C 42 29 39 31 33 31
+               L 22 31
+               Z"
+            fill={variant === 'dark' ? '#0b0f19' : variant === 'light' ? '#f8fafc' : 'currentColor'}
+            className={
+              variant === 'auto'
+                ? 'text-slate-50 dark:text-slate-900 transition-colors'
+                : ''
+            }
+          />
 
-        {/* Arco superior do R (formato de elipse aberta) */}
-        <path
-          d="M20 15H26.5C29 15 31 16.8 31 19.5C31 22.2 29 24 26.5 24H20V15Z"
-          fill={variant === 'white' ? '#059669' : '#ffffff'}
-        />
-        {/* Vazio interno do arco do R */}
-        <path
-          d="M21.5 17.8H26C27.2 17.8 28.2 18.5 28.2 19.5C28.2 20.5 27.2 21.2 26 21.2H21.5V17.8Z"
-          fill={variant === 'white' ? '#ecfdf5' : '#077a56'}
-        />
+          {/* Perna Curvada Inferior do R (Swoosh elegante para a direita) */}
+          <path
+            d="M30 35
+               C 36 35 40 40 45 49
+               C 48 55 53 59 62 60
+               C 64 60.3 64 61.5 61 61.5
+               C 51 61.5 45 57 41 50
+               C 37 43 33 38 27 37
+               Z"
+            fill="url(#rGrad)"
+          />
 
-        {/* Perna diagonal do R (estilizada com pena de escrita) */}
-        <path
-          d="M24 23L30.5 32C31 32.7 30.5 33.5 29.5 33.5C29 33.5 28.5 33.2 28.2 32.7L22.5 24.5C23.1 24.1 23.6 23.6 24 23Z"
-          fill={variant === 'white' ? '#047857' : 'url(#pageGrad)'}
-        />
-
-        {/* Ponto / Faísca de precisão tipográfica */}
-        <circle
-          cx="33.5"
-          cy="14.5"
-          r="1.8"
-          fill={variant === 'white' ? '#059669' : '#ffffff'}
-          fillOpacity="0.9"
-        />
+          {/* Chanfro / Brilho de acabamento na haste */}
+          <path
+            d="M16 16 L20 16 L20 53 L16 53 Z"
+            fill="url(#rSheen)"
+            opacity="0.3"
+          />
+        </g>
       </svg>
 
-      {/* Wordmark (Nome da marca + Badge) */}
+      {/* Tipografia Oficial: "Redija" (Branco ou Ardósia) + "App" (Verde Menta) */}
       {showWordmark && (
-        <div className="flex items-center gap-2">
-          <span
-            className={`font-extrabold tracking-tight ${textClass} ${
-              variant === 'white' ? 'text-white' : 'text-slate-900'
-            }`}
-          >
+        <div className="flex items-center tracking-tight font-extrabold">
+          <span className={`${textClass} ${redijaTextColor} font-extrabold tracking-tight`}>
             Redija
           </span>
-          <span className="text-[10px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200/80 shadow-2xs">
-            ABNT
+          <span className={`${textClass} text-emerald-400 font-extrabold tracking-tight`}>
+            App
           </span>
         </div>
       )}

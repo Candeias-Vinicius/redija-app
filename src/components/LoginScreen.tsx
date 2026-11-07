@@ -13,7 +13,8 @@ import {
   HelpCircle,
   AlertTriangle,
   Loader2,
-  FileCheck2,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -28,7 +29,6 @@ interface LoginScreenProps {
 
 interface ShowcaseSlide {
   badge: string;
-  badgeColor: string;
   title: string;
   description: string;
   icon: React.ReactNode;
@@ -45,16 +45,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return document.documentElement.classList.contains('dark');
+  });
 
-  // Conteúdo detalhado dos slides do carrossel (baseado no README do RedijaApp)
+  // Alternador de tema claro/escuro na tela de login
+  const toggleTheme = () => {
+    const nextDark = !isDarkMode;
+    setIsDarkMode(nextDark);
+    if (nextDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('redija:darkMode', '1');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('redija:darkMode', '0');
+    }
+  };
+
+  // Conteúdo detalhado dos slides do carrossel
   const slides: ShowcaseSlide[] = [
     {
       badge: 'Normas ABNT Automáticas',
-      badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
       title: 'Adeus às brigas com margens e sumários manuais',
       description:
         'O Redija cuida de 100% da diagramação normativa em tempo real: margens de 3-3-2-2 cm, citações longas com recuo de 4 cm e referências formatadas pela NBR 6023.',
-      icon: <BookOpen className="w-8 h-8 text-emerald-600" />,
+      icon: <BookOpen className="w-6 h-6 text-emerald-400" />,
       highlights: [
         'Capa, folha de rosto e folha de aprovação automáticas',
         'Citações diretas curtas e longas com regras da NBR 10520',
@@ -63,11 +78,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     },
     {
       badge: 'Motor Tipográfico Typst WASM',
-      badgeColor: 'bg-teal-100 text-teal-800 border-teal-200',
       title: 'Compilação instantânea do PDF direto no navegador',
       description:
         'Chega de esperar minutos ou decifrar erros crípticos do LaTeX. O Redija compila seu trabalho com o motor Typst em WebAssembly com visualização ao vivo lado a lado.',
-      icon: <Zap className="w-8 h-8 text-teal-600" />,
+      icon: <Zap className="w-6 h-6 text-teal-400" />,
       highlights: [
         'Renderização do PDF em milissegundos sem servidores externos',
         'Zoom de 50% a 200% e inspeção de código fonte em abas',
@@ -76,11 +90,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     },
     {
       badge: 'Colaboração P2P em Tempo Real',
-      badgeColor: 'bg-blue-100 text-blue-800 border-blue-200',
       title: 'Escreva simultaneamente com seu orientador ou grupo',
       description:
         'Conexão direta WebRTC entre navegadores: veja os avatares dos colegas online e acompanhe quem está editando cada parágrafo com cursores ao vivo.',
-      icon: <Users className="w-8 h-8 text-blue-600" />,
+      icon: <Users className="w-6 h-6 text-blue-400" />,
       highlights: [
         'Comunicação direta ponto a ponto (P2P) sem intermediários',
         'Mesclagem inteligente com timestamps por bloco (Auto-Merge)',
@@ -89,11 +102,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     },
     {
       badge: 'Total Liberdade de Formatos',
-      badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
       title: 'Importe do Word ou Overleaf e exporte tudo em ZIP',
       description:
         'Traga documentos Word (.docx) com tabelas e imagens, importe projetos inteiros do Overleaf (.zip), ou exporte seu projeto Typst completo com referências BibTeX.',
-      icon: <FolderSync className="w-8 h-8 text-amber-600" />,
+      icon: <FolderSync className="w-6 h-6 text-amber-400" />,
       highlights: [
         'Conversão inteligente de .docx preservando seções e figuras',
         'Leitor automático de pacotes .zip do Redija ou LaTeX',
@@ -102,11 +114,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     },
     {
       badge: 'Nuvem Pessoal & Privacidade',
-      badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
       title: 'Seus dados protegidos no seu próprio Google Drive',
       description:
         'Arquitetura Local-First transparente: o documento fica salvo no cache local do seu computador para você escrever offline e sincroniza com a sua conta Google pessoal.',
-      icon: <Cloud className="w-8 h-8 text-emerald-600" />,
+      icon: <Cloud className="w-6 h-6 text-emerald-400" />,
       highlights: [
         'Zero custo com servidores de banco de dados proprietários',
         'Total conformidade com privacidade e posse total dos seus arquivos',
@@ -127,14 +138,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const activeSlide = slides[currentSlide];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-between selection:bg-emerald-200 selection:text-emerald-900 relative overflow-hidden">
-      {/* Luzes de fundo sutis (Glow ambiente claro) */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-200/40 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/2 -right-32 w-96 h-96 bg-teal-200/30 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 flex flex-col justify-between selection:bg-emerald-200 dark:selection:bg-emerald-950 selection:text-emerald-900 dark:selection:text-emerald-200 relative overflow-hidden transition-colors duration-300">
+      {/* Luzes de fundo sutis (Glow ambiente para tema claro e escuro) */}
+      <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-200/40 dark:bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 -right-32 w-96 h-96 bg-teal-200/30 dark:bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Botão de alternar tema no canto superior direito */}
+      <div className="absolute top-4 right-4 z-20">
+        <button
+          onClick={toggleTheme}
+          className="p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800 shadow-xs transition-colors"
+          title={isDarkMode ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
+        >
+          {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+        </button>
+      </div>
 
       {/* Conteúdo Principal Split-Screen */}
       <main className="relative z-10 flex-1 flex items-center justify-center p-4 md:p-8 lg:p-12">
-        <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 rounded-3xl bg-white/80 backdrop-blur-xl border border-slate-200/80 shadow-2xl shadow-slate-200/60 overflow-hidden min-h-[640px]">
+        <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-2xl shadow-slate-200/60 dark:shadow-black/50 overflow-hidden min-h-[640px] transition-colors">
           {/* ============================================================ */}
           {/* LADO ESQUERDO: SHOWCASE DA PLATAFORMA & CARROSSEL DE RECURSOS */}
           {/* ============================================================ */}
@@ -145,15 +167,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           >
             {/* Efeito decorativo sutil no fundo escuro */}
             <div className="absolute -top-24 -right-24 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
-            {/* Cabeçalho de Marca Único (Aqui vive o Logo principal) */}
+            {/* Cabeçalho de Marca Único: Logotipo oficial RedijaApp */}
             <div className="relative z-10 flex items-center justify-between">
-              <Logo size="md" variant="white" />
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium bg-emerald-500/15 border border-emerald-400/30 text-emerald-300">
-                <FileCheck2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Normas ABNT 14724 & 6023</span>
-              </span>
+              <Logo size="md" variant="dark" />
             </div>
 
             {/* Conteúdo Dinâmico do Slide do Carrossel */}
@@ -228,26 +246,26 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           {/* ============================================================ */}
           {/* LADO DIREITO: CARD DE AUTENTICAÇÃO LIMPO (SEM REPETIR O LOGO) */}
           {/* ============================================================ */}
-          <div className="lg:col-span-5 bg-white p-8 md:p-12 flex flex-col justify-between">
+          <div className="lg:col-span-5 bg-white dark:bg-slate-900/95 p-8 md:p-12 flex flex-col justify-between transition-colors">
             {/* Topo do Card de Login */}
             <div className="space-y-6">
               <div className="space-y-2">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>Acesso Acadêmico</span>
                 </div>
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                   Entre no seu espaço
                 </h1>
-                <p className="text-xs md:text-sm text-slate-500 leading-relaxed">
+                <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
                   Conecte sua conta para carregar seus trabalhos sincronizados com segurança no Google Drive.
                 </p>
               </div>
 
               {/* Mensagem de Erro, se houver */}
               {error && (
-                <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 space-y-1">
-                  <p className="font-semibold flex items-center gap-1.5 text-red-800">
+                <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300 space-y-1">
+                  <p className="font-semibold flex items-center gap-1.5 text-red-800 dark:text-red-200">
                     <AlertTriangle className="w-4 h-4 shrink-0" />
                     <span>Erro de Autenticação</span>
                   </p>
@@ -257,12 +275,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
               {/* Alerta se Client ID não configurado no .env */}
               {!isConfigured && (
-                <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 space-y-2">
-                  <p className="font-semibold flex items-center gap-1.5 text-amber-900">
-                    <HelpCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200 space-y-2">
+                  <p className="font-semibold flex items-center gap-1.5 text-amber-900 dark:text-amber-100">
+                    <HelpCircle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
                     <span>Modo de Desenvolvimento</span>
                   </p>
-                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
                     Para testes rápidos locais sem credencial Google Cloud:
                   </p>
                   <button
@@ -279,11 +297,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               <button
                 onClick={() => onLogin()}
                 disabled={isLoading}
-                className="w-full py-3.5 px-4 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-sm transition-all shadow-sm hover:shadow-md disabled:opacity-50 flex items-center justify-center gap-3 relative group"
+                className="w-full py-3.5 px-4 rounded-xl border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-800 dark:text-white font-semibold text-sm transition-all shadow-sm hover:shadow-md disabled:opacity-50 flex items-center justify-center gap-3 relative group"
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
                     <span>Conectando com o Google...</span>
                   </>
                 ) : (
@@ -316,7 +334,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               <div className="pt-2 text-center">
                 <button
                   onClick={onContinueAsGuest}
-                  className="text-xs text-slate-500 hover:text-emerald-700 transition-colors font-medium"
+                  className="text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors font-medium"
                 >
                   Prefere testar sem conta agora?{' '}
                   <span className="underline font-semibold">Continuar como Convidado</span>
@@ -325,13 +343,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </div>
 
             {/* Garantias de Segurança e Privacidade no Rodapé do Card */}
-            <div className="pt-6 border-t border-slate-100 space-y-2.5">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+              <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span className="font-medium">100% Gratuito: sem planos ou assinaturas</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <Cloud className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                <Cloud className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span className="font-medium">Arquivos salvos no seu próprio Google Drive</span>
               </div>
             </div>
@@ -340,7 +358,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       </main>
 
       {/* Rodapé da Página */}
-      <footer className="relative z-10 py-4 px-6 text-center text-xs text-slate-400">
+      <footer className="relative z-10 py-4 px-6 text-center text-xs text-slate-400 dark:text-slate-500">
         <p>RedijaApp: Editor Acadêmico Normatizado com Motor Typst WASM • Todos os direitos reservados.</p>
       </footer>
     </div>
