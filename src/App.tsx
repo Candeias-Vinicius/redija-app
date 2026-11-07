@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Editor } from '@/components/Editor';
@@ -39,6 +39,13 @@ import {
 
 const fallbackInitialProject = createProjectFromTemplate('tcc');
 
+interface HistorySnapshot {
+  metadata: DocumentMetadata;
+  blocks: Block[];
+  references: AcademicReference[];
+  templateConfig?: TemplateConfig;
+}
+
 export const App: React.FC = () => {
   const [project, setProject] = useState<DocumentProject>(fallbackInitialProject);
   const [projects, setProjects] = useState<DocumentProject[]>([fallbackInitialProject]);
@@ -51,6 +58,31 @@ export const App: React.FC = () => {
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  // Histórico Undo / Redo (Ctrl+Z / Ctrl+Y)
+  const [past, setPast] = useState<HistorySnapshot[]>([]);
+  const [future, setFuture] = useState<HistorySnapshot[]>([]);
+  const lastHistoryPushTimeRef = useRef<number>(0);
+
+  // Largura redimensionável das abas (Sidebar e PDF Preview)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem('redija:sidebarWidth'));
+      return saved >= 240 && saved <= 520 ? saved : 320;
+    } catch {
+      return 320;
+    }
+  });
+  const [previewWidth, setPreviewWidth] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem('redija:previewWidth'));
+      return saved >= 320 && saved <= 820 ? saved : 500;
+    } catch {
+      return 500;
+    }
+  });
+  const [resizingPane, setResizingPane] = useState<'sidebar' | 'preview' | null>(null);
+
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try {
       return localStorage.getItem('redija:darkMode') === '1';
@@ -72,6 +104,143 @@ export const App: React.FC = () => {
       // Ignorar se localStorage estiver bloqueado
     }
   }, [darkMode]);
+
+  // Persistir larguras das abas e tratar arraste dos divisores
+  useEffect(() => {
+    if (!resizingPane) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (resizingPane === 'sidebar') {
+        const nextWidth = Math.max(240, Math.min(520, e.clientX));
+        setSidebarWidth(nextWidth);
+        try {
+          localStorage.setItem('redija:sidebarWidth', String(nextWidth));
+        } catch {
+          // ignore
+        }
+      } else if (resizingPane === 'preview') {
+        const nextWidth = Math.max(320, Math.min(820, window.innerWidth - e.clientX));
+        setPreviewWidth(nextWidth);
+        try {
+          localStorage.setItem('redija:previewWidth', String(nextWidth));
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      setResizingPane(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingPane]);
+
+  const recordHistorySnapshot = useCallback((currentProj: DocumentProject, forceNewEntry = false) => {
+    const now = Date.now();
+    const snapshot: HistorySnapshot = {
+      metadata: currentProj.metadata,
+      blocks: currentProj.blocks,
+      references: currentProj.references,
+      templateConfig: currentProj.templateConfig,
+    };
+
+    setPast((prev) => {
+      // Agrupa digitações rápidas em intervalos de 900ms para que Ctrl+Z desfaça frases/ações inteiras
+      if (!forceNewEntry && now - lastHistoryPushTimeRef.current < 900 && prev.length > 0) {
+        return prev;
+      }
+      lastHistoryPushTimeRef.current = now;
+      return [...prev.slice(-49), snapshot];
+    });
+    setFuture([]);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    setPast((prevPast) => {
+      if (prevPast.length === 0) return prevPast;
+      const previous = prevPast[prevPast.length - 1];
+      const nextPast = prevPast.slice(0, -1);
+
+      setProject((currentProj) => {
+        setFuture((prevFuture) => [
+          {
+            metadata: currentProj.metadata,
+            blocks: currentProj.blocks,
+            references: currentProj.references,
+            templateConfig: currentProj.templateConfig,
+          },
+          ...prevFuture.slice(0, 49),
+        ]);
+        return {
+          ...currentProj,
+          metadata: previous.metadata,
+          blocks: previous.blocks,
+          references: previous.references,
+          templateConfig: previous.templateConfig,
+        };
+      });
+
+      return nextPast;
+    });
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    setFuture((prevFuture) => {
+      if (prevFuture.length === 0) return prevFuture;
+      const next = prevFuture[0];
+      const remainingFuture = prevFuture.slice(1);
+
+      setProject((currentProj) => {
+        setPast((prevPast) => [
+          ...prevPast.slice(-49),
+          {
+            metadata: currentProj.metadata,
+            blocks: currentProj.blocks,
+            references: currentProj.references,
+            templateConfig: currentProj.templateConfig,
+          },
+        ]);
+        return {
+          ...currentProj,
+          metadata: next.metadata,
+          blocks: next.blocks,
+          references: next.references,
+          templateConfig: next.templateConfig,
+        };
+      });
+
+      return remainingFuture;
+    });
+  }, []);
+
+  // Atalhos globais de teclado Ctrl+Z e Ctrl+Y / Ctrl+Shift+Z
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const key = e.key.toLowerCase();
+
+      if (key === 'z' && !e.shiftKey) {
+        if (past.length > 0) {
+          e.preventDefault();
+          handleUndo();
+        }
+      } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
+        if (future.length > 0) {
+          e.preventDefault();
+          handleRedo();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [past.length, future.length, handleUndo, handleRedo]);
 
   const skipNextAutoSaveRef = useRef(true);
 
@@ -127,33 +296,61 @@ export const App: React.FC = () => {
   }, [project, isStorageReady]);
 
   const handleMetadataChange = (metadata: DocumentMetadata) => {
-    setProject((prev) => ({ ...prev, metadata }));
+    setProject((prev) => {
+      recordHistorySnapshot(prev);
+      return { ...prev, metadata };
+    });
   };
 
   const handleTemplateConfigChange = (templateConfig: TemplateConfig) => {
-    setProject((prev) => ({ ...prev, templateConfig }));
+    setProject((prev) => {
+      recordHistorySnapshot(prev, true);
+      return { ...prev, templateConfig };
+    });
   };
 
   const handleBlocksChange = (blocks: Block[]) => {
-    setProject((prev) => ({ ...prev, blocks }));
+    setProject((prev) => {
+      const isStructuralChange = blocks.length !== prev.blocks.length;
+      recordHistorySnapshot(prev, isStructuralChange);
+      return { ...prev, blocks };
+    });
   };
 
   const handleAddReference = (ref: AcademicReference) => {
-    setProject((prev) => ({
-      ...prev,
-      references: [...prev.references, ref],
-    }));
+    setProject((prev) => {
+      recordHistorySnapshot(prev, true);
+      return {
+        ...prev,
+        references: [...prev.references, ref],
+      };
+    });
+  };
+
+  const handleAddMultipleReferences = (refs: AcademicReference[]) => {
+    setProject((prev) => {
+      recordHistorySnapshot(prev, true);
+      return {
+        ...prev,
+        references: [...prev.references, ...refs],
+      };
+    });
   };
 
   const handleRemoveReference = (id: string) => {
-    setProject((prev) => ({
-      ...prev,
-      references: prev.references.filter((r) => r.id !== id),
-    }));
+    setProject((prev) => {
+      recordHistorySnapshot(prev, true);
+      return {
+        ...prev,
+        references: prev.references.filter((r) => r.id !== id),
+      };
+    });
   };
 
   const handleSelectProject = (selected: DocumentProject) => {
     skipNextAutoSaveRef.current = true;
+    setPast([]);
+    setFuture([]);
     setProject(selected);
     setActiveProjectId(selected.id);
   };
@@ -167,6 +364,8 @@ export const App: React.FC = () => {
     const all = await listProjects();
     setProjects(all);
     skipNextAutoSaveRef.current = true;
+    setPast([]);
+    setFuture([]);
     setProject(newProj);
     setActiveProjectId(newProj.id);
   };
@@ -300,6 +499,10 @@ export const App: React.FC = () => {
         saveStatus={saveStatus}
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode((prev) => !prev)}
+        canUndo={past.length > 0}
+        canRedo={future.length > 0}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
         onOpenProjectsModal={() => setIsProjectsModalOpen(true)}
         onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
         onOpenWelcomeModal={() => setIsWelcomeModalOpen(true)}
@@ -319,7 +522,25 @@ export const App: React.FC = () => {
           references={project.references}
           onOpenReferenceModal={() => setIsModalOpen(true)}
           onRemoveReference={handleRemoveReference}
+          onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
+          widthPx={sidebarWidth}
         />
+
+        {/* Divisor Redimensionável: Sidebar <-> Editor */}
+        <div
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setResizingPane('sidebar');
+          }}
+          title="Arraste para redimensionar a barra lateral"
+          className={`w-1.5 cursor-col-resize shrink-0 flex items-center justify-center transition-colors group ${
+            resizingPane === 'sidebar'
+              ? 'bg-emerald-500'
+              : 'bg-neutral-200/60 hover:bg-emerald-500/60'
+          }`}
+        >
+          <div className="w-0.5 h-8 rounded-full bg-neutral-400/60 group-hover:bg-white" />
+        </div>
 
         {/* Centro: Editor Visual Estilo Notion */}
         <Editor
@@ -330,10 +551,27 @@ export const App: React.FC = () => {
           onChangeBlocks={handleBlocksChange}
         />
 
+        {/* Divisor Redimensionável: Editor <-> Preview PDF */}
+        <div
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setResizingPane('preview');
+          }}
+          title="Arraste para redimensionar o painel do PDF e o editor"
+          className={`w-1.5 cursor-col-resize shrink-0 flex items-center justify-center transition-colors group ${
+            resizingPane === 'preview'
+              ? 'bg-emerald-500'
+              : 'bg-neutral-200/60 hover:bg-emerald-500/60'
+          }`}
+        >
+          <div className="w-0.5 h-8 rounded-full bg-neutral-400/60 group-hover:bg-white" />
+        </div>
+
         {/* Painel Direito: Preview A4 ABNT ou Código Typst */}
         <PdfPreview
           project={project}
           showCode={showCode}
+          widthPx={previewWidth}
         />
       </div>
 
@@ -341,6 +579,7 @@ export const App: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onAddReference={handleAddReference}
+        onAddMultipleReferences={handleAddMultipleReferences}
       />
 
       <ProjectsModal

@@ -11,6 +11,8 @@ import {
   Sliders,
   Moon,
   Sun,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -19,6 +21,10 @@ interface HeaderProps {
   saveStatus: 'saved' | 'saving';
   darkMode: boolean;
   onToggleDarkMode: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
   onOpenProjectsModal: () => void;
   onOpenTemplateCustomizer: () => void;
   onOpenWelcomeModal: () => void;
@@ -35,6 +41,10 @@ export const Header: React.FC<HeaderProps> = ({
   saveStatus,
   darkMode,
   onToggleDarkMode,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
   onOpenProjectsModal,
   onOpenTemplateCustomizer,
   onOpenWelcomeModal,
@@ -75,6 +85,28 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
           <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
         </button>
+
+        {/* Botões Desfazer / Refazer (Ctrl+Z / Ctrl+Y) */}
+        <div className="flex items-center gap-0.5 ml-1 pl-2 border-l border-neutral-200">
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={!canUndo}
+            className="p-1.5 rounded-md text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            title="Desfazer alteração no documento (Ctrl+Z)"
+          >
+            <Undo2 className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onRedo}
+            disabled={!canRedo}
+            className="p-1.5 rounded-md text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            title="Refazer alteração no documento (Ctrl+Y)"
+          >
+            <Redo2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

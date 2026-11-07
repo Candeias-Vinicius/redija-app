@@ -22,8 +22,6 @@ import {
   Plus,
   Trash2,
   GripVertical,
-  ArrowUp,
-  ArrowDown,
   Upload,
   Search,
   X,
@@ -214,6 +212,9 @@ export const Editor: React.FC<EditorProps> = ({
   const [menuSearch, setMenuSearch] = useState('');
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [citationTriggerByBlock, setCitationTriggerByBlock] = useState<Record<string, number>>({});
+  const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null);
+  const [dragOverBlockId, setDragOverBlockId] = useState<string | null>(null);
+  const [dragImageBlockId, setDragImageBlockId] = useState<string | null>(null);
 
   const updateBlockContent = (id: string, content: string) => {
     onChangeBlocks(blocks.map((b) => (b.id === id ? { ...b, content } : b)));
@@ -257,13 +258,14 @@ export const Editor: React.FC<EditorProps> = ({
     }
   };
 
-  const moveBlock = (id: string, direction: -1 | 1) => {
-    const index = blocks.findIndex((b) => b.id === id);
-    const targetIndex = index + direction;
-    if (index === -1 || targetIndex < 0 || targetIndex >= blocks.length) return;
+  const reorderBlocksById = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const fromIdx = blocks.findIndex((b) => b.id === sourceId);
+    const toIdx = blocks.findIndex((b) => b.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
     const next = [...blocks];
-    const [moved] = next.splice(index, 1);
-    next.splice(targetIndex, 0, moved);
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
     onChangeBlocks(next);
   };
 
@@ -303,6 +305,7 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   const handleImageUpload = (blockId: string, file: File) => {
+    if (!file.type.startsWith('image/')) return;
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
@@ -313,6 +316,13 @@ export const Editor: React.FC<EditorProps> = ({
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleClearImage = (blockId: string) => {
+    updateBlockMeta(blockId, {
+      imageDataUrl: undefined,
+      imageMime: undefined,
+    });
   };
 
   // Calcula numeração progressiva automática (1 a 1.1.1.1.1 — NBR 6024) para exibição visual no editor
@@ -388,10 +398,31 @@ export const Editor: React.FC<EditorProps> = ({
           <span>{blocks.length} blocos</span>
         </div>
 
-        {blocks.map((block, idx) => (
+        {blocks.map((block) => (
           <div
             key={block.id}
-            className="group relative flex items-start gap-2.5 -ml-24 pl-24 pr-3 py-1.5 rounded-lg transition-colors hover:bg-neutral-50/80"
+            onDragOver={(e) => {
+              if (!draggedBlockId || draggedBlockId === block.id) return;
+              e.preventDefault();
+              setDragOverBlockId(block.id);
+            }}
+            onDragLeave={() => {
+              if (dragOverBlockId === block.id) setDragOverBlockId(null);
+            }}
+            onDrop={(e) => {
+              if (!draggedBlockId) return;
+              e.preventDefault();
+              reorderBlocksById(draggedBlockId, block.id);
+              setDraggedBlockId(null);
+              setDragOverBlockId(null);
+            }}
+            className={`group relative flex items-start gap-2.5 -ml-24 pl-24 pr-3 py-1.5 rounded-lg transition-all hover:bg-neutral-50/80 ${
+              draggedBlockId === block.id ? 'opacity-40' : ''
+            } ${
+              dragOverBlockId === block.id
+                ? 'border-t-2 border-emerald-500 bg-emerald-50/30'
+                : ''
+            }`}
           >
             {/* Controles laterais do bloco (ficam na margem esquerda dedicada, nunca sobre o texto) */}
             <div className="absolute left-2 top-1.5 w-20 opacity-0 group-hover:opacity-100 flex items-center justify-end gap-0.5 pr-1 text-neutral-400 transition-opacity select-none">
@@ -405,35 +436,24 @@ export const Editor: React.FC<EditorProps> = ({
               </button>
               <button
                 type="button"
+                draggable
+                onDragStart={(e) => {
+                  setDraggedBlockId(block.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragEnd={() => {
+                  setDraggedBlockId(null);
+                  setDragOverBlockId(null);
+                }}
                 onClick={() => {
                   setActiveMenuBlockId(activeMenuBlockId === block.id ? null : block.id);
                   setMenuSearch('');
                 }}
-                className="p-1 hover:text-neutral-800 hover:bg-neutral-100 rounded"
-                title="Mudar tipo de bloco (/)"
+                className="p-1 cursor-grab active:cursor-grabbing hover:text-neutral-800 hover:bg-neutral-100 rounded"
+                title="Arraste para reordenar ou clique para mudar o tipo de bloco (/)"
               >
                 <GripVertical className="w-3.5 h-3.5" />
               </button>
-              <div className="flex flex-col">
-                <button
-                  type="button"
-                  disabled={idx === 0}
-                  onClick={() => moveBlock(block.id, -1)}
-                  className="p-0.5 hover:text-neutral-800 disabled:opacity-25"
-                  title="Mover para cima"
-                >
-                  <ArrowUp className="w-2.5 h-2.5" />
-                </button>
-                <button
-                  type="button"
-                  disabled={idx === blocks.length - 1}
-                  onClick={() => moveBlock(block.id, 1)}
-                  className="p-0.5 hover:text-neutral-800 disabled:opacity-25"
-                  title="Mover para baixo"
-                >
-                  <ArrowDown className="w-2.5 h-2.5" />
-                </button>
-              </div>
               {blocks.length > 1 && (
                 <button
                   type="button"
@@ -777,8 +797,49 @@ export const Editor: React.FC<EditorProps> = ({
               )}
 
               {block.type === 'image' && (
-                <div className="border border-neutral-200 rounded-xl p-4 bg-neutral-50/70 space-y-3">
-                  <div className="flex items-center justify-between text-xs text-neutral-500">
+                <div
+                  tabIndex={0}
+                  onPaste={(e) => {
+                    const items = e.clipboardData?.items;
+                    if (!items) return;
+                    for (const item of Array.from(items)) {
+                      if (item.type.startsWith('image/')) {
+                        const file = item.getAsFile();
+                        if (file) {
+                          e.preventDefault();
+                          handleImageUpload(block.id, file);
+                          break;
+                        }
+                      }
+                    }
+                  }}
+                  onDragOver={(e) => {
+                    if (draggedBlockId) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDragImageBlockId(block.id);
+                  }}
+                  onDragLeave={(e) => {
+                    e.stopPropagation();
+                    if (dragImageBlockId === block.id) setDragImageBlockId(null);
+                  }}
+                  onDrop={(e) => {
+                    if (draggedBlockId) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDragImageBlockId(null);
+                    const file = e.dataTransfer?.files?.[0];
+                    if (file && file.type.startsWith('image/')) {
+                      handleImageUpload(block.id, file);
+                    }
+                  }}
+                  className={`border rounded-xl p-4 bg-neutral-50/70 space-y-3 transition-colors focus:outline-none ${
+                    dragImageBlockId === block.id
+                      ? 'border-blue-500 bg-blue-50/40 ring-2 ring-blue-400'
+                      : 'border-neutral-200'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
                     <span className="font-semibold text-neutral-700 flex items-center gap-1.5">
                       <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
                       Figura ABNT (NBR 14724 — Legenda acima, fonte abaixo)
@@ -798,12 +859,15 @@ export const Editor: React.FC<EditorProps> = ({
                         <option value={75}>Largura: 75%</option>
                         <option value={100}>Largura: 100%</option>
                       </select>
+
                       <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-neutral-200 hover:bg-neutral-100 text-neutral-700 font-medium text-[11px] shadow-2xs">
                         <Upload className="w-3 h-3 text-blue-600" />
-                        <span>{block.meta?.imageDataUrl ? 'Trocar imagem' : 'Enviar imagem'}</span>
+                        <span>
+                          {block.meta?.imageDataUrl ? 'Trocar imagem' : 'Upload de imagem'}
+                        </span>
                         <input
                           type="file"
-                          accept="image/png,image/jpeg,image/svg+xml,image/gif"
+                          accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) handleImageUpload(block.id, file);
@@ -811,6 +875,18 @@ export const Editor: React.FC<EditorProps> = ({
                           className="hidden"
                         />
                       </label>
+
+                      {block.meta?.imageDataUrl && (
+                        <button
+                          type="button"
+                          onClick={() => handleClearImage(block.id)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white border border-red-200 hover:bg-red-50 text-red-600 font-medium text-[11px] transition-colors"
+                          title="Remover apenas a imagem (mantendo o bloco e as legendas)"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Remover imagem</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -828,7 +904,7 @@ export const Editor: React.FC<EditorProps> = ({
                     />
                   </div>
 
-                  {/* Preview da Imagem ou Espaço Reservado */}
+                  {/* Preview da Imagem ou Área de Arrastar e Colar */}
                   {block.meta?.imageDataUrl ? (
                     <div className="relative bg-white p-2 rounded-lg border border-neutral-200 flex justify-center">
                       <img
@@ -838,10 +914,24 @@ export const Editor: React.FC<EditorProps> = ({
                       />
                     </div>
                   ) : (
-                    <div className="w-full h-24 bg-neutral-100 border border-dashed border-neutral-300 rounded-lg flex flex-col items-center justify-center text-neutral-400 text-xs">
-                      <ImageIcon className="w-5 h-5 mb-1" />
-                      <span>Nenhuma imagem enviada (um quadro de espaço reservado será exibido no PDF)</span>
-                    </div>
+                    <label className="w-full h-28 bg-neutral-100 hover:bg-neutral-200/50 border border-dashed border-neutral-300 rounded-lg flex flex-col items-center justify-center text-neutral-400 text-xs cursor-pointer transition-colors px-4 text-center">
+                      <Upload className="w-5 h-5 mb-1.5 text-blue-600" />
+                      <span className="font-medium text-neutral-600">
+                        Clique para Upload de imagem, arraste o arquivo aqui ou cole (Ctrl+V)
+                      </span>
+                      <span className="text-[11px] text-neutral-400 mt-0.5">
+                        Suporta PNG, JPG, WebP, SVG
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageUpload(block.id, file);
+                        }}
+                        className="hidden"
+                      />
+                    </label>
                   )}
 
                   {/* Fonte na base */}

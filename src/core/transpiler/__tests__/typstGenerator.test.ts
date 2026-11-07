@@ -21,8 +21,10 @@ import {
 } from '../typstGenerator';
 import {
   countWords,
+  exportToBibtex,
   formatShortCitation,
   getPrimarySurname,
+  parseBibtex,
   runAbntLinter,
 } from '../abntLinter';
 import { DocumentProject } from '@/types/document';
@@ -247,6 +249,41 @@ describe('typstGenerator helpers', () => {
     expect(warnings.some((w) => w.id === 'uncited-ref-r2')).toBe(true);
     // SILVA foi citado no bloco quote_long, logo não deve aparecer como não citado
     expect(warnings.some((w) => w.id === 'uncited-ref-r1')).toBe(false);
+  });
+
+  it('parses and exports BibTeX (.bib) references accurately', () => {
+    const sampleBib = `
+@article{silva2024,
+  author = {Silva, Roberto and Souza, Maria},
+  title = {Inteligência Artificial na Educação},
+  journal = {Revista Brasileira de Informática},
+  year = {2024},
+  volume = {12},
+  number = {3},
+  pages = {45--60},
+  doi = {10.1000/rbi.2024}
+}
+
+@book{knuth1997,
+  author = {Donald E. Knuth},
+  title = {The Art of Computer Programming},
+  publisher = {Addison-Wesley},
+  address = {Reading},
+  year = {1997}
+}
+`;
+    const parsed = parseBibtex(sampleBib);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].type).toBe('article');
+    expect(parsed[0].authors).toContain('SILVA, Roberto');
+    expect(parsed[0].journal).toBe('Revista Brasileira de Informática');
+    expect(parsed[1].type).toBe('book');
+    expect(parsed[1].authors).toContain('KNUTH');
+
+    const exported = exportToBibtex(parsed);
+    expect(exported).toContain('@article{');
+    expect(exported).toContain('@book{');
+    expect(exported).toContain('Inteligência Artificial na Educação');
   });
 });
 

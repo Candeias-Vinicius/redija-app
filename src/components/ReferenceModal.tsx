@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { AcademicReference, ReferenceType } from '@/types/document';
-import { lookupByDoiOrIsbn } from '@/core/transpiler/abntLinter';
-import { X, BookmarkPlus, Search, Loader2, Sparkles } from 'lucide-react';
+import { lookupByDoiOrIsbn, parseBibtex } from '@/core/transpiler/abntLinter';
+import { X, BookmarkPlus, Search, Loader2, Sparkles, Upload, FileCode2 } from 'lucide-react';
 
 interface ReferenceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddReference: (ref: AcademicReference) => void;
+  onAddMultipleReferences?: (refs: AcademicReference[]) => void;
 }
 
 const REFERENCE_TYPES: Array<{ value: ReferenceType; label: string }> = [
@@ -21,7 +22,13 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
   isOpen,
   onClose,
   onAddReference,
+  onAddMultipleReferences,
 }) => {
+  const [activeTab, setActiveTab] = useState<'form' | 'bibtex'>('form');
+  const [bibText, setBibText] = useState('');
+  const [bibError, setBibError] = useState<string | null>(null);
+  const bibFileRef = useRef<HTMLInputElement>(null);
+
   const [type, setType] = useState<ReferenceType>('book');
   const [doiQuery, setDoiQuery] = useState('');
   const [isLookingUp, setIsLookingUp] = useState(false);
@@ -115,10 +122,36 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
     onClose();
   };
 
+  const handleBibImport = () => {
+    setBibError(null);
+    const parsed = parseBibtex(bibText);
+    if (parsed.length === 0) {
+      setBibError('Nenhuma entrada BibTeX (@article, @book, etc.) válida encontrada no texto.');
+      return;
+    }
+    if (onAddMultipleReferences) {
+      onAddMultipleReferences(parsed);
+    } else {
+      parsed.forEach((r) => onAddReference(r));
+    }
+    setBibText('');
+    onClose();
+  };
+
+  const handleBibFileUpload = async (file: File) => {
+    try {
+      const content = await file.text();
+      setBibText(content);
+      setBibError(null);
+    } catch {
+      setBibError('Não foi possível ler o arquivo .bib selecionado.');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full border border-neutral-200 overflow-hidden max-h-[90vh] flex flex-col">
-        <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between bg-neutral-50">
+        <div className="px-5 py-3.5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50">
           <div className="flex items-center gap-2">
             <BookmarkPlus className="w-4 h-4 text-emerald-600" />
             <h3 className="font-semibold text-sm text-neutral-900">
@@ -133,7 +166,100 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
           </button>
         </div>
 
-        {/* Busca Automática por DOI ou ISBN */}
+        {/* Seletor de Abas: Manual / DOI / ISBN vs Importar BibTeX (.bib) */}
+        <div className="px-5 pt-2.5 bg-neutral-50 border-b border-neutral-200 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('form')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-t-lg border-b-2 transition-colors ${
+              activeTab === 'form'
+                ? 'border-emerald-600 text-emerald-700 bg-white'
+                : 'border-transparent text-neutral-500 hover:text-neutral-800'
+            }`}
+          >
+            DOI / ISBN ou Manual
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('bibtex')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg border-b-2 transition-colors ${
+              activeTab === 'bibtex'
+                ? 'border-emerald-600 text-emerald-700 bg-white'
+                : 'border-transparent text-neutral-500 hover:text-neutral-800'
+            }`}
+          >
+            <FileCode2 className="w-3.5 h-3.5" />
+            <span>Importar .bib (BibTeX)</span>
+          </button>
+        </div>
+
+        {activeTab === 'bibtex' ? (
+          <div className="p-5 space-y-4 text-xs flex-1 overflow-y-auto">
+            <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200 text-neutral-700 space-y-2">
+              <p className="font-medium text-emerald-900">
+                Importe referências do Google Acadêmico, SciELO, Zotero, Mendeley ou Lattes
+              </p>
+              <p className="text-[11px] text-neutral-600 leading-relaxed">
+                Envie um arquivo <code className="font-mono">.bib</code> com dezenas de obras de uma só vez ou cole o código BibTeX abaixo.
+              </p>
+              <div>
+                <input
+                  ref={bibFileRef}
+                  type="file"
+                  accept=".bib,.txt"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleBibFileUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => bibFileRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-neutral-300 hover:border-emerald-500 text-neutral-800 font-medium text-xs shadow-2xs transition-colors"
+                >
+                  <Upload className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Selecionar arquivo .bib do computador</span>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-neutral-600 font-medium mb-1">
+                Ou cole o conteúdo BibTeX aqui:
+              </label>
+              <textarea
+                rows={8}
+                value={bibText}
+                onChange={(e) => setBibText(e.target.value)}
+                placeholder={'@article{silva2023,\n  author = {Silva, Roberto and Souza, Maria},\n  title = {Tipografia Digital},\n  journal = {Revista Brasileira},\n  year = {2023}\n}'}
+                className="w-full font-mono text-xs p-3 border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+              />
+              {bibError && <p className="text-[11px] text-red-600 mt-1">{bibError}</p>}
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2 border-t border-neutral-100">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3 py-1.5 text-neutral-600 hover:bg-neutral-100 rounded-md font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleBibImport}
+                disabled={!bibText.trim()}
+                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-md font-semibold shadow-sm transition-colors"
+              >
+                Importar Referências (.bib)
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Busca Automática por DOI ou ISBN */}
         <div className="px-5 py-3 bg-emerald-50/60 border-b border-emerald-100 space-y-1.5">
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
@@ -376,6 +502,8 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
             </button>
           </div>
         </form>
+        </>
+        )}
       </div>
     </div>
   );

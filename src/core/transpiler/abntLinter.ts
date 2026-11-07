@@ -163,6 +163,143 @@ export async function lookupByDoiOrIsbn(query: string): Promise<Partial<Academic
 }
 
 /**
+ * Converte um arquivo ou texto BibTeX (.bib) em uma lista de AcademicReference (NBR 6023).
+ */
+export function parseBibtex(bibContent: string): AcademicReference[] {
+  const results: AcademicReference[] = [];
+  // Encontra entradas @article{..., @book{..., @phdthesis{..., @misc{...
+  const entryRegex = /@([a-zA-Z]+)\s*\{\s*([^,]+),([\s\S]*?)\n\s*\}/g;
+
+  const extractField = (body: string, fieldName: string): string => {
+    const regex = new RegExp(
+      `\\b${fieldName}\\s*=\\s*(?:\\{([\\s\\S]*?)\\}|"([\\s\\S]*?)"|(\\d+))(?=\\s*,|\\s*$)`,
+      'i',
+    );
+    const match = body.match(regex);
+    const raw = (match?.[1] ?? match?.[2] ?? match?.[3] ?? '').trim();
+    return raw.replace(/[{}]/g, '').replace(/\s+/g, ' ').trim();
+  };
+
+  const formatBibAuthors = (rawAuthor: string): string => {
+    if (!rawAuthor) return 'AUTOR DESCONHECIDO';
+    const parts = rawAuthor.split(/\s+and\s+/i);
+    return parts
+      .map((part) => {
+        const trimmed = part.trim();
+        if (trimmed.includes(',')) {
+          const [last, ...rest] = trimmed.split(',');
+          return `${last.trim().toUpperCase()}, ${rest.join(',').trim()}`;
+        }
+        const words = trimmed.split(/\s+/);
+        if (words.length <= 1) return trimmed.toUpperCase();
+        const last = words.pop()!.toUpperCase();
+        return `${last}, ${words.join(' ')}`;
+      })
+      .join('; ');
+  };
+
+  let match: RegExpExecArray | null;
+  while ((match = entryRegex.exec(bibContent)) !== null) {
+    const rawType = match[1].toLowerCase();
+    const body = match[3];
+
+    let type: AcademicReference['type'] = 'book';
+    if (rawType === 'article' || rawType === 'inproceedings' || rawType === 'conference') {
+      type = 'article';
+    } else if (rawType === 'phdthesis' || rawType === 'mastersthesis' || rawType === 'thesis') {
+      type = 'thesis';
+    } else if (rawType === 'misc' || rawType === 'online' || rawType === 'electronic') {
+      type = 'website';
+    }
+
+    const titleFull = extractField(body, 'title');
+    if (!titleFull) continue;
+
+    const [mainTitle, ...subParts] = titleFull.split(':');
+    const authors = formatBibAuthors(extractField(body, 'author') || extractField(body, 'editor'));
+    const year = extractField(body, 'year') || String(new Date().getFullYear());
+    const journal = extractField(body, 'journal') || extractField(body, 'booktitle');
+    const publisher =
+      extractField(body, 'publisher') ||
+      extractField(body, 'organization') ||
+      extractField(body, 'school') ||
+      'Editora';
+    const city = extractField(body, 'address') || extractField(body, 'location') || 'São Paulo';
+    const volume = extractField(body, 'volume');
+    const issue = extractField(body, 'number') || extractField(body, 'issue');
+    const pages = extractField(body, 'pages').replace(/--/g, '-');
+    const edition = extractField(body, 'edition');
+    const doi = extractField(body, 'doi');
+    const url = extractField(body, 'url');
+    const school = extractField(body, 'school') || extractField(body, 'institution');
+
+    results.push({
+      id: crypto.randomUUID(),
+      type,
+      authors,
+      title: mainTitle.trim(),
+      subtitle: subParts.length > 0 ? subParts.join(':').trim() : undefined,
+      edition: edition || undefined,
+      city,
+      publisher,
+      year,
+      journal: journal || undefined,
+      volume: volume || undefined,
+      issue: issue || undefined,
+      pages: pages || undefined,
+      institution: school || undefined,
+      degree:
+        rawType === 'phdthesis'
+          ? 'Tese (Doutorado)'
+          : rawType === 'mastersthesis'
+            ? 'Dissertação (Mestrado)'
+            : undefined,
+      doi: doi || undefined,
+      url: url || undefined,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Exporta a lista de referências do projeto para o formato BibTeX (.bib).
+ */
+export function exportToBibtex(references: AcademicReference[]): string {
+  return references
+    .map((ref, idx) => {
+      const surname = getPrimarySurname(ref.authors).toLowerCase().replace(/[^a-z0-9]/g, '') || 'ref';
+      const key = `${surname}${ref.year || idx + 1}_${idx + 1}`;
+      const bibType =
+        ref.type === 'article'
+          ? 'article'
+          : ref.type === 'thesis'
+            ? 'phdthesis'
+            : ref.type === 'website'
+              ? 'misc'
+              : 'book';
+
+      const fields: string[] = [
+        `  author = {${ref.authors.replace(/;\s*/g, ' and ')}}`,
+        `  title = {${ref.subtitle ? `${ref.title}: ${ref.subtitle}` : ref.title}}`,
+        `  year = {${ref.year}}`,
+      ];
+      if (ref.journal) fields.push(`  journal = {${ref.journal}}`);
+      if (ref.publisher) fields.push(`  publisher = {${ref.publisher}}`);
+      if (ref.city) fields.push(`  address = {${ref.city}}`);
+      if (ref.volume) fields.push(`  volume = {${ref.volume}}`);
+      if (ref.issue) fields.push(`  number = {${ref.issue}}`);
+      if (ref.pages) fields.push(`  pages = {${ref.pages}}`);
+      if (ref.edition) fields.push(`  edition = {${ref.edition}}`);
+      if (ref.doi) fields.push(`  doi = {${ref.doi}}`);
+      if (ref.url) fields.push(`  url = {${ref.url}}`);
+
+      return `@${bibType}{${key},\n${fields.join(',\n')}\n}`;
+    })
+    .join('\n\n');
+}
+
+/**
  * Executa a verificação normativa ABNT sobre o documento:
  * - Resumo fora da faixa recomendada de 150–500 palavras (NBR 6028)
  * - Figuras ou tabelas sem legenda ou fonte (NBR 14724)

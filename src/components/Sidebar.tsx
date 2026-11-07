@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { DocumentMetadata, AcademicReference, DocumentProject } from '@/types/document';
-import { countWords, runAbntLinter, formatShortCitation } from '@/core/transpiler/abntLinter';
+import {
+  countWords,
+  runAbntLinter,
+  formatShortCitation,
+  exportToBibtex,
+} from '@/core/transpiler/abntLinter';
 import {
   BookOpen,
   Building,
@@ -15,23 +20,30 @@ import {
   Info,
   Copy,
   Check,
+  Search,
+  Download,
+  Sliders,
 } from 'lucide-react';
 
 interface SidebarProps {
+  widthPx?: number;
   project: DocumentProject;
   metadata: DocumentMetadata;
   onChangeMetadata: (meta: DocumentMetadata) => void;
   references: AcademicReference[];
   onOpenReferenceModal: () => void;
+  onOpenTemplateCustomizer?: () => void;
   onRemoveReference: (id: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
+  widthPx = 320,
   project,
   metadata,
   onChangeMetadata,
   references,
   onOpenReferenceModal,
+  onOpenTemplateCustomizer,
   onRemoveReference,
 }) => {
   const [openCapa, setOpenCapa] = useState(true);
@@ -41,6 +53,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [openRefs, setOpenRefs] = useState(true);
   const [openLinter, setOpenLinter] = useState(true);
   const [copiedRefId, setCopiedRefId] = useState<string | null>(null);
+  const [refSearchQuery, setRefSearchQuery] = useState('');
+  const [refTypeFilter, setRefTypeFilter] = useState<string>('all');
 
   const updateField = <K extends keyof DocumentMetadata>(
     field: K,
@@ -54,14 +68,61 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const warnings = runAbntLinter(project);
 
   const handleCopyCitation = (ref: AcademicReference) => {
-    const citation = formatShortCitation(ref);
+    const citation = formatShortCitation(
+      ref,
+      project.templateConfig?.citationStyle ?? 'uppercase',
+    );
     navigator.clipboard.writeText(citation);
     setCopiedRefId(ref.id);
     setTimeout(() => setCopiedRefId(null), 1800);
   };
 
+  const handleExportBibtex = () => {
+    const bib = exportToBibtex(references);
+    const blob = new Blob([bib], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${project.name.toLowerCase().replace(/\s+/g, '_')}.bib`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const filteredReferences = references.filter((ref) => {
+    if (refTypeFilter !== 'all' && (ref.type || 'book') !== refTypeFilter) {
+      return false;
+    }
+    const q = refSearchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      ref.authors.toLowerCase().includes(q) ||
+      ref.title.toLowerCase().includes(q) ||
+      (ref.year || '').toLowerCase().includes(q) ||
+      (ref.journal || '').toLowerCase().includes(q) ||
+      (ref.publisher || '').toLowerCase().includes(q)
+    );
+  });
+
+  const typeBadgeLabel = (t?: AcademicReference['type']) => {
+    switch (t) {
+      case 'article':
+        return 'Artigo';
+      case 'thesis':
+        return 'Tese/TCC';
+      case 'website':
+        return 'Site';
+      case 'legislation':
+        return 'Norma/Lei';
+      default:
+        return 'Livro';
+    }
+  };
+
   return (
-    <aside className="w-80 border-r border-neutral-200 bg-white flex flex-col h-[calc(100vh-3.5rem)] overflow-y-auto">
+    <aside
+      style={{ width: `${widthPx}px` }}
+      className="shrink-0 border-r border-neutral-200 bg-white flex flex-col h-[calc(100vh-3.5rem)] overflow-y-auto"
+    >
       <div className="p-4 border-b border-neutral-100">
         <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
           Estrutura ABNT (NBR 14724)
@@ -413,68 +474,162 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="flex items-center gap-2 text-xs font-semibold text-neutral-700 hover:text-neutral-900"
             >
               <Bookmark className="w-3.5 h-3.5 text-neutral-400" />
-              <span>Referências ABNT ({references.length})</span>
+              <span>Referências ({references.length})</span>
             </button>
-            <button
-              onClick={onOpenReferenceModal}
-              className="p-1 hover:bg-neutral-100 rounded text-emerald-600 hover:text-emerald-700"
-              title="Adicionar Referência ABNT (Manual ou por DOI/ISBN)"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              {references.length > 0 && (
+                <button
+                  onClick={handleExportBibtex}
+                  className="p-1 hover:bg-neutral-100 rounded text-neutral-500 hover:text-neutral-800"
+                  title="Exportar todas as referências em formato BibTeX (.bib)"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {onOpenTemplateCustomizer && (
+                <button
+                  onClick={onOpenTemplateCustomizer}
+                  className="p-1 hover:bg-neutral-100 rounded text-neutral-500 hover:text-emerald-700"
+                  title="Configurar formatação e layout das referências e citações (Norma & Layout)"
+                >
+                  <Sliders className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button
+                onClick={onOpenReferenceModal}
+                className="flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-semibold transition-colors"
+                title="Adicionar Referência (DOI, ISBN, .bib ou Manual)"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Nova</span>
+              </button>
+            </div>
           </div>
 
           {openRefs && (
-            <div className="mt-2 space-y-1.5 pl-2">
+            <div className="mt-2 space-y-2 pl-1">
+              {/* Barra de Pesquisa e Filtro de Referências */}
+              {references.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-2" />
+                    <input
+                      type="text"
+                      value={refSearchQuery}
+                      onChange={(e) => setRefSearchQuery(e.target.value)}
+                      placeholder="Buscar por autor, título, ano..."
+                      className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
+                    {[
+                      { id: 'all', label: 'Todas' },
+                      { id: 'book', label: 'Livros' },
+                      { id: 'article', label: 'Artigos' },
+                      { id: 'thesis', label: 'Teses' },
+                      { id: 'website', label: 'Sites' },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setRefTypeFilter(tab.id)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-medium shrink-0 transition-colors ${
+                          refTypeFilter === tab.id
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {references.length === 0 ? (
-                <div className="text-[11px] text-neutral-400 py-3 text-center border border-dashed border-neutral-200 rounded-md">
-                  Nenhuma referência adicionada.
+                <div className="text-[11px] text-neutral-400 py-4 px-2 text-center border border-dashed border-neutral-200 rounded-lg">
+                  Nenhuma referência cadastrada.
                   <button
                     onClick={onOpenReferenceModal}
-                    className="block mx-auto text-emerald-600 font-medium hover:underline mt-1"
+                    className="block mx-auto text-emerald-600 font-semibold hover:underline mt-1"
                   >
-                    + Adicionar por DOI/ISBN ou manual
+                    + Adicionar por DOI, ISBN ou arquivo .bib
                   </button>
                 </div>
+              ) : filteredReferences.length === 0 ? (
+                <div className="text-[11px] text-neutral-400 py-3 text-center">
+                  Nenhuma referência encontrada para &ldquo;{refSearchQuery}&rdquo;.
+                </div>
               ) : (
-                references.map((ref) => (
-                  <div
-                    key={ref.id}
-                    className="group flex items-start justify-between p-2 rounded-md bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-xs"
-                  >
-                    <div className="pr-2 min-w-0 flex-1">
-                      <span className="font-semibold text-neutral-800 uppercase block truncate">
-                        {ref.authors}
-                      </span>
-                      <span className="text-neutral-600 italic block truncate">
-                        {ref.title}
-                      </span>
-                      <span className="text-[10px] text-neutral-400">
-                        {ref.year} • {formatShortCitation(ref)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-0.5 shrink-0">
-                      <button
-                        onClick={() => handleCopyCitation(ref)}
-                        className="p-1 text-neutral-400 hover:text-emerald-600 rounded"
-                        title={`Copiar citação ${formatShortCitation(ref)}`}
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-0.5">
+                  {filteredReferences.map((ref) => {
+                    const shortCite = formatShortCitation(
+                      ref,
+                      project.templateConfig?.citationStyle ?? 'uppercase',
+                    );
+                    return (
+                      <div
+                        key={ref.id}
+                        className="group p-2.5 rounded-lg bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-xs space-y-1 transition-colors"
                       >
-                        {copiedRefId === ref.id ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => onRemoveReference(ref.id)}
-                        className="p-1 text-neutral-400 hover:text-red-500 rounded"
-                        title="Remover referência"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))
+                        <div className="flex items-center justify-between gap-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-100/80 text-emerald-800 font-bold text-[10px] shrink-0">
+                              {shortCite}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded bg-neutral-200/70 text-neutral-600 text-[10px] shrink-0">
+                              {typeBadgeLabel(ref.type)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <button
+                              onClick={() => handleCopyCitation(ref)}
+                              className="p-1 text-neutral-400 hover:text-emerald-600 rounded"
+                              title={`Copiar chamada ${shortCite}`}
+                            >
+                              {copiedRefId === ref.id ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => onRemoveReference(ref.id)}
+                              className="p-1 text-neutral-400 hover:text-red-500 rounded"
+                              title="Remover referência"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="font-semibold text-neutral-900 leading-snug">
+                          {ref.title}
+                          {ref.subtitle ? `: ${ref.subtitle}` : ''}
+                        </div>
+
+                        <div className="text-[11px] text-neutral-500 truncate">
+                          {ref.authors}
+                        </div>
+
+                        <div className="text-[10px] text-neutral-400 truncate">
+                          {ref.journal || ref.publisher} • {ref.city} • {ref.year}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {onOpenTemplateCustomizer && (
+                <button
+                  type="button"
+                  onClick={onOpenTemplateCustomizer}
+                  className="w-full mt-1 py-1.5 px-2.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-[11px] text-neutral-600 flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Sliders className="w-3 h-3 text-emerald-600" />
+                  <span>Layout das Referências e Citações (Norma & Layout)</span>
+                </button>
               )}
             </div>
           )}

@@ -27,11 +27,16 @@ import {
 } from 'lucide-react';
 
 interface PdfPreviewProps {
+  widthPx?: number;
   project: DocumentProject;
   showCode: boolean;
 }
 
-export const PdfPreview: React.FC<PdfPreviewProps> = ({ project, showCode }) => {
+export const PdfPreview: React.FC<PdfPreviewProps> = ({
+  widthPx = 500,
+  project,
+  showCode,
+}) => {
   const [copied, setCopied] = useState(false);
   const [isCompiling, setIsCompiling] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -121,11 +126,14 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({ project, showCode }) => 
     };
   }, [pages, showCode, compileTimeMs]);
 
-  const basePageWidthPx = 420;
+  const basePageWidthPx = Math.max(260, widthPx - 64);
   const scaledWidthPx = Math.round((basePageWidthPx * zoom) / 100);
 
   return (
-    <aside className="w-[460px] xl:w-[560px] border-l border-neutral-200 bg-neutral-100 flex flex-col h-[calc(100vh-3.5rem)]">
+    <aside
+      style={{ width: `${widthPx}px` }}
+      className="shrink-0 border-l border-neutral-200 bg-neutral-100 flex flex-col h-[calc(100vh-3.5rem)]"
+    >
       {/* Top Bar do Preview */}
       <div className="h-10 border-b border-neutral-200 bg-neutral-50 px-4 flex items-center justify-between text-xs text-neutral-600">
         <div className="flex items-center gap-2">
