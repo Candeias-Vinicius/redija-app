@@ -35,6 +35,7 @@ import {
 } from '@/core/transpiler/typstGenerator';
 import { compileToPdf } from '@/core/typst/typstClient';
 import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
+import { autoMergeProjects } from '@/core/storage/projectMerger';
 import {
   db,
   loadInitialActiveProject,
@@ -504,7 +505,26 @@ export const App: React.FC = () => {
 
       for (const summary of driveSummaries) {
         const existsLocally = currentProjects.find((p) => p.driveFileId === summary.id);
-        if (!existsLocally) {
+        if (existsLocally) {
+          // Se o arquivo no Google Drive foi atualizado por um colaborador (mais recente que o sync local)
+          const remoteTime = new Date(summary.modifiedTime).getTime();
+          const localTime = new Date(existsLocally.driveSyncedAt || existsLocally.updatedAt).getTime();
+          if (remoteTime > localTime + 2000) {
+            try {
+              const remoteLoaded = await loadProjectFromDrive(summary.id, token);
+              const { mergedProject, hasMergedRemoteChanges } = autoMergeProjects(
+                existsLocally,
+                remoteLoaded
+              );
+              if (hasMergedRemoteChanges) {
+                await saveProject(mergedProject);
+                hasNewOrUpdated = true;
+              }
+            } catch (err) {
+              console.warn(`Erro ao mesclar alterações do Drive para ${summary.name}:`, err);
+            }
+          }
+        } else {
           const matchByName = currentProjects.find(
             (p) =>
               !p.driveFileId &&
@@ -560,6 +580,18 @@ export const App: React.FC = () => {
       isMounted = false;
     };
   }, [isAuthenticated, isStorageReady, handleSyncFromDrive]);
+
+  // Sincronização inteligente ao voltar para a aba do navegador
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        handleSyncFromDrive();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [isAuthenticated, handleSyncFromDrive]);
 
   const handleMetadataChange = (metadata: DocumentMetadata) => {
     setProject((prev) => {
