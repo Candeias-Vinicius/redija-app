@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Block, BlockType, AcademicReference, DocumentMetadata } from '@/types/document';
 import { RichTextInput } from './RichTextInput';
+import { stripHtmlTags } from '@/core/transpiler/escape';
 import {
   calculateProjectImageBytes,
   formatBytes,
@@ -234,10 +235,32 @@ export const Editor: React.FC<EditorProps> = ({
   const totalProjectImageBytes = calculateProjectImageBytes(blocks, metadata);
 
   const updateBlockContent = (id: string, content: string) => {
+    const current = blocks.find((b) => b.id === id);
+    if (!current || current.content === content) return;
+
+    // Se a única diferença for a tag <p> inicial gerada pelo TipTap sobre texto puro, não dispara atualização de estado
+    const plainCurrent = stripHtmlTags(current.content).trim();
+    const plainNew = stripHtmlTags(content).trim();
+    const hasMarkup =
+      content.includes('<strong>') ||
+      content.includes('<em>') ||
+      content.includes('<u>') ||
+      content.includes('<sup>') ||
+      content.includes('<sub>');
+
+    if (plainCurrent === plainNew && !hasMarkup && !current.content.startsWith('<')) {
+      current.content = content;
+      return;
+    }
+
     onChangeBlocks(blocks.map((b) => (b.id === id ? { ...b, content } : b)));
   };
 
   const updateBlockMeta = (id: string, meta: NonNullable<Block['meta']>) => {
+    const current = blocks.find((b) => b.id === id);
+    if (current && JSON.stringify(current.meta) === JSON.stringify({ ...current.meta, ...meta })) {
+      return;
+    }
     onChangeBlocks(
       blocks.map((b) => (b.id === id ? { ...b, meta: { ...b.meta, ...meta } } : b)),
     );

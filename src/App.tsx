@@ -563,6 +563,9 @@ export const App: React.FC = () => {
 
   const handleMetadataChange = (metadata: DocumentMetadata) => {
     setProject((prev) => {
+      if (JSON.stringify(prev.metadata) === JSON.stringify(metadata)) {
+        return prev;
+      }
       recordHistorySnapshot(prev);
       return { ...prev, metadata };
     });
@@ -570,6 +573,9 @@ export const App: React.FC = () => {
 
   const handleTemplateConfigChange = (templateConfig: TemplateConfig) => {
     setProject((prev) => {
+      if (JSON.stringify(prev.templateConfig) === JSON.stringify(templateConfig)) {
+        return prev;
+      }
       recordHistorySnapshot(prev, true);
       return { ...prev, templateConfig };
     });
@@ -577,6 +583,27 @@ export const App: React.FC = () => {
 
   const handleBlocksChange = (blocks: Block[]) => {
     setProject((prev) => {
+      if (prev.blocks === blocks) return prev;
+      if (prev.blocks.length === blocks.length) {
+        let isIdentical = true;
+        for (let i = 0; i < blocks.length; i++) {
+          const pb = prev.blocks[i];
+          const nb = blocks[i];
+          if (
+            pb.id !== nb.id ||
+            pb.type !== nb.type ||
+            pb.content !== nb.content ||
+            JSON.stringify(pb.meta) !== JSON.stringify(nb.meta)
+          ) {
+            isIdentical = false;
+            break;
+          }
+        }
+        if (isIdentical) {
+          return prev;
+        }
+      }
+
       const isStructuralChange = blocks.length !== prev.blocks.length;
       recordHistorySnapshot(prev, isStructuralChange);
       return { ...prev, blocks };
