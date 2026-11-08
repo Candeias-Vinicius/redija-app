@@ -577,7 +577,7 @@ export const App: React.FC = () => {
   };
 
   const handleLoginClick = async (): Promise<string | null> => {
-    let token: string | null = null;
+    let token: string | null;
     if (!isAuthConfigured) {
       loginDevMock();
       token = 'mock_dev_token_xyz';
