@@ -10,8 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "vitest run --exclude e2e/**",
-    "test:watch": "vitest --exclude e2e/**",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:e2e": "playwright test",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.{json,js,ts,md}\""
   },
