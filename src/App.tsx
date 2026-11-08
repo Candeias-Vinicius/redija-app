@@ -1296,6 +1296,7 @@ export const App: React.FC = () => {
             }}
             onRemoveReference={handleRemoveReference}
             onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
+            onOpenAbntGuide={() => setIsWelcomeModalOpen(true)}
             onMinimize={toggleSidebar}
             widthPx={!showEditor && !showPreview ? window.innerWidth : sidebarWidth}
           />
@@ -1362,6 +1363,8 @@ export const App: React.FC = () => {
             project={project}
             showCode={showCode}
             onToggleCode={() => setShowCode(!showCode)}
+            onDownloadPdf={handleDownloadPdf}
+            isExportingPdf={isExportingPdf}
             onExportProjectZip={handleExportProjectZip}
             isExportingProject={isExportingProject}
             widthPx={previewWidth}
