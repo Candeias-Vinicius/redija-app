@@ -30,7 +30,7 @@ import {
   Scissors,
   Plus,
   Trash2,
-  GripVertical,
+  Move,
   Menu,
   Upload,
   Search,
@@ -523,65 +523,67 @@ export const Editor: React.FC<EditorProps> = ({
                   : 'opacity-0 group-hover:opacity-100'
               } flex flex-col items-end pr-1 text-neutral-400 transition-opacity select-none`}
             >
-              {/* Linha superior: Ações rápidas (Inserir, Opções do bloco com 3 traços, Excluir) */}
-              <div className="flex items-center gap-0.5">
-                <button
-                  type="button"
-                  onClick={() => addBlock(block.id)}
-                  className="p-1 hover:text-emerald-600 hover:bg-neutral-100 rounded transition-colors"
-                  title="Inserir bloco abaixo (Enter)"
-                  aria-label="Inserir bloco abaixo"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveMenuBlockId(activeMenuBlockId === block.id ? null : block.id);
-                    setMenuSearch('');
-                  }}
-                  className={`p-1 rounded transition-colors ${
-                    activeMenuBlockId === block.id
-                      ? 'text-emerald-600 bg-emerald-50'
-                      : 'hover:text-neutral-800 hover:bg-neutral-100'
-                  }`}
-                  title="Opções do bloco: alterar tipo, citações e formatos (/)"
-                  aria-label="Opções do bloco"
-                >
-                  <Menu className="w-3.5 h-3.5" />
-                </button>
-
-                {blocks.length > 1 && (
+              <div className="flex flex-col items-center">
+                {/* Linha superior: Ações rápidas (Inserir, Opções do bloco com 3 traços, Excluir) */}
+                <div className="flex items-center gap-0.5">
                   <button
                     type="button"
-                    onClick={() => removeBlock(block.id)}
-                    className="p-1 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                    title="Excluir bloco"
-                    aria-label="Excluir bloco"
+                    onClick={() => addBlock(block.id)}
+                    className="p-1 hover:text-emerald-600 hover:bg-neutral-100 rounded transition-colors"
+                    title="Inserir bloco abaixo (Enter)"
+                    aria-label="Inserir bloco abaixo"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
-                )}
-              </div>
 
-              {/* Área vertical inferior: Alça de arrastar dedicada com pontinhos e cursor grab ("mãozinha") */}
-              <div
-                draggable
-                onDragStart={(e) => {
-                  setDraggedBlockId(block.id);
-                  e.dataTransfer.effectAllowed = 'move';
-                }}
-                onDragEnd={() => {
-                  setDraggedBlockId(null);
-                  setDragOverBlockId(null);
-                }}
-                className="mt-1 w-full flex-1 min-h-[22px] flex items-center justify-end pr-1 cursor-grab active:cursor-grabbing group/drag"
-                title="Segure e arraste para reordenar este bloco"
-                aria-label="Arrastar para reordenar bloco"
-              >
-                <div className="p-1 rounded hover:bg-neutral-200/70 active:bg-neutral-300/70 transition-colors flex items-center justify-center text-neutral-300 group-hover/drag:text-neutral-600">
-                  <GripVertical className="w-3.5 h-3.5" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveMenuBlockId(activeMenuBlockId === block.id ? null : block.id);
+                      setMenuSearch('');
+                    }}
+                    className={`p-1 rounded transition-colors ${
+                      activeMenuBlockId === block.id
+                        ? 'text-emerald-600 bg-emerald-50'
+                        : 'hover:text-neutral-800 hover:bg-neutral-100'
+                    }`}
+                    title="Opções do bloco: alterar tipo, citações e formatos (/)"
+                    aria-label="Opções do bloco"
+                  >
+                    <Menu className="w-3.5 h-3.5" />
+                  </button>
+
+                  {blocks.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeBlock(block.id)}
+                      className="p-1 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                      title="Excluir bloco"
+                      aria-label="Excluir bloco"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Área vertical inferior: Alça de arrastar com a clássica seta de 4 lados centralizada */}
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggedBlockId(block.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragEnd={() => {
+                    setDraggedBlockId(null);
+                    setDragOverBlockId(null);
+                  }}
+                  className="mt-1 w-full flex-1 min-h-[22px] flex items-center justify-center cursor-move active:cursor-grabbing group/drag"
+                  title="Segure e arraste para reordenar este bloco"
+                  aria-label="Arrastar para reordenar bloco"
+                >
+                  <div className="p-1 rounded hover:bg-neutral-200/70 active:bg-neutral-300/70 transition-colors flex items-center justify-center text-neutral-400 group-hover/drag:text-neutral-700">
+                    <Move className="w-3.5 h-3.5" />
+                  </div>
                 </div>
               </div>
             </div>
