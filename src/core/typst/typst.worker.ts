@@ -42,6 +42,11 @@ const FONT_FILES = [
 let compilerPromise: Promise<TypstCompiler> | null = null;
 
 function resolveFontUrls(): string[] {
+  const workerUrl = self.location?.href || '';
+  if (workerUrl.includes('/assets/')) {
+    const rootUrl = workerUrl.substring(0, workerUrl.lastIndexOf('/assets/')) + '/';
+    return FONT_FILES.map((file) => `${rootUrl}${file}`);
+  }
   const base = import.meta.env.BASE_URL || '/';
   const normalizedBase = base.endsWith('/') ? base : `${base}/`;
   const origin = self.location?.origin || '';
