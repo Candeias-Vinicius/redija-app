@@ -95,15 +95,27 @@ O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notio
 
 ---
 
-### 7. Compilação Typst WASM no Navegador (Zero Servidor)
+### 7. Engine Typst WASM 100% Isolada em Web Worker (Zero Bloqueio de UI)
 
-- **Compilação Instantânea em WebAssembly:** Compilação do código Typst diretamente na máquina do usuário via `@myriaddreamin/typst.ts` operando em um Web Worker isolado.
-- **Pré-visualização Interativa do PDF:** Visualizador do documento renderizado lado a lado com controle de zoom (50% a 200%), navegação de páginas e ajuste dinâmico de layout (painel divido ou tela cheia).
-- **Painel de Diagnósticos:** Detecção de alertas e erros de sintaxe tipográfica em tempo real sem interrupção do fluxo de trabalho.
+- **Isolamento Completo (Compiler + Renderer em Worker):** Tanto o compilador (`typst-ts-web-compiler`) quanto o renderizador tipográfico (`typst-ts-renderer`) operam exclusivamente dentro de um Web Worker dedicado (`src/core/typst/typst.worker.ts`), sem carregar nem instanciar módulos WASM na thread principal do navegador.
+- **Rasterização via OffscreenCanvas & ImageBitmap:** O Worker rasteriza as páginas vetoriais em `OffscreenCanvas` e transfere os quadros gerados como `ImageBitmap` (Transferable Objects de zero-copy) para o DOM principal, garantindo digitação e animações fluidas a 60 fps constantes.
+- **Cancelamento Inteligente de Renderizações Obsoletas:** Request IDs descartam automaticamente frames de compilações intermediárias quando o usuário digita em ritmo acelerado.
+- **Pré-visualização Interativa do PDF:** Visualizador do documento renderizado lado a lado com controle de zoom (70% a 145%), modo de folha clara/noturna, navegação de páginas e ajuste dinâmico de layout (painel dividido ou tela cheia).
+- **Painel de Diagnósticos em Tempo Real:** Detecção e tradução amigável de alertas e erros de sintaxe tipográfica em português sem travar a interface.
 
 ---
 
-### 8. Arquitetura Multi-Perfil & Nuvem Pessoal (Google Drive BYOS)
+### 8. Suporte Amplo a Modelos Acadêmicos e Typst Universe
+
+- **Normas ABNT NBR 14724 / 6023 / 10520:** TCCs, Monografias, Dissertações e Artigos em 1 ou 2 colunas.
+- **Artigo SBC:** Modelo oficial da Sociedade Brasileira de Computação (`sbc.typ`) para simpósios e periódicos de TI.
+- **Artigo IEEE Conference:** Formato internacional de conferências de engenharia e tecnologia em 2 colunas (`ieee.typ`).
+- **Pôster Acadêmico A0:** Painel científico diagramado em alta resolução para impressão de congressos (`poster.typ`).
+- **Typst Universe Dinâmico:** Resolução e injeção automática de templates do repositório oficial da comunidade Typst (`@preview/...`) com fallback offline.
+
+---
+
+### 9. Arquitetura Multi-Perfil & Nuvem Pessoal (Google Drive BYOS)
 
 - **Persistência Local (IndexedDB):** Todos os rascunhos e imagens são mantidos localmente via Dexie.js, garantindo funcionamento ininterrupto mesmo sem conexão com a internet.
 - **Isolamento Estrito entre Perfil Local e Contas Google:**
@@ -114,7 +126,7 @@ O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notio
 
 ---
 
-### 9. Colaboração em Tempo Real & Concorrência Inteligente
+### 10. Colaboração em Tempo Real & Concorrência Inteligente
 
 - **Colaboração em Tempo Real P2P (WebRTC + BroadcastChannel):** Comunicação peer-to-peer direta entre navegadores de colaboradores via canais de dados WebRTC (PeerJS) e BroadcastChannel (para abas no mesmo computador), sem latência e sem custo de servidores intermediários.
 - **Indicadores Visuais de Presença:**
@@ -125,7 +137,7 @@ O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notio
 
 ---
 
-### 10. Gestão de Trabalhos & Lixeira com Retenção de 30 Dias
+### 11. Gestão de Trabalhos & Lixeira com Retenção de 30 Dias
 
 - **Gerenciador de Trabalhos:** Alterne facilmente entre diferentes projetos acadêmicos salvos no perfil ativo.
 - **Lixeira com Retenção de 30 Dias:** Exclusão suave com contagem regressiva de retenção e expurgo automático de itens antigos. Restauração de projetos com um clique.
@@ -142,23 +154,35 @@ O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notio
 ## 🏗️ Arquitetura do Sistema
 
 ```
-                        ┌──────────────────────────────────────────────┐
-                        │              Interface do Usuário            │
-                        │       (React 18 + Tailwind CSS + TipTap)     │
-                        └──────────────────────┬───────────────────────┘
-                                               │
-                   ┌───────────────────────────┼───────────────────────────┐
-                   ▼                           ▼                           ▼
-        ┌─────────────────────┐     ┌─────────────────────┐     ┌─────────────────────┐
-        │  IndexedDB (Dexie)  │     │ Transpilador Typst  │     │ Colaboração P2P     │
-        │ Cache Local-First   │     │ (Gera marcação .typ)│     │ WebRTC + Broadcast  │
-        └──────────┬──────────┘     └──────────┬──────────┘     └──────────┬──────────┘
-                   │                           │                           │
-                   ▼                           ▼                           ▼
-        ┌─────────────────────┐     ┌─────────────────────┐     ┌─────────────────────┐
-        │ Google Drive v3 API │     │   Typst WASM Worker │     │ Presença e Cursors  │
-        │ Armazenamento BYOS  │     │  PDF Nativo em ms   │     │  Sincronia ao Vivo  │
-        └─────────────────────┘     └─────────────────────┘     └─────────────────────┘
+                      ┌─────────────────────────────────────────────────────────────────┐
+                      │                 Thread Principal da Interface (DOM)             │
+                      │  • React 18 + TipTap (Editor em blocos com histórico Undo/Redo) │
+                      │  • Sidebar com Linter ABNT memoizado                            │
+                      │  • PdfPreview com geração Typst sob demanda                     │
+                      │  • Viewport de Canvases (exibe ImageBitmaps via GPU Blitting)   │
+                      └───────────────────────────────┬─────────────────────────────────┘
+                                                      │
+                       ┌──────────────────────────────┼──────────────────────────────┐
+                       ▼                              ▼                              ▼
+            ┌─────────────────────┐        ┌─────────────────────┐        ┌─────────────────────┐
+            │  IndexedDB (Dexie)  │        │ Transpilador Typst  │        │ Colaboração P2P     │
+            │ Cache Local-First   │        │ • Cache LRU Imagens │        │ WebRTC + Broadcast  │
+            └──────────┬──────────┘        │ • Geração main.typ  │        └──────────┬──────────┘
+                       │                   └──────────┬──────────┘                   │
+                       ▼                              │                              ▼
+            ┌─────────────────────┐                   ▼ postMessage(files, [buffers])┌─────────────────────┐
+            │ Google Drive v3 API │        ┌────────────────────────────────────┐    │ Presença e Cursors  │
+            │ Armazenamento BYOS  │        │        Web Worker Dedicado         │    │  Sincronia ao Vivo  │
+            └─────────────────────┘        │  • Typst Compiler WASM             │    └─────────────────────┘
+                                           │  • Typst Renderer WASM             │
+                                           │  • OffscreenCanvas Rasterizer      │
+                                           └──────────────────┬─────────────────┘
+                                                              │
+                                                              ▼ Zero-Copy Transferable
+                                                   [Transferable ImageBitmaps]
+                                                              │
+                                                              ▼
+                                                   [Canvas DOM: drawImage()]
 ```
 
 ---
@@ -167,29 +191,37 @@ O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notio
 
 ```
 redija-app/
-├── public/                      # Assets estáticos e scripts de terceiros
+├── public/                      # Assets estáticos, fontes TrueType (Tinos, Arimo) e scripts
 ├── src/
-│   ├── components/              # Componentes de interface do usuário
-│   │   ├── AccountSettingsModal.tsx  # Configurações da conta e privacidade
-│   │   ├── Editor.tsx           # Editor visual em blocos e presença
-│   │   ├── Header.tsx           # Barra superior, status, perfil e ferramentas
-│   │   ├── LoginScreen.tsx      # Tela de autenticação com carrossel split-screen
+│   ├── components/              # Componentes de interface do usuário (React 18)
+│   │   ├── landing/             # Seções modulares da Landing Page de entrada
+│   │   ├── AccountSettingsModal.tsx  # Configurações de conta, armazenamento e privacidade
+│   │   ├── BackupNoticeBanner.tsx    # Alerta sutil de incentivo a backup para convidados
+│   │   ├── BugReportModal.tsx   # Modal de reporte de problemas com dados do ambiente
+│   │   ├── Editor.tsx           # Editor visual em blocos estilo Notion e presença P2P
+│   │   ├── Header.tsx           # Barra superior com status, ações e ferramentas
+│   │   ├── LoginScreen.tsx      # Tela de autenticação com split-screen e carrossel
 │   │   ├── Logo.tsx             # Logotipo oficial com transparência alfa e gradiente
-│   │   ├── Preview.tsx          # Pré-visualização do PDF Typst WASM
+│   │   ├── PdfPreview.tsx       # Visualizador de PDF via Web Worker e código Typst
 │   │   ├── ProjectsModal.tsx    # Gerenciamento de trabalhos e lixeira de 30 dias
-│   │   ├── ReferenceModal.tsx   # Cadastro de referências e busca por DOI
-│   │   ├── RichTextInput.tsx    # Editor de texto rico TipTap
+│   │   ├── ReferenceModal.tsx   # Cadastro de referências ABNT e busca por DOI
+│   │   ├── RichTextInput.tsx    # Editor de texto rico TipTap (tags semânticas)
 │   │   ├── ShareModal.tsx       # Compartilhamento via Google Drive API
-│   │   └── Sidebar.tsx          # Configurações ABNT, metadados e sumário
+│   │   ├── Sidebar.tsx          # Configurações ABNT, metadados, linter e sumário
+│   │   ├── TemplateCustomizerModal.tsx # Personalização de normas, margens e fontes
+│   │   └── WelcomeModal.tsx     # Guia interativo inicial de recursos
 │   ├── core/
 │   │   ├── auth/                # Google Identity Services (OAuth2 Client)
-│   │   ├── collaboration/       # Motor P2P WebRTC e BroadcastChannel
-│   │   ├── storage/             # IndexedDB (Dexie), Google Drive v3, Auto-Merge e Importer (.docx)
-│   │   ├── transpiler/          # Conversor de blocos JSON para marcação Typst
-│   │   └── typst/               # Worker de compilação Typst WASM no navegador
-│   ├── types/                   # Tipagens TypeScript (Documento, Blocos, Normas)
-│   ├── App.tsx                  # Orquestrador principal de estado da aplicação
-│   └── main.tsx                 # Ponto de entrada React
+│   │   ├── collaboration/       # Motor P2P WebRTC (PeerJS) e BroadcastChannel
+│   │   ├── storage/             # Dexie.js (IndexedDB), Google Drive, Auto-Merge e Importer (.docx)
+│   │   ├── templates/           # Modelos Typst nativos (abnt.typ, sbc.typ, ieee.typ, poster.typ)
+│   │   ├── transpiler/          # Transpilador de blocos, cache LRU de imagens e Linter ABNT
+│   │   ├── typst/               # Web Worker com Typst Compiler + Typst Renderer WASM isolados
+│   │   └── universe/            # Resolução e injeção de pacotes do Typst Universe (@preview/...)
+│   ├── types/                   # Tipagens TypeScript (Documento, Metadados, Blocos, Presets)
+│   ├── App.tsx                  # Orquestrador principal da aplicação
+│   └── main.tsx                 # Ponto de entrada React 18
+├── e2e/                         # Testes End-to-End automatizados com Playwright
 ├── package.json
 ├── tsconfig.json
 ├── tailwind.config.js

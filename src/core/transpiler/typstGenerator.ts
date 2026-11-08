@@ -109,7 +109,12 @@ export function getVirtualImagePath(blockId: string, ext: string): string {
   return `/assets/img_${safeId}.${ext}`;
 }
 
+const dataUrlCache = new Map<string, { ext: string; bytes: Uint8Array }>();
+
 function parseDataUrl(dataUrl: string): { ext: string; bytes: Uint8Array } | null {
+  const cached = dataUrlCache.get(dataUrl);
+  if (cached) return cached;
+
   const match = dataUrl.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
   if (!match) return null;
 
@@ -126,7 +131,13 @@ function parseDataUrl(dataUrl: string): { ext: string; bytes: Uint8Array } | nul
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
-    return { ext, bytes };
+    const result = { ext, bytes };
+    if (dataUrlCache.size >= 50) {
+      const firstKey = dataUrlCache.keys().next().value;
+      if (firstKey) dataUrlCache.delete(firstKey);
+    }
+    dataUrlCache.set(dataUrl, result);
+    return result;
   } catch {
     return null;
   }
@@ -427,7 +438,7 @@ function generateAbntShowRule(
  * não aparecer duplicado.
  */
 export function stripManualNumbering(title: string): string {
-  return title.replace(/^\s*\d+(\.\d+)*(\.|\s*[-–—:])?(\s+|$)/, '').trim();
+  return title.replace(/^\s*\d+(\.\d+)*(\.|\s*[-–—:])?\s+/, '').trim();
 }
 
 function transpileBlock(
@@ -502,7 +513,7 @@ function transpileBlock(
       if (source) args.push(`fonte: ${typstContent(source)}`);
       const argsStr = args.length > 0 ? `(${args.join(', ')})` : '';
 
-      // Evita fechamento prematuro do bloco raw quando o código contém crases
+      // Evita fechamento prematuro do bloco raw quando o código contém três ou mais crases
       const tickMatches = rawCode.match(/`+/g);
       const maxTicks = tickMatches ? Math.max(...tickMatches.map((m) => m.length)) : 0;
       const fence = '`'.repeat(Math.max(3, maxTicks + 1));

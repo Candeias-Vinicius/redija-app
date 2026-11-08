@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { DocumentMetadata, AcademicReference, DocumentProject } from '@/types/document';
 import {
   countWords,
@@ -71,9 +71,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onChangeMetadata({ ...metadata, [field]: value });
   };
 
-  const abstractWordCount = countWords(metadata.abstract);
+  const abstractWordCount = useMemo(() => countWords(metadata.abstract), [metadata.abstract]);
   const isAbstractCountIdeal = abstractWordCount >= 150 && abstractWordCount <= 500;
-  const warnings = runAbntLinter(project);
+  const warnings = useMemo(() => runAbntLinter(project), [project]);
 
   const handleCopyCitation = (ref: AcademicReference) => {
     const citation = formatShortCitation(

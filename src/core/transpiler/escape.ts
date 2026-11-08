@@ -111,7 +111,7 @@ export function richTextToTypst(input: string): string {
         openTags.push('sub');
       }
     } else {
-      // É tag de fechamento de formatação inline: fecha apenas se houver tag correspondente na pilha
+      // Fecha apenas se houver tag correspondente na pilha
       if (openTags.length > 0) {
         openTags.pop();
         result += ']';
@@ -126,7 +126,7 @@ export function richTextToTypst(input: string): string {
     result += escapeMarkup(decodeEntities(tail));
   }
 
-  // Fecha quaisquer tags que tenham ficado abertas no HTML malformado
+  // Fecha eventuais tags que ficaram abertas para garantir que o Typst nunca receba colchetes desbalanceados
   while (openTags.length > 0) {
     openTags.pop();
     result += ']';
