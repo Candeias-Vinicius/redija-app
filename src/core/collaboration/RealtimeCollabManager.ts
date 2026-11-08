@@ -357,17 +357,33 @@ export class RealtimeCollabManager {
       } catch {
         return;
       }
-    } else {
+    } else if (raw && typeof raw === 'object') {
       msg = raw as CollabMessage;
+    } else {
+      return;
     }
 
-    if (!msg || !msg.type) return;
+    if (!msg || typeof msg !== 'object' || !msg.type || typeof msg.type !== 'string') return;
 
     switch (msg.type) {
       case 'presence': {
-        if (msg.presence.peerId === this.myPeerId) return;
-        this.remotePresences.set(msg.presence.peerId, {
-          ...msg.presence,
+        const p = msg.presence;
+        if (!p || typeof p !== 'object' || typeof p.peerId !== 'string' || p.peerId.length > 128) return;
+        if (!p.user || typeof p.user !== 'object' || typeof p.user.id !== 'string' || typeof p.user.name !== 'string') return;
+        if (typeof p.colorIndex !== 'number' || !Number.isFinite(p.colorIndex)) return;
+        if (p.activeBlockId !== undefined && (typeof p.activeBlockId !== 'string' || p.activeBlockId.length > 128)) return;
+        if (p.peerId === this.myPeerId) return;
+
+        this.remotePresences.set(p.peerId, {
+          peerId: p.peerId,
+          user: {
+            id: String(p.user.id).slice(0, 128),
+            name: String(p.user.name).slice(0, 128),
+            email: String(p.user.email || '').slice(0, 128),
+            picture: typeof p.user.picture === 'string' && /^https?:\/\//i.test(p.user.picture) ? p.user.picture : undefined,
+          },
+          activeBlockId: p.activeBlockId ? String(p.activeBlockId).slice(0, 128) : undefined,
+          colorIndex: Math.abs(Math.floor(p.colorIndex)) % COLLAB_COLORS_COUNT,
           lastSeen: Date.now(),
         });
         this.notifyPresenceChange();
@@ -375,24 +391,51 @@ export class RealtimeCollabManager {
       }
 
       case 'block_update': {
-        if (msg.senderPeerId === this.myPeerId) return;
+        if (typeof msg.senderPeerId !== 'string' || msg.senderPeerId === this.myPeerId) return;
+        if (typeof msg.blockId !== 'string' || !msg.blockId || msg.blockId.length > 128) return;
+        if (typeof msg.content !== 'string' || msg.content.length > 500_000) return;
+
+        let safeMeta: Block['meta'] | undefined = undefined;
+        if (msg.meta && typeof msg.meta === 'object' && !Array.isArray(msg.meta)) {
+          const sanitizedMeta: Record<string, unknown> = {};
+          for (const key of Object.keys(msg.meta)) {
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+            sanitizedMeta[key] = (msg.meta as Record<string, unknown>)[key];
+          }
+          safeMeta = sanitizedMeta as Block['meta'];
+        }
+
         this.onRemoteBlockUpdateHandlers.forEach((h) =>
           h({
             blockId: msg.blockId,
             content: msg.content,
-            meta: msg.meta,
+            meta: safeMeta,
           })
         );
         break;
       }
 
       case 'blocks_sync': {
-        if (msg.senderPeerId === this.myPeerId) return;
-        this.onRemoteBlocksSyncHandlers.forEach((h) => h(msg.blocks));
+        if (typeof msg.senderPeerId !== 'string' || msg.senderPeerId === this.myPeerId) return;
+        if (!Array.isArray(msg.blocks) || msg.blocks.length > 2000) return;
+
+        const validBlocks: Block[] = [];
+        for (const b of msg.blocks) {
+          if (!b || typeof b !== 'object') continue;
+          if (typeof b.id !== 'string' || !b.id || b.id.length > 128) continue;
+          if (typeof b.type !== 'string' || b.type.length > 64) continue;
+          if (typeof b.content !== 'string' || b.content.length > 500_000) continue;
+          validBlocks.push(b);
+        }
+
+        if (validBlocks.length > 0) {
+          this.onRemoteBlocksSyncHandlers.forEach((h) => h(validBlocks));
+        }
         break;
       }
 
       case 'peer_leave': {
+        if (typeof msg.peerId !== 'string' || msg.peerId.length > 128) return;
         this.remotePresences.delete(msg.peerId);
         this.notifyPresenceChange();
         break;

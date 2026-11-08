@@ -3,6 +3,15 @@
   publish = "dist"
 
 [[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.googleusercontent.com https://accounts.google.com; connect-src 'self' blob: data: https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com https://packages.typst.org https://formsubmit.co https://*.peerjs.com wss://*.peerjs.com; worker-src 'self' blob:; frame-src 'self' https://accounts.google.com; object-src 'none'; base-uri 'self';"
+
+[[headers]]
   for = "/assets/*.wasm"
   [headers.values]
     Content-Type = "application/wasm"

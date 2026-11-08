@@ -11,6 +11,7 @@ import {
   TemplateConfig,
   DEFAULT_TEMPLATE_CONFIG,
   ProjectTemplateType,
+  NormPresetId,
 } from '@/types/document';
 
 /**
@@ -112,28 +113,173 @@ export function normalizeProject(raw: unknown): DocumentProject {
         : undefined,
   };
 
-  // Configuração do Template
+  // Configuração do Template com validação estrita e coerção de tipos
   const rawConfig = (data.templateConfig && typeof data.templateConfig === 'object'
     ? data.templateConfig
-    : {}) as Partial<TemplateConfig>;
+    : {}) as Record<string, unknown>;
+
+  const SAFE_PKG_REGEX = /^@[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+:[0-9.]+$/;
+  const SAFE_IDENT_REGEX = /^[a-zA-Z0-9_-]+$/;
+
+  const validPresets: NormPresetId[] = [
+    'abnt_classic',
+    'abnt_2023',
+    'article_2col',
+    'apa_7',
+    'sbc',
+    'ieee',
+    'poster',
+    'universe_custom',
+    'custom',
+  ];
 
   const templateConfig: TemplateConfig = {
     ...DEFAULT_TEMPLATE_CONFIG,
-    ...rawConfig,
+    preset:
+      typeof rawConfig.preset === 'string' && validPresets.includes(rawConfig.preset as NormPresetId)
+        ? (rawConfig.preset as NormPresetId)
+        : DEFAULT_TEMPLATE_CONFIG.preset,
+    fontFamily: rawConfig.fontFamily === 'sans' ? 'sans' : 'serif',
+    fontSizePt:
+      rawConfig.fontSizePt === 10 || rawConfig.fontSizePt === 11 || rawConfig.fontSizePt === 12
+        ? rawConfig.fontSizePt
+        : DEFAULT_TEMPLATE_CONFIG.fontSizePt,
+    lineSpacing:
+      rawConfig.lineSpacing === '1.0' || rawConfig.lineSpacing === '2.0'
+        ? rawConfig.lineSpacing
+        : '1.5',
+    paragraphIndentCm:
+      typeof rawConfig.paragraphIndentCm === 'number' && Number.isFinite(rawConfig.paragraphIndentCm) && rawConfig.paragraphIndentCm >= 0
+        ? rawConfig.paragraphIndentCm
+        : DEFAULT_TEMPLATE_CONFIG.paragraphIndentCm,
+    marginTopCm:
+      typeof rawConfig.marginTopCm === 'number' && Number.isFinite(rawConfig.marginTopCm) && rawConfig.marginTopCm >= 0
+        ? rawConfig.marginTopCm
+        : DEFAULT_TEMPLATE_CONFIG.marginTopCm,
+    marginLeftCm:
+      typeof rawConfig.marginLeftCm === 'number' && Number.isFinite(rawConfig.marginLeftCm) && rawConfig.marginLeftCm >= 0
+        ? rawConfig.marginLeftCm
+        : DEFAULT_TEMPLATE_CONFIG.marginLeftCm,
+    marginBottomCm:
+      typeof rawConfig.marginBottomCm === 'number' && Number.isFinite(rawConfig.marginBottomCm) && rawConfig.marginBottomCm >= 0
+        ? rawConfig.marginBottomCm
+        : DEFAULT_TEMPLATE_CONFIG.marginBottomCm,
+    marginRightCm:
+      typeof rawConfig.marginRightCm === 'number' && Number.isFinite(rawConfig.marginRightCm) && rawConfig.marginRightCm >= 0
+        ? rawConfig.marginRightCm
+        : DEFAULT_TEMPLATE_CONFIG.marginRightCm,
+    columns: rawConfig.columns === 2 ? 2 : 1,
+    includeCoverPage:
+      typeof rawConfig.includeCoverPage === 'boolean'
+        ? rawConfig.includeCoverPage
+        : DEFAULT_TEMPLATE_CONFIG.includeCoverPage,
+    includeTitlePage:
+      typeof rawConfig.includeTitlePage === 'boolean'
+        ? rawConfig.includeTitlePage
+        : DEFAULT_TEMPLATE_CONFIG.includeTitlePage,
+    includeToc:
+      typeof rawConfig.includeToc === 'boolean'
+        ? rawConfig.includeToc
+        : DEFAULT_TEMPLATE_CONFIG.includeToc,
+    citationStyle: rawConfig.citationStyle === 'titlecase' ? 'titlecase' : 'uppercase',
+    referenceHighlight: rawConfig.referenceHighlight === 'italic' ? 'italic' : 'bold',
+    posterDimensions:
+      rawConfig.posterDimensions === 'a1' || rawConfig.posterDimensions === 'a2'
+        ? rawConfig.posterDimensions
+        : rawConfig.posterDimensions === 'a0'
+          ? 'a0'
+          : undefined,
+    posterOrientation:
+      rawConfig.posterOrientation === 'landscape' ? 'landscape' : rawConfig.posterOrientation === 'portrait' ? 'portrait' : undefined,
+    posterColumns:
+      rawConfig.posterColumns === 2 || rawConfig.posterColumns === 3
+        ? rawConfig.posterColumns
+        : undefined,
+    posterTheme:
+      rawConfig.posterTheme === 'blue' ||
+      rawConfig.posterTheme === 'classic_dark' ||
+      rawConfig.posterTheme === 'clean' ||
+      rawConfig.posterTheme === 'emerald'
+        ? rawConfig.posterTheme
+        : undefined,
+    universePackage:
+      typeof rawConfig.universePackage === 'string' && SAFE_PKG_REGEX.test(rawConfig.universePackage.trim())
+        ? rawConfig.universePackage.trim()
+        : undefined,
+    universeEntrypoint:
+      typeof rawConfig.universeEntrypoint === 'string' && SAFE_IDENT_REGEX.test(rawConfig.universeEntrypoint.trim())
+        ? rawConfig.universeEntrypoint.trim()
+        : undefined,
   };
 
   // Blocos de Conteúdo
   let blocks: Block[] = [];
   if (Array.isArray(data.blocks)) {
+    const validBlockTypes: Block['type'][] = [
+      'paragraph',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'unnumbered_heading',
+      'bullet',
+      'numbered',
+      'quote_long',
+      'equation',
+      'code',
+      'image',
+      'table',
+      'box',
+      'footnote',
+      'pagebreak',
+    ];
+
     blocks = data.blocks
       .filter((b): b is Record<string, unknown> => Boolean(b && typeof b === 'object'))
-      .map((b) => ({
-        id: typeof b.id === 'string' && b.id ? b.id : crypto.randomUUID(),
-        type: (typeof b.type === 'string' ? b.type : 'paragraph') as Block['type'],
-        content: typeof b.content === 'string' ? b.content : '',
-        updatedAt: typeof b.updatedAt === 'number' ? b.updatedAt : Date.now(),
-        meta: b.meta && typeof b.meta === 'object' ? (b.meta as Block['meta']) : undefined,
-      }));
+      .map((b) => {
+        const rawMeta = (b.meta && typeof b.meta === 'object' ? b.meta : undefined) as Record<string, unknown> | undefined;
+        let sanitizedMeta: Block['meta'] = undefined;
+        if (rawMeta) {
+          sanitizedMeta = {
+            author: typeof rawMeta.author === 'string' ? rawMeta.author : undefined,
+            year: typeof rawMeta.year === 'string' ? rawMeta.year : undefined,
+            page: typeof rawMeta.page === 'string' ? rawMeta.page : undefined,
+            caption: typeof rawMeta.caption === 'string' ? rawMeta.caption : undefined,
+            source: typeof rawMeta.source === 'string' ? rawMeta.source : undefined,
+            imageDataUrl: typeof rawMeta.imageDataUrl === 'string' ? rawMeta.imageDataUrl : undefined,
+            imageMime: typeof rawMeta.imageMime === 'string' ? rawMeta.imageMime : undefined,
+            imageWidthPct:
+              rawMeta.imageWidthPct === 50 || rawMeta.imageWidthPct === 75 || rawMeta.imageWidthPct === 100
+                ? rawMeta.imageWidthPct
+                : typeof rawMeta.imageWidthPct === 'number' && Number.isFinite(rawMeta.imageWidthPct)
+                  ? (Math.min(100, Math.max(10, Math.round(rawMeta.imageWidthPct))) as 50 | 75 | 100)
+                  : undefined,
+            language:
+              typeof rawMeta.language === 'string' && /^[a-zA-Z0-9_-]+$/.test(rawMeta.language.trim())
+                ? rawMeta.language.trim()
+                : undefined,
+            headers: Array.isArray(rawMeta.headers)
+              ? rawMeta.headers.filter((h): h is string => typeof h === 'string')
+              : undefined,
+            rows: Array.isArray(rawMeta.rows)
+              ? rawMeta.rows
+                  .filter((row): row is unknown[] => Array.isArray(row))
+                  .map((row) => row.map((cell) => (typeof cell === 'string' ? cell : String(cell ?? ''))))
+              : undefined,
+          };
+        }
+
+        return {
+          id: typeof b.id === 'string' && b.id ? b.id : crypto.randomUUID(),
+          type: (typeof b.type === 'string' && validBlockTypes.includes(b.type as Block['type'])
+            ? b.type
+            : 'paragraph') as Block['type'],
+          content: typeof b.content === 'string' ? b.content : '',
+          updatedAt: typeof b.updatedAt === 'number' && Number.isFinite(b.updatedAt) ? b.updatedAt : Date.now(),
+          meta: sanitizedMeta,
+        };
+      });
   }
 
   // Referências Bibliográficas

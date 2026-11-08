@@ -230,5 +230,26 @@ describe('Document Importer (DOCX, ZIP Redija, ZIP Overleaf / LaTeX, .redija)', 
       expect(ref1).toBeDefined();
       expect(ref1?.year).toBe('2023');
     });
+
+    it('neutraliza injeções de scripts maliciosos e atributos perigosos em parágrafos e imagens', () => {
+      const maliciousHtml = `
+        <h1>Título Seguro</h1>
+        <p>Texto com <script>alert("XSS")</script> e <img src="x" onerror="stealCookies()"> e <a href="javascript:alert(1)">link</a>.</p>
+        <p><img src="javascript:alert(1)" /></p>
+        <p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=" /></p>
+      `;
+
+      const project = parseDocxHtmlToProject(maliciousHtml, 'Doc Seguro');
+      const p = project.blocks.find((b) => b.type === 'paragraph');
+      expect(p?.content).not.toContain('<script>');
+      expect(p?.content).not.toContain('alert("XSS")');
+      expect(p?.content).not.toContain('onerror=');
+      expect(p?.content).not.toContain('javascript:');
+
+      // Imagem maliciosa com javascript: deve ser descartada
+      const images = project.blocks.filter((b) => b.type === 'image');
+      expect(images).toHaveLength(1);
+      expect(images[0].meta?.imageDataUrl).toContain('data:image/png;base64');
+    });
   });
 });
