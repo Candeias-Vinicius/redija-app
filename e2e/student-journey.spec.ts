@@ -21,12 +21,14 @@ test.describe('RedijaApp: Jornada Completa do Estudante', () => {
     // 2. Confirma que o cabeçalho carregou
     await expect(page.getByText('Redija', { exact: true })).toBeVisible();
 
-    // 3. Se o modal de projetos não abrir automaticamente, abre pelo cabeçalho
+    // 3. Aguarda o modal de projetos ou abre pelo cabeçalho se não abrir automaticamente
     const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
-    if (!(await modalHeading.isVisible())) {
+    try {
+      await modalHeading.waitFor({ state: 'visible', timeout: 3500 });
+    } catch {
       await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
+      await expect(modalHeading).toBeVisible();
     }
-    await expect(modalHeading).toBeVisible();
 
     // 4. Cria trabalho com modelo TCC (NBR 14724)
     await page.getByText('Trabalho de Conclusão de Curso (TCC)').click();
