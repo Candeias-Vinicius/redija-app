@@ -280,7 +280,7 @@ describe('typstGenerator helpers', () => {
       publisher: 'Editora Y',
       year: '2024',
     });
-    expect(ref4Authors).toContain('SILVA, R. #emph[et al.] #strong[Pesquisa Avançada]');
+    expect(ref4Authors).toContain('SILVA, R. #emph[et al.]. #strong[Pesquisa Avançada]');
 
     const proj = createSampleProject();
     const warnings = runAbntLinter(proj);
@@ -323,6 +323,33 @@ describe('typstGenerator helpers', () => {
     expect(exported).toContain('@article{');
     expect(exported).toContain('@book{');
     expect(exported).toContain('Inteligência Artificial na Educação');
+  });
+
+  it('extracts binary assets and uses cached dataUrl results for fast re-rendering', () => {
+    const dummyPngDataUrl =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const proj = createSampleProject({
+      blocks: [
+        {
+          id: 'img_test_1',
+          type: 'image',
+          content: '',
+          meta: {
+            caption: 'Teste de Imagem',
+            source: 'Autor',
+            imageDataUrl: dummyPngDataUrl,
+          },
+        },
+      ],
+    });
+
+    const assetsFirst = extractBinaryAssets(proj);
+    expect(Object.keys(assetsFirst)).toHaveLength(1);
+    expect(assetsFirst['/assets/img_img_test_1.png']).toBeDefined();
+
+    const assetsSecond = extractBinaryAssets(proj);
+    // Cached instance identity check
+    expect(assetsSecond['/assets/img_img_test_1.png']).toBe(assetsFirst['/assets/img_img_test_1.png']);
   });
 });
 

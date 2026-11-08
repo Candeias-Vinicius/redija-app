@@ -75,6 +75,7 @@ export function richTextToTypst(input: string): string {
   let result = '';
   let lastIndex = 0;
   let match: RegExpExecArray | null;
+  const openTags: string[] = [];
 
   while ((match = tokenRegex.exec(input)) !== null) {
     const rawText = input.slice(lastIndex, match.index);
@@ -92,13 +93,27 @@ export function richTextToTypst(input: string): string {
         result += ' ';
       }
     } else if (!isClosing) {
-      if (tag === 'strong' || tag === 'b') result += '#strong[';
-      else if (tag === 'em' || tag === 'i') result += '#emph[';
-      else if (tag === 'u') result += '#underline[';
-      else if (tag === 'sup') result += '#super[';
-      else if (tag === 'sub') result += '#sub[';
+      if (tag === 'strong' || tag === 'b') {
+        result += '#strong[';
+        openTags.push('strong');
+      } else if (tag === 'em' || tag === 'i') {
+        result += '#emph[';
+        openTags.push('emph');
+      } else if (tag === 'u') {
+        result += '#underline[';
+        openTags.push('underline');
+      } else if (tag === 'sup') {
+        result += '#super[';
+        openTags.push('super');
+      } else if (tag === 'sub') {
+        result += '#sub[';
+        openTags.push('sub');
+      }
     } else {
-      result += ']';
+      if (openTags.length > 0) {
+        openTags.pop();
+        result += ']';
+      }
     }
 
     lastIndex = match.index + match[0].length;
@@ -107,6 +122,13 @@ export function richTextToTypst(input: string): string {
   const tail = input.slice(lastIndex);
   if (tail) {
     result += escapeMarkup(decodeEntities(tail));
+  }
+
+  // Fecha eventuais tags que ficaram abertas para garantir que o Typst
+  // nunca receba colchetes desbalanceados
+  while (openTags.length > 0) {
+    openTags.pop();
+    result += ']';
   }
 
   return result.trim();
