@@ -17,10 +17,12 @@ test.describe('RedijaApp: Fluxo Principal E2E', () => {
 
     // Se o modal de projetos não abriu automaticamente (ex: primeiro acesso sem projetos), abre pelo cabeçalho
     const projectsModalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
-    if (!await projectsModalHeading.isVisible()) {
+    try {
+      await projectsModalHeading.waitFor({ state: 'visible', timeout: 3500 });
+    } catch {
       await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
+      await expect(projectsModalHeading).toBeVisible();
     }
-    await expect(projectsModalHeading).toBeVisible();
 
     // Cria um novo projeto a partir do modelo de Artigo Científico
     await page.getByText('Artigo Científico').click();

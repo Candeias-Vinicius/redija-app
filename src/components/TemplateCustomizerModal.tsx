@@ -20,7 +20,10 @@ import {
   Trash2,
   RotateCcw,
   Check,
+  Globe,
+  Palette,
 } from 'lucide-react';
+import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
 
 interface TemplateCustomizerModalProps {
   isOpen: boolean;
@@ -131,6 +134,79 @@ const PRESETS: PresetInfo[] = [
       includeToc: true,
       citationStyle: 'titlecase',
       referenceHighlight: 'italic',
+    },
+  },
+  {
+    id: 'sbc',
+    title: 'SBC (Sociedade Brasileira de Computação)',
+    badge: 'SBC Oficial',
+    description:
+      'Margens superior 3.5cm e laterais 3cm, coluna única, fonte 12pt com entrelinha simples, resumo bilíngue e afiliações institucionais no topo.',
+    config: {
+      fontFamily: 'serif',
+      fontSizePt: 12,
+      lineSpacing: '1.0',
+      paragraphIndentCm: 1.25,
+      marginTopCm: 3.5,
+      marginLeftCm: 3,
+      marginBottomCm: 2.5,
+      marginRightCm: 3,
+      columns: 1,
+      includeCoverPage: false,
+      includeTitlePage: false,
+      includeToc: false,
+      citationStyle: 'uppercase',
+      referenceHighlight: 'bold',
+    },
+  },
+  {
+    id: 'ieee',
+    title: 'IEEE Conference (Internacional)',
+    badge: 'IEEE Padrão',
+    description:
+      'Padrão mundial em 2 colunas com margens compactas, abstract destacado em negrito itálico e referências numéricas [1].',
+    config: {
+      fontFamily: 'serif',
+      fontSizePt: 10,
+      lineSpacing: '1.0',
+      paragraphIndentCm: 0.35,
+      marginTopCm: 1.9,
+      marginLeftCm: 1.57,
+      marginBottomCm: 2.54,
+      marginRightCm: 1.57,
+      columns: 2,
+      includeCoverPage: false,
+      includeTitlePage: false,
+      includeToc: false,
+      citationStyle: 'uppercase',
+      referenceHighlight: 'italic',
+    },
+  },
+  {
+    id: 'poster',
+    title: 'Pôster Acadêmico A0 (Banner)',
+    badge: 'A0 / Simpósio',
+    description:
+      'Grande formato para apresentação em mostras e congressos, com banner superior institucional e grid de 3 colunas em caixas visuais.',
+    config: {
+      fontFamily: 'sans',
+      fontSizePt: 12,
+      lineSpacing: '1.5',
+      paragraphIndentCm: 0,
+      marginTopCm: 2.5,
+      marginLeftCm: 2.5,
+      marginBottomCm: 2.5,
+      marginRightCm: 2.5,
+      columns: 1,
+      includeCoverPage: false,
+      includeTitlePage: false,
+      includeToc: false,
+      citationStyle: 'uppercase',
+      referenceHighlight: 'bold',
+      posterDimensions: 'a0',
+      posterOrientation: 'portrait',
+      posterColumns: 3,
+      posterTheme: 'emerald',
     },
   },
 ];
@@ -546,6 +622,148 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                   <option value="bold">Negrito (Padrão ABNT NBR 6023)</option>
                   <option value="italic">Itálico (Costume de algumas universidades / APA)</option>
                 </select>
+              </div>
+            </div>
+          </div>
+
+          {/* 6. Opções Específicas do Pôster Acadêmico A0/A1 */}
+          <div className="border-t border-neutral-200 pt-5">
+            <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2">
+              <Palette className="w-3.5 h-3.5 text-emerald-600" />
+              6. Configurações de Pôster Acadêmico (A0 / A1)
+            </label>
+            <p className="text-[11px] text-neutral-500 mb-3">
+              Personalize dimensões e estilo visual caso esteja diagramando um banner ou pôster para congresso.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-neutral-50 p-3.5 rounded-xl border border-neutral-200">
+              <div>
+                <label className="block text-[11px] font-medium text-neutral-700 mb-1">
+                  Tamanho do Pôster
+                </label>
+                <select
+                  value={config.posterDimensions || 'a0'}
+                  onChange={(e) =>
+                    updateField(
+                      'posterDimensions',
+                      e.target.value as TemplateConfig['posterDimensions'],
+                    )
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-emerald-600"
+                >
+                  <option value="a0">A0 (84,1 × 118,9 cm — Padrão Oficial)</option>
+                  <option value="a1">A1 (59,4 × 84,1 cm — Simpósio Menor)</option>
+                  <option value="a2">A2 (42,0 × 59,4 cm — Painel Compacto)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-neutral-700 mb-1">
+                  Orientação do Banner
+                </label>
+                <select
+                  value={config.posterOrientation || 'portrait'}
+                  onChange={(e) =>
+                    updateField(
+                      'posterOrientation',
+                      e.target.value as TemplateConfig['posterOrientation'],
+                    )
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-emerald-600"
+                >
+                  <option value="portrait">Retrato (Vertical — Mais Usado)</option>
+                  <option value="landscape">Paisagem (Horizontal)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-neutral-700 mb-1">
+                  Número de Colunas no Pôster
+                </label>
+                <select
+                  value={config.posterColumns || 3}
+                  onChange={(e) =>
+                    updateField(
+                      'posterColumns',
+                      Number(e.target.value) as TemplateConfig['posterColumns'],
+                    )
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-emerald-600"
+                >
+                  <option value={2}>2 Colunas Largas</option>
+                  <option value={3}>3 Colunas (Clássico)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-neutral-700 mb-1">
+                  Tema Visual do Banner
+                </label>
+                <select
+                  value={config.posterTheme || 'emerald'}
+                  onChange={(e) =>
+                    updateField('posterTheme', e.target.value as TemplateConfig['posterTheme'])
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-emerald-600"
+                >
+                  <option value="emerald">Verde Esmeralda Institucional</option>
+                  <option value="blue">Azul Real Científico</option>
+                  <option value="classic_dark">Dark Minimalista</option>
+                  <option value="clean">Clean / Fundo Claro</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* 7. Conector do Typst Universe */}
+          <div className="border-t border-neutral-200 pt-5">
+            <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2">
+              <Globe className="w-3.5 h-3.5 text-emerald-600" />
+              7. Conector Typst Universe (Modelos Comunitários)
+            </label>
+            <p className="text-[11px] text-neutral-500 mb-3">
+              Conecte qualquer template oficial da loja de pacotes do Typst. Digite o identificador ou selecione uma sugestão:
+            </p>
+            <div className="space-y-3 bg-neutral-50 p-3.5 rounded-xl border border-neutral-200">
+              <div>
+                <label className="block text-[10px] font-semibold text-neutral-600 uppercase mb-1">
+                  Identificador do Pacote Typst
+                </label>
+                <input
+                  type="text"
+                  value={config.universePackage || ''}
+                  placeholder="Ex: @preview/charged-ieee:0.1.1 ou @preview/modern-sbc:0.1.0"
+                  onChange={(e) => {
+                    updateField('universePackage', e.target.value);
+                    updateField('preset', 'universe_custom');
+                  }}
+                  className="w-full text-xs px-3 py-2 bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-emerald-600 font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wide block">
+                  Modelos Populares do Universe:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {POPULAR_UNIVERSE_TEMPLATES.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        updateField('universePackage', t.id);
+                        updateField('universeEntrypoint', t.entrypoint);
+                        updateField('preset', 'universe_custom');
+                      }}
+                      className={`text-[10px] px-2 py-1 rounded-md border font-mono transition-colors ${
+                        config.universePackage === t.id
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-800 font-bold ring-1 ring-emerald-600'
+                          : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400'
+                      }`}
+                    >
+                      {t.id}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

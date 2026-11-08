@@ -4,6 +4,7 @@ import {
   DocumentProject,
   DEFAULT_TEMPLATE_CONFIG,
   TemplateConfig,
+  ProjectTemplateType,
 } from '@/types/document';
 import {
   escapeMarkup,
@@ -13,12 +14,39 @@ import {
   typstString,
 } from './escape';
 import abntTemplate from '@/core/templates/abnt.typ?raw';
+import sbcTemplate from '@/core/templates/sbc.typ?raw';
+import ieeeTemplate from '@/core/templates/ieee.typ?raw';
+import posterTemplate from '@/core/templates/poster.typ?raw';
 
 /** Nome do arquivo do modelo dentro do projeto Typst gerado. */
 export const TEMPLATE_FILE = 'abnt.typ';
 export const MAIN_FILE = 'main.typ';
 
-const IMPORT_LINE = `#import "${TEMPLATE_FILE}": *`;
+export function getTemplateFileName(templateType?: ProjectTemplateType): string {
+  switch (templateType) {
+    case 'sbc':
+      return 'sbc.typ';
+    case 'ieee':
+      return 'ieee.typ';
+    case 'poster':
+      return 'poster.typ';
+    default:
+      return 'abnt.typ';
+  }
+}
+
+export function getTemplateRawContent(templateType?: ProjectTemplateType): string {
+  switch (templateType) {
+    case 'sbc':
+      return sbcTemplate;
+    case 'ieee':
+      return ieeeTemplate;
+    case 'poster':
+      return posterTemplate;
+    default:
+      return abntTemplate;
+  }
+}
 
 export interface GeneratedTypstBundle {
   textFiles: Record<string, string>;
@@ -27,12 +55,23 @@ export interface GeneratedTypstBundle {
 
 /**
  * Transpilador RedijaApp: converte o documento estruturado (metadados + blocos
- * + referências) em um projeto Typst com dois arquivos de texto (`abnt.typ` e
- * `main.typ`), usando caminhos virtuais para eventuais imagens enviadas.
+ * + referências) em um projeto Typst com arquivos virtuais carregados no compilador,
+ * mapeando imagens e o modelo correto (ABNT, SBC, IEEE ou Pôster).
  */
-export function generateTypstFiles(project: DocumentProject): Record<string, string> {
+export function generateTypstFiles(
+  project: DocumentProject,
+  extraFiles?: Record<string, string>,
+): Record<string, string> {
+  const currentTemplateFile = getTemplateFileName(project.templateType);
+  const currentTemplateContent = getTemplateRawContent(project.templateType);
+
   return {
-    [TEMPLATE_FILE]: abntTemplate,
+    [currentTemplateFile]: currentTemplateContent,
+    'abnt.typ': abntTemplate,
+    'sbc.typ': sbcTemplate,
+    'ieee.typ': ieeeTemplate,
+    'poster.typ': posterTemplate,
+    ...(extraFiles || {}),
     [MAIN_FILE]: generateMain(project, true),
   };
 }
@@ -98,8 +137,11 @@ function parseDataUrl(dataUrl: string): { ext: string; bytes: Uint8Array } | nul
  * exportação e para abrir em outros editores Typst.
  */
 export function generateStandaloneTypst(project: DocumentProject): string {
-  const main = generateMain(project, false).replace(IMPORT_LINE, '');
-  return `${abntTemplate}\n// ===================== DOCUMENTO =====================\n${main}`;
+  const currentTemplateFile = getTemplateFileName(project.templateType);
+  const currentTemplateContent = getTemplateRawContent(project.templateType);
+  const importLine = `#import "${currentTemplateFile}": *`;
+  const main = generateMain(project, false).replace(importLine, '').trim();
+  return `${currentTemplateContent}\n// ===================== DOCUMENTO =====================\n${main}`;
 }
 
 /** Gera apenas o conteúdo do main.typ. */
@@ -108,8 +150,15 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
     ...DEFAULT_TEMPLATE_CONFIG,
     ...(project.templateConfig ?? {}),
   };
+
+  let importLine = `#import "${getTemplateFileName(project.templateType)}": *`;
+  if (project.templateType === 'universe_custom') {
+    const pkg = cfg.universePackage || '@preview/charged-ieee:0.1.1';
+    importLine = `#import "abnt.typ": *\n#import "${pkg}": *`;
+  }
+
   const parts: string[] = [
-    IMPORT_LINE,
+    importLine,
     generateShowRule(project, cfg, includeBinaryImages),
     '',
   ];
@@ -123,38 +172,149 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
     parts.push(transpileReferences(project.references, cfg));
   }
 
-  // Elementos Pós-Textuais Opcionais (NBR 14724): Glossário, Apêndices e Anexos
-  if (project.metadata.glossary?.trim()) {
-    parts.push(
-      '',
-      '#pagebreak(weak: true)',
-      '#heading(numbering: none)[GLOSSÁRIO]',
-      escapeMarkup(project.metadata.glossary.trim()),
-    );
-  }
+  // Elementos Pós-Textuais Opcionais (NBR 14724): Glossário, Apêndices e Anexos (Apenas para ABNT/TCC)
+  if (project.templateType !== 'poster' && project.templateType !== 'ieee' && project.templateType !== 'sbc') {
+    if (project.metadata.glossary?.trim()) {
+      parts.push(
+        '',
+        '#pagebreak(weak: true)',
+        '#heading(numbering: none)[GLOSSÁRIO]',
+        escapeMarkup(project.metadata.glossary.trim()),
+      );
+    }
 
-  if (project.metadata.appendices?.trim()) {
-    parts.push(
-      '',
-      '#pagebreak(weak: true)',
-      '#heading(numbering: none)[APÊNDICES]',
-      escapeMarkup(project.metadata.appendices.trim()),
-    );
-  }
+    if (project.metadata.appendices?.trim()) {
+      parts.push(
+        '',
+        '#pagebreak(weak: true)',
+        '#heading(numbering: none)[APÊNDICES]',
+        escapeMarkup(project.metadata.appendices.trim()),
+      );
+    }
 
-  if (project.metadata.annexes?.trim()) {
-    parts.push(
-      '',
-      '#pagebreak(weak: true)',
-      '#heading(numbering: none)[ANEXOS]',
-      escapeMarkup(project.metadata.annexes.trim()),
-    );
+    if (project.metadata.annexes?.trim()) {
+      parts.push(
+        '',
+        '#pagebreak(weak: true)',
+        '#heading(numbering: none)[ANEXOS]',
+        escapeMarkup(project.metadata.annexes.trim()),
+      );
+    }
   }
 
   return parts.join('\n');
 }
 
 function generateShowRule(
+  project: DocumentProject,
+  cfg: TemplateConfig,
+  includeBinaryImages = false,
+): string {
+  switch (project.templateType) {
+    case 'sbc':
+      return generateSbcShowRule(project, cfg);
+    case 'ieee':
+      return generateIeeeShowRule(project, cfg);
+    case 'poster':
+      return generatePosterShowRule(project, cfg, includeBinaryImages);
+    case 'universe_custom':
+      return generateUniverseShowRule(project, cfg);
+    default:
+      return generateAbntShowRule(project, cfg, includeBinaryImages);
+  }
+}
+
+function generateSbcShowRule(project: DocumentProject, cfg: TemplateConfig): string {
+  const m = project.metadata;
+  const args: string[] = [
+    `titulo: ${typstString(m.title)}`,
+    `autor: ${typstString(m.author)}`,
+    `instituicao: ${typstString(m.institution)}`,
+    `curso: ${typstString(m.course)}`,
+    `local: ${typstString(m.location)}`,
+    `ano: ${typstString(m.year)}`,
+  ];
+  if (m.subtitle?.trim()) args.push(`subtitulo: ${typstString(m.subtitle)}`);
+  if (m.abstract.trim()) args.push(`resumo: ${typstContent(m.abstract)}`);
+  const keywords = m.keywords.map((k) => k.trim()).filter(Boolean);
+  if (keywords.length > 0) args.push(`palavras-chave: (${keywords.map(typstString).join(', ')},)`);
+  if (m.foreignAbstract?.trim()) args.push(`abstract: ${typstContent(m.foreignAbstract)}`);
+  const foreignKeywords = (m.foreignKeywords ?? []).map((k) => k.trim()).filter(Boolean);
+  if (foreignKeywords.length > 0) args.push(`keywords: (${foreignKeywords.map(typstString).join(', ')},)`);
+  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily)}`);
+  if (cfg.columns) args.push(`colunas: ${cfg.columns}`);
+
+  return `#show: sbc-article.with(\n  ${args.join(',\n  ')},\n)`;
+}
+
+function generateIeeeShowRule(project: DocumentProject, cfg: TemplateConfig): string {
+  const m = project.metadata;
+  const args: string[] = [
+    `titulo: ${typstString(m.title)}`,
+    `autor: ${typstString(m.author)}`,
+    `instituicao: ${typstString(m.institution)}`,
+    `curso: ${typstString(m.course)}`,
+    `local: ${typstString(m.location)}`,
+    `ano: ${typstString(m.year)}`,
+  ];
+  if (m.subtitle?.trim()) args.push(`subtitulo: ${typstString(m.subtitle)}`);
+  if (m.abstract.trim()) args.push(`resumo: ${typstContent(m.abstract)}`);
+  const keywords = m.keywords.map((k) => k.trim()).filter(Boolean);
+  if (keywords.length > 0) args.push(`palavras-chave: (${keywords.map(typstString).join(', ')},)`);
+  if (m.foreignAbstract?.trim()) args.push(`abstract: ${typstContent(m.foreignAbstract)}`);
+  const foreignKeywords = (m.foreignKeywords ?? []).map((k) => k.trim()).filter(Boolean);
+  if (foreignKeywords.length > 0) args.push(`keywords: (${foreignKeywords.map(typstString).join(', ')},)`);
+  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily)}`);
+  args.push(`colunas: ${cfg.columns || 2}`);
+
+  return `#show: ieee-article.with(\n  ${args.join(',\n  ')},\n)`;
+}
+
+function generatePosterShowRule(
+  project: DocumentProject,
+  cfg: TemplateConfig,
+  includeBinaryImages = false,
+): string {
+  const m = project.metadata;
+  const args: string[] = [
+    `titulo: ${typstString(m.title)}`,
+    `autor: ${typstString(m.author)}`,
+    `instituicao: ${typstString(m.institution)}`,
+    `curso: ${typstString(m.course)}`,
+    `local: ${typstString(m.location)}`,
+    `ano: ${typstString(m.year)}`,
+  ];
+  if (m.subtitle?.trim()) args.push(`subtitulo: ${typstString(m.subtitle)}`);
+
+  if (includeBinaryImages && m.institutionLogoDataUrl) {
+    const parsedLogo = parseDataUrl(m.institutionLogoDataUrl);
+    if (parsedLogo) {
+      const logoPath = `/assets/logo_instituicao.${parsedLogo.ext}`;
+      args.push(`logo: image(${typstString(logoPath)}, height: 6cm)`);
+    }
+  }
+
+  args.push(`dimensoes: ${typstString(cfg.posterDimensions || 'a0')}`);
+  args.push(`orientacao: ${typstString(cfg.posterOrientation || 'portrait')}`);
+  args.push(`colunas: ${cfg.posterColumns || 3}`);
+  args.push(`tema: ${typstString(cfg.posterTheme || 'emerald')}`);
+  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily)}`);
+
+  return `#show: academic-poster.with(\n  ${args.join(',\n  ')},\n)`;
+}
+
+function generateUniverseShowRule(project: DocumentProject, cfg: TemplateConfig): string {
+  const m = project.metadata;
+  const entry = cfg.universeEntrypoint || 'article';
+  const args: string[] = [
+    `title: ${typstString(m.title)}`,
+    `authors: (${typstString(m.author)},)`,
+  ];
+  if (m.abstract.trim()) args.push(`abstract: ${typstContent(m.abstract)}`);
+  return `#show: ${entry}.with(\n  ${args.join(',\n  ')},\n)`;
+}
+
+function generateAbntShowRule(
   project: DocumentProject,
   cfg: TemplateConfig,
   includeBinaryImages = false,

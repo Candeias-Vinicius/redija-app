@@ -3,7 +3,9 @@ import { DocumentProject } from '@/types/document';
 import {
   generateTypstFiles,
   extractBinaryAssets,
+  getTemplateFileName,
 } from '@/core/transpiler/typstGenerator';
+import { resolveUniversePackage } from '@/core/universe/universeResolver';
 import { exportToBibtex } from '@/core/transpiler/abntLinter';
 import {
   compileToVector,
@@ -71,6 +73,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
   const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
   const latestCompileId = useRef(0);
 
+  const templateFileName = getTemplateFileName(project.templateType);
   const typstFiles = generateTypstFiles(project);
   const bibtexCode =
     project.references.length > 0
@@ -78,7 +81,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
       : '// Nenhuma referência cadastrada ainda no projeto.';
 
   const getCurrentCode = () => {
-    if (codeTab === 'abnt') return typstFiles['abnt.typ'];
+    if (codeTab === 'abnt') return typstFiles[templateFileName] || typstFiles['abnt.typ'];
     if (codeTab === 'bibtex') return bibtexCode;
     return typstFiles['main.typ'];
   };
@@ -97,7 +100,13 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
       setRuntimeError(null);
 
       try {
-        const files = generateTypstFiles(project);
+        let extraFiles: Record<string, string> | undefined = undefined;
+        if (project.templateType === 'universe_custom' && project.templateConfig?.universePackage) {
+          const resolved = await resolveUniversePackage(project.templateConfig.universePackage);
+          extraFiles = resolved.files;
+        }
+
+        const files = generateTypstFiles(project, extraFiles);
         const binaryFiles = extractBinaryAssets(project);
         const result = await compileToVector(files, binaryFiles);
 
@@ -403,7 +412,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
                       : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'
                   }`}
                 >
-                  abnt.typ (Modelo)
+                  {templateFileName} (Modelo)
                 </button>
                 <button
                   type="button"

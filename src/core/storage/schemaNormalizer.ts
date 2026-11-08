@@ -43,6 +43,10 @@ export function normalizeProject(raw: unknown): DocumentProject {
     'relatorio',
     'projeto_pesquisa',
     'em_branco',
+    'sbc',
+    'ieee',
+    'poster',
+    'universe_custom',
   ];
   const templateType: ProjectTemplateType =
     typeof data.templateType === 'string' &&
