@@ -27,3 +27,9 @@ dist-ssr
 .env
 .env.production
 .env.local
+
+# Test outputs
+test-results/
+playwright-report/
+blob-report/
+

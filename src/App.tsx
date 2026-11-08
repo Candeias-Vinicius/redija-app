@@ -13,6 +13,7 @@ import { ShareModal } from '@/components/ShareModal';
 import { AccountSettingsModal } from '@/components/AccountSettingsModal';
 import { BackupNoticeBanner } from '@/components/BackupNoticeBanner';
 import { LoginScreen } from '@/components/LoginScreen';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
 import {
   saveProjectToDrive,
@@ -1281,25 +1282,30 @@ export const App: React.FC = () => {
         <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Painel Esquerdo: Metadados ABNT e Referências */}
         {showSidebar && (
-          <Sidebar
-            project={project}
-            metadata={project.metadata}
-            onChangeMetadata={handleMetadataChange}
-            references={project.references}
-            onOpenReferenceModal={() => {
-              setEditingReference(null);
-              setIsModalOpen(true);
-            }}
-            onEditReference={(ref) => {
-              setEditingReference(ref);
-              setIsModalOpen(true);
-            }}
-            onRemoveReference={handleRemoveReference}
-            onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
-            onOpenAbntGuide={() => setIsWelcomeModalOpen(true)}
-            onMinimize={toggleSidebar}
-            widthPx={!showEditor && !showPreview ? window.innerWidth : sidebarWidth}
-          />
+          <ErrorBoundary
+            fallbackTitle="Instabilidade na Barra de Estrutura"
+            fallbackMessage="Ocorreu um erro ao renderizar os metadados ou referências. Seus dados continuam salvos no navegador."
+          >
+            <Sidebar
+              project={project}
+              metadata={project.metadata}
+              onChangeMetadata={handleMetadataChange}
+              references={project.references}
+              onOpenReferenceModal={() => {
+                setEditingReference(null);
+                setIsModalOpen(true);
+              }}
+              onEditReference={(ref) => {
+                setEditingReference(ref);
+                setIsModalOpen(true);
+              }}
+              onRemoveReference={handleRemoveReference}
+              onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
+              onOpenAbntGuide={() => setIsWelcomeModalOpen(true)}
+              onMinimize={toggleSidebar}
+              widthPx={!showEditor && !showPreview ? window.innerWidth : sidebarWidth}
+            />
+          </ErrorBoundary>
         )}
 
         {/* Divisor Redimensionável: Sidebar <-> Editor */}
@@ -1322,21 +1328,26 @@ export const App: React.FC = () => {
 
         {/* Centro: Editor Visual Estilo Notion */}
         {showEditor && (
-          <Editor
-            blocks={project.blocks}
-            metadata={project.metadata}
-            references={project.references}
-            citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
-            isFullWidth={!showSidebar && !showPreview}
-            activeCollaborators={activeCollaborators}
-            onOpenReferenceModal={() => {
-              setEditingReference(null);
-              setIsModalOpen(true);
-            }}
-            onChangeBlocks={handleBlocksChange}
-            onFocusBlock={(blockId) => realtimeCollab.broadcastCursor(blockId)}
-            onMinimize={toggleEditor}
-          />
+          <ErrorBoundary
+            fallbackTitle="Instabilidade no Editor de Texto"
+            fallbackMessage="O editor visual encontrou uma falha temporária. Seus parágrafos e citações continuam preservados com segurança."
+          >
+            <Editor
+              blocks={project.blocks}
+              metadata={project.metadata}
+              references={project.references}
+              citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
+              isFullWidth={!showSidebar && !showPreview}
+              activeCollaborators={activeCollaborators}
+              onOpenReferenceModal={() => {
+                setEditingReference(null);
+                setIsModalOpen(true);
+              }}
+              onChangeBlocks={handleBlocksChange}
+              onFocusBlock={(blockId) => realtimeCollab.broadcastCursor(blockId)}
+              onMinimize={toggleEditor}
+            />
+          </ErrorBoundary>
         )}
 
         {/* Divisor Redimensionável: Editor <-> Preview PDF */}
@@ -1359,18 +1370,23 @@ export const App: React.FC = () => {
 
         {/* Painel Direito: Preview A4 ABNT ou Código Typst */}
         {showPreview && (
-          <PdfPreview
-            project={project}
-            showCode={showCode}
-            onToggleCode={() => setShowCode(!showCode)}
-            onDownloadPdf={handleDownloadPdf}
-            isExportingPdf={isExportingPdf}
-            onExportProjectZip={handleExportProjectZip}
-            isExportingProject={isExportingProject}
-            widthPx={previewWidth}
-            isFullWidth={!showEditor}
-            onMinimize={togglePreview}
-          />
+          <ErrorBoundary
+            fallbackTitle="Instabilidade na Visualização do PDF"
+            fallbackMessage="Ocorreu um erro no módulo de pré-visualização. O documento continua são e salvo e pode ser baixado normalmente."
+          >
+            <PdfPreview
+              project={project}
+              showCode={showCode}
+              onToggleCode={() => setShowCode(!showCode)}
+              onDownloadPdf={handleDownloadPdf}
+              isExportingPdf={isExportingPdf}
+              onExportProjectZip={handleExportProjectZip}
+              isExportingProject={isExportingProject}
+              widthPx={previewWidth}
+              isFullWidth={!showEditor}
+              onMinimize={togglePreview}
+            />
+          </ErrorBoundary>
         )}
       </div>
       )}
