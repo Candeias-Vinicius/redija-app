@@ -4,7 +4,7 @@ import { exportTypstProjectZip, getCleanProjectSlug } from '../projectExporter';
 import { DocumentProject } from '@/types/document';
 import { createProjectFromTemplate } from '../../storage/projectTemplates';
 
-describe('projectExporter — Exportação de Pacote Completo Typst (.zip)', () => {
+describe('projectExporter: Exportação de Pacote Completo Typst (.zip)', () => {
   it('gera slug limpo para nomes de arquivo a partir do título do projeto', () => {
     expect(getCleanProjectSlug('Meu Trabalho de Conclusão ABNT')).toBe('meu_trabalho_de_conclusao_abnt');
     expect(getCleanProjectSlug('Artigo: Tipografia & Typst! (2026)')).toBe('artigo_tipografia_typst_2026');

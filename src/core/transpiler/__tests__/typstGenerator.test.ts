@@ -330,7 +330,7 @@ describe('Typst compilation integration', () => {
     const project = createSampleProject();
     const files = generateTypstFiles(project);
 
-    const workspace = 'C:/Users/vinic/.gemini/antigravity/scratch/redija-app';
+    const workspace = process.cwd().replace(/\\/g, '/');
     const compiler = NodeCompiler.create({ workspace });
     compiler.addSource(`${workspace}/${TEMPLATE_FILE}`, files[TEMPLATE_FILE]);
 

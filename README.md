@@ -12,8 +12,9 @@
 ## 💡 A Proposta
 
 Escrever trabalhos acadêmicos no Brasil (TCCs, dissertações, teses e artigos) costuma ser um processo exaustivo e burocrático:
-* **No Word:** Alunos perdem dias lutando com margens (3-3-2-2 cm), numeração romana/arábica de páginas, sumários desajustados e formatação manual de referências.
-* **No Overleaf / LaTeX:** A alta complexidade sintática e mensagens de erro de compilação afastam a grande maioria dos pesquisadores e estudantes.
+
+- **No Word:** Alunos perdem dias lutando com margens (3-3-2-2 cm), numeração romana/arábica de páginas, sumários desajustados e formatação manual de referências.
+- **No Overleaf / LaTeX:** A alta complexidade sintática e mensagens de erro de compilação afastam a grande maioria dos pesquisadores e estudantes.
 
 O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notion**, orientada a blocos com formatação rica e arrastar-e-soltar, impulsionada pelo motor **Typst compilado em WebAssembly (WASM)** rodando diretamente no navegador do usuário. Você apenas escreve o conteúdo; o RedijaApp cuida de 100% da diagramação normativa em tempo real, sem custos de servidores de compilação.
 
@@ -22,109 +23,119 @@ O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notio
 ## ✨ Funcionalidades do Sistema
 
 ### 1. Nova Identidade Visual & Tela de Entrada Informativa
-* **Logotipo Vetorial Transparente:** Ícone tipográfico estilizado com gradiente esmeralda e ciano, totalmente desacoplado da tipografia para excelente legibilidade em fundos claros e escuros.
-* **Layout Split-Screen Moderno:** Tela de boas-vindas dividida com carrossel interativo apresentando as principais propostas de valor do aplicativo:
-  * Normatização ABNT 100% automática em tempo real.
-  * Nuvem Pessoal no Google Drive (arquivos sob o controle do usuário).
-  * Colaboração ao vivo no estilo Google Docs sem servidores intermediários.
-  * Importação inteligente de arquivos Word (.docx) com conversão de imagens e estilos.
-* **Alternador de Tema Claro e Escuro:** Suporte a modo escuro profundo (Dark Mode) e modo claro elegante com alternância instantânea na tela de login e no cabeçalho do editor.
-* **Entrada com Perfil Local:** Opção clara para utilizar o aplicativo offline e localmente sem necessidade de conta ou login imediato.
+
+- **Logotipo Vetorial Transparente:** Ícone tipográfico estilizado com gradiente esmeralda e ciano, totalmente desacoplado da tipografia para excelente legibilidade em fundos claros e escuros.
+- **Layout Split-Screen Moderno:** Tela de boas-vindas dividida com carrossel interativo apresentando as principais propostas de valor do aplicativo:
+  - Normatização ABNT 100% automática em tempo real.
+  - Nuvem Pessoal no Google Drive (arquivos sob o controle do usuário).
+  - Colaboração ao vivo no estilo Google Docs sem servidores intermediários.
+  - Importação inteligente de arquivos Word (.docx) com conversão de imagens e estilos.
+- **Alternador de Tema Claro e Escuro:** Suporte a modo escuro profundo (Dark Mode) e modo claro elegante com alternância instantânea na tela de login e no cabeçalho do editor.
+- **Entrada com Perfil Local:** Opção clara para utilizar o aplicativo offline e localmente sem necessidade de conta ou login imediato.
 
 ---
 
 ### 2. Editor Visual Modular em Blocos (Estilo Notion)
-* **Estrutura por Blocos:** Crie e organize o conteúdo através de blocos modulares sem ver ou editar código-fonte.
-* **Títulos Hierárquicos ABNT:** Suporte completo a seções primárias (H1 numerado), secundárias (H2), terciárias (H3), quaternárias (H4), quinárias (H5) e títulos não numerados (ex.: Resumo, Introdução, Referências).
-* **Formatação Rica (TipTap):** Negrito, itálico, sublinhado, sobrescrito e subscrito com atalhos de teclado.
-* **Citação Direta Curta (NBR 10520):** Diálogo integrado para inserir citações no corpo do texto conectadas às referências cadastradas, com indicação de página e ano.
-* **Citação Direta Longa (+ de 3 linhas):** Bloco dedicado com recuo automático de 4 cm da margem esquerda, fonte tamanho 10 pt e espaçamento entrelinhas simples.
-* **Equações Matemáticas:** Renderização de fórmulas matemáticas com notação Typst e opção de numeração sequencial à direita.
-* **Blocos de Código:** Apresentação de código com destaque de sintaxe (*syntax highlighting*) configurável por linguagem.
-* **Figuras e Imagens:** Upload com pré-visualização, controle de largura (50%, 75% ou 100%), legenda superior e fonte inferior conforme exigido pela ABNT. Quota de até 150 MB de imagens por trabalho.
-* **Tabelas Acadêmicas:** Tabelas padronizadas (normas do IBGE / ABNT), com linhas horizontais abertas nas laterais, cabeçalho e fonte.
-* **Quadros:** Estruturas fechadas com grade completa para dados qualitativos, com legenda e fonte.
-* **Notas de Rodapé & Quebras de Página:** Adicione notas numeradas e force quebras de página explícitas quando necessário.
-* **Reorganização Dinâmica:** Arraste e solte (*drag and drop*) blocos para reposicionar seções instantaneamente.
-* **Histórico Completo de Edição:** Desfazer e refazer (Undo / Redo) acessíveis por botões na barra de ferramentas ou atalhos (`Ctrl+Z` / `Ctrl+Y`).
+
+- **Estrutura por Blocos:** Crie e organize o conteúdo através de blocos modulares sem ver ou editar código-fonte.
+- **Títulos Hierárquicos ABNT:** Suporte completo a seções primárias (H1 numerado), secundárias (H2), terciárias (H3), quaternárias (H4), quinárias (H5) e títulos não numerados (ex.: Resumo, Introdução, Referências).
+- **Formatação Rica (TipTap):** Negrito, itálico, sublinhado, sobrescrito e subscrito com atalhos de teclado.
+- **Citação Direta Curta (NBR 10520):** Diálogo integrado para inserir citações no corpo do texto conectadas às referências cadastradas, com indicação de página e ano.
+- **Citação Direta Longa (+ de 3 linhas):** Bloco dedicado com recuo automático de 4 cm da margem esquerda, fonte tamanho 10 pt e espaçamento entrelinhas simples.
+- **Equações Matemáticas:** Renderização de fórmulas matemáticas com notação Typst e opção de numeração sequencial à direita.
+- **Blocos de Código:** Apresentação de código com destaque de sintaxe (_syntax highlighting_) configurável por linguagem.
+- **Figuras e Imagens:** Upload com pré-visualização, controle de largura (50%, 75% ou 100%), legenda superior e fonte inferior conforme exigido pela ABNT. Quota de até 150 MB de imagens por trabalho.
+- **Tabelas Acadêmicas:** Tabelas padronizadas (normas do IBGE / ABNT), com linhas horizontais abertas nas laterais, cabeçalho e fonte.
+- **Quadros:** Estruturas fechadas com grade completa para dados qualitativos, com legenda e fonte.
+- **Notas de Rodapé & Quebras de Página:** Adicione notas numeradas e force quebras de página explícitas quando necessário.
+- **Reorganização Dinâmica:** Arraste e solte (_drag and drop_) blocos para reposicionar seções instantaneamente.
+- **Histórico Completo de Edição:** Desfazer e refazer (Undo / Redo) acessíveis por botões na barra de ferramentas ou atalhos (`Ctrl+Z` / `Ctrl+Y`).
 
 ---
 
 ### 3. Importação Inteligente de Documentos Word (.docx) e Backups
-* **Importador Word (.docx):** Carregue trabalhos acadêmicos existentes criados no Microsoft Word. O conversor extrai automaticamente títulos hierárquicos, parágrafos, listas e imagens embutidas (convertendo-as em blocos de figura com metadados ABNT).
-* **Backups Portáteis (.redija):** Importação e exportação de projetos completos em arquivo JSON padronizado com preservação integral de referências, imagens e configurações normativas.
+
+- **Importador Word (.docx):** Carregue trabalhos acadêmicos existentes criados no Microsoft Word. O conversor extrai automaticamente títulos hierárquicos, parágrafos, listas e imagens embutidas (convertendo-as em blocos de figura com metadados ABNT).
+- **Backups Portáteis (.redija):** Importação e exportação de projetos completos em arquivo JSON padronizado com preservação integral de referências, imagens e configurações normativas.
 
 ---
 
 ### 4. Normatização e Formatação ABNT 100% Automática
-* **Margens Oficiais:** Configuração estrita de 3 cm (superior e esquerda) e 2 cm (inferior e direita).
-* **Tipografia Acadêmica:** Escolha entre fontes padrão *serif* (Times New Roman) e *sans-serif* (Arial), com corpo de texto em 12 pt e notas/legendas em 10 pt.
-* **Espaçamento e Indentação:** Espaçamento 1,5 entre linhas no corpo do texto e recuo de parágrafo automático de 1,25 cm.
-* **Predefinições Normativas (Presets):**
-  * *ABNT Clássica* (Monografias e Teses).
-  * *ABNT 2023* (Atualizações da NBR 10520:2023 com citações em caixa mista).
-  * *Artigo em 2 Colunas* (Formato acadêmico para periódicos e conferências).
-  * *APA 7ª Edição* (Padrão internacional com margens de 2,54 cm).
-  * *Configuração Customizada* (Ajuste fino de margens, colunas e estilos).
-* **Modelos Prontos para Uso:** Crie projetos a partir de templates estruturados para **TCC / Monografia**, **Artigo Científico**, **Relatório Técnico**, **Projeto de Pesquisa** ou comece com um **Documento em Branco**.
+
+- **Margens Oficiais:** Configuração estrita de 3 cm (superior e esquerda) e 2 cm (inferior e direita).
+- **Tipografia Acadêmica:** Escolha entre fontes padrão _serif_ (Times New Roman) e _sans-serif_ (Arial), com corpo de texto em 12 pt e notas/legendas em 10 pt.
+- **Espaçamento e Indentação:** Espaçamento 1,5 entre linhas no corpo do texto e recuo de parágrafo automático de 1,25 cm.
+- **Predefinições Normativas (Presets):**
+  - _ABNT Clássica_ (Monografias e Teses).
+  - _ABNT 2023_ (Atualizações da NBR 10520:2023 com citações em caixa mista).
+  - _Artigo em 2 Colunas_ (Formato acadêmico para periódicos e conferências).
+  - _APA 7ª Edição_ (Padrão internacional com margens de 2,54 cm).
+  - _Configuração Customizada_ (Ajuste fino de margens, colunas e estilos).
+- **Modelos Prontos para Uso:** Crie projetos a partir de templates estruturados para **TCC / Monografia**, **Artigo Científico**, **Relatório Técnico**, **Projeto de Pesquisa** ou comece com um **Documento em Branco**.
 
 ---
 
 ### 5. Elementos Pré-Textuais e Pós-Textuais (NBR 14724)
-* **Capa Personalizada:** Diagramação institucional automática com inclusão opcional de brasão ou logotipo.
-* **Folha de Rosto:** Formatação com autor, título, subtítulo, nota de apresentação (natureza do trabalho), instituição, orientador e coorientador.
-* **Folha de Aprovação:** Geração de página formal de avaliação com data de aprovação e lista de membros da banca examinadora com linhas de assinatura.
-* **Páginas Especiais:** Seções dedicadas para Dedicatória, Agradecimentos e Epígrafe com autoria.
-* **Resumo e Abstract:** Resumo vernáculo com lista de palavras-chave e versão em língua estrangeira (*Abstract*) com *keywords*.
-* **Sumário e Listas Automáticas:** Sumário geral gerado dinamicamente pelo Typst, além de Listas de Figuras, Listas de Tabelas e Listas de Quadros.
-* **Seções Pós-Textuais:** Campos dedicados para Lista de Abreviaturas e Siglas, Símbolos, Glossário, Apêndices e Anexos.
+
+- **Capa Personalizada:** Diagramação institucional automática com inclusão opcional de brasão ou logotipo.
+- **Folha de Rosto:** Formatação com autor, título, subtítulo, nota de apresentação (natureza do trabalho), instituição, orientador e coorientador.
+- **Folha de Aprovação:** Geração de página formal de avaliação com data de aprovação e lista de membros da banca examinadora com linhas de assinatura.
+- **Páginas Especiais:** Seções dedicadas para Dedicatória, Agradecimentos e Epígrafe com autoria.
+- **Resumo e Abstract:** Resumo vernáculo com lista de palavras-chave e versão em língua estrangeira (_Abstract_) com _keywords_.
+- **Sumário e Listas Automáticas:** Sumário geral gerado dinamicamente pelo Typst, além de Listas de Figuras, Listas de Tabelas e Listas de Quadros.
+- **Seções Pós-Textuais:** Campos dedicados para Lista de Abreviaturas e Siglas, Símbolos, Glossário, Apêndices e Anexos.
 
 ---
 
 ### 6. Gerenciador Bibliográfico Inteligente (NBR 6023)
-* **Cadastro Estruturado por Tipo:** Suporte a Livros, Artigos de Periódicos, Teses/Dissertações, Páginas da Web e Documentos Legislativos.
-* **Busca e Autopreenchimento por DOI:** Integração com a API pública da CrossRef: basta colar o código DOI para que título, autores, revista, volume, páginas e ano sejam preenchidos em segundos.
-* **Ordenação Alfabética e Destaque:** Ordenação automática por sobrenome do autor e formatação do título com destaque configurável (Negrito ou Itálico) e estilo de citação (Caixa Alta `SOBRENOME, Ano` ou `Sobrenome, Ano`).
+
+- **Cadastro Estruturado por Tipo:** Suporte a Livros, Artigos de Periódicos, Teses/Dissertações, Páginas da Web e Documentos Legislativos.
+- **Busca e Autopreenchimento por DOI:** Integração com a API pública da CrossRef: basta colar o código DOI para que título, autores, revista, volume, páginas e ano sejam preenchidos em segundos.
+- **Ordenação Alfabética e Destaque:** Ordenação automática por sobrenome do autor e formatação do título com destaque configurável (Negrito ou Itálico) e estilo de citação (Caixa Alta `SOBRENOME, Ano` ou `Sobrenome, Ano`).
 
 ---
 
 ### 7. Compilação Typst WASM no Navegador (Zero Servidor)
-* **Compilação Instantânea em WebAssembly:** Compilação do código Typst diretamente na máquina do usuário via `@myriaddreamin/typst.ts` operando em um Web Worker isolado.
-* **Pré-visualização Interativa do PDF:** Visualizador do documento renderizado lado a lado com controle de zoom (50% a 200%), navegação de páginas e ajuste dinâmico de layout (painel divido ou tela cheia).
-* **Painel de Diagnósticos:** Detecção de alertas e erros de sintaxe tipográfica em tempo real sem interrupção do fluxo de trabalho.
+
+- **Compilação Instantânea em WebAssembly:** Compilação do código Typst diretamente na máquina do usuário via `@myriaddreamin/typst.ts` operando em um Web Worker isolado.
+- **Pré-visualização Interativa do PDF:** Visualizador do documento renderizado lado a lado com controle de zoom (50% a 200%), navegação de páginas e ajuste dinâmico de layout (painel divido ou tela cheia).
+- **Painel de Diagnósticos:** Detecção de alertas e erros de sintaxe tipográfica em tempo real sem interrupção do fluxo de trabalho.
 
 ---
 
 ### 8. Arquitetura Multi-Perfil & Nuvem Pessoal (Google Drive BYOS)
-* **Persistência Local (IndexedDB):** Todos os rascunhos e imagens são mantidos localmente via Dexie.js, garantindo funcionamento ininterrupto mesmo sem conexão com a internet.
-* **Isolamento Estrito entre Perfil Local e Contas Google:**
-  * O Perfil Local opera isoladamente no navegador com opção explícita de "Sair do Perfil Local".
-  * Se um colega sentar na mesma máquina e logar com a conta Google dele, os arquivos locais do proprietário permanecem protegidos e isolados: o sincronizador nunca herda nem envia trabalhos locais para a conta Google de terceiros.
-* **Bring Your Own Storage (BYOS):** Seus dados pertencem a você. O RedijaApp integra-se à conta pessoal do Google Drive do usuário via Google Identity Services (OAuth2).
-* **Gestão de Sessão Segura:** Tokens OAuth2 mantidos em memória RAM (protegidos contra ataques XSS), consentimento persistido sem caixas de diálogo repetidas em logins subsequentes e opção de logout seguro.
+
+- **Persistência Local (IndexedDB):** Todos os rascunhos e imagens são mantidos localmente via Dexie.js, garantindo funcionamento ininterrupto mesmo sem conexão com a internet.
+- **Isolamento Estrito entre Perfil Local e Contas Google:**
+  - O Perfil Local opera isoladamente no navegador com opção explícita de "Sair do Perfil Local".
+  - Se um colega sentar na mesma máquina e logar com a conta Google dele, os arquivos locais do proprietário permanecem protegidos e isolados: o sincronizador nunca herda nem envia trabalhos locais para a conta Google de terceiros.
+- **Bring Your Own Storage (BYOS):** Seus dados pertencem a você. O RedijaApp integra-se à conta pessoal do Google Drive do usuário via Google Identity Services (OAuth2).
+- **Gestão de Sessão Segura:** Tokens OAuth2 mantidos em memória RAM (protegidos contra ataques XSS), consentimento persistido sem caixas de diálogo repetidas em logins subsequentes e opção de logout seguro.
 
 ---
 
 ### 9. Colaboração em Tempo Real & Concorrência Inteligente
-* **Colaboração em Tempo Real P2P (WebRTC + BroadcastChannel):** Comunicação peer-to-peer direta entre navegadores de colaboradores via canais de dados WebRTC (PeerJS) e BroadcastChannel (para abas no mesmo computador), sem latência e sem custo de servidores intermediários.
-* **Indicadores Visuais de Presença:**
-  * Indicador pulsante no cabeçalho com contagem de usuários ativos (`● 2 online`) e avatares com fotos de perfil.
-  * Contorno luminoso e etiquetas flutuantes `"[Nome] está aqui"` no bloco exato que outro colaborador estiver visualizando ou editando.
-* **Mesclagem Automática por Blocos (Auto-Merge):** Resolução inteligente de concorrência com base em marcas temporais (`updatedAt`) por bloco. Se dois autores editarem o documento em horários ou conexões diferentes, as alterações são mescladas de maneira não destrutiva, sem perda de parágrafos nem duplicatas de referências.
-* **Compartilhamento Nativo via Google Drive:** Compartilhe projetos diretamente com orientadores e colegas através do modal integrado, definindo permissões de Leitor ou Editor via Google Drive Permissions API.
+
+- **Colaboração em Tempo Real P2P (WebRTC + BroadcastChannel):** Comunicação peer-to-peer direta entre navegadores de colaboradores via canais de dados WebRTC (PeerJS) e BroadcastChannel (para abas no mesmo computador), sem latência e sem custo de servidores intermediários.
+- **Indicadores Visuais de Presença:**
+  - Indicador pulsante no cabeçalho com contagem de usuários ativos (`● 2 online`) e avatares com fotos de perfil.
+  - Contorno luminoso e etiquetas flutuantes `"[Nome] está aqui"` no bloco exato que outro colaborador estiver visualizando ou editando.
+- **Mesclagem Automática por Blocos (Auto-Merge):** Resolução inteligente de concorrência com base em marcas temporais (`updatedAt`) por bloco. Se dois autores editarem o documento em horários ou conexões diferentes, as alterações são mescladas de maneira não destrutiva, sem perda de parágrafos nem duplicatas de referências.
+- **Compartilhamento Nativo via Google Drive:** Compartilhe projetos diretamente com orientadores e colegas através do modal integrado, definindo permissões de Leitor ou Editor via Google Drive Permissions API.
 
 ---
 
 ### 10. Gestão de Trabalhos & Lixeira com Retenção de 30 Dias
-* **Gerenciador de Trabalhos:** Alterne facilmente entre diferentes projetos acadêmicos salvos no perfil ativo.
-* **Lixeira com Retenção de 30 Dias:** Exclusão suave com contagem regressiva de retenção e expurgo automático de itens antigos. Restauração de projetos com um clique.
-* **Permissão de Exclusão Total:** Liberdade para apagar qualquer trabalho, mesmo quando for o último existente, exibindo um estado inicial vazio (*Empty State*) acolhedor para recomeçar do zero.
-* **Exportação Versátil:**
-  * **PDF ABNT (.pdf):** Documento final pronto para impressão ou submissão à banca.
-  * **Código-Fonte Typst (.typ):** Arquivo-fonte puro para uso e compilação externa no CLI do Typst.
-  * **Backup Redija (.redija):** Arquivo JSON portátil contendo todos os blocos, metadados, imagens e configurações do projeto.
-* **Métricas do Documento:** Painel com contagem em tempo real de caracteres, palavras, estimativa de páginas A4 e tamanho total de imagens embutidas.
-* **Configurações de Conta e Privacidade:** Indicador de projetos locais vs. projetos na nuvem, opção para revogação explícita de permissões do Google e funcionalidade de exclusão total de dados do Drive com confirmação por texto de segurança.
+
+- **Gerenciador de Trabalhos:** Alterne facilmente entre diferentes projetos acadêmicos salvos no perfil ativo.
+- **Lixeira com Retenção de 30 Dias:** Exclusão suave com contagem regressiva de retenção e expurgo automático de itens antigos. Restauração de projetos com um clique.
+- **Permissão de Exclusão Total:** Liberdade para apagar qualquer trabalho, mesmo quando for o último existente, exibindo um estado inicial vazio (_Empty State_) acolhedor para recomeçar do zero.
+- **Exportação Versátil:**
+  - **PDF ABNT (.pdf):** Documento final pronto para impressão ou submissão à banca.
+  - **Código-Fonte Typst (.typ):** Arquivo-fonte puro para uso e compilação externa no CLI do Typst.
+  - **Backup Redija (.redija):** Arquivo JSON portátil contendo todos os blocos, metadados, imagens e configurações do projeto.
+- **Métricas do Documento:** Painel com contagem em tempo real de caracteres, palavras, estimativa de páginas A4 e tamanho total de imagens embutidas.
+- **Configurações de Conta e Privacidade:** Indicador de projetos locais vs. projetos na nuvem, opção para revogação explícita de permissões do Google e funcionalidade de exclusão total de dados do Drive com confirmação por texto de segurança.
 
 ---
 
@@ -190,34 +201,42 @@ redija-app/
 ## 🚀 Como Executar Localmente
 
 ### Pré-requisitos
-* **Node.js** (versão 18 ou superior)
-* **npm** (ou **pnpm** / **yarn**)
+
+- **Node.js** (versão 18 ou superior)
+- **npm** (ou **pnpm** / **yarn**)
 
 ### Instalação e Execução
 
 1. **Clone o repositório:**
+
    ```bash
    git clone https://github.com/Candeias-Vinicius/redija-app.git
    cd redija-app
    ```
 
 2. **Instale as dependências:**
+
    ```bash
    npm install
    ```
 
 3. **Configure as Variáveis de Ambiente (Opcional para Google Drive):**
    Crie um arquivo `.env` na raiz do projeto baseado no `.env.example`:
+
    ```bash
    cp .env.example .env
    ```
+
    Adicione o seu Google Client ID gerado no Google Cloud Console:
+
    ```env
    VITE_GOOGLE_CLIENT_ID=seu_client_id.apps.googleusercontent.com
    ```
+
    > **Nota de Desenvolvimento:** Se preferir testar sem credenciais do Google, inicie normalmente e selecione **"Entrar em Modo Demonstração (Dev)"** ou **"Continuar como Convidado"** na tela inicial.
 
 4. **Inicie o servidor de desenvolvimento:**
+
    ```bash
    npm run dev
    ```
@@ -232,24 +251,41 @@ redija-app/
 ## 🧪 Testes e Validação de Código
 
 Para executar os testes unitários e de integração:
+
 ```bash
 npm run test
 ```
 
 Para validar a tipagem estática do TypeScript:
+
 ```bash
 npm run typecheck
 ```
 
 Para verificar regras de formatação e linting:
+
 ```bash
 npm run lint
 ```
 
 Para gerar o bundle de produção otimizado:
+
 ```bash
 npm run build
 ```
+
+---
+
+## 🚀 Deploy e Hospedagem Contínua (GitHub Pages)
+
+O RedijaApp é hospedado como aplicação estática de custo zero via **GitHub Pages**, com deploy automatizado pelo **GitHub Actions** a cada alteração aprovada na branch `main`.
+
+- **Domínio oficial:** `https://app.redija.com.br`
+- **Workflow:** `.github/workflows/deploy.yml`
+- **Configuração de DNS (CNAME):** O subdomínio `app` aponta via registro CNAME para `candeias-vinicius.github.io`.
+- **Certificado SSL / HTTPS:** Gerado e renovado automaticamente de forma gratuita pelo GitHub Pages (Let's Encrypt).
+- **Segredos necessários no GitHub Actions:**
+  - `VITE_GOOGLE_CLIENT_ID`: ID do cliente OAuth 2.0 cadastrado no Google Cloud Console com o domínio `https://app.redija.com.br` liberado em Origens JavaScript autorizadas.
 
 ---
 

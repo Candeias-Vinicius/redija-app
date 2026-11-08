@@ -34,7 +34,7 @@ function generateReadme(project: DocumentProject): string {
 
   return `# ${title}
 **Autor:** ${author}  
-**Gerado por:** RedijaApp (https://redija.app) — Editor Acadêmico ABNT & Typst
+**Gerado por:** RedijaApp (https://app.redija.com.br): Editor Acadêmico ABNT & Typst
 
 ---
 

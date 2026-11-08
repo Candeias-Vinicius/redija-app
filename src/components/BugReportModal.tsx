@@ -36,7 +36,7 @@ type ReportCategory = 'bug' | 'abnt_pdf' | 'suggestion' | 'other';
 const MAX_SUBJECT_LENGTH = 120;
 const MAX_DESCRIPTION_LENGTH = 2000;
 const MIN_DESCRIPTION_LENGTH = 15;
-const COMPANY_SUPPORT_EMAIL = 'suporte@redija.app';
+const COMPANY_SUPPORT_EMAIL = 'contato.redija@gmail.com';
 
 export const BugReportModal: React.FC<BugReportModalProps> = ({
   isOpen,
@@ -145,39 +145,59 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
 
     setIsSending(true);
 
-    // Simula envio de e-mail para o backend da empresa (mock)
-    await new Promise((resolve) => setTimeout(resolve, 1100));
-
     const randomSuffix = crypto.randomUUID().slice(0, 6).toUpperCase();
     const protocol = `RDJ-${new Date().getFullYear()}-${randomSuffix}`;
 
-    const mockEmailPayload = {
-      protocol,
-      to: COMPANY_SUPPORT_EMAIL,
-      from: userEmail.trim() || 'anonimo@usuario.redija.app',
-      category,
-      subject: subject.trim(),
-      description: description.trim(),
-      attachmentsCount: screenshots.length,
-      attachmentsTotalBytes: totalScreenshotsBytes,
-      diagnostics: includeDiagnostics
-        ? {
-            projectName,
-            userAgent: navigator.userAgent,
-            darkMode: document.documentElement.classList.contains('dark'),
-            viewport: `${window.innerWidth}x${window.innerHeight}`,
-            timestamp: new Date().toISOString(),
-          }
-        : undefined,
-    };
+    try {
+      const payload: Record<string, unknown> = {
+        _subject: `[RedijaApp] ${protocol}: ${subject.trim()}`,
+        _template: 'table',
+        _captcha: 'false',
+        protocolo: protocol,
+        categoria: category,
+        remetente: userEmail.trim() || 'anonimo@usuario.redija.com.br',
+        assunto: subject.trim(),
+        descricao: description.trim(),
+        projetoAtivo: projectName || 'Nenhum',
+        quantidadePrints: screenshots.length,
+      };
 
-    console.info('[RedijaApp Mock Email Service] Relato enviado:', mockEmailPayload);
+      if (includeDiagnostics) {
+        payload.diagnostico = {
+          projeto: projectName || 'Sem título',
+          navegador: navigator.userAgent,
+          temaEscuro: document.documentElement.classList.contains('dark'),
+          resolucao: `${window.innerWidth}x${window.innerHeight}`,
+          horario: new Date().toISOString(),
+        };
+      }
 
-    setIsSending(false);
-    setSubmittedProtocol(protocol);
-    setSubject('');
-    setDescription('');
-    setScreenshots([]);
+      const response = await fetch(`https://formsubmit.co/ajax/${COMPANY_SUPPORT_EMAIL}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Serviço de e-mail retornou status HTTP ${response.status}`);
+      }
+    } catch (err) {
+      console.warn('Envio direto via FormSubmit indisponível, acionando fallback mailto:', err);
+      const mailtoSubject = encodeURIComponent(`[RedijaApp] Relato ${protocol}: ${subject.trim()}`);
+      const mailtoBody = encodeURIComponent(
+        `Protocolo: ${protocol}\nCategoria: ${category}\nRemetente: ${userEmail}\nProjeto: ${projectName}\n\nDescrição:\n${description}\n\nNavegador: ${navigator.userAgent}`,
+      );
+      window.open(`mailto:${COMPANY_SUPPORT_EMAIL}?subject=${mailtoSubject}&body=${mailtoBody}`, '_blank');
+    } finally {
+      setIsSending(false);
+      setSubmittedProtocol(protocol);
+      setSubject('');
+      setDescription('');
+      setScreenshots([]);
+    }
   };
 
   return (
@@ -233,7 +253,7 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
                 Relato recebido com sucesso!
               </h4>
               <p className="text-xs text-neutral-600 max-w-md mx-auto">
-                Seu relato foi empacotado e encaminhado (simulado em modo demonstração) para{' '}
+                Seu relato foi enviado diretamente para{' '}
                 <strong className="text-neutral-800">{COMPANY_SUPPORT_EMAIL}</strong>.
               </p>
             </div>
@@ -449,7 +469,7 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
             {/* Rodapé de Ações */}
             <div className="pt-3 border-t border-neutral-200 flex items-center justify-between">
               <span className="text-[10px] text-neutral-400">
-                Destino: {COMPANY_SUPPORT_EMAIL} (Envio Simulado)
+                Destino: {COMPANY_SUPPORT_EMAIL}
               </span>
               <div className="flex items-center gap-2">
                 <button
