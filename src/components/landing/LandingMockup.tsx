@@ -438,43 +438,97 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
           )}
 
           {/* ------------------------------------------------------- */}
-          {/* ABA 2: VISÃO LADO A LADO AMPLIADA                        */}
+          {/* ABA 2: VISÃO LADO A LADO (EDITOR & PDF ABNT AO VIVO)     */}
           {/* ------------------------------------------------------- */}
           {activeTab === 'split' && (
-            <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4">
-              <div className="lg:col-span-6 p-4 rounded-xl border border-slate-800 bg-[#0d1525] space-y-3">
-                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5" />
-                  Editor de Blocos em Tempo Real
-                </span>
-                <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-white uppercase">1 INTRODUÇÃO</h4>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    O desenvolvimento de trabalhos acadêmicos no Brasil exige total conformidade com a ABNT NBR 14724 e NBR 6023. O Redija gerencia 100% da formatação sem necessidade de códigos.
-                  </p>
-                  <div className="pl-4 border-l-2 border-emerald-500 py-1 bg-emerald-950/20 rounded-r text-xs italic text-slate-300">
-                    &ldquo;A tipografia moderna automatizada via WebAssembly elimina o desperdício de tempo com réguas e recuos manuais.&rdquo;
-                    <span className="block text-right text-[10px] not-italic text-emerald-400 font-medium mt-1">
-                      (SILVA; PEREIRA, 2024, p. 45)
-                    </span>
+            <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+              {/* Lado Esquerdo: Editor com Texto Acadêmico Volumoso */}
+              <div className="lg:col-span-6 p-4 rounded-xl border border-slate-800 bg-[#0c1424] flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[11px] text-slate-400">
+                  <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    Editor de Texto (Blocos ABNT)
+                  </span>
+                  <span className="font-mono text-slate-500">542 palavras • Seção 1</span>
+                </div>
+
+                <div className="space-y-3 font-sans text-xs overflow-y-auto max-h-[380px] pr-1">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-white uppercase tracking-tight">
+                      1 INTRODUÇÃO
+                    </h4>
+                    <p className="text-slate-300 leading-relaxed text-justify">
+                      A evolução das arquiteturas computacionais distribuídas e a crescente demanda por processamento de dados em tempo real transformaram profundamente o paradigma de desenvolvimento de software contemporâneo. Historicamente, os sistemas corporativos operavam sobre modelos monolíticos e síncronos, cujas limitações de escalabilidade vertical tornaram-se progressivamente evidentes à medida que o volume e a heterogeneidade das requisições atingiram escalas globais.
+                    </p>
                   </div>
+
+                  <p className="text-slate-300 leading-relaxed text-justify">
+                    Nesse cenário de transição paradigmática, as abordagens orientadas a eventos e os protocolos descentralizados emergiram como alternativas essenciais para garantir elasticidade, resiliência e baixa latência sob cargas extremas. A necessidade de mensurar rigorosamente o comportamento dessas arquiteturas em cenários de alta concorrência impõe desafios metodológicos fundamentais aos pesquisadores da área de engenharia de software.
+                  </p>
+
+                  {/* Citação Longa ABNT com Recuo Real de 4cm */}
+                  <div className="pl-6 border-l-2 border-emerald-500 py-1.5 bg-emerald-950/20 rounded-r text-[11px] space-y-1">
+                    <p className="italic text-slate-300 leading-snug">
+                      &ldquo;A capacidade de um sistema distribuído manter sua responsividade sob condições adversas não depende unicamente do provisionamento de recursos elásticos, mas da descentralização inteligente de seu fluxo de controle e da minimização do estado compartilhado entre os nós de processamento.&rdquo;
+                    </p>
+                    <p className="text-right text-[10px] font-semibold text-emerald-400">
+                      (SILVA; PEREIRA, 2024, p. 87)
+                    </p>
+                  </div>
+
+                  <p className="text-slate-300 leading-relaxed text-justify">
+                    Diante dessa problemática, o presente estudo investiga quantitativamente a eficiência de protocolos ponto a ponto em comparação com modelos tradicionais cliente-servidor, delimitando as condições de contorno em que a descentralização propicia ganhos observáveis de vazão transacional e integridade de dados.
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-800 text-[10px] text-slate-500 flex items-center justify-between">
+                  <span>Digite &apos;/&apos; para inserir blocos</span>
+                  <span className="text-emerald-400 font-mono font-medium">Sincronizado</span>
                 </div>
               </div>
 
+              {/* Lado Direito: Preview da Página 15 do PDF ABNT */}
               <div className="lg:col-span-6 p-4 rounded-xl border border-slate-800 bg-[#090f1b] flex flex-col justify-between">
-                <div className="bg-white text-slate-900 p-4 rounded shadow font-serif text-[11px] leading-relaxed space-y-2">
-                  <div className="flex justify-between text-[9px] text-slate-400 font-sans pb-1 border-b">
-                    <span>Margem 3-3-2-2 cm</span>
-                    <span className="font-bold text-slate-900">15</span>
+                {/* Barra do Preview */}
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[10px] text-slate-400 mb-2">
+                  <span className="text-emerald-400 font-medium">Prévia PDF • NBR 14724</span>
+                  <div className="flex items-center gap-1 font-mono text-[9px]">
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">Pág. 15</span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">100%</span>
                   </div>
-                  <h5 className="font-sans font-bold text-xs uppercase">1 INTRODUÇÃO</h5>
-                  <p className="text-justify indent-4 text-[10px] leading-relaxed">
-                    O desenvolvimento de trabalhos acadêmicos no Brasil exige total conformidade com a ABNT NBR 14724 e NBR 6023. O Redija gerencia 100% da formatação sem necessidade de códigos.
-                  </p>
                 </div>
-                <div className="flex justify-between text-xs text-slate-400 pt-2">
-                  <span>Typst WASM Compiler</span>
-                  <span className="text-emerald-400 font-mono">Renderizado ao vivo</span>
+
+                {/* Folha A4 com Margens 3-3-2-2 e Recuo 4cm */}
+                <div className="bg-white text-slate-950 p-6 rounded shadow-md font-serif text-[10.5px] leading-relaxed space-y-2.5 my-auto">
+                  {/* Cabeçalho ABNT: Número no Canto Superior Direito */}
+                  <div className="text-right text-[9px] font-sans font-bold text-slate-800 pb-1 border-b border-slate-100">
+                    15
+                  </div>
+
+                  <h5 className="font-sans font-bold text-xs uppercase text-slate-900 tracking-tight">
+                    1 INTRODUÇÃO
+                  </h5>
+
+                  <p className="text-justify indent-6 text-[10px] leading-relaxed text-slate-800">
+                    A evolução das arquiteturas computacionais distribuídas e a crescente demanda por processamento de dados em tempo real transformaram profundamente o paradigma de desenvolvimento de software contemporâneo. Historicamente, os sistemas corporativos operavam sobre modelos monolíticos e síncronos, cujas limitações de escalabilidade vertical tornaram-se progressivamente evidentes.
+                  </p>
+
+                  <p className="text-justify indent-6 text-[10px] leading-relaxed text-slate-800">
+                    Nesse cenário de transição paradigmática, as abordagens orientadas a eventos e os protocolos descentralizados emergiram como alternativas essenciais para garantir elasticidade, resiliência e baixa latência sob cargas extremas.
+                  </p>
+
+                  {/* Citação Recuada na Folha A4 */}
+                  <div className="ml-8 text-[9px] leading-snug text-slate-700 text-justify">
+                    A capacidade de um sistema distribuído manter sua responsividade sob condições adversas não depende unicamente do provisionamento de recursos elásticos, mas da descentralização inteligente de seu fluxo de controle e da minimização do estado compartilhado entre os nós de processamento. (SILVA; PEREIRA, 2024, p. 87).
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800 mt-2">
+                  <span className="flex items-center gap-1.5 text-[10px]">
+                    <Zap className="w-3 h-3 text-amber-400" />
+                    <span>Typst WASM: 28ms</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400">Margens 3-3-2-2 cm</span>
                 </div>
               </div>
             </div>
@@ -494,26 +548,31 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
 {`#import "abnt.typ": *
 
 #show: abnt-document.with(
-  titulo: "Proposta de Investigação Científica",
-  autor: "Nome do Proponente",
-  instituicao: "Universidade Federal",
+  titulo: "Arquiteturas Distribuídas e Sistemas Reativos em Tempo Real",
+  autor: "Carlos Eduardo Silva",
+  instituicao: "Universidade Federal de Tecnologia",
   ano: "2026",
   cidade: "São Paulo",
   margens: (top: 3cm, left: 3cm, bottom: 2cm, right: 2cm),
   estilo-citacao: "autor-data-2023"
 )
 
-= 1 Introdução e Problema de Pesquisa
+= 1 Introdução
 
-Apresente a delimitação do tema e formule claramente a pergunta-problema que orientará a pesquisa.
+A evolução das arquiteturas computacionais distribuídas e a crescente demanda por processamento
+de dados em tempo real transformaram profundamente o paradigma de desenvolvimento de software contemporâneo.
+
+Nesse cenário de transição paradigmática, as abordagens orientadas a eventos e os protocolos descentralizados
+emergiram como alternativas essenciais para garantir elasticidade e resiliência sob cargas extremas.
 
 #citacao-longa(
   autor: "SILVA; PEREIRA",
   ano: "2024",
-  pagina: "45",
+  pagina: "87",
   conteudo: [
-    A tipografia moderna automatizada via WebAssembly elimina o desperdício de tempo
-    com réguas e recuos manuais.
+    A capacidade de um sistema distribuído manter sua responsividade sob condições adversas
+    não depende unicamente do provisionamento de recursos elásticos, mas da descentralização inteligente
+    de seu fluxo de controle e da minimização do estado compartilhado entre os nós de processamento.
   ]
 )
 
