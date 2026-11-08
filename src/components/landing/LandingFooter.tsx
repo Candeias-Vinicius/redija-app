@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { Logo } from '../Logo';
 import { LandingModalType } from './LandingModals';
+import { APP_VERSION } from '@/core/version';
 
 interface LandingFooterProps {
   isDark: boolean;
@@ -231,7 +232,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
         {/* Rodapé Final */}
         <div className="pt-10 mt-12 border-t border-slate-200 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
           <p className="flex items-center gap-1.5 text-center sm:text-left">
-            <span>RedijaApp © 2026 • Construído com</span>
+            <span>RedijaApp v{APP_VERSION} © 2026 • Construído com</span>
             <Heart className="w-3.5 h-3.5 text-emerald-500 inline fill-emerald-500" />
             <span>para a comunidade acadêmica brasileira.</span>
           </p>

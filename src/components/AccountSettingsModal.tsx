@@ -16,6 +16,7 @@ import {
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { checkStoragePersistence } from '@/core/storage/db';
 import { listDriveProjects } from '@/core/storage/googleDriveService';
+import { APP_VERSION } from '@/core/version';
 
 interface AccountSettingsModalProps {
   isOpen: boolean;
@@ -338,6 +339,14 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* Versão e Estágio da Aplicação */}
+          <div className="pt-3 border-t border-neutral-100 flex items-center justify-between text-[11px] text-neutral-400">
+            <span>RedijaApp Acadêmico</span>
+            <span className="font-mono bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded border border-neutral-200">
+              v{APP_VERSION}
+            </span>
+          </div>
         </div>
       </div>
     </div>
