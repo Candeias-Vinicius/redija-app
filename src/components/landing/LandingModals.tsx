@@ -126,6 +126,8 @@ const ABNT_STANDARDS_DOCS: AbntStandardDoc[] = [
   },
 ];
 
+const COMPANY_CONTACT_EMAIL = 'contato.redija@gmail.com';
+
 export const LandingModals: React.FC<LandingModalsProps> = ({
   modalType,
   selectedStandard,
@@ -136,26 +138,62 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
   const [activeDocCode, setActiveDocCode] = useState<string>(
     selectedStandard || 'ABNT NBR 14724'
   );
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false);
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
+  const [userEmail, setUserEmail] = useState('');
 
   if (!modalType) return null;
 
   const handleCopyEmail = () => {
-    navigator.clipboard.writeText('contato@redija.app');
+    navigator.clipboard.writeText(COMPANY_CONTACT_EMAIL);
     setCopiedEmail(true);
     setTimeout(() => setCopiedEmail(false), 2000);
   };
 
-  const handleSendFeedback = (e: React.FormEvent) => {
+  const handleSendFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!feedbackText.trim()) return;
-    setFeedbackSent(true);
-    setTimeout(() => {
-      setFeedbackSent(false);
-      setFeedbackText('');
-      onClose();
-    }, 2000);
+
+    setIsSendingFeedback(true);
+    try {
+      const payload = {
+        _subject: `[RedijaApp] Mensagem da Landing Page: ${userEmail.trim() || 'Usuário Anônimo'}`,
+        _template: 'table',
+        _captcha: 'false',
+        remetente: userEmail.trim() || 'anonimo@app.redija.com.br',
+        mensagem: feedbackText.trim(),
+        horario: new Date().toISOString(),
+      };
+
+      const response = await fetch(`https://formsubmit.co/ajax/${COMPANY_CONTACT_EMAIL}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch {
+      const mailtoSubject = encodeURIComponent('[RedijaApp] Contato via Landing Page');
+      const mailtoBody = encodeURIComponent(
+        `Remetente: ${userEmail || 'Não informado'}\n\nMensagem:\n${feedbackText}`,
+      );
+      window.open(`mailto:${COMPANY_CONTACT_EMAIL}?subject=${mailtoSubject}&body=${mailtoBody}`, '_blank');
+    } finally {
+      setIsSendingFeedback(false);
+      setFeedbackSent(true);
+      setTimeout(() => {
+        setFeedbackSent(false);
+        setFeedbackText('');
+        setUserEmail('');
+        onClose();
+      }, 2000);
+    }
   };
 
   return (
@@ -346,7 +384,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                   <div>
                     <span className="text-[11px] font-semibold text-slate-400 uppercase">E-mail Oficial</span>
                     <p className="font-mono font-bold text-sm text-slate-900 dark:text-white">
-                      contato@redija.app
+                      {COMPANY_CONTACT_EMAIL}
                     </p>
                   </div>
                 </div>
@@ -368,32 +406,55 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
 
               {/* Formulário Rápido de Feedback */}
               <form onSubmit={handleSendFeedback} className="space-y-3 pt-2">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Envie sua mensagem ou sugestão:
-                </label>
-                <textarea
-                  value={feedbackText}
-                  onChange={(e) => setFeedbackText(e.target.value)}
-                  placeholder="Escreva sua sugestão de recurso, relato de problema ou dúvida..."
-                  rows={4}
-                  className={`w-full p-3 rounded-xl border text-xs outline-hidden transition-colors ${
-                    isDark
-                      ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-emerald-500'
-                      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-600'
-                  }`}
-                />
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Seu e-mail para resposta (opcional):
+                  </label>
+                  <input
+                    type="email"
+                    value={userEmail}
+                    onChange={(e) => setUserEmail(e.target.value)}
+                    placeholder="voce@universidade.edu.br"
+                    className={`w-full p-2.5 rounded-xl border text-xs outline-hidden transition-colors ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-emerald-500'
+                        : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-600'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Sua mensagem ou sugestão:
+                  </label>
+                  <textarea
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                    placeholder="Escreva sua sugestão de recurso, relato de problema ou dúvida..."
+                    rows={4}
+                    className={`w-full p-3 rounded-xl border text-xs outline-hidden transition-colors ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-emerald-500'
+                        : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-600'
+                    }`}
+                  />
+                </div>
 
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    disabled={!feedbackText.trim() || feedbackSent}
+                    disabled={!feedbackText.trim() || isSendingFeedback || feedbackSent}
                     className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                       feedbackSent
                         ? 'bg-emerald-500 text-slate-950'
                         : 'bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50'
                     }`}
                   >
-                    {feedbackSent ? 'Mensagem Recebida!' : 'Enviar Mensagem'}
+                    {isSendingFeedback
+                      ? 'Enviando...'
+                      : feedbackSent
+                        ? 'Mensagem Recebida!'
+                        : 'Enviar Mensagem'}
                   </button>
                 </div>
               </form>
