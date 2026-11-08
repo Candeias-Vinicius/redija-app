@@ -346,6 +346,13 @@
         #v(2.2em)
       ]
 
+      #if coorientador != none [
+        #line(length: 65%, stroke: 0.5pt)
+        #v(0.2em)
+        #text(size: 11pt)[#coorientador (Coorientador(a)) \ #instituicao]
+        #v(2.2em)
+      ]
+
       #for membro in banca [
         #line(length: 65%, stroke: 0.5pt)
         #v(0.2em)

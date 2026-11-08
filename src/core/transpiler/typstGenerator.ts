@@ -769,8 +769,24 @@ export function transpileReference(
     const inst = e(ref.institution?.trim() || ref.publisher?.trim() || 'Instituição');
     const city = e(ref.city?.trim() || '[S. l.]');
     out = `${authors} ${hl(title)}${subtitle}. ${year}. ${degree} — ${inst}, ${city}, ${year}.`;
+  } else if (type === 'website') {
+    // Documento online / Website (NBR 6023 item 7.14)
+    out = `${authors} ${hl(title)}${subtitle}.`;
+    if (ref.publisher?.trim()) {
+      const city = e(ref.city?.trim() || '[S. l.]');
+      out += ` ${city}: ${e(ref.publisher.trim())},`;
+    }
+    out += ` ${year}.`;
+  } else if (type === 'legislation') {
+    // Legislação (NBR 6023 item 7.9)
+    out = `${authors} ${title}${subtitle}.`;
+    if (ref.journal?.trim()) {
+      out += ` ${hl(e(ref.journal.trim()))}`;
+      if (ref.city?.trim()) out += `, ${e(ref.city.trim())}`;
+    }
+    out += `, ${year}.`;
   } else {
-    // Livro / Site / Legislação: AUTOR. **Título**: subtítulo. Edição. Local: Editora, Ano.
+    // Livro: AUTOR. **Título**: subtítulo. Edição. Local: Editora, Ano.
     out = `${authors} ${hl(title)}${subtitle}.`;
     if (ref.edition?.trim()) out += ` ${e(ref.edition.trim())}. ed.`;
     const city = e(ref.city?.trim() || '[S. l.]');
