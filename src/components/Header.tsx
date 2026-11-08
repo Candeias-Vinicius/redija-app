@@ -43,6 +43,7 @@ interface HeaderProps {
   onTogglePreview: () => void;
   onOpenProjectsModal: () => void;
   onOpenBugReportModal: () => void;
+  onOpenBetaNoticeModal?: () => void;
   onOpenTemplateCustomizer?: () => void;
   onOpenWelcomeModal?: () => void;
   onDownloadPdf?: () => void;
@@ -84,6 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
   onTogglePreview,
   onOpenProjectsModal,
   onOpenBugReportModal,
+  onOpenBetaNoticeModal,
   user,
   isAuthenticated,
   isAuthLoading,
@@ -114,7 +116,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="h-14 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3 flex items-center justify-between sticky top-0 z-30 transition-colors">
       {/* Lado Esquerdo: Marca, Projeto e Navegação de Abas */}
       <div className="flex items-center gap-2.5 min-w-0">
-        <Logo size="sm" />
+        <Logo size="sm" onBetaClick={onOpenBetaNoticeModal} />
 
         <span className="text-neutral-300 dark:text-neutral-700 hidden sm:inline">/</span>
 

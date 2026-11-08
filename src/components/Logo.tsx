@@ -5,6 +5,7 @@ export interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   showWordmark?: boolean;
   showBetaBadge?: boolean;
+  onBetaClick?: () => void;
   className?: string;
   variant?: 'dark' | 'light' | 'auto';
 }
@@ -13,6 +14,7 @@ export const Logo: React.FC<LogoProps> = ({
   size = 'md',
   showWordmark = true,
   showBetaBadge = true,
+  onBetaClick,
   className = '',
   variant = 'auto',
 }) => {
@@ -95,8 +97,18 @@ export const Logo: React.FC<LogoProps> = ({
           </div>
           {showBetaBadge && (
             <span
-              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 select-none"
-              title={`RedijaApp v${APP_VERSION}`}
+              onClick={(e) => {
+                if (onBetaClick) {
+                  e.stopPropagation();
+                  onBetaClick();
+                }
+              }}
+              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 select-none ${
+                onBetaClick
+                  ? 'cursor-pointer hover:bg-emerald-500/20 hover:border-emerald-500/40 active:scale-95 transition-all'
+                  : ''
+              }`}
+              title={`RedijaApp v${APP_VERSION}${onBetaClick ? ' • Clique para informações do Beta' : ''}`}
             >
               Beta
             </span>

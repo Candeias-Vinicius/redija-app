@@ -9,12 +9,14 @@ import { ProjectsModal } from '@/components/ProjectsModal';
 import { WelcomeModal } from '@/components/WelcomeModal';
 import { TemplateCustomizerModal } from '@/components/TemplateCustomizerModal';
 import { BugReportModal } from '@/components/BugReportModal';
+import { BetaNoticeModal } from '@/components/BetaNoticeModal';
 import { ShareModal } from '@/components/ShareModal';
 import { AccountSettingsModal } from '@/components/AccountSettingsModal';
 import { BackupNoticeBanner } from '@/components/BackupNoticeBanner';
 import { LoginScreen } from '@/components/LoginScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
+import { isBetaNoticeDismissed } from '@/core/version';
 import {
   saveProjectToDrive,
   saveProjectPdfToDrive,
@@ -84,6 +86,7 @@ export const App: React.FC = () => {
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
+  const [isBetaNoticeOpen, setIsBetaNoticeOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // Google Auth, Drive Sync e Colaboração
@@ -338,6 +341,16 @@ export const App: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [past.length, future.length, handleUndo, handleRedo]);
+
+  // Exibição do aviso de boas-vindas do Beta no primeiro acesso do usuário
+  useEffect(() => {
+    if ((isAuthenticated || isGuestMode) && !isBetaNoticeDismissed()) {
+      const timer = setTimeout(() => {
+        setIsBetaNoticeOpen(true);
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, isGuestMode]);
 
   const skipNextAutoSaveRef = useRef(true);
 
@@ -1261,6 +1274,7 @@ export const App: React.FC = () => {
         onOpenProjectsModal={() => setIsProjectsModalOpen(true)}
         onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
         onOpenBugReportModal={() => setIsBugReportOpen(true)}
+        onOpenBetaNoticeModal={() => setIsBetaNoticeOpen(true)}
         onOpenWelcomeModal={() => setIsWelcomeModalOpen(true)}
         onDownloadPdf={handleDownloadPdf}
         isExportingPdf={isExportingPdf}
@@ -1495,6 +1509,12 @@ export const App: React.FC = () => {
         isOpen={isBugReportOpen}
         onClose={() => setIsBugReportOpen(false)}
         projectName={project.name}
+      />
+
+      <BetaNoticeModal
+        isOpen={isBetaNoticeOpen}
+        onClose={() => setIsBetaNoticeOpen(false)}
+        onOpenBugReport={() => setIsBugReportOpen(true)}
       />
     </div>
   );
