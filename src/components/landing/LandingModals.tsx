@@ -126,6 +126,7 @@ const ABNT_STANDARDS_DOCS: AbntStandardDoc[] = [
   },
 ];
 
+const FORMSUBMIT_TOKEN = '97b345b83e1745e749547159d420f2a5';
 const COMPANY_CONTACT_EMAIL = 'contato.redija@gmail.com';
 
 export const LandingModals: React.FC<LandingModalsProps> = ({
@@ -166,7 +167,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
         horario: new Date().toISOString(),
       };
 
-      const response = await fetch(`https://formsubmit.co/ajax/${COMPANY_CONTACT_EMAIL}`, {
+      const response = await fetch(`https://formsubmit.co/ajax/${FORMSUBMIT_TOKEN}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
