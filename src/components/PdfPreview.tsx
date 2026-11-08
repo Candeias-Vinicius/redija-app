@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { DocumentProject } from '@/types/document';
 import {
   generateTypstFiles,
@@ -73,17 +73,29 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
   const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
   const latestCompileId = useRef(0);
 
-  const templateFileName = getTemplateFileName(project.templateType);
-  const typstFiles = generateTypstFiles(project);
-  const bibtexCode =
-    project.references.length > 0
+  const templateFileName = useMemo(
+    () => getTemplateFileName(project.templateType),
+    [project.templateType],
+  );
+
+  // Computa typstFiles e bibtexCode somente quando a aba de código estiver ativa
+  const typstFilesForCode = useMemo(() => {
+    if (!showCode) return null;
+    return generateTypstFiles(project);
+  }, [showCode, project]);
+
+  const bibtexCode = useMemo(() => {
+    if (!showCode) return '';
+    return project.references.length > 0
       ? exportToBibtex(project.references)
       : '// Nenhuma referência cadastrada ainda no projeto.';
+  }, [showCode, project.references]);
 
   const getCurrentCode = () => {
-    if (codeTab === 'abnt') return typstFiles[templateFileName] || typstFiles['abnt.typ'];
     if (codeTab === 'bibtex') return bibtexCode;
-    return typstFiles['main.typ'];
+    if (!typstFilesForCode) return '';
+    if (codeTab === 'abnt') return typstFilesForCode[templateFileName] || typstFilesForCode['abnt.typ'];
+    return typstFilesForCode['main.typ'];
   };
 
   const handleCopy = () => {
@@ -123,7 +135,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
 
         if (result.artifact) {
           artifactRef.current = result.artifact;
-          const pageInfos = await getVectorPagesInfo(result.artifact);
+          const pageInfos = result.pages || (await getVectorPagesInfo(result.artifact));
           if (currentId !== latestCompileId.current) return;
           setPages(pageInfos);
           setIsInitialized(true);

@@ -109,7 +109,12 @@ export function getVirtualImagePath(blockId: string, ext: string): string {
   return `/assets/img_${safeId}.${ext}`;
 }
 
+const dataUrlCache = new Map<string, { ext: string; bytes: Uint8Array }>();
+
 function parseDataUrl(dataUrl: string): { ext: string; bytes: Uint8Array } | null {
+  const cached = dataUrlCache.get(dataUrl);
+  if (cached) return cached;
+
   const match = dataUrl.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
   if (!match) return null;
 
@@ -126,7 +131,13 @@ function parseDataUrl(dataUrl: string): { ext: string; bytes: Uint8Array } | nul
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
-    return { ext, bytes };
+    const result = { ext, bytes };
+    if (dataUrlCache.size >= 50) {
+      const firstKey = dataUrlCache.keys().next().value;
+      if (firstKey) dataUrlCache.delete(firstKey);
+    }
+    dataUrlCache.set(dataUrl, result);
+    return result;
   } catch {
     return null;
   }
@@ -427,7 +438,7 @@ function generateAbntShowRule(
  * não aparecer duplicado.
  */
 export function stripManualNumbering(title: string): string {
-  return title.replace(/^\s*\d+(\.\d+)*\.?\s+/, '').trim();
+  return title.replace(/^\s*\d+(\.\d+)*(\.|\s*[-–—:])?\s+/, '').trim();
 }
 
 function transpileBlock(
@@ -479,7 +490,13 @@ function transpileBlock(
     }
 
     case 'equation': {
-      const expr = block.content.trim();
+      let expr = block.content.trim();
+      if (!expr) return null;
+      if (expr.startsWith('$$') && expr.endsWith('$$') && expr.length >= 4) {
+        expr = expr.slice(2, -2).trim();
+      } else if (expr.startsWith('$') && expr.endsWith('$') && expr.length >= 2) {
+        expr = expr.slice(1, -1).trim();
+      }
       if (!expr) return null;
       // Expressão em modo display do Typst ($ expr $)
       return `$ ${expr} $`;
@@ -495,7 +512,13 @@ function transpileBlock(
       if (caption) args.push(`legenda: ${typstContent(caption)}`);
       if (source) args.push(`fonte: ${typstContent(source)}`);
       const argsStr = args.length > 0 ? `(${args.join(', ')})` : '';
-      return `#codigo${argsStr}[\n\`\`\`${lang}\n${rawCode}\n\`\`\`\n]`;
+
+      // Evita fechamento prematuro do bloco raw quando o código contém três ou mais crases
+      const tickMatches = rawCode.match(/`+/g);
+      const maxTicks = tickMatches ? Math.max(...tickMatches.map((m) => m.length)) : 0;
+      const fence = '`'.repeat(Math.max(3, maxTicks + 1));
+
+      return `#codigo${argsStr}[\n${fence}${lang}\n${rawCode}\n${fence}\n]`;
     }
 
     case 'image': {
@@ -574,7 +597,14 @@ function italicizeLatinTerms(typstText: string): string {
     .replace(/(?<!#emph\[)\b(apud)\b/gi, '#emph[apud]');
 }
 
-/** Formata o sobrenome do autor conforme o estilo (MAIÚSCULAS ou Inicial Maiúscula). */
+/**
+ * Formata os autores de uma citação autor-data conforme a NBR 10520:
+ * - Extrai os sobrenomes (antes da vírgula ou último nome caso não haja vírgula).
+ * - 1 autor: SILVA ou Silva
+ * - 2 autores: SILVA; SOUZA ou Silva; Souza
+ * - 3 autores: SILVA; SOUZA; SANTOS ou Silva; Souza; Santos
+ * - 4 ou mais autores (ou com et al.): SILVA et al. ou Silva et al.
+ */
 export function formatAuthorCase(
   rawAuthor: string,
   style: 'uppercase' | 'titlecase' = 'uppercase',
@@ -584,10 +614,14 @@ export function formatAuthorCase(
 
   const hasEtAl = /\bet\s+al\.?/i.test(trimmed);
   const cleaned = trimmed.replace(/\bet\s+al\.?/gi, '').trim();
-  const entries = cleaned
-    .split(';')
-    .map((s) => s.trim())
-    .filter(Boolean);
+
+  const extractSurname = (entry: string): string => {
+    if (entry.includes(',')) {
+      return entry.split(',')[0].trim();
+    }
+    const words = entry.trim().split(/\s+/);
+    return words[words.length - 1] || entry.trim();
+  };
 
   const formatSingle = (text: string): string => {
     if (style === 'titlecase') {
@@ -599,13 +633,29 @@ export function formatAuthorCase(
     return text.toUpperCase().replace(/\bAPUD\b/gi, 'apud');
   };
 
+  // Suporte à citação de citação "apud" (NBR 10520)
+  if (/\bapud\b/i.test(cleaned)) {
+    const parts = cleaned.split(/\bapud\b/i);
+    if (parts.length === 2) {
+      const first = extractSurname(parts[0].trim());
+      const second = extractSurname(parts[1].trim());
+      return `${formatSingle(first)} apud ${formatSingle(second)}`;
+    }
+  }
+
+  const entries = cleaned
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   if (entries.length >= 4 || hasEtAl) {
     const first = entries[0] || cleaned;
-    const surname = first.split(',')[0]?.trim() || first;
+    const surname = extractSurname(first);
     return `${formatSingle(surname.replace(/\.+$/, ''))} et al.`;
   }
 
-  return formatSingle(cleaned);
+  const surnames = entries.map(extractSurname);
+  return surnames.map((s) => formatSingle(s.replace(/\.+$/, ''))).join('; ');
 }
 
 /** Monta a chamada autor-data da citação: (SILVA, 2023, p. 42) ou (Silva, 2023, p. 42). */
@@ -650,7 +700,7 @@ function formatReferenceAuthors(rawAuthors: string): string {
 
   if (entries.length >= 4 || hasEtAl) {
     const firstAuthor = (entries[0] || cleaned).trim().toUpperCase();
-    return `${e(firstAuthor)} #emph[et al.]`;
+    return `${e(firstAuthor)} #emph[et al.].`;
   }
 
   const allAuthors = cleaned.replace(/\.+$/, '').trim().toUpperCase();
