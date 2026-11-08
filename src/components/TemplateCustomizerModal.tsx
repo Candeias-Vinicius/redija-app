@@ -22,6 +22,7 @@ import {
   Check,
   Globe,
   Palette,
+  ExternalLink,
 } from 'lucide-react';
 import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
 
@@ -716,10 +717,22 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
 
           {/* 7. Conector do Typst Universe */}
           <div className="border-t border-neutral-200 pt-5">
-            <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2">
-              <Globe className="w-3.5 h-3.5 text-emerald-600" />
-              7. Conector Typst Universe (Modelos Comunitários)
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-neutral-500">
+                <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                7. Conector Typst Universe (Modelos Comunitários)
+              </label>
+              <a
+                href="https://typst.app/universe"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
+                title="Abrir loja oficial de pacotes e templates em nova aba"
+              >
+                <span>Explorar typst.app/universe</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
             <p className="text-[11px] text-neutral-500 mb-3">
               Conecte qualquer template oficial da loja de pacotes do Typst. Digite o identificador ou selecione uma sugestão:
             </p>

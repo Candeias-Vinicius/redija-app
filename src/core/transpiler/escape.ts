@@ -52,6 +52,7 @@ export function typstContent(text: string): string {
 /**
  * Converte HTML rico (vindo do TipTap: `<strong>`, `<em>`, `<u>`, `<sup>`, `<sub>`, `<p>`, `<br>`)
  * ou texto plano em marcação Typst com escape seguro em todos os nós de texto.
+ * Garante balanceamento de colchetes via pilha de tags abertas.
  */
 export function richTextToTypst(input: string): string {
   if (!input) return '';
@@ -110,6 +111,7 @@ export function richTextToTypst(input: string): string {
         openTags.push('sub');
       }
     } else {
+      // Fecha apenas se houver tag correspondente na pilha
       if (openTags.length > 0) {
         openTags.pop();
         result += ']';
@@ -124,8 +126,7 @@ export function richTextToTypst(input: string): string {
     result += escapeMarkup(decodeEntities(tail));
   }
 
-  // Fecha eventuais tags que ficaram abertas para garantir que o Typst
-  // nunca receba colchetes desbalanceados
+  // Fecha eventuais tags que ficaram abertas para garantir que o Typst nunca receba colchetes desbalanceados
   while (openTags.length > 0) {
     openTags.pop();
     result += ']';

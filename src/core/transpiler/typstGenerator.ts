@@ -434,11 +434,11 @@ function generateAbntShowRule(
 
 /**
  * A numeração das seções é automática (1, 1.1, 1.1.1). Se o usuário digitar
- * o número manualmente ("1 INTRODUÇÃO", "2.1 Objetivos"), ele é removido para
+ * o número manualmente ("1 INTRODUÇÃO", "1.1 - Objetivos"), ele é removido para
  * não aparecer duplicado.
  */
 export function stripManualNumbering(title: string): string {
-  return title.replace(/^\s*\d+(\.\d+)*(\.|\s*[-–—:])?\s+/, '').trim();
+  return title.replace(/^\s*\d+(\.\d+)*(\.|\s*[-–—:])?(\s+|$)/, '').trim();
 }
 
 function transpileBlock(
@@ -616,11 +616,12 @@ export function formatAuthorCase(
   const cleaned = trimmed.replace(/\bet\s+al\.?/gi, '').trim();
 
   const extractSurname = (entry: string): string => {
-    if (entry.includes(',')) {
-      return entry.split(',')[0].trim();
+    const cleanEntry = entry.trim();
+    if (cleanEntry.includes(',')) {
+      return cleanEntry.split(',')[0].trim();
     }
-    const words = entry.trim().split(/\s+/);
-    return words[words.length - 1] || entry.trim();
+    const words = cleanEntry.split(/\s+/);
+    return words[words.length - 1] || cleanEntry;
   };
 
   const formatSingle = (text: string): string => {
@@ -686,7 +687,7 @@ function transpileReferences(
 /**
  * Formata os autores para a lista final de Referências (NBR 6023):
  * - Até 3 autores: mantém todos separados por ponto e vírgula, finalizando com ponto.
- * - 4 ou mais autores (ou com "et al."): indica o primeiro autor seguido de `#emph[et al.]`.
+ * - 4 ou mais autores (ou com "et al."): indica o primeiro autor seguido de `#emph[et al.].`.
  */
 function formatReferenceAuthors(rawAuthors: string): string {
   const e = escapeMarkup;
