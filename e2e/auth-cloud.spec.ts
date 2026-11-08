@@ -101,4 +101,37 @@ test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
       await expect(page.getByText(/O Redija cuida de toda a ABNT/i)).toBeVisible();
     }
   });
+
+  test('preserva a sessão do usuário e o editor após recarregar a página (F5) sem voltar para login', async ({
+    page,
+  }) => {
+    // 1. Entra na aplicação (Demo ou Convidado)
+    const demoBtn = page.getByRole('button', { name: /Entrar como Usuário Demonstração/i });
+    if (await demoBtn.isVisible()) {
+      await demoBtn.click();
+    } else {
+      await page.getByRole('button', { name: /Experimentar como Convidado/i }).first().click();
+    }
+
+    // 2. Aguarda o cabeçalho do editor carregar
+    await expect(page.getByText('Redija', { exact: true })).toBeVisible();
+
+    // Fecha modal de boas-vindas/projetos se abrir
+    const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
+    try {
+      await modalHeading.waitFor({ state: 'visible', timeout: 1800 });
+      await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Trabalho F5 ${Date.now()}`);
+      await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+      await expect(modalHeading).not.toBeVisible();
+    } catch {
+      // Modal não abriu
+    }
+
+    // 3. Simula F5 (Reload completo da página)
+    await page.reload();
+
+    // 4. Valida que o editor continua aberto imediatamente e NÃO foi deslogado para a landing page
+    await expect(page.getByText('Redija', { exact: true })).toBeVisible();
+    await expect(page.getByText(/O Redija cuida de toda a ABNT/i)).not.toBeVisible();
+  });
 });

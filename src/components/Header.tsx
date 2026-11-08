@@ -217,13 +217,14 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Salvo no Drive</span>
             </div>
           ) : driveSyncStatus === 'error' ? (
-            <div
-              className="flex items-center gap-1 text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800 cursor-default"
-              title="Salvo localmente. Não foi possível sincronizar com o Drive no momento."
+            <button
+              onClick={onLogin}
+              className="flex items-center gap-1 text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800 cursor-pointer transition-colors"
+              title="Sessão do Drive expirada. Clique para reconectar sua conta Google."
             >
               <Cloud className="w-3 h-3 text-amber-600" />
-              <span>Salvo local</span>
-            </div>
+              <span>Reconectar Drive</span>
+            </button>
           ) : (
             <div
               className="flex items-center gap-1 text-[11px] text-neutral-500 dark:text-neutral-400 px-2 py-0.5 cursor-default"
