@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
+import { APP_VERSION } from '@/core/version';
 
 export interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   showWordmark?: boolean;
+  showBetaBadge?: boolean;
+  onBetaClick?: () => void;
   className?: string;
   variant?: 'dark' | 'light' | 'auto';
 }
@@ -10,6 +13,8 @@ export interface LogoProps {
 export const Logo: React.FC<LogoProps> = ({
   size = 'md',
   showWordmark = true,
+  showBetaBadge = true,
+  onBetaClick,
   className = '',
   variant = 'auto',
 }) => {
@@ -79,15 +84,35 @@ export const Logo: React.FC<LogoProps> = ({
         </div>
       )}
 
-      {/* Nome do Aplicativo */}
+      {/* Nome do Aplicativo e Selo Beta */}
       {showWordmark && (
-        <div className="flex items-center tracking-tight leading-none">
-          <span className={`${textClass} ${redijaColor} transition-colors`}>
-            Redija
-          </span>
-          <span className={`${textClass} text-emerald-500 dark:text-emerald-400 font-extrabold`}>
-            App
-          </span>
+        <div className="flex items-center tracking-tight leading-none gap-1.5">
+          <div className="flex items-center">
+            <span className={`${textClass} ${redijaColor} transition-colors`}>
+              Redija
+            </span>
+            <span className={`${textClass} text-emerald-500 dark:text-emerald-400 font-extrabold`}>
+              App
+            </span>
+          </div>
+          {showBetaBadge && (
+            <span
+              onClick={(e) => {
+                if (onBetaClick) {
+                  e.stopPropagation();
+                  onBetaClick();
+                }
+              }}
+              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 select-none ${
+                onBetaClick
+                  ? 'cursor-pointer hover:bg-emerald-500/20 hover:border-emerald-500/40 active:scale-95 transition-all'
+                  : ''
+              }`}
+              title={`RedijaApp v${APP_VERSION}${onBetaClick ? ' • Clique para informações do Beta' : ''}`}
+            >
+              Beta
+            </span>
+          )}
         </div>
       )}
     </div>
