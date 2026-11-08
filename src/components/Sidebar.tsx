@@ -36,6 +36,7 @@ interface SidebarProps {
   onOpenReferenceModal: () => void;
   onEditReference?: (ref: AcademicReference) => void;
   onOpenTemplateCustomizer?: () => void;
+  onOpenAbntGuide?: () => void;
   onRemoveReference: (id: string) => void;
   onMinimize?: () => void;
 }
@@ -49,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenReferenceModal,
   onEditReference,
   onOpenTemplateCustomizer,
+  onOpenAbntGuide,
   onRemoveReference,
   onMinimize,
 }) => {
@@ -854,6 +856,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </p>
                   </div>
                 ))
+              )}
+
+              {onOpenAbntGuide && (
+                <button
+                  type="button"
+                  onClick={onOpenAbntGuide}
+                  className="w-full mt-2.5 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-neutral-50 dark:hover:bg-neutral-750 transition-colors shadow-2xs"
+                  title="Consultar resumo rápido das normas ABNT atendidas (NBR 14724, 10520, 6023, 6028)"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>Guia de Normas ABNT</span>
+                </button>
               )}
             </div>
           )}

@@ -88,13 +88,11 @@ test.describe('RedijaApp: Jornada Completa do Estudante', () => {
     await expect(modalHeading).not.toBeVisible();
     await expect(page.getByText('Redija', { exact: true })).toBeVisible();
 
-    // Abre o menu de Ferramentas no cabeçalho
-    const toolsBtn = page.getByRole('button', { name: /Ferramentas/i });
-    await expect(toolsBtn).toBeVisible();
-    await toolsBtn.click();
-
-    // Clica na opção "Norma & Layout" dentro do menu de ferramentas
-    const customizerOption = page.getByRole('button', { name: /Norma & Layout ABNT, APA/i });
+    // Abre o modal de Norma & Layout a partir da barra de estrutura (seção Referências)
+    const customizerOption = page.getByRole('button', {
+      name: 'Layout das Referências e Citações (Norma & Layout)',
+      exact: true,
+    });
     await expect(customizerOption).toBeVisible();
     await customizerOption.click();
 
