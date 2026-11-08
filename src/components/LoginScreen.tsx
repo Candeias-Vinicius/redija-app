@@ -95,7 +95,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         onToggleTheme={handleToggleTheme}
         onOpenDoc={handleOpenDoc}
         onOpenLogin={onLogin}
-        onContinueAsGuest={onContinueAsGuest}
         isLoading={isLoading}
       />
 
