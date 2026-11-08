@@ -28,7 +28,7 @@ export interface PdfCompileOutput {
   error?: string;
 }
 
-export const WORKER_TIMEOUT_MS = 15000;
+export const WORKER_TIMEOUT_MS = 60000;
 
 interface PendingCompileRequest {
   resolve: (res: {
@@ -81,7 +81,7 @@ export function restartWorker(): void {
     req.resolve({
       diagnostics: [],
       compileTimeMs: WORKER_TIMEOUT_MS,
-      error: 'A compilação excedeu o tempo limite de segurança (15s) ou o compilador travou.',
+      error: 'A compilação excedeu o tempo limite de segurança (60s) ou o compilador travou.',
     });
   });
   pendingCompileRequests.clear();
@@ -108,6 +108,36 @@ export function restartWorker(): void {
 function getWorker(): Worker {
   if (!workerInstance) {
     workerInstance = new TypstCompilerWorker();
+
+    workerInstance.onerror = (event: ErrorEvent) => {
+      console.error('[TypstWorker Error]:', event);
+      const errorMsg =
+        event.message ||
+        'Erro na execução do compilador Typst (verifique a conexão ou restrições de script).';
+
+      pendingCompileRequests.forEach((req) => {
+        if (req.timeoutId) clearTimeout(req.timeoutId);
+        req.resolve({
+          diagnostics: [],
+          compileTimeMs: 0,
+          error: errorMsg,
+        });
+      });
+      pendingCompileRequests.clear();
+
+      pendingPagesInfoRequests.forEach((req) => {
+        if (req.timeoutId) clearTimeout(req.timeoutId);
+        req.resolve({ error: errorMsg });
+      });
+      pendingPagesInfoRequests.clear();
+
+      if (activeRenderSession) {
+        if (activeRenderSession.timeoutId) clearTimeout(activeRenderSession.timeoutId);
+        activeRenderSession.reject(new Error(errorMsg));
+        activeRenderSession = null;
+      }
+    };
+
     workerInstance.onmessage = (event) => {
       const data = event.data;
       if (!data) return;
