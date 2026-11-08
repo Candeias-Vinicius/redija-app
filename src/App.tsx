@@ -102,7 +102,10 @@ export const App: React.FC = () => {
 
   const [isGuestMode, setIsGuestMode] = useState<boolean>(() => {
     try {
-      return sessionStorage.getItem('redija:guestMode') === 'true';
+      return (
+        sessionStorage.getItem('redija:guestMode') === 'true' ||
+        localStorage.getItem('redija:guestMode') === 'true'
+      );
     } catch {
       return false;
     }
@@ -512,7 +515,7 @@ export const App: React.FC = () => {
    */
   const handleEnsureProjectSavedToDrive = async (): Promise<string | null> => {
     try {
-      let token = await getValidAccessToken();
+      let token = await getValidAccessToken(true);
       if (!token) {
         token = await login(false);
       }
@@ -574,18 +577,30 @@ export const App: React.FC = () => {
   };
 
   const handleLoginClick = async (): Promise<string | null> => {
+    let token: string | null;
     if (!isAuthConfigured) {
       loginDevMock();
-      return 'mock_dev_token_xyz';
+      token = 'mock_dev_token_xyz';
     } else {
-      return await login(false);
+      token = await login(false);
     }
+    if (token) {
+      setIsGuestMode(false);
+      try {
+        localStorage.removeItem('redija:guestMode');
+        sessionStorage.removeItem('redija:guestMode');
+      } catch {
+        // Ignora
+      }
+    }
+    return token;
   };
 
   const handleLogout = () => {
     logout();
     setIsGuestMode(false);
     try {
+      localStorage.removeItem('redija:guestMode');
       sessionStorage.removeItem('redija:guestMode');
     } catch {
       // Ignora
@@ -598,6 +613,7 @@ export const App: React.FC = () => {
   const handleExitGuestMode = () => {
     setIsGuestMode(false);
     try {
+      localStorage.removeItem('redija:guestMode');
       sessionStorage.removeItem('redija:guestMode');
     } catch {
       // Ignora
@@ -611,6 +627,7 @@ export const App: React.FC = () => {
     await revokeAccess();
     setIsGuestMode(false);
     try {
+      localStorage.removeItem('redija:guestMode');
       sessionStorage.removeItem('redija:guestMode');
     } catch {
       // Ignora
@@ -622,7 +639,7 @@ export const App: React.FC = () => {
 
   const handleDeleteAccountAndData = async () => {
     try {
-      const token = await getValidAccessToken();
+      const token = await getValidAccessToken(true);
       if (token) {
         await deleteAllUserDriveProjects(token);
       }
@@ -647,6 +664,7 @@ export const App: React.FC = () => {
     await revokeAccess();
     setIsGuestMode(false);
     try {
+      localStorage.removeItem('redija:guestMode');
       sessionStorage.removeItem('redija:guestMode');
     } catch {
       // Ignora
@@ -656,11 +674,11 @@ export const App: React.FC = () => {
   /**
    * Sincroniza a lista de projetos trazendo arquivos existentes do Google Drive para o Dexie.
    */
-  const handleSyncFromDrive = useCallback(async () => {
+  const handleSyncFromDrive = useCallback(async (interactive = false) => {
     if (!isAuthenticated || !user) return;
     setIsSyncingDrive(true);
     try {
-      const token = await getValidAccessToken();
+      const token = await getValidAccessToken(interactive);
       if (!token) return;
 
       const driveSummaries = await listDriveProjects(token);
@@ -1197,6 +1215,7 @@ export const App: React.FC = () => {
         onContinueAsGuest={() => {
           setIsGuestMode(true);
           try {
+            localStorage.setItem('redija:guestMode', 'true');
             sessionStorage.setItem('redija:guestMode', 'true');
           } catch {
             // Ignora
@@ -1431,7 +1450,7 @@ export const App: React.FC = () => {
         onExportBackup={handleExportBackup}
         onImportBackup={handleImportBackup}
         isAuthenticated={isAuthenticated}
-        onSyncFromDrive={handleSyncFromDrive}
+        onSyncFromDrive={() => handleSyncFromDrive(true)}
         isSyncingDrive={isSyncingDrive}
       />
 

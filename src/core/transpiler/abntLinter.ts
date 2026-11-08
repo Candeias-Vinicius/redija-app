@@ -365,7 +365,14 @@ export function exportToBibtex(references: AcademicReference[]): string {
 export function runAbntLinter(project: DocumentProject): AbntWarning[] {
   const warnings: AbntWarning[] = [];
 
-  // 1. Contagem de palavras do resumo (NBR 6028: 150 a 500 palavras para TCC/monografias)
+  // 1. Contagem de palavras do resumo (NBR 6028: 150 a 500 palavras para TCC/monografias, 100 a 250 para artigos)
+  const isArticle =
+    project.templateType === 'artigo' ||
+    project.templateType === 'sbc' ||
+    project.templateType === 'ieee';
+  const minWords = isArticle ? 100 : 150;
+  const maxWords = isArticle ? 250 : 500;
+
   const abstractWords = countWords(project.metadata.abstract);
   if (abstractWords === 0) {
     warnings.push({
@@ -374,17 +381,30 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
       title: 'Resumo em branco (NBR 6028)',
       description: 'O trabalho não possui texto de resumo preenchido.',
     });
-  } else if (abstractWords < 150 || abstractWords > 500) {
+  } else if (abstractWords < minWords || abstractWords > maxWords) {
+    const rangeText = isArticle
+      ? 'entre 100 e 250 palavras para artigos de periódicos'
+      : 'entre 150 e 500 palavras para trabalhos acadêmicos (e 100 a 250 para artigos)';
     warnings.push({
       id: 'abstract-length',
       severity: 'info',
       title: `Resumo com ${abstractWords} palavras (NBR 6028)`,
-      description:
-        'A ABNT NBR 6028 recomenda entre 150 e 500 palavras para trabalhos acadêmicos (e 100 a 250 para artigos).',
+      description: `A ABNT NBR 6028 recomenda ${rangeText}.`,
     });
   }
 
-  // 2. Figuras e Tabelas sem legenda ou fonte
+  // 2. Palavras-chave obrigatórias (NBR 6028 / NBR 14724)
+  const validKeywords = (project.metadata.keywords || []).map((k) => k.trim()).filter(Boolean);
+  if (validKeywords.length === 0) {
+    warnings.push({
+      id: 'keywords-empty',
+      severity: 'warning',
+      title: 'Palavras-chave ausentes (NBR 6028)',
+      description: 'O trabalho acadêmico deve conter palavras-chave representativas do conteúdo do documento.',
+    });
+  }
+
+  // 3. Figuras e Tabelas sem legenda ou fonte (NBR 14724)
   project.blocks.forEach((b, idx) => {
     if (b.type === 'image') {
       if (!b.meta?.caption?.trim() || !b.meta?.source?.trim()) {
@@ -409,7 +429,17 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
     }
   });
 
-  // 3. Cruzamento de Citações e Referências (NBR 10520 / NBR 6023)
+  // 4. Lista de Referências vazia (NBR 6023)
+  if (!project.references || project.references.length === 0) {
+    warnings.push({
+      id: 'references-empty',
+      severity: 'warning',
+      title: 'Lista de Referências vazia (NBR 6023)',
+      description: 'O trabalho acadêmico deve conter referências bibliográficas cadastradas.',
+    });
+  }
+
+  // 5. Cruzamento de Citações e Referências (NBR 10520 / NBR 6023)
   const fullBodyText = project.blocks
     .map((b) => {
       const base = stripHtmlTags(b.content);
@@ -421,7 +451,7 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
     .join(' ')
     .toUpperCase();
 
-  for (const ref of project.references) {
+  for (const ref of project.references || []) {
     const surname = getPrimarySurname(ref.authors);
     if (surname && !fullBodyText.includes(surname)) {
       warnings.push({
@@ -434,15 +464,21 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
     }
   }
 
-  // Verifica citações longas cujos autores não constam na lista de referências
+  // Verifica citações cujos autores não constam na lista de referências
   const registeredSurnames = new Set(
-    project.references.map((r) => getPrimarySurname(r.authors)).filter(Boolean),
+    (project.references || []).map((r) => getPrimarySurname(r.authors)).filter(Boolean),
   );
+  const reportedMissingCitations = new Set<string>();
+
+  // Regex para capturar citações autor-data no formato (SOBRENOME, ANO) no texto de parágrafos
+  const inTextCitationRegex = /\(([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ\s;.-]+(?:et\s+al\.?)?),\s*([12]\d{3}[a-z]?(?:,\s*p\.\s*\d+)?)\)/g;
 
   for (const b of project.blocks) {
+    // Citações longas estruturadas
     if (b.type === 'quote_long' && b.meta?.author?.trim()) {
       const cited = getPrimarySurname(b.meta.author);
-      if (cited && !registeredSurnames.has(cited)) {
+      if (cited && !registeredSurnames.has(cited) && !reportedMissingCitations.has(cited)) {
+        reportedMissingCitations.add(cited);
         warnings.push({
           id: `missing-ref-${b.id}`,
           severity: 'warning',
@@ -450,6 +486,27 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
           description:
             'Este autor foi citado em uma citação direta longa, mas não está cadastrado na seção de Referências.',
         });
+      }
+    }
+
+    // Citações parentéticas no corpo dos parágrafos
+    const text = stripHtmlTags(b.content);
+    let match: RegExpExecArray | null;
+    while ((match = inTextCitationRegex.exec(text)) !== null) {
+      const rawAuthorPart = match[1].trim();
+      const yearPart = match[2].trim();
+      const { surnames } = parseCitationAuthors(rawAuthorPart);
+      for (const s of surnames) {
+        if (s && !registeredSurnames.has(s) && !reportedMissingCitations.has(s)) {
+          reportedMissingCitations.add(s);
+          warnings.push({
+            id: `missing-ref-intext-${s.toLowerCase()}`,
+            severity: 'warning',
+            title: `Citação sem referência cadastrada: (${s}, ${yearPart})`,
+            description:
+              'Este autor foi citado no corpo do texto, mas não está cadastrado na seção de Referências.',
+          });
+        }
       }
     }
   }

@@ -101,30 +101,33 @@ let rendererPromise: Promise<TypstRenderer> | null = null;
 let latestRenderRequestId = 0;
 
 function resolveFontUrls(): string[] {
-  const workerUrl = self.location?.href || '';
-  if (workerUrl.includes('/assets/')) {
-    const rootUrl = workerUrl.substring(0, workerUrl.lastIndexOf('/assets/')) + '/';
-    return FONT_FILES.map((file) => `${rootUrl}${file}`);
-  }
-  const base = import.meta.env.BASE_URL || '/';
-  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
   const origin = self.location?.origin || '';
-  return FONT_FILES.map((file) => `${origin}${normalizedBase}${file}`);
+  const base = import.meta.env.BASE_URL || '/';
+  const cleanBase = base === './' || base === '.' ? '/' : base.endsWith('/') ? base : `${base}/`;
+  const basePath = cleanBase.startsWith('/') ? cleanBase : `/${cleanBase}`;
+  const root = origin ? `${origin}${basePath}` : basePath;
+  const normalizedRoot = root.endsWith('/') ? root : `${root}/`;
+  return FONT_FILES.map((file) => `${normalizedRoot}${file.replace(/^\/+/, '')}`);
 }
 
 async function getCompiler(): Promise<TypstCompiler> {
   if (!compilerPromise) {
     compilerPromise = (async () => {
-      const instance = createTypstCompiler();
-      await instance.init({
-        getModule: () => compilerWasmUrl,
-        beforeBuild: [
-          loadFonts(resolveFontUrls(), {
-            assets: false,
-          }),
-        ],
-      });
-      return instance;
+      try {
+        const instance = createTypstCompiler();
+        await instance.init({
+          getModule: () => compilerWasmUrl,
+          beforeBuild: [
+            loadFonts(resolveFontUrls(), {
+              assets: false,
+            }),
+          ],
+        });
+        return instance;
+      } catch (err) {
+        compilerPromise = null;
+        throw err;
+      }
     })();
   }
   return compilerPromise;
@@ -133,11 +136,16 @@ async function getCompiler(): Promise<TypstCompiler> {
 async function getRenderer(): Promise<TypstRenderer> {
   if (!rendererPromise) {
     rendererPromise = (async () => {
-      const instance = createTypstRenderer();
-      await instance.init({
-        getModule: () => rendererWasmUrl,
-      });
-      return instance;
+      try {
+        const instance = createTypstRenderer();
+        await instance.init({
+          getModule: () => rendererWasmUrl,
+        });
+        return instance;
+      } catch (err) {
+        rendererPromise = null;
+        throw err;
+      }
     })();
   }
   return rendererPromise;

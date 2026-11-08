@@ -128,6 +128,20 @@ describe('Transpilador Typst: Robustez a HTML Malformado e TipTap Rich Text', ()
     const richSpan = '<p class="MsoNormal"><span style="color: red;" data-id="123">Texto estilizado</span></p>';
     const plain = stripHtmlTags(richSpan);
     expect(plain).toBe('Texto estilizado');
+
+    // Valida que richTextToTypst descarta tags desconhecidas como <span> e <div> sem vazar HTML literal para o Typst
+    const typst = richTextToTypst(richSpan);
+    expect(typst).toBe('Texto estilizado');
+    expect(typst).not.toContain('<span');
+    expect(typst).not.toContain('\\<span');
+  });
+
+  it('elimina completamente tags executáveis perigosas como script, style e iframe no richTextToTypst', () => {
+    const xss = '<p>Texto legítimo <script>alert("hack")</script><style>body{color:red;}</style><iframe src="evil.com"></iframe> com <strong>ênfase</strong>.</p>';
+    const typst = richTextToTypst(xss);
+    expect(typst).toBe('Texto legítimo  com #strong[ênfase].');
+    expect(typst).not.toContain('alert');
+    expect(typst).not.toContain('evil.com');
   });
 });
 
