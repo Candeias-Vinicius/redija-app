@@ -438,7 +438,7 @@ function generateAbntShowRule(
  * não aparecer duplicado.
  */
 export function stripManualNumbering(title: string): string {
-  return title.replace(/^\s*\d+(\.\d+)*(\.|\s*[-–—:])?\s+/, '').trim();
+  return title.replace(/^\s*\d+(\.\d+)*(\.|\s*[-–—:])?(\s+|$)/, '').trim();
 }
 
 function transpileBlock(
