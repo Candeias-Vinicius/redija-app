@@ -1,32 +1,35 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('RedijaApp — Fluxo Principal E2E', () => {
+test.describe('RedijaApp: Fluxo Principal E2E', () => {
   test('exibe a tela de login, entra como convidado e interage com o editor ABNT', async ({
     page,
   }) => {
     await page.goto('/');
 
-    // Verifica que a Tela Inicial / Landing carregou
+    // Verifica que a Landing Page carregou
     await expect(page.getByText(/O Redija cuida de toda a ABNT/i)).toBeVisible();
 
-    // Clica para continuar como Convidado
-    await page.getByText(/Continuar como Convidado/i).first().click();
+    // Clica para continuar como Convidado (Modo Local Offline)
+    await page.getByRole('button', { name: /Experimentar como Convidado/i }).first().click();
 
     // Verifica que o cabeçalho do RedijaApp carregou
-    await expect(page.getByText('Redija')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Baixar PDF/i })).toBeVisible();
+    await expect(page.getByText('Redija', { exact: true })).toBeVisible();
 
-    // Abre o modal de projetos clicando no nome do trabalho ativo
-    await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
-    await expect(page.getByText('Meus Trabalhos Acadêmicos')).toBeVisible();
+    // Se o modal de projetos não abriu automaticamente (ex: primeiro acesso sem projetos), abre pelo cabeçalho
+    const projectsModalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
+    if (!await projectsModalHeading.isVisible()) {
+      await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
+    }
+    await expect(projectsModalHeading).toBeVisible();
 
     // Cria um novo projeto a partir do modelo de Artigo Científico
     await page.getByText('Artigo Científico').click();
     await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill('Artigo E2E Teste');
     await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
 
-    // Confirma que o novo projeto está ativo no cabeçalho
+    // Confirma que o novo projeto está ativo no cabeçalho e botão Baixar PDF está visível no preview
     await expect(page.getByText('Artigo E2E Teste')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Baixar PDF/i })).toBeVisible();
 
     // Alterna para visualização do código Typst gerado e verifica que contém #show: abnt.with
     await page.getByRole('button', { name: /Ver Typst/i }).click();

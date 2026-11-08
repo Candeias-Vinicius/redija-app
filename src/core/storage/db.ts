@@ -5,6 +5,8 @@
 import Dexie, { type Table } from 'dexie';
 import { DocumentProject, RedijaBackupFile } from '@/types/document';
 import { validateProjectQuota } from './imageQuota';
+import { normalizeProject } from './schemaNormalizer';
+import { saveEmergencySnapshot } from './emergencyBackup';
 
 const ACTIVE_PROJECT_KEY = 'redija:activeProjectId';
 export const TRASH_RETENTION_DAYS = 30;
@@ -79,7 +81,7 @@ export async function checkStoragePersistence(): Promise<boolean> {
  */
 export async function listProjects(ownerEmail?: string | null): Promise<DocumentProject[]> {
   const all = await db.projects.orderBy('updatedAt').reverse().toArray();
-  const active = all.filter((p) => !p.deletedAt);
+  const active = all.filter((p) => !p.deletedAt).map(normalizeProject);
   if (ownerEmail === undefined) {
     return active;
   }
@@ -97,7 +99,8 @@ export async function listTrashedProjects(ownerEmail?: string | null): Promise<D
   const all = await db.projects.toArray();
   const trashed = all
     .filter((p) => Boolean(p.deletedAt))
-    .sort((a, b) => (b.deletedAt || '').localeCompare(a.deletedAt || ''));
+    .sort((a, b) => (b.deletedAt || '').localeCompare(a.deletedAt || ''))
+    .map(normalizeProject);
   if (ownerEmail === undefined) {
     return trashed;
   }
@@ -141,16 +144,19 @@ export async function purgeExpiredTrash(): Promise<number> {
  * Obtém um projeto pelo seu ID.
  */
 export async function getProject(id: string): Promise<DocumentProject | undefined> {
-  return db.projects.get(id);
+  const p = await db.projects.get(id);
+  return p ? normalizeProject(p) : undefined;
 }
 
 /**
  * Salva (cria ou atualiza) um projeto no IndexedDB, atualizando o campo `updatedAt`.
+ * Também salva um snapshot de emergência prévio no localStorage para blindagem total.
  */
 export async function saveProject(
   project: DocumentProject,
   touchTimestamp = true,
 ): Promise<DocumentProject> {
+  saveEmergencySnapshot(project);
   const updated: DocumentProject = {
     ...project,
     updatedAt: touchTimestamp ? new Date().toISOString() : project.updatedAt,

@@ -30,6 +30,7 @@ import {
   FolderArchive,
   Code2,
   Terminal,
+  Download,
 } from 'lucide-react';
 
 interface PdfPreviewProps {
@@ -39,6 +40,8 @@ interface PdfPreviewProps {
   showCode: boolean;
   onToggleCode?: () => void;
   onMinimize?: () => void;
+  onDownloadPdf?: () => void;
+  isExportingPdf?: boolean;
   onExportProjectZip?: () => void;
   isExportingProject?: boolean;
 }
@@ -50,6 +53,8 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
   showCode,
   onToggleCode,
   onMinimize,
+  onDownloadPdf,
+  isExportingPdf = false,
   onExportProjectZip,
   isExportingProject = false,
 }) => {
@@ -269,6 +274,29 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
                 <>
                   <Code2 className="w-3 h-3 text-neutral-500" />
                   <span>Ver Typst</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Botão Baixar PDF */}
+          {onDownloadPdf && (
+            <button
+              type="button"
+              onClick={onDownloadPdf}
+              disabled={isExportingPdf}
+              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white shadow-xs transition-colors"
+              title="Compilar e baixar o PDF final nas normas ABNT"
+            >
+              {isExportingPdf ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>Gerando...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-3 h-3" />
+                  <span>Baixar PDF</span>
                 </>
               )}
             </button>

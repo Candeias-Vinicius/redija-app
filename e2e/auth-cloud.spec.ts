@@ -1,0 +1,104 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
+  test.beforeEach(async ({ page }) => {
+    // Aceita diálogos nativos automaticamente
+    page.on('dialog', async (dialog) => {
+      await dialog.accept();
+    });
+
+    await page.goto('/');
+  });
+
+  test('conecta em modo demonstração, valida Drive Sync e modal de colaboração', async ({
+    page,
+  }) => {
+    // 1. Verifica landing page
+    await expect(page.getByText(/O Redija cuida de toda a ABNT/i)).toBeVisible();
+
+    // 2. Entra em Modo Demonstração
+    const demoBtn = page.getByRole('button', { name: /Entrar como Usuário Demonstração/i });
+    if (await demoBtn.isVisible()) {
+      await demoBtn.click();
+    } else {
+      // Se já configurado com Client ID, usa fluxo de convidado
+      await page.getByRole('button', { name: /Experimentar como Convidado/i }).first().click();
+    }
+
+    // 3. Aguarda o cabeçalho carregar
+    await expect(page.getByText('Redija', { exact: true })).toBeVisible();
+
+    // 4. Se o modal de projetos abrir automaticamente, inicializa um trabalho
+    const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
+    try {
+      await modalHeading.waitFor({ state: 'visible', timeout: 1800 });
+      await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Projeto Cloud ${Date.now()}`);
+      await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+      await expect(modalHeading).not.toBeVisible();
+    } catch {
+      // Modal não abriu, projeto já ativo
+    }
+
+    // 5. Clica no botão "Compartilhar"
+    const shareBtn = page.getByRole('button', { name: /Compartilhar/i });
+    await expect(shareBtn).toBeVisible();
+    await shareBtn.click();
+
+    // 6. Valida que o modal de compartilhamento abriu
+    const shareModal = page.locator('div.fixed.z-50');
+    await expect(shareModal.getByText('Compartilhar Trabalho')).toBeVisible();
+    await expect(shareModal.getByPlaceholder('exemplo@gmail.com')).toBeVisible();
+
+    // 7. Fecha o modal de compartilhamento pelo botão de fechar (X)
+    const closeBtn = shareModal.getByRole('button').filter({ has: page.locator('svg.lucide-x') }).first();
+    await closeBtn.click();
+    await expect(shareModal.getByText('Compartilhar Trabalho')).not.toBeVisible();
+  });
+
+  test('abre menu de usuário, acessa configurações de conta e realiza logout para a landing page', async ({
+    page,
+  }) => {
+    // 1. Entra em Modo Demonstração
+    const demoBtn = page.getByRole('button', { name: /Entrar como Usuário Demonstração/i });
+    if (await demoBtn.isVisible()) {
+      await demoBtn.click();
+
+      // Fecha modal inicial se abrir
+      const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
+      try {
+        await modalHeading.waitFor({ state: 'visible', timeout: 1800 });
+        await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Projeto Perfil ${Date.now()}`);
+        await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+        await expect(modalHeading).not.toBeVisible();
+      } catch {
+        // Modal não abriu, projeto já ativo
+      }
+
+      // 2. Abre o menu do usuário (avatar no cabeçalho)
+      const userMenuTrigger = page.locator('header button.rounded-full');
+      await expect(userMenuTrigger).toBeVisible();
+      await userMenuTrigger.click();
+
+      // 3. Valida e clica em Configurações da Conta
+      const settingsOption = page.getByText('Configurações da Conta');
+      await expect(settingsOption).toBeVisible();
+      await settingsOption.click();
+
+      // 4. Confirma abertura do modal de configurações
+      await expect(page.getByRole('heading', { name: 'Configurações da Conta' })).toBeVisible();
+
+      // 5. Fecha o modal de configurações
+      const closeSettingsBtn = page.locator('div.fixed.z-50 button').filter({ has: page.locator('svg.lucide-x') }).first();
+      await closeSettingsBtn.click();
+
+      // 6. Reabre o menu do usuário e realiza Logout
+      await userMenuTrigger.click();
+      const logoutBtn = page.getByRole('button', { name: /Sair da Conta Google/i });
+      await expect(logoutBtn).toBeVisible();
+      await logoutBtn.click();
+
+      // 7. Confirma retorno para a Landing Page
+      await expect(page.getByText(/O Redija cuida de toda a ABNT/i)).toBeVisible();
+    }
+  });
+});
