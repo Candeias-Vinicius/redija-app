@@ -84,4 +84,27 @@ describe('RealtimeCollabManager (Nível 3 — Tempo Real P2P)', () => {
     });
     expect(manager.getActivePresences().length).toBe(0);
   });
+
+  it('descarta mensagens maliciosas com payload excessivo ou campos inválidos', () => {
+    const manager = new RealtimeCollabManager();
+    const updateSpy = vi.fn();
+    manager.onRemoteBlockUpdate(updateSpy);
+
+    // Payload gigante > 500KB
+    // @ts-expect-error acessando método privado para teste unitário
+    manager.handleIncomingMessage({
+      type: 'block_update',
+      blockId: 'b_overflow',
+      content: 'A'.repeat(600_000),
+      senderPeerId: 'other_peer',
+    });
+    expect(updateSpy).not.toHaveBeenCalled();
+
+    // Mensagem com tipo inválido ou corrompido
+    // @ts-expect-error acessando método privado para teste unitário
+    manager.handleIncomingMessage(null);
+    // @ts-expect-error acessando método privado para teste unitário
+    manager.handleIncomingMessage({ type: 'unknown_type' });
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
 });

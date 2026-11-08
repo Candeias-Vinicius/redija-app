@@ -28,7 +28,7 @@ import {
   parseBibtex,
   runAbntLinter,
 } from '../abntLinter';
-import { DocumentProject } from '@/types/document';
+import { DocumentProject, DEFAULT_TEMPLATE_CONFIG } from '@/types/document';
 
 function createSampleProject(overrides?: Partial<DocumentProject>): DocumentProject {
   return {
@@ -535,5 +535,72 @@ describe('Typst compilation integration', () => {
     expect(compileResult.hasError()).toBe(false);
     const pdfBuffer = compiler.pdf(compileResult.result!);
     expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+  });
+
+  describe('AppSec & Typst Hardening', () => {
+    it('escapes $ and # inside equation blocks to prevent escaping math mode or executing arbitrary macros', () => {
+      const proj = createProjectFromTemplate('tcc');
+      proj.blocks = [
+        {
+          id: 'eq1',
+          type: 'equation',
+          content: 'E = m c^2 $ #panic("pwned") $ #test',
+        },
+      ];
+
+      const { [MAIN_FILE]: mainTyp } = generateTypstFiles(proj);
+      expect(mainTyp).toContain('$ E = m c^2 \\$ \\#panic("pwned") \\$ \\#test $');
+      expect(mainTyp).not.toContain('$ #panic');
+
+      // Testa que equações com delimitadores escapados compilam perfeitamente sem erro no modo matemático
+      proj.blocks = [
+        {
+          id: 'eq2',
+          type: 'equation',
+          content: 'E = m c^2 $ x + y $ z',
+        },
+      ];
+      const standalone = generateStandaloneTypst(proj);
+      const compiler = NodeCompiler.create();
+      const compileResult = compiler.compile({ mainFileContent: standalone });
+      expect(compileResult.hasError()).toBe(false);
+    });
+
+    it('clamps image width percentage safely between 10% and 100%', () => {
+      const proj = createProjectFromTemplate('tcc');
+      proj.blocks = [
+        {
+          id: 'img1',
+          type: 'image',
+          content: '',
+          meta: {
+            caption: 'Teste Imagem Limites',
+            imageDataUrl:
+              'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+            // @ts-expect-error testando injeção/valor fora dos limites
+            imageWidthPct: 9999,
+          },
+        },
+      ];
+
+      const { [MAIN_FILE]: mainTyp } = generateTypstFiles(proj);
+      expect(mainTyp).toContain('width: 100%');
+      expect(mainTyp).not.toContain('width: 9999%');
+    });
+
+    it('rejects malicious universePackage and universeEntrypoint strings', () => {
+      const proj = createProjectFromTemplate('tcc');
+      proj.templateType = 'universe_custom';
+      proj.templateConfig = {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        // Injeção de código Typst via nome de pacote
+        universePackage: '@preview/bad:0.1.0\n#panic("hack")\n',
+        universeEntrypoint: 'bad_fn; #panic("hack")',
+      };
+
+      const { [MAIN_FILE]: mainTyp } = generateTypstFiles(proj);
+      // Deve ignorar o pacote inválido e não injetar macros
+      expect(mainTyp).not.toContain('#panic("hack")');
+    });
   });
 });

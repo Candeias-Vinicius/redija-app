@@ -28,6 +28,8 @@ export interface PdfCompileOutput {
   error?: string;
 }
 
+export const WORKER_TIMEOUT_MS = 15000;
+
 interface PendingCompileRequest {
   resolve: (res: {
     artifact?: Uint8Array;
@@ -36,10 +38,12 @@ interface PendingCompileRequest {
     compileTimeMs: number;
     error?: string;
   }) => void;
+  timeoutId?: ReturnType<typeof setTimeout>;
 }
 
 interface PendingPagesInfoRequest {
   resolve: (res: { pages?: PageDimension[]; error?: string }) => void;
+  timeoutId?: ReturnType<typeof setTimeout>;
 }
 
 interface ActiveRenderSession {
@@ -51,6 +55,7 @@ interface ActiveRenderSession {
   ) => HTMLCanvasElement | null;
   resolve: (pages: PageDimension[]) => void;
   reject: (err: Error) => void;
+  timeoutId?: ReturnType<typeof setTimeout>;
 }
 
 let workerInstance: Worker | null = null;
@@ -59,6 +64,46 @@ let requestCounter = 0;
 const pendingCompileRequests = new Map<number, PendingCompileRequest>();
 const pendingPagesInfoRequests = new Map<number, PendingPagesInfoRequest>();
 let activeRenderSession: ActiveRenderSession | null = null;
+
+export function restartWorker(): void {
+  if (workerInstance) {
+    try {
+      workerInstance.terminate();
+    } catch {
+      // Ignora erro ao terminar
+    }
+    workerInstance = null;
+  }
+
+  // Notifica e encerra todas as requisições de compilação pendentes
+  pendingCompileRequests.forEach((req) => {
+    if (req.timeoutId) clearTimeout(req.timeoutId);
+    req.resolve({
+      diagnostics: [],
+      compileTimeMs: WORKER_TIMEOUT_MS,
+      error: 'A compilação excedeu o tempo limite de segurança (15s) ou o compilador travou.',
+    });
+  });
+  pendingCompileRequests.clear();
+
+  // Encerra requisições de metadados
+  pendingPagesInfoRequests.forEach((req) => {
+    if (req.timeoutId) clearTimeout(req.timeoutId);
+    req.resolve({
+      error: 'Operação cancelada: compilador reiniciado por segurança.',
+    });
+  });
+  pendingPagesInfoRequests.clear();
+
+  // Encerra sessão de renderização ativa
+  if (activeRenderSession) {
+    if (activeRenderSession.timeoutId) clearTimeout(activeRenderSession.timeoutId);
+    activeRenderSession.reject(
+      new Error('Renderização cancelada: compilador reiniciado por segurança.'),
+    );
+    activeRenderSession = null;
+  }
+}
 
 function getWorker(): Worker {
   if (!workerInstance) {
@@ -71,6 +116,7 @@ function getWorker(): Worker {
       if (data.type === 'compile-vector' || data.type === 'compile-pdf') {
         const pending = pendingCompileRequests.get(data.id);
         if (pending) {
+          if (pending.timeoutId) clearTimeout(pending.timeoutId);
           pendingCompileRequests.delete(data.id);
           pending.resolve({
             artifact: data.artifact,
@@ -87,6 +133,7 @@ function getWorker(): Worker {
       if (data.type === 'get-pages-info') {
         const pending = pendingPagesInfoRequests.get(data.id);
         if (pending) {
+          if (pending.timeoutId) clearTimeout(pending.timeoutId);
           pendingPagesInfoRequests.delete(data.id);
           pending.resolve({
             pages: data.pages,
@@ -128,6 +175,7 @@ function getWorker(): Worker {
         const { id, pagesInfo, error } = data;
         if (activeRenderSession && activeRenderSession.id === id) {
           const current = activeRenderSession;
+          if (current.timeoutId) clearTimeout(current.timeoutId);
           activeRenderSession = null;
           if (error) {
             current.reject(new Error(error));
@@ -159,7 +207,12 @@ export async function compileToVector(
     compileTimeMs: number;
     error?: string;
   }>((resolve) => {
-    pendingCompileRequests.set(id, { resolve });
+    const timeoutId = setTimeout(() => {
+      console.warn(`[TypstClient] Compilação do vetor excedeu ${WORKER_TIMEOUT_MS}ms. Reiniciando worker...`);
+      restartWorker();
+    }, WORKER_TIMEOUT_MS);
+
+    pendingCompileRequests.set(id, { resolve, timeoutId });
     worker.postMessage({ id, type: 'compile-vector', files, binaryFiles });
   });
 
@@ -188,7 +241,12 @@ export async function compileToPdf(
     compileTimeMs: number;
     error?: string;
   }>((resolve) => {
-    pendingCompileRequests.set(id, { resolve });
+    const timeoutId = setTimeout(() => {
+      console.warn(`[TypstClient] Compilação PDF excedeu ${WORKER_TIMEOUT_MS}ms. Reiniciando worker...`);
+      restartWorker();
+    }, WORKER_TIMEOUT_MS);
+
+    pendingCompileRequests.set(id, { resolve, timeoutId });
     worker.postMessage({ id, type: 'compile-pdf', files, binaryFiles });
   });
 
@@ -221,15 +279,22 @@ export async function renderVectorToCanvases(
 
   // Se havia outra sessão em andamento, cancela e substitui
   if (activeRenderSession) {
+    if (activeRenderSession.timeoutId) clearTimeout(activeRenderSession.timeoutId);
     activeRenderSession = null;
   }
 
   return new Promise<PageDimension[]>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      console.warn(`[TypstClient] Renderização de páginas excedeu ${WORKER_TIMEOUT_MS}ms. Reiniciando worker...`);
+      restartWorker();
+    }, WORKER_TIMEOUT_MS);
+
     activeRenderSession = {
       id,
       getCanvasForPage,
       resolve,
       reject,
+      timeoutId,
     };
 
     worker.postMessage({
@@ -250,7 +315,12 @@ export async function getVectorPagesInfo(artifact: Uint8Array): Promise<PageDime
   const id = ++requestCounter;
 
   const raw = await new Promise<{ pages?: PageDimension[]; error?: string }>((resolve) => {
-    pendingPagesInfoRequests.set(id, { resolve });
+    const timeoutId = setTimeout(() => {
+      console.warn(`[TypstClient] Obtenção de páginas excedeu ${WORKER_TIMEOUT_MS}ms. Reiniciando worker...`);
+      restartWorker();
+    }, WORKER_TIMEOUT_MS);
+
+    pendingPagesInfoRequests.set(id, { resolve, timeoutId });
     worker.postMessage({ id, type: 'get-pages-info', artifact });
   });
 

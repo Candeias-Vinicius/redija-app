@@ -164,7 +164,11 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
 
   let importLine = `#import "${getTemplateFileName(project.templateType)}": *`;
   if (project.templateType === 'universe_custom') {
-    const pkg = cfg.universePackage || '@preview/charged-ieee:0.1.1';
+    const SAFE_PKG_REGEX = /^@[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+:[0-9.]+$/;
+    const pkg =
+      cfg.universePackage && SAFE_PKG_REGEX.test(cfg.universePackage.trim())
+        ? cfg.universePackage.trim()
+        : '@preview/charged-ieee:0.1.1';
     importLine = `#import "abnt.typ": *\n#import "${pkg}": *`;
   }
 
@@ -252,8 +256,9 @@ function generateSbcShowRule(project: DocumentProject, cfg: TemplateConfig): str
   if (m.foreignAbstract?.trim()) args.push(`abstract: ${typstContent(m.foreignAbstract)}`);
   const foreignKeywords = (m.foreignKeywords ?? []).map((k) => k.trim()).filter(Boolean);
   if (foreignKeywords.length > 0) args.push(`keywords: (${foreignKeywords.map(typstString).join(', ')},)`);
-  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily)}`);
-  if (cfg.columns) args.push(`colunas: ${cfg.columns}`);
+  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily === 'sans' ? 'sans' : 'serif')}`);
+  const sbcCols = Number(cfg.columns) === 2 ? 2 : 1;
+  args.push(`colunas: ${sbcCols}`);
 
   return `#show: sbc-article.with(\n  ${args.join(',\n  ')},\n)`;
 }
@@ -275,8 +280,9 @@ function generateIeeeShowRule(project: DocumentProject, cfg: TemplateConfig): st
   if (m.foreignAbstract?.trim()) args.push(`abstract: ${typstContent(m.foreignAbstract)}`);
   const foreignKeywords = (m.foreignKeywords ?? []).map((k) => k.trim()).filter(Boolean);
   if (foreignKeywords.length > 0) args.push(`keywords: (${foreignKeywords.map(typstString).join(', ')},)`);
-  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily)}`);
-  args.push(`colunas: ${cfg.columns || 2}`);
+  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily === 'sans' ? 'sans' : 'serif')}`);
+  const ieeeCols = Number(cfg.columns) === 1 ? 1 : 2;
+  args.push(`colunas: ${ieeeCols}`);
 
   return `#show: ieee-article.with(\n  ${args.join(',\n  ')},\n)`;
 }
@@ -305,18 +311,29 @@ function generatePosterShowRule(
     }
   }
 
-  args.push(`dimensoes: ${typstString(cfg.posterDimensions || 'a0')}`);
-  args.push(`orientacao: ${typstString(cfg.posterOrientation || 'portrait')}`);
-  args.push(`colunas: ${cfg.posterColumns || 3}`);
-  args.push(`tema: ${typstString(cfg.posterTheme || 'emerald')}`);
-  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily)}`);
+  const safeDimensions =
+    cfg.posterDimensions && /^[a-zA-Z0-9_-]+$/.test(cfg.posterDimensions) ? cfg.posterDimensions : 'a0';
+  const safeOrientation = cfg.posterOrientation === 'landscape' ? 'landscape' : 'portrait';
+  const safeCols = Math.min(4, Math.max(1, Number(cfg.posterColumns) || 3));
+  const safeTheme =
+    cfg.posterTheme && /^[a-zA-Z0-9_-]+$/.test(cfg.posterTheme) ? cfg.posterTheme : 'emerald';
+
+  args.push(`dimensoes: ${typstString(safeDimensions)}`);
+  args.push(`orientacao: ${typstString(safeOrientation)}`);
+  args.push(`colunas: ${safeCols}`);
+  args.push(`tema: ${typstString(safeTheme)}`);
+  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily === 'sans' ? 'sans' : 'serif')}`);
 
   return `#show: academic-poster.with(\n  ${args.join(',\n  ')},\n)`;
 }
 
 function generateUniverseShowRule(project: DocumentProject, cfg: TemplateConfig): string {
   const m = project.metadata;
-  const entry = cfg.universeEntrypoint || 'article';
+  const SAFE_ENTRY_REGEX = /^[a-zA-Z0-9_-]+$/;
+  const entry =
+    cfg.universeEntrypoint && SAFE_ENTRY_REGEX.test(cfg.universeEntrypoint.trim())
+      ? cfg.universeEntrypoint.trim()
+      : 'article';
   const args: string[] = [
     `title: ${typstString(m.title)}`,
     `authors: (${typstString(m.author)},)`,
@@ -387,10 +404,12 @@ function generateAbntShowRule(
 
   // Parâmetros de personalização do template / norma
   if (cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {
-    args.push(`fonte: ${typstString(cfg.fontFamily)}`);
+    const safeFont = cfg.fontFamily === 'sans' ? 'sans' : 'serif';
+    args.push(`fonte: ${typstString(safeFont)}`);
   }
   if (cfg.fontSizePt !== DEFAULT_TEMPLATE_CONFIG.fontSizePt) {
-    args.push(`tamanho-fonte: ${cfg.fontSizePt}pt`);
+    const safeSize = Number(cfg.fontSizePt) || 12;
+    args.push(`tamanho-fonte: ${safeSize}pt`);
   }
   if (cfg.lineSpacing !== DEFAULT_TEMPLATE_CONFIG.lineSpacing) {
     const leadingVar =
@@ -402,31 +421,37 @@ function generateAbntShowRule(
     args.push(`entrelinha: ${leadingVar}`);
   }
   if (cfg.paragraphIndentCm !== DEFAULT_TEMPLATE_CONFIG.paragraphIndentCm) {
-    args.push(`recuo: ${cfg.paragraphIndentCm}cm`);
+    const safeIndent = Number(cfg.paragraphIndentCm) || 1.25;
+    args.push(`recuo: ${safeIndent}cm`);
   }
   if (cfg.marginTopCm !== DEFAULT_TEMPLATE_CONFIG.marginTopCm) {
-    args.push(`margem-superior: ${cfg.marginTopCm}cm`);
+    const safeMargin = Number(cfg.marginTopCm) || 3;
+    args.push(`margem-superior: ${safeMargin}cm`);
   }
   if (cfg.marginLeftCm !== DEFAULT_TEMPLATE_CONFIG.marginLeftCm) {
-    args.push(`margem-esquerda: ${cfg.marginLeftCm}cm`);
+    const safeMargin = Number(cfg.marginLeftCm) || 3;
+    args.push(`margem-esquerda: ${safeMargin}cm`);
   }
   if (cfg.marginBottomCm !== DEFAULT_TEMPLATE_CONFIG.marginBottomCm) {
-    args.push(`margem-inferior: ${cfg.marginBottomCm}cm`);
+    const safeMargin = Number(cfg.marginBottomCm) || 2;
+    args.push(`margem-inferior: ${safeMargin}cm`);
   }
   if (cfg.marginRightCm !== DEFAULT_TEMPLATE_CONFIG.marginRightCm) {
-    args.push(`margem-direita: ${cfg.marginRightCm}cm`);
+    const safeMargin = Number(cfg.marginRightCm) || 2;
+    args.push(`margem-direita: ${safeMargin}cm`);
   }
   if (cfg.columns !== DEFAULT_TEMPLATE_CONFIG.columns) {
-    args.push(`colunas: ${cfg.columns}`);
+    const safeCols = Number(cfg.columns) === 2 ? 2 : 1;
+    args.push(`colunas: ${safeCols}`);
   }
   if (cfg.includeCoverPage !== DEFAULT_TEMPLATE_CONFIG.includeCoverPage) {
-    args.push(`incluir-capa: ${cfg.includeCoverPage}`);
+    args.push(`incluir-capa: ${Boolean(cfg.includeCoverPage)}`);
   }
   if (cfg.includeTitlePage !== DEFAULT_TEMPLATE_CONFIG.includeTitlePage) {
-    args.push(`incluir-folha-rosto: ${cfg.includeTitlePage}`);
+    args.push(`incluir-folha-rosto: ${Boolean(cfg.includeTitlePage)}`);
   }
   if (cfg.includeToc !== DEFAULT_TEMPLATE_CONFIG.includeToc) {
-    args.push(`incluir-sumario: ${cfg.includeToc}`);
+    args.push(`incluir-sumario: ${Boolean(cfg.includeToc)}`);
   }
 
   return `#show: abnt.with(\n  ${args.join(',\n  ')},\n)`;
@@ -499,7 +524,10 @@ function transpileBlock(
       }
       if (!expr) return null;
       // Expressão em modo display do Typst ($ expr $)
-      return `$ ${expr} $`;
+      // Escapa delimitadores internos $ para não fechar modo matemático
+      // e neutraliza # para evitar execução de comandos/macros do Typst
+      const sanitizedExpr = expr.replace(/\$/g, '\\$').replace(/#/g, '\\#');
+      return `$ ${sanitizedExpr} $`;
     }
 
     case 'code': {
@@ -524,7 +552,7 @@ function transpileBlock(
     case 'image': {
       const caption = (block.meta?.caption?.trim() || 'Sem legenda').replace(/\.+$/, '');
       const source = (block.meta?.source?.trim() || 'do autor').replace(/\.+$/, '');
-      const widthPct = block.meta?.imageWidthPct || 80;
+      const widthPct = Math.min(100, Math.max(10, Number(block.meta?.imageWidthPct) || 80));
       if (includeBinaryImages && block.meta?.imageDataUrl) {
         const parsed = parseDataUrl(block.meta.imageDataUrl);
         if (parsed) {

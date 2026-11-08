@@ -539,17 +539,23 @@ export function parseDocxHtmlToProject(html: string, projectName: string): Docum
     // 6. Parágrafo contendo Imagem (<img src="..." />)
     const imgMatch = innerHtml.match(/<img\b[^>]*src="([^"]+)"[^>]*>/i);
     if (imgMatch) {
-      blocks.push({
-        id: crypto.randomUUID(),
-        type: 'image',
-        content: '',
-        meta: {
-          caption: 'Figura importada do Word',
-          source: 'Arquivo importado',
-          imageDataUrl: imgMatch[1],
-        },
-      });
-      continue;
+      const src = imgMatch[1].trim();
+      const isSafeImage =
+        /^data:image\/(png|jpeg|webp|gif|svg\+xml);base64,/i.test(src) ||
+        /^https?:\/\//i.test(src);
+      if (isSafeImage) {
+        blocks.push({
+          id: crypto.randomUUID(),
+          type: 'image',
+          content: '',
+          meta: {
+            caption: 'Figura importada do Word',
+            source: 'Arquivo importado',
+            imageDataUrl: src,
+          },
+        });
+        continue;
+      }
     }
 
     // 7. Parágrafo comum
@@ -593,26 +599,34 @@ function uint8ArrayToDataUrl(bytes: Uint8Array, ext: string): string {
 }
 
 function cleanLatexText(str: string): string {
-  return str
-    .replace(/\\textbf\{([^}]+)\}/g, '$1')
-    .replace(/\\textit\{([^}]+)\}/g, '$1')
-    .replace(/\\emph\{([^}]+)\}/g, '$1')
-    .replace(/\\&/g, '&')
-    .replace(/\\%/g, '%')
-    .replace(/\\#/g, '#')
-    .replace(/\\_/g, '_')
-    .replace(/\\~/g, '~')
-    .replace(/[{}]/g, '')
-    .trim();
+  return stripHtmlTags(
+    str
+      .replace(/\\textbf\{([^}]+)\}/g, '$1')
+      .replace(/\\textit\{([^}]+)\}/g, '$1')
+      .replace(/\\emph\{([^}]+)\}/g, '$1')
+      .replace(/\\&/g, '&')
+      .replace(/\\%/g, '%')
+      .replace(/\\#/g, '#')
+      .replace(/\\_/g, '_')
+      .replace(/\\~/g, '~')
+      .replace(/[{}]/g, '')
+  ).trim();
 }
 
 function latexInlineToHtml(latex: string): string {
-  return latex
+  // Escapa entidades HTML brutas para evitar injeção XSS a partir do LaTeX
+  const escaped = latex
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  return escaped
     .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
     .replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
     .replace(/\\underline\{([^}]+)\}/g, '<u>$1</u>')
     .replace(/\\cite\{([^}]+)\}/g, '($1)')
-    .replace(/\\&/g, '&')
+    .replace(/\\&amp;/g, '&amp;')
     .replace(/\\%/g, '%')
     .replace(/\\#/g, '#')
     .replace(/\\_/g, '_')
@@ -639,14 +653,47 @@ function latexMathToTypst(math: string): string {
     .trim();
 }
 
+/**
+ * Sanitiza fragmentos de HTML para permitir apenas tags de formatação semântica seguras
+ * e sem atributos executáveis ou manipuladores de eventos maliciosos (on*, javascript:, etc.).
+ */
+export function sanitizeHtml(html: string): string {
+  if (!html) return '';
+
+  // 1. Remove tags executáveis ou perigosas por completo com seu conteúdo interno
+  let cleaned = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  cleaned = cleaned.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+  cleaned = cleaned.replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '');
+  cleaned = cleaned.replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '');
+  cleaned = cleaned.replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '');
+  cleaned = cleaned.replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, '');
+  cleaned = cleaned.replace(/<math\b[^<]*(?:(?!<\/math>)<[^<]*)*<\/math>/gi, '');
+
+  // 2. Remove handlers de eventos (onload=, onerror=, onclick=, etc.) e links javascript:
+  cleaned = cleaned.replace(/\s+on[a-z]+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '');
+  cleaned = cleaned.replace(/href\s*=\s*(?:'javascript:[^']*'|"javascript:[^"]*"|javascript:[^\s>]+)/gi, 'href="#"');
+
+  // 3. Remove tags não permitidas mantendo o conteúdo interno
+  cleaned = cleaned.replace(/<(\/?)(\w+)([^>]*)>/gi, (_match, isClosing, tagName) => {
+    const tag = tagName.toLowerCase();
+    const safeTags = ['strong', 'em', 'u', 'sup', 'sub', 'p', 'br', 'code', 's', 'b', 'i'];
+    if (!safeTags.includes(tag)) {
+      return '';
+    }
+    if (isClosing) {
+      return `</${tag}>`;
+    }
+    if (tag === 'br') {
+      return '<br/>';
+    }
+    return `<${tag}>`;
+  });
+
+  return cleaned.replace(/\s+/g, ' ').trim();
+}
+
 function cleanInlineFormatting(html: string): string {
-  return html
-    .replace(/<strong\b[^>]*>(.*?)<\/strong>/gi, '<strong>$1</strong>')
-    .replace(/<em\b[^>]*>(.*?)<\/em>/gi, '<em>$1</em>')
-    .replace(/<u\b[^>]*>(.*?)<\/u>/gi, '<u>$1</u>')
-    .replace(/<span\b[^>]*>(.*?)<\/span>/gi, '$1')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return sanitizeHtml(html);
 }
 
 function parseHtmlTable(tableHtml: string): Block | null {
