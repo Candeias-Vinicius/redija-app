@@ -36,6 +36,7 @@ type ReportCategory = 'bug' | 'abnt_pdf' | 'suggestion' | 'other';
 const MAX_SUBJECT_LENGTH = 120;
 const MAX_DESCRIPTION_LENGTH = 2000;
 const MIN_DESCRIPTION_LENGTH = 15;
+const FORMSUBMIT_TOKEN = '97b345b83e1745e749547159d420f2a5';
 const COMPANY_SUPPORT_EMAIL = 'contato.redija@gmail.com';
 
 export const BugReportModal: React.FC<BugReportModalProps> = ({
@@ -172,7 +173,7 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
         };
       }
 
-      const response = await fetch(`https://formsubmit.co/ajax/${COMPANY_SUPPORT_EMAIL}`, {
+      const response = await fetch(`https://formsubmit.co/ajax/${FORMSUBMIT_TOKEN}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
