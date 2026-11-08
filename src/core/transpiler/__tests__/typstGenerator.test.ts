@@ -581,8 +581,8 @@ describe('Typst compilation integration', () => {
 
     it('rejects malicious universePackage and universeEntrypoint strings', () => {
       const proj = createProjectFromTemplate('tcc');
+      proj.templateType = 'universe';
       proj.templateConfig = {
-        templateId: 'universe',
         // Injeção de código Typst via nome de pacote
         universePackage: '@preview/bad:0.1.0\n#panic("hack")\n',
         universeEntrypoint: 'bad_fn; #panic("hack")',
