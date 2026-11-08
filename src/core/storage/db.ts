@@ -10,8 +10,18 @@ const ACTIVE_PROJECT_KEY = 'redija:activeProjectId';
 export const TRASH_RETENTION_DAYS = 30;
 const TRASH_RETENTION_MS = TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 
+export interface CachedUniversePackage {
+  id: string; // Ex: "@preview/charged-ieee:0.1.1"
+  name: string;
+  version: string;
+  entrypoint: string;
+  files: Record<string, string>;
+  downloadedAt: string;
+}
+
 export class RedijaDatabase extends Dexie {
   projects!: Table<DocumentProject, string>;
+  universePackages!: Table<CachedUniversePackage, string>;
 
   constructor() {
     super('RedijaAppDB');
@@ -23,6 +33,10 @@ export class RedijaDatabase extends Dexie {
     });
     this.version(3).stores({
       projects: 'id, updatedAt, name, templateType, deletedAt, driveFileId, ownerEmail',
+    });
+    this.version(4).stores({
+      projects: 'id, updatedAt, name, templateType, deletedAt, driveFileId, ownerEmail',
+      universePackages: 'id, name, version, downloadedAt',
     });
   }
 }

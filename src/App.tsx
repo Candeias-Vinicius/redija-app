@@ -946,6 +946,7 @@ export const App: React.FC = () => {
   const handleCreateProject = async (
     templateType: ProjectTemplateType,
     customName?: string,
+    universePackage?: string,
   ) => {
     let finalName = (customName || '').trim();
     if (finalName) {
@@ -965,6 +966,14 @@ export const App: React.FC = () => {
           ? 'Trabalho de Conclusão de Curso'
           : templateType === 'artigo'
           ? 'Novo Artigo Científico'
+          : templateType === 'sbc'
+          ? 'Novo Artigo SBC'
+          : templateType === 'ieee'
+          ? 'Novo Artigo IEEE'
+          : templateType === 'poster'
+          ? 'Novo Pôster Científico A0'
+          : templateType === 'universe_custom'
+          ? 'Novo Projeto Typst Universe'
           : templateType === 'relatorio'
           ? 'Novo Relatório Técnico'
           : templateType === 'projeto_pesquisa'
@@ -980,6 +989,9 @@ export const App: React.FC = () => {
     }
 
     const newProj = createProjectFromTemplate(templateType, finalName);
+    if (universePackage && newProj.templateConfig) {
+      newProj.templateConfig.universePackage = universePackage;
+    }
     newProj.ownerEmail = activeOwner;
     await saveProject(newProj, false);
     const all = await listProjects(activeOwner);

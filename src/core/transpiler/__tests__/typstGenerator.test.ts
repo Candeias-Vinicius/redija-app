@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NodeCompiler } from '@myriaddreamin/typst-ts-node-compiler';
+import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
 import {
   escapeMarkup,
   escapeString,
@@ -459,6 +460,48 @@ describe('Typst compilation integration', () => {
     expect(standalone).toContain('#quadro(');
     expect(standalone).toContain('APÊNDICES');
     expect(standalone).toContain('ANEXOS');
+
+    const compiler = NodeCompiler.create();
+    const compileResult = compiler.compile({ mainFileContent: standalone });
+    expect(compileResult.hasError()).toBe(false);
+    const pdfBuffer = compiler.pdf(compileResult.result!);
+    expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+  });
+
+  it('compiles SBC article template into valid PDF without errors', () => {
+    const sbcProject = createProjectFromTemplate('sbc');
+    const standalone = generateStandaloneTypst(sbcProject);
+
+    expect(standalone).toContain('#show: sbc-article.with');
+    expect(standalone).toContain('= Introdução');
+
+    const compiler = NodeCompiler.create();
+    const compileResult = compiler.compile({ mainFileContent: standalone });
+    expect(compileResult.hasError()).toBe(false);
+    const pdfBuffer = compiler.pdf(compileResult.result!);
+    expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+  });
+
+  it('compiles IEEE conference article template into valid PDF without errors', () => {
+    const ieeeProject = createProjectFromTemplate('ieee');
+    const standalone = generateStandaloneTypst(ieeeProject);
+
+    expect(standalone).toContain('#show: ieee-article.with');
+    expect(standalone).toContain('I. Introduction');
+
+    const compiler = NodeCompiler.create();
+    const compileResult = compiler.compile({ mainFileContent: standalone });
+    expect(compileResult.hasError()).toBe(false);
+    const pdfBuffer = compiler.pdf(compileResult.result!);
+    expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+  });
+
+  it('compiles Academic Poster A0 template into valid PDF without errors', () => {
+    const posterProject = createProjectFromTemplate('poster');
+    const standalone = generateStandaloneTypst(posterProject);
+
+    expect(standalone).toContain('#show: academic-poster.with');
+    expect(standalone).toContain('dimensoes: "a0"');
 
     const compiler = NodeCompiler.create();
     const compileResult = compiler.compile({ mainFileContent: standalone });

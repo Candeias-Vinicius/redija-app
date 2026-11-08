@@ -76,7 +76,16 @@ export interface DocumentMetadata {
   institutionLogoDataUrl?: string;
 }
 
-export type NormPresetId = 'abnt_classic' | 'abnt_2023' | 'article_2col' | 'apa_7' | 'custom';
+export type NormPresetId =
+  | 'abnt_classic'
+  | 'abnt_2023'
+  | 'article_2col'
+  | 'apa_7'
+  | 'sbc'
+  | 'ieee'
+  | 'poster'
+  | 'universe_custom'
+  | 'custom';
 
 export interface TemplateConfig {
   preset: NormPresetId;
@@ -94,6 +103,16 @@ export interface TemplateConfig {
   includeToc: boolean;
   citationStyle: 'uppercase' | 'titlecase';
   referenceHighlight: 'bold' | 'italic';
+
+  // Configurações Específicas de Pôster Acadêmico A0/A1
+  posterDimensions?: 'a0' | 'a1' | 'a2';
+  posterOrientation?: 'portrait' | 'landscape';
+  posterColumns?: 2 | 3;
+  posterTheme?: 'emerald' | 'blue' | 'classic_dark' | 'clean';
+
+  // Configurações de Conexão com o Typst Universe
+  universePackage?: string;
+  universeEntrypoint?: string;
 }
 
 export const DEFAULT_TEMPLATE_CONFIG: TemplateConfig = {
@@ -143,7 +162,11 @@ export type ProjectTemplateType =
   | 'artigo'
   | 'relatorio'
   | 'projeto_pesquisa'
-  | 'em_branco';
+  | 'em_branco'
+  | 'sbc'
+  | 'ieee'
+  | 'poster'
+  | 'universe_custom';
 
 export interface DocumentProject {
   id: string;

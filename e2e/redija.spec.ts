@@ -6,8 +6,8 @@ test.describe('RedijaApp — Fluxo Principal E2E', () => {
   }) => {
     await page.goto('/');
 
-    // Verifica que a Tela de Login inicial carregou
-    await expect(page.getByText('Acesse seus trabalhos nas normas da ABNT')).toBeVisible();
+    // Verifica que a Tela Inicial / Landing carregou
+    await expect(page.getByText(/O Redija cuida de toda a ABNT/i)).toBeVisible();
 
     // Clica para continuar como Convidado
     await page.getByText(/Continuar como Convidado/i).first().click();

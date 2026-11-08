@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { DocumentProject, ProjectTemplateType } from '@/types/document';
 import { PROJECT_TEMPLATES } from '@/core/storage/projectTemplates';
+import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
 import { getRemainingTrashDays, TRASH_RETENTION_DAYS } from '@/core/storage/db';
 import {
   X,
@@ -20,6 +21,7 @@ import {
   Cloud,
   Users,
   RefreshCw,
+  Globe,
 } from 'lucide-react';
 
 interface ProjectsModalProps {
@@ -29,7 +31,11 @@ interface ProjectsModalProps {
   trashedProjects: DocumentProject[];
   activeProjectId: string;
   onSelectProject: (project: DocumentProject) => void;
-  onCreateProject: (templateType: ProjectTemplateType, customName?: string) => void;
+  onCreateProject: (
+    templateType: ProjectTemplateType,
+    customName?: string,
+    universePackage?: string,
+  ) => void;
   onRenameProject: (id: string, newName: string) => void;
   onDuplicateProject: (id: string) => void;
   onMoveToTrash: (id: string) => void;
@@ -63,6 +69,7 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
   const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplateType>('tcc');
+  const [universePackageInput, setUniversePackageInput] = useState('@preview/charged-ieee:0.1.1');
   const [newProjectName, setNewProjectName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -85,7 +92,11 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
       alert(`Já existe um trabalho ativo com o nome "${name}". Escolha um nome diferente.`);
       return;
     }
-    onCreateProject(selectedTemplate, name || undefined);
+    onCreateProject(
+      selectedTemplate,
+      name || undefined,
+      selectedTemplate === 'universe_custom' ? universePackageInput : undefined,
+    );
     setNewProjectName('');
     onClose();
   };
@@ -498,6 +509,42 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                     </button>
                   );
                 })}
+
+                {/* Bloco de configuração de pacote Typst Universe se selecionado */}
+                {selectedTemplate === 'universe_custom' && (
+                  <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-300 space-y-2 animate-in fade-in duration-150">
+                    <label className="flex items-center gap-1.5 text-xs font-semibold text-neutral-800">
+                      <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Pacote Typst Universe:</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={universePackageInput}
+                      onChange={(e) => setUniversePackageInput(e.target.value)}
+                      placeholder="Ex: @preview/charged-ieee:0.1.1"
+                      className="w-full text-xs px-2.5 py-1.5 bg-white border border-neutral-300 rounded focus:outline-none focus:border-emerald-600 font-mono"
+                    />
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-neutral-500 block">Sugestões Populares:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {POPULAR_UNIVERSE_TEMPLATES.slice(0, 3).map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setUniversePackageInput(t.id)}
+                            className={`text-[9px] px-1.5 py-0.5 rounded border font-mono transition-colors ${
+                              universePackageInput === t.id
+                                ? 'border-emerald-600 bg-emerald-100 text-emerald-900 font-bold'
+                                : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400'
+                            }`}
+                          >
+                            {t.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
