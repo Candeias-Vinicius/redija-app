@@ -1,9 +1,10 @@
 // =====================================================================
 // RedijaApp — Contexto de Autenticação Google Identity Services (GIS)
-// Arquitetura de Segurança: Token estritamente em memória (Zero XSS leakage)
+// Arquitetura de Sessão: Token persistido com controle de expiração (1 hora)
+// Sem popups intrusivos em F5 ou auto-save, preservando sessão e Drive Sync
 // =====================================================================
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 
 export const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 export const FULL_AUTH_SCOPE = `openid email profile ${GOOGLE_DRIVE_SCOPE}`;
@@ -25,14 +26,33 @@ interface GoogleAuthContextValue {
   loginDevMock: () => void;
   logout: () => void;
   revokeAccess: () => Promise<void>;
-  getValidAccessToken: () => Promise<string | null>;
+  getValidAccessToken: (interactive?: boolean) => Promise<string | null>;
   clearError: () => void;
 }
 
 const GoogleAuthContext = createContext<GoogleAuthContextValue | undefined>(undefined);
 
-const USER_PROFILE_STORAGE_KEY = 'redija:userProfile';
+export const USER_PROFILE_STORAGE_KEY = 'redija:userProfile';
+export const ACCESS_TOKEN_STORAGE_KEY = 'redija:accessToken';
+export const TOKEN_EXPIRES_AT_STORAGE_KEY = 'redija:tokenExpiresAt';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
+/**
+ * Lê o token de acesso persistido e valida se ainda está no período de validade
+ * com margem de segurança de 60 segundos antes da expiração.
+ */
+function getStoredTokenData(): { token: string | null; expiresAt: number } {
+  try {
+    const token = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+    const expiresAt = Number(localStorage.getItem(TOKEN_EXPIRES_AT_STORAGE_KEY) || 0);
+    if (token && expiresAt > Date.now() + 60_000) {
+      return { token, expiresAt };
+    }
+    return { token: null, expiresAt: 0 };
+  } catch {
+    return { token: null, expiresAt: 0 };
+  }
+}
 
 export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<GoogleUserProfile | null>(() => {
@@ -44,9 +64,11 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   });
 
-  // Token estritamente em memória RAM da aba — NUNCA no localStorage
-  const accessTokenRef = useRef<string | null>(null);
-  const tokenExpiresAtRef = useRef<number>(0);
+  // Token persistido e mantido em sincronia com o localStorage.
+  // Permite recargas de página (F5) sem perder a sessão e sem disparar popups de login.
+  const initialTokenData = getStoredTokenData();
+  const accessTokenRef = useRef<string | null>(initialTokenData.token);
+  const tokenExpiresAtRef = useRef<number>(initialTokenData.expiresAt);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +78,31 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   );
 
   const clearError = () => setError(null);
+
+  /**
+   * Atualiza ou remove o token e sua expiração em memória e no localStorage.
+   */
+  const saveToken = useCallback((token: string | null, expiresInSeconds = 0) => {
+    accessTokenRef.current = token;
+    if (token && expiresInSeconds > 0) {
+      const expiresAt = Date.now() + expiresInSeconds * 1000;
+      tokenExpiresAtRef.current = expiresAt;
+      try {
+        localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+        localStorage.setItem(TOKEN_EXPIRES_AT_STORAGE_KEY, String(expiresAt));
+      } catch {
+        // Ignora falha de localStorage
+      }
+    } else {
+      tokenExpiresAtRef.current = 0;
+      try {
+        localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+        localStorage.removeItem(TOKEN_EXPIRES_AT_STORAGE_KEY);
+      } catch {
+        // Ignora falha de localStorage
+      }
+    }
+  }, []);
 
   /**
    * Busca os dados do perfil público do usuário com o token de acesso.
@@ -134,31 +181,42 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   /**
    * Obtém um token de acesso válido:
-   * - Retorna o token em memória se ainda estiver válido (>60 segundos restantes).
-   * - Caso contrário, solicita renovação silenciosa se houver usuário salvo.
+   * - Retorna o token em memória/storage se ainda estiver válido (>60 segundos restantes).
+   * - Caso contrário, se interactive for true (ex: clique explícito do usuário), solicita novo token.
+   * - Se interactive for false (ex: auto-save em segundo plano), retorna null sem abrir popups intrusivos.
    */
-  const getValidAccessToken = useCallback(async (): Promise<string | null> => {
-    const now = Date.now();
-    // Se ainda temos um token válido em memória com mais de 60s de vida, reusa
-    if (accessTokenRef.current && tokenExpiresAtRef.current > now + 60_000) {
-      return accessTokenRef.current;
-    }
-
-    // Se o usuário já fez login antes, tenta renovação silenciosa sem popup
-    if (user) {
-      try {
-        const { token, expiresIn } = await requestTokenFromGoogle('');
-        accessTokenRef.current = token;
-        tokenExpiresAtRef.current = Date.now() + expiresIn * 1000;
-        return token;
-      } catch (err: unknown) {
-        console.warn('Renovação silenciosa de token expirada:', err);
-        return null;
+  const getValidAccessToken = useCallback(
+    async (interactive = false): Promise<string | null> => {
+      const now = Date.now();
+      // Revalida também caso o token tenha sido renovado em outra aba
+      if (!accessTokenRef.current || tokenExpiresAtRef.current <= now + 60_000) {
+        const stored = getStoredTokenData();
+        if (stored.token) {
+          accessTokenRef.current = stored.token;
+          tokenExpiresAtRef.current = stored.expiresAt;
+        }
       }
-    }
 
-    return null;
-  }, [user, requestTokenFromGoogle]);
+      if (accessTokenRef.current && tokenExpiresAtRef.current > now + 60_000) {
+        return accessTokenRef.current;
+      }
+
+      // Se expirou e é uma chamada interativa disparada pelo usuário, renova via popup do Google
+      if (user && interactive) {
+        try {
+          const { token, expiresIn } = await requestTokenFromGoogle('', user.email);
+          saveToken(token, expiresIn);
+          return token;
+        } catch (err: unknown) {
+          console.warn('Renovação de token cancelada ou expirada:', err);
+          return null;
+        }
+      }
+
+      return null;
+    },
+    [user, requestTokenFromGoogle, saveToken]
+  );
 
   /**
    * Dispara o fluxo de Login do Google.
@@ -175,12 +233,17 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const promptMode = promptConsent ? 'consent' : '';
         const { token, expiresIn } = await requestTokenFromGoogle(promptMode, user?.email);
 
-        accessTokenRef.current = token;
-        tokenExpiresAtRef.current = Date.now() + expiresIn * 1000;
+        saveToken(token, expiresIn);
 
         const profile = await fetchUserInfo(token);
         setUser(profile);
-        localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+        try {
+          localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+          localStorage.removeItem('redija:guestMode');
+          sessionStorage.removeItem('redija:guestMode');
+        } catch {
+          // Ignora
+        }
 
         return token;
       } catch (err: unknown) {
@@ -194,7 +257,7 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setIsLoading(false);
       }
     },
-    [requestTokenFromGoogle, user?.email]
+    [requestTokenFromGoogle, saveToken, user?.email]
   );
 
   /**
@@ -207,16 +270,21 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       email: 'vinicandeias@gmail.com',
       picture: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces',
     };
-    accessTokenRef.current = 'mock_dev_token_xyz';
-    tokenExpiresAtRef.current = Date.now() + 3600 * 1000;
+    saveToken('mock_dev_token_xyz', 3600);
     setUser(mockUser);
     setError(null);
-    localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(mockUser));
-  }, []);
+    try {
+      localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(mockUser));
+      localStorage.removeItem('redija:guestMode');
+      sessionStorage.removeItem('redija:guestMode');
+    } catch {
+      // Ignora
+    }
+  }, [saveToken]);
 
   /**
    * Efetua Logout limpo:
-   * - Limpa o token em memória e o estado do usuário
+   * - Limpa o token em memória, localStorage e o estado do usuário
    * - Remove metadados da sessão local
    * - NÃO revoga permissões na API do Google (pois revogar deletaria a autorização concedida
    *   fazendo com que o usuário precisasse marcar tudo de novo no próximo login).
@@ -230,19 +298,24 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     }
 
-    accessTokenRef.current = null;
-    tokenExpiresAtRef.current = 0;
+    saveToken(null);
     setUser(null);
     setError(null);
-    localStorage.removeItem(USER_PROFILE_STORAGE_KEY);
-  }, []);
+    try {
+      localStorage.removeItem(USER_PROFILE_STORAGE_KEY);
+      localStorage.removeItem('redija:guestMode');
+      sessionStorage.removeItem('redija:guestMode');
+    } catch {
+      // Ignora
+    }
+  }, [saveToken]);
 
   /**
    * Revoga expressamente todas as permissões concedidas pelo usuário no Google (Desconexão profunda).
    */
   const revokeAccess = useCallback(async (): Promise<void> => {
     try {
-      const token = accessTokenRef.current || (await getValidAccessToken());
+      const token = accessTokenRef.current || (await getValidAccessToken(false));
       if (token && typeof window.google?.accounts?.oauth2?.revoke === 'function') {
         await new Promise<void>((resolve) => {
           window.google!.accounts.oauth2.revoke(token, () => {
@@ -256,15 +329,6 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       logout();
     }
   }, [getValidAccessToken, logout]);
-
-  // Tenta renovação silenciosa inicial em segundo plano ao abrir o app caso haja perfil salvo
-  useEffect(() => {
-    if (user && isConfigured) {
-      getValidAccessToken().catch(() => {
-        // Se a sessão expirou no Google, o usuário apenas precisará clicar em Entrar novamente quando quiser
-      });
-    }
-  }, [user, isConfigured, getValidAccessToken]);
 
   return (
     <GoogleAuthContext.Provider
