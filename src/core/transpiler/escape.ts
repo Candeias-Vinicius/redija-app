@@ -52,6 +52,7 @@ export function typstContent(text: string): string {
 /**
  * Converte HTML rico (vindo do TipTap: `<strong>`, `<em>`, `<u>`, `<sup>`, `<sub>`, `<p>`, `<br>`)
  * ou texto plano em marcação Typst com escape seguro em todos os nós de texto.
+ * Garante balanceamento de colchetes via pilha de tags abertas.
  */
 export function richTextToTypst(input: string): string {
   if (!input) return '';
@@ -75,6 +76,7 @@ export function richTextToTypst(input: string): string {
   let result = '';
   let lastIndex = 0;
   let match: RegExpExecArray | null;
+  const openTags: string[] = [];
 
   while ((match = tokenRegex.exec(input)) !== null) {
     const rawText = input.slice(lastIndex, match.index);
@@ -92,13 +94,28 @@ export function richTextToTypst(input: string): string {
         result += ' ';
       }
     } else if (!isClosing) {
-      if (tag === 'strong' || tag === 'b') result += '#strong[';
-      else if (tag === 'em' || tag === 'i') result += '#emph[';
-      else if (tag === 'u') result += '#underline[';
-      else if (tag === 'sup') result += '#super[';
-      else if (tag === 'sub') result += '#sub[';
+      if (tag === 'strong' || tag === 'b') {
+        result += '#strong[';
+        openTags.push('strong');
+      } else if (tag === 'em' || tag === 'i') {
+        result += '#emph[';
+        openTags.push('emph');
+      } else if (tag === 'u') {
+        result += '#underline[';
+        openTags.push('underline');
+      } else if (tag === 'sup') {
+        result += '#super[';
+        openTags.push('super');
+      } else if (tag === 'sub') {
+        result += '#sub[';
+        openTags.push('sub');
+      }
     } else {
-      result += ']';
+      // É tag de fechamento de formatação inline: fecha apenas se houver tag correspondente na pilha
+      if (openTags.length > 0) {
+        openTags.pop();
+        result += ']';
+      }
     }
 
     lastIndex = match.index + match[0].length;
@@ -107,6 +124,12 @@ export function richTextToTypst(input: string): string {
   const tail = input.slice(lastIndex);
   if (tail) {
     result += escapeMarkup(decodeEntities(tail));
+  }
+
+  // Fecha quaisquer tags que tenham ficado abertas no HTML malformado
+  while (openTags.length > 0) {
+    openTags.pop();
+    result += ']';
   }
 
   return result.trim();

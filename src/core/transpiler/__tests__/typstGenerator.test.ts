@@ -280,7 +280,7 @@ describe('typstGenerator helpers', () => {
       publisher: 'Editora Y',
       year: '2024',
     });
-    expect(ref4Authors).toContain('SILVA, R. #emph[et al.] #strong[Pesquisa Avançada]');
+    expect(ref4Authors).toContain('SILVA, R. #emph[et al.]. #strong[Pesquisa Avançada]');
 
     const proj = createSampleProject();
     const warnings = runAbntLinter(proj);

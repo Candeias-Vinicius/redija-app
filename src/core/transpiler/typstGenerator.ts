@@ -423,11 +423,11 @@ function generateAbntShowRule(
 
 /**
  * A numeração das seções é automática (1, 1.1, 1.1.1). Se o usuário digitar
- * o número manualmente ("1 INTRODUÇÃO", "2.1 Objetivos"), ele é removido para
+ * o número manualmente ("1 INTRODUÇÃO", "1.1 - Objetivos"), ele é removido para
  * não aparecer duplicado.
  */
 export function stripManualNumbering(title: string): string {
-  return title.replace(/^\s*\d+(\.\d+)*\.?\s+/, '').trim();
+  return title.replace(/^\s*\d+(\.\d+)*(\.|\s*[-–—:])?(\s+|$)/, '').trim();
 }
 
 function transpileBlock(
@@ -479,7 +479,13 @@ function transpileBlock(
     }
 
     case 'equation': {
-      const expr = block.content.trim();
+      let expr = block.content.trim();
+      if (!expr) return null;
+      if (expr.startsWith('$$') && expr.endsWith('$$') && expr.length >= 4) {
+        expr = expr.slice(2, -2).trim();
+      } else if (expr.startsWith('$') && expr.endsWith('$') && expr.length >= 2) {
+        expr = expr.slice(1, -1).trim();
+      }
       if (!expr) return null;
       // Expressão em modo display do Typst ($ expr $)
       return `$ ${expr} $`;
@@ -495,7 +501,13 @@ function transpileBlock(
       if (caption) args.push(`legenda: ${typstContent(caption)}`);
       if (source) args.push(`fonte: ${typstContent(source)}`);
       const argsStr = args.length > 0 ? `(${args.join(', ')})` : '';
-      return `#codigo${argsStr}[\n\`\`\`${lang}\n${rawCode}\n\`\`\`\n]`;
+
+      // Evita fechamento prematuro do bloco raw quando o código contém crases
+      const tickMatches = rawCode.match(/`+/g);
+      const maxTicks = tickMatches ? Math.max(...tickMatches.map((m) => m.length)) : 0;
+      const fence = '`'.repeat(Math.max(3, maxTicks + 1));
+
+      return `#codigo${argsStr}[\n${fence}${lang}\n${rawCode}\n${fence}\n]`;
     }
 
     case 'image': {
@@ -574,7 +586,14 @@ function italicizeLatinTerms(typstText: string): string {
     .replace(/(?<!#emph\[)\b(apud)\b/gi, '#emph[apud]');
 }
 
-/** Formata o sobrenome do autor conforme o estilo (MAIÚSCULAS ou Inicial Maiúscula). */
+/**
+ * Formata os autores de uma citação autor-data conforme a NBR 10520:
+ * - Extrai os sobrenomes (antes da vírgula ou último nome caso não haja vírgula).
+ * - 1 autor: SILVA ou Silva
+ * - 2 autores: SILVA; SOUZA ou Silva; Souza
+ * - 3 autores: SILVA; SOUZA; SANTOS ou Silva; Souza; Santos
+ * - 4 ou mais autores (ou com et al.): SILVA et al. ou Silva et al.
+ */
 export function formatAuthorCase(
   rawAuthor: string,
   style: 'uppercase' | 'titlecase' = 'uppercase',
@@ -584,10 +603,15 @@ export function formatAuthorCase(
 
   const hasEtAl = /\bet\s+al\.?/i.test(trimmed);
   const cleaned = trimmed.replace(/\bet\s+al\.?/gi, '').trim();
-  const entries = cleaned
-    .split(';')
-    .map((s) => s.trim())
-    .filter(Boolean);
+
+  const extractSurname = (entry: string): string => {
+    const cleanEntry = entry.trim();
+    if (cleanEntry.includes(',')) {
+      return cleanEntry.split(',')[0].trim();
+    }
+    const words = cleanEntry.split(/\s+/);
+    return words[words.length - 1] || cleanEntry;
+  };
 
   const formatSingle = (text: string): string => {
     if (style === 'titlecase') {
@@ -599,13 +623,29 @@ export function formatAuthorCase(
     return text.toUpperCase().replace(/\bAPUD\b/gi, 'apud');
   };
 
+  // Suporte à citação de citação "apud" (NBR 10520)
+  if (/\bapud\b/i.test(cleaned)) {
+    const parts = cleaned.split(/\bapud\b/i);
+    if (parts.length === 2) {
+      const first = extractSurname(parts[0].trim());
+      const second = extractSurname(parts[1].trim());
+      return `${formatSingle(first)} apud ${formatSingle(second)}`;
+    }
+  }
+
+  const entries = cleaned
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   if (entries.length >= 4 || hasEtAl) {
     const first = entries[0] || cleaned;
-    const surname = first.split(',')[0]?.trim() || first;
+    const surname = extractSurname(first);
     return `${formatSingle(surname.replace(/\.+$/, ''))} et al.`;
   }
 
-  return formatSingle(cleaned);
+  const surnames = entries.map(extractSurname);
+  return surnames.map((s) => formatSingle(s.replace(/\.+$/, ''))).join('; ');
 }
 
 /** Monta a chamada autor-data da citação: (SILVA, 2023, p. 42) ou (Silva, 2023, p. 42). */
@@ -636,7 +676,7 @@ function transpileReferences(
 /**
  * Formata os autores para a lista final de Referências (NBR 6023):
  * - Até 3 autores: mantém todos separados por ponto e vírgula, finalizando com ponto.
- * - 4 ou mais autores (ou com "et al."): indica o primeiro autor seguido de `#emph[et al.]`.
+ * - 4 ou mais autores (ou com "et al."): indica o primeiro autor seguido de `#emph[et al.].`.
  */
 function formatReferenceAuthors(rawAuthors: string): string {
   const e = escapeMarkup;
@@ -650,7 +690,7 @@ function formatReferenceAuthors(rawAuthors: string): string {
 
   if (entries.length >= 4 || hasEtAl) {
     const firstAuthor = (entries[0] || cleaned).trim().toUpperCase();
-    return `${e(firstAuthor)} #emph[et al.]`;
+    return `${e(firstAuthor)} #emph[et al.].`;
   }
 
   const allAuthors = cleaned.replace(/\.+$/, '').trim().toUpperCase();
