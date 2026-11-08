@@ -52,7 +52,8 @@ export function typstContent(text: string): string {
 /**
  * Converte HTML rico (vindo do TipTap: `<strong>`, `<em>`, `<u>`, `<sup>`, `<sub>`, `<p>`, `<br>`)
  * ou texto plano em marcação Typst com escape seguro em todos os nós de texto.
- * Garante balanceamento de colchetes via pilha de tags abertas.
+ * Garante balanceamento de colchetes via pilha de tags abertas e descarta tags não suportadas
+ * (como <span> ou <div>) mantendo o texto interno sem poluir o Typst.
  */
 export function richTextToTypst(input: string): string {
   if (!input) return '';
@@ -61,6 +62,15 @@ export function richTextToTypst(input: string): string {
   if (!/<\/?[a-z][\s\S]*>/i.test(input)) {
     return escapeMarkup(input);
   }
+
+  // Remove tags executáveis perigosas com conteúdo
+  const sanitized = input.replace(/<(script|style|iframe)\b[^<]*(?:(?!<\/\1>)<[^<]*)*<\/\1>/gi, '');
+
+  // Remove tags HTML não suportadas (como <span>, <div>, <font>) mantendo o texto interno
+  const cleanInput = sanitized.replace(
+    /<(\/?)(?!strong\b|b\b|em\b|i\b|u\b|sup\b|sub\b|br\b|p\b)[a-z][^>]*>/gi,
+    '',
+  );
 
   const decodeEntities = (str: string): string =>
     str
@@ -78,8 +88,8 @@ export function richTextToTypst(input: string): string {
   let match: RegExpExecArray | null;
   const openTags: string[] = [];
 
-  while ((match = tokenRegex.exec(input)) !== null) {
-    const rawText = input.slice(lastIndex, match.index);
+  while ((match = tokenRegex.exec(cleanInput)) !== null) {
+    const rawText = cleanInput.slice(lastIndex, match.index);
     if (rawText) {
       result += escapeMarkup(decodeEntities(rawText));
     }
@@ -90,7 +100,7 @@ export function richTextToTypst(input: string): string {
     if (tag === 'br') {
       result += ' \\ ';
     } else if (tag === 'p') {
-      if (isClosing && match.index + match[0].length < input.length) {
+      if (isClosing && match.index + match[0].length < cleanInput.length) {
         result += ' ';
       }
     } else if (!isClosing) {
@@ -121,7 +131,7 @@ export function richTextToTypst(input: string): string {
     lastIndex = match.index + match[0].length;
   }
 
-  const tail = input.slice(lastIndex);
+  const tail = cleanInput.slice(lastIndex);
   if (tail) {
     result += escapeMarkup(decodeEntities(tail));
   }

@@ -108,6 +108,49 @@ describe('ABNT Linter: Contagem de Palavras e Conformidade com Resumo (NBR 6028)
     });
     expect(runAbntLinter(proj501).some((w) => w.id === 'abstract-length')).toBe(true);
   });
+
+  it('valida limites específicos de resumo para artigos de periódicos (100 a 250 palavras)', () => {
+    // 99 palavras em artigo: deve alertar
+    const projArtigo99 = createMockProject({
+      templateType: 'artigo',
+      metadata: {
+        ...createMockProject().metadata,
+        abstract: Array(99).fill('termo').join(' '),
+      },
+    });
+    expect(runAbntLinter(projArtigo99).some((w) => w.id === 'abstract-length')).toBe(true);
+
+    // 150 palavras em artigo: válido (100-250), não deve alertar
+    const projArtigo150 = createMockProject({
+      templateType: 'artigo',
+      metadata: {
+        ...createMockProject().metadata,
+        abstract: Array(150).fill('termo').join(' '),
+      },
+    });
+    expect(runAbntLinter(projArtigo150).some((w) => w.id === 'abstract-length')).toBe(false);
+
+    // 251 palavras em artigo: excesso, deve alertar
+    const projArtigo251 = createMockProject({
+      templateType: 'artigo',
+      metadata: {
+        ...createMockProject().metadata,
+        abstract: Array(251).fill('termo').join(' '),
+      },
+    });
+    expect(runAbntLinter(projArtigo251).some((w) => w.id === 'abstract-length')).toBe(true);
+  });
+
+  it('alerta quando palavras-chave estão ausentes ou vazias (NBR 6028)', () => {
+    const proj = createMockProject({
+      metadata: {
+        ...createMockProject().metadata,
+        keywords: [],
+      },
+    });
+    const warnings = runAbntLinter(proj);
+    expect(warnings.some((w) => w.id === 'keywords-empty')).toBe(true);
+  });
 });
 
 describe('ABNT Linter: Metadados Obrigatórios de Figuras, Quadros e Tabelas (NBR 14724)', () => {
@@ -220,6 +263,39 @@ describe('ABNT Linter: Cruzamento de Citações e Referências (NBR 10520 & NBR 
 
     const warnings = runAbntLinter(proj);
     expect(warnings.some((w) => w.id === 'missing-ref-quote_sem_ref')).toBe(true);
+  });
+
+  it('alerta quando a lista de referências está completamente vazia (NBR 6023)', () => {
+    const proj = createMockProject({
+      references: [],
+    });
+    const warnings = runAbntLinter(proj);
+    expect(warnings.some((w) => w.id === 'references-empty')).toBe(true);
+  });
+
+  it('alerta quando uma citação parentética no corpo do texto cita autor não cadastrado nas referências', () => {
+    const proj = createMockProject({
+      blocks: [
+        {
+          id: 'p_intext',
+          type: 'paragraph',
+          content: 'Conforme demonstrado anteriormente (OLIVEIRA, 2022, p. 15), o método é eficaz.',
+        },
+      ],
+      references: [
+        {
+          id: 'ref_silva',
+          authors: 'SILVA, Roberto',
+          title: 'Livro',
+          year: '2024',
+          city: 'SP',
+          publisher: 'Ed',
+        },
+      ],
+    });
+
+    const warnings = runAbntLinter(proj);
+    expect(warnings.some((w) => w.id === 'missing-ref-intext-oliveira')).toBe(true);
   });
 
   it('lida com sobrenomes compostos e múltiplos autores no linter', () => {

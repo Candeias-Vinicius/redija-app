@@ -345,13 +345,23 @@ describe('Conformidade ABNT NBR 14724 (Trabalhos Acadêmicos: Estrutura e Aprese
     expect(idxAnexos).toBeGreaterThan(idxApendices);
   });
 
-  it('configura folha de aprovação com banca examinadora, orientador e data', () => {
+  it('configura folha de aprovação com banca examinadora, orientador, coorientador e data', () => {
     const proj = createAbntMonographProject();
     const main = generateMain(proj);
+    const files = generateTypstFiles(proj);
+    const abntTyp = files[TEMPLATE_FILE];
 
     expect(main).toContain('incluir-folha-aprovacao: true');
     expect(main).toContain('data-aprovacao: "15 de dezembro de 2026"');
+    expect(main).toContain('orientador: "Prof. Dr. Eduardo Fernandes"');
+    expect(main).toContain('coorientador: "Profa. Dra. Marina Guimarães"');
     expect(main).toContain('banca: ("Prof. Dr. Carlos Drumond — UFMG", "Profa. Dra. Clarice Lispector — USP",)');
+
+    // Verifica que o modelo abnt.typ renderiza linhas de assinatura para orientador e coorientador
+    expect(abntTyp).toContain('#if orientador != none [');
+    expect(abntTyp).toContain('#orientador (Orientador(a))');
+    expect(abntTyp).toContain('#if coorientador != none [');
+    expect(abntTyp).toContain('#coorientador (Coorientador(a))');
   });
 
   it('diferencia normas IBGE/ABNT para Tabelas (abertas lateralmente) e Quadros (fechados)', () => {
@@ -440,6 +450,44 @@ describe('Conformidade ABNT NBR 6023 (Referências)', () => {
     };
     const typst = transpileReference(ref);
     expect(typst).toContain('SILVA, A. #emph[et al.]. #strong[Arquitetura de Software]');
+  });
+
+  it('formata referência de documento eletrônico/website sem impor [S. l.]: [s. n.] espúrio (NBR 6023 item 7.14)', () => {
+    const webRef: AcademicReference = {
+      id: 'web_ref_1',
+      type: 'website',
+      authors: 'W3C',
+      title: 'Web Content Accessibility Guidelines (WCAG) 2.2',
+      city: '',
+      publisher: '',
+      year: '2023',
+      url: 'https://www.w3.org/TR/WCAG22/',
+      accessDate: '08 nov. 2026',
+    };
+    const typst = transpileReference(webRef);
+    expect(typst).toBe(
+      '[W3C. #strong[Web Content Accessibility Guidelines (WCAG) 2.2]. 2023. Disponível em: https:\\/\\/www.w3.org\\/TR\\/WCAG22\\/. Acesso em: 08 nov. 2026.]',
+    );
+    expect(typst).not.toContain('[S. l.]');
+    expect(typst).not.toContain('[s. n.]');
+  });
+
+  it('formata referência de legislação destacando a publicação oficial (NBR 6023 item 7.9)', () => {
+    const legRef: AcademicReference = {
+      id: 'leg_ref_1',
+      type: 'legislation',
+      authors: 'BRASIL',
+      title: 'Lei nº 13.709, de 14 de agosto de 2018',
+      subtitle: 'Lei Geral de Proteção de Dados Pessoais (LGPD)',
+      journal: 'Diário Oficial da União',
+      city: 'Brasília, DF',
+      publisher: '',
+      year: '2018',
+    };
+    const typst = transpileReference(legRef);
+    expect(typst).toBe(
+      '[BRASIL. Lei nº 13.709, de 14 de agosto de 2018: Lei Geral de Proteção de Dados Pessoais (LGPD). #strong[Diário Oficial da União], Brasília, DF, 2018.]',
+    );
   });
 
   it('ordena a lista de referências estritamente em ordem alfabética', () => {
