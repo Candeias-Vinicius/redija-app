@@ -142,11 +142,20 @@ describe('schemaNormalizer: Regressão e Integridade de Dados', () => {
             unknownMeta: 'strip-me',
           },
         },
+        {
+          id: 'b2',
+          type: 'image',
+          content: '',
+          meta: {
+            caption: 'Figura 2',
+            imageWidthPct: 9999,
+          },
+        },
       ],
     };
 
     const normalized = normalizeProject(maliciousInput);
-    expect(normalized.templateConfig?.fontFamily).toBe('times'); // fallback padrão
+    expect(normalized.templateConfig?.fontFamily).toBe('serif'); // fallback padrão
     expect(normalized.templateConfig?.fontSizePt).toBe(12); // fallback seguro
     expect(normalized.templateConfig?.columns).toBe(1); // fallback seguro
     expect(normalized.templateConfig?.marginTopCm).toBe(3); // fallback seguro
@@ -154,7 +163,8 @@ describe('schemaNormalizer: Regressão e Integridade de Dados', () => {
     expect(normalized.templateConfig?.unknownInjectedProp).toBeUndefined();
 
     // Verifica que block.meta higienizou imageWidthPct
-    expect(normalized.blocks[0].meta?.imageWidthPct).toBe(80);
+    expect(normalized.blocks[0].meta?.imageWidthPct).toBeUndefined();
+    expect(normalized.blocks[1].meta?.imageWidthPct).toBe(100);
     // @ts-expect-error verificando propriedade removida
     expect(normalized.blocks[0].meta?.unknownMeta).toBeUndefined();
   });

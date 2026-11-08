@@ -28,7 +28,7 @@ import {
   parseBibtex,
   runAbntLinter,
 } from '../abntLinter';
-import { DocumentProject } from '@/types/document';
+import { DocumentProject, DEFAULT_TEMPLATE_CONFIG } from '@/types/document';
 
 function createSampleProject(overrides?: Partial<DocumentProject>): DocumentProject {
   return {
@@ -552,7 +552,14 @@ describe('Typst compilation integration', () => {
       expect(mainTyp).toContain('$ E = m c^2 \\$ \\#panic("pwned") \\$ \\#test $');
       expect(mainTyp).not.toContain('$ #panic');
 
-      // Compilação com NodeCompiler para garantir validade no compilador real
+      // Testa que equações com delimitadores escapados compilam perfeitamente sem erro no modo matemático
+      proj.blocks = [
+        {
+          id: 'eq2',
+          type: 'equation',
+          content: 'E = m c^2 $ x + y $ z',
+        },
+      ];
       const standalone = generateStandaloneTypst(proj);
       const compiler = NodeCompiler.create();
       const compileResult = compiler.compile({ mainFileContent: standalone });
@@ -568,6 +575,8 @@ describe('Typst compilation integration', () => {
           content: '',
           meta: {
             caption: 'Teste Imagem Limites',
+            imageDataUrl:
+              'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
             // @ts-expect-error testando injeção/valor fora dos limites
             imageWidthPct: 9999,
           },
