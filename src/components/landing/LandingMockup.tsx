@@ -2,15 +2,21 @@ import React, { useState } from 'react';
 import {
   FileText,
   Code2,
+  Columns3,
   Columns2,
-  FileCheck,
   CheckCircle2,
-  Sparkles,
   Zap,
-  Lock,
-  Users,
+  Cloud,
+  Share2,
+  Download,
+  FolderOpen,
   Eye,
-  Layers,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 
 interface LandingMockupProps {
@@ -18,90 +24,78 @@ interface LandingMockupProps {
 }
 
 export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
-  const [activeTab, setActiveTab] = useState<'split' | 'editor' | 'pdf' | 'typst'>('split');
+  const [activeTab, setActiveTab] = useState<'realApp' | 'split' | 'typst'>('realApp');
 
   return (
-    <div className="relative w-full max-w-5xl mx-auto">
+    <div className="relative w-full max-w-6xl mx-auto">
       {/* Glow de fundo */}
       <div
-        className={`absolute -inset-4 rounded-3xl blur-2xl opacity-60 pointer-events-none transition-all ${
+        className={`absolute -inset-4 rounded-3xl blur-2xl opacity-50 pointer-events-none transition-all ${
           isDark
             ? 'bg-gradient-to-r from-emerald-600/20 via-teal-500/15 to-cyan-600/20'
-            : 'bg-gradient-to-r from-emerald-200/60 via-teal-100/40 to-emerald-100/60'
+            : 'bg-gradient-to-r from-emerald-200/50 via-teal-100/30 to-emerald-100/50'
         }`}
       />
 
-      {/* Janela Principal da Aplicação Simulada */}
+      {/* Janela Principal da Aplicação */}
       <div
         className={`relative rounded-2xl border shadow-2xl overflow-hidden transition-colors ${
           isDark
-            ? 'bg-[#0b1220] border-slate-800 shadow-black/80'
+            ? 'bg-[#080d19] border-slate-800 shadow-black/80'
             : 'bg-white border-slate-200 shadow-slate-300/70'
         }`}
       >
-        {/* Barra Superior da Janela Simulada (Browser / App Chrome) */}
+        {/* Barra Superior do Navegador / Frame */}
         <div
-          className={`px-4 py-3 border-b flex flex-wrap items-center justify-between gap-3 ${
+          className={`px-4 py-2.5 border-b flex flex-wrap items-center justify-between gap-3 ${
             isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-slate-50 border-slate-200'
           }`}
         >
-          {/* Três botõezinhos Mac/Window */}
+          {/* Três botõezinhos Mac/Window + Título */}
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-red-400/80 inline-block" />
-            <span className="w-3 h-3 rounded-full bg-amber-400/80 inline-block" />
-            <span className="w-3 h-3 rounded-full bg-emerald-400/80 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-red-400/80 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400/80 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/80 inline-block" />
             <span
               className={`ml-2 text-xs font-mono font-medium truncate max-w-[200px] sm:max-w-none ${
                 isDark ? 'text-slate-400' : 'text-slate-600'
               }`}
             >
-              Meu TCC de Graduação — RedijaApp &amp; Typst WASM
+              RedijaApp Workspace • Typst WASM &amp; ABNT
             </span>
           </div>
 
-          {/* Abas de Navegação da Demonstração */}
-          <div className="flex items-center p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/90 text-xs font-medium">
+          {/* Abas de Demonstração da Tela */}
+          <div className="flex items-center p-0.5 rounded-xl bg-slate-200/70 dark:bg-slate-800/90 text-xs font-medium">
+            <button
+              onClick={() => setActiveTab('realApp')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+                activeTab === 'realApp'
+                  ? 'bg-white dark:bg-emerald-500 text-slate-900 dark:text-slate-950 font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Columns3 className="w-3.5 h-3.5" />
+              <span>Workspace Real (3 Painéis)</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('split')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
                 activeTab === 'split'
-                  ? 'bg-white dark:bg-emerald-500 text-slate-900 dark:text-slate-950 font-semibold shadow-xs'
+                  ? 'bg-white dark:bg-emerald-500 text-slate-900 dark:text-slate-950 font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Columns2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Lado a Lado</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('editor')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                activeTab === 'editor'
-                  ? 'bg-white dark:bg-emerald-500 text-slate-900 dark:text-slate-950 font-semibold shadow-xs'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Editor Visual</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('pdf')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                activeTab === 'pdf'
-                  ? 'bg-white dark:bg-emerald-500 text-slate-900 dark:text-slate-950 font-semibold shadow-xs'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>PDF Oficial</span>
+              <span>Editor &amp; PDF</span>
             </button>
 
             <button
               onClick={() => setActiveTab('typst')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
                 activeTab === 'typst'
-                  ? 'bg-white dark:bg-emerald-500 text-slate-900 dark:text-slate-950 font-semibold shadow-xs'
+                  ? 'bg-white dark:bg-emerald-500 text-slate-900 dark:text-slate-950 font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -110,236 +104,441 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
             </button>
           </div>
 
-          {/* Status Chip Flutuante */}
-          <div className="hidden md:flex items-center gap-2">
+          {/* Badge Indicativo */}
+          <div className="hidden sm:flex items-center gap-2">
             <span className="flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              WASM: 28ms
+              WASM Ativo
             </span>
           </div>
         </div>
 
         {/* ========================================================= */}
-        {/* CORPO DO MOCKUP COM CONTEÚDO DINÂMICO CONFORME A ABA      */}
+        {/* CONTEÚDO DO MOCKUP                                       */}
         {/* ========================================================= */}
-        <div className="p-4 sm:p-6 min-h-[460px] md:min-h-[500px] flex flex-col justify-center">
+        <div className="bg-[#0b1220] text-slate-100 min-h-[480px] lg:min-h-[540px] flex flex-col justify-start">
           {/* ------------------------------------------------------- */}
-          {/* ABA 1: SPLIT SCREEN (LADO A LADO - VISÃO REAL DO APP)    */}
+          {/* ABA 1: TELA REAL COMPLETA DO APP EM MINIATURA (3 PANES) */}
+          {/* ------------------------------------------------------- */}
+          {activeTab === 'realApp' && (
+            <div className="flex flex-col h-full select-none">
+              {/* Barra de Topo Real do RedijaApp */}
+              <div className="px-3 py-2 bg-[#0d1627] border-b border-slate-800/80 flex items-center justify-between text-xs">
+                {/* Lado Esquerdo do Topo */}
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {/* Marca */}
+                  <div className="flex items-center gap-1.5 font-bold tracking-tight">
+                    <div className="w-5 h-5 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-[10px] text-white font-black">
+                      R
+                    </div>
+                    <span className="text-white text-xs">Redija</span>
+                    <span className="text-emerald-400 text-xs">App</span>
+                  </div>
+
+                  <span className="text-slate-600">/</span>
+
+                  {/* Seletor de Projeto */}
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-850 border border-slate-700/60 text-slate-200 text-[11px] font-medium">
+                    <FolderOpen className="w-3 h-3 text-emerald-400" />
+                    <span className="truncate max-w-[120px] sm:max-w-[160px]">Pesquisa sobre Mim</span>
+                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                  </div>
+
+                  {/* Undo / Redo */}
+                  <div className="hidden md:flex items-center gap-1 text-slate-400">
+                    <button className="p-1 hover:text-white rounded transition-colors" title="Desfazer">
+                      <Undo2 className="w-3 h-3" />
+                    </button>
+                    <button className="p-1 hover:text-white rounded transition-colors" title="Refazer">
+                      <Redo2 className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  {/* Botões de Alternar Painéis */}
+                  <div className="hidden lg:flex items-center p-0.5 rounded-md bg-slate-800/60 border border-slate-700/50 text-[10px]">
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold">
+                      Estrutura
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold">
+                      Texto
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold">
+                      PDF
+                    </span>
+                  </div>
+                </div>
+
+                {/* Lado Direito do Topo */}
+                <div className="flex items-center gap-1.5 sm:gap-2 text-[11px]">
+                  {/* Status do Google Drive */}
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 text-[10px]">
+                    <Cloud className="w-2.5 h-2.5 text-emerald-400" />
+                    <span className="hidden sm:inline">Salvo no Drive</span>
+                  </div>
+
+                  {/* Compartilhar */}
+                  <button className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-md bg-slate-850 hover:bg-slate-800 text-slate-300 text-[11px] border border-slate-700/60">
+                    <Share2 className="w-3 h-3 text-emerald-400" />
+                    <span>Compartilhar</span>
+                  </button>
+
+                  {/* Ferramentas */}
+                  <button className="hidden md:flex items-center gap-1 px-2 py-1 rounded-md bg-slate-850 hover:bg-slate-800 text-slate-300 text-[11px] border border-slate-700/60">
+                    <SlidersHorizontal className="w-3 h-3 text-slate-400" />
+                    <span>Ferramentas</span>
+                  </button>
+
+                  {/* Baixar PDF */}
+                  <button className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-[11px] shadow-xs">
+                    <Download className="w-3 h-3" />
+                    <span>Baixar PDF</span>
+                  </button>
+
+                  {/* Avatar do Usuário */}
+                  <div className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-[10px] border border-emerald-400/50">
+                    VC
+                  </div>
+                </div>
+              </div>
+
+              {/* Corpo com 3 Colunas Exatas da Foto */}
+              <div className="grid grid-cols-1 md:grid-cols-12 flex-1 divide-y md:divide-y-0 md:divide-x divide-slate-800/80 overflow-hidden">
+                {/* ------------------------------------------------- */}
+                {/* PAINEL 1 (ESQUERDA): ESTRUTURA ABNT (NBR 14724)   */}
+                {/* ------------------------------------------------- */}
+                <div className="md:col-span-3 p-3 bg-[#0a101d] space-y-2.5 text-xs overflow-y-auto max-h-[480px]">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+                    <div>
+                      <h4 className="font-bold text-[11px] uppercase tracking-wider text-slate-200">
+                        ESTRUTURA ABNT (NBR 14724)
+                      </h4>
+                      <p className="text-[10px] text-slate-500">Capa, pré-textuais, resumo e referências.</p>
+                    </div>
+                  </div>
+
+                  {/* Accordion 1: Capa & Folha de Rosto (Aberto) */}
+                  <div className="rounded-lg border border-slate-800 bg-[#0d1525] p-2 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-400">
+                      <span className="flex items-center gap-1.5">
+                        <FileText className="w-3 h-3" />
+                        Capa &amp; Folha de Rosto
+                      </span>
+                      <ChevronDown className="w-3 h-3" />
+                    </div>
+
+                    <div className="space-y-1.5 text-[10px] font-sans">
+                      <div>
+                        <span className="text-slate-400 text-[9px] block">Título do Trabalho</span>
+                        <div className="p-1 rounded bg-[#080d19] border border-slate-700/60 text-slate-200 truncate">
+                          Proposta de Investigação Científica
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 text-[9px] block">Subtítulo (Opcional)</span>
+                        <div className="p-1 rounded bg-[#080d19] border border-slate-700/60 text-slate-400 truncate">
+                          Projeto de pesquisa apresentado para qualificação
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 text-[9px] block">Nome do Autor</span>
+                        <div className="p-1 rounded bg-[#080d19] border border-slate-700/60 text-slate-200 truncate">
+                          Nome do Proponente
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 text-[9px] block">Orientador(a) (Opcional)</span>
+                        <div className="p-1 rounded bg-[#080d19] border border-slate-700/60 text-slate-400 truncate">
+                          Prof. Dr. Orientador Pretendido
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 text-[9px] block">Instituição</span>
+                        <div className="p-1 rounded bg-[#080d19] border border-slate-700/60 text-slate-200 truncate">
+                          Universidade Federal
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div>
+                          <span className="text-slate-400 text-[9px] block">Cidade</span>
+                          <div className="p-1 rounded bg-[#080d19] border border-slate-700/60 text-slate-200 truncate">
+                            São Paulo
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[9px] block">Ano</span>
+                          <div className="p-1 rounded bg-[#080d19] border border-slate-700/60 text-slate-200 truncate">
+                            2026
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Accordion 2: Pré-Textuais & Listas */}
+                  <div className="rounded-lg border border-slate-800/80 bg-[#0d1525]/60 p-2 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>Pré-Textuais &amp; Listas</span>
+                    <ChevronRight className="w-3 h-3" />
+                  </div>
+
+                  {/* Accordion 3: Resumo & Abstract */}
+                  <div className="rounded-lg border border-slate-800/80 bg-[#0d1525]/60 p-2 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>Resumo &amp; Abstract (NBR 6028)</span>
+                    <ChevronRight className="w-3 h-3" />
+                  </div>
+
+                  {/* Accordion 4: Referências */}
+                  <div className="rounded-lg border border-slate-800/80 bg-[#0d1525]/60 p-2 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>Referências (0)</span>
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold">
+                      + Nova
+                    </span>
+                  </div>
+                </div>
+
+                {/* ------------------------------------------------- */}
+                {/* PAINEL 2 (CENTRO): EDITOR NOTION-LIKE EM DARK MODE*/}
+                {/* ------------------------------------------------- */}
+                <div className="md:col-span-5 p-4 bg-[#0c1424] space-y-3.5 text-xs overflow-y-auto max-h-[480px]">
+                  {/* Seção 1 */}
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5 uppercase">
+                      <span className="text-emerald-400 font-extrabold">1</span>
+                      <span>INTRODUÇÃO E PROBLEMA DE PESQUISA</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-300 leading-relaxed pl-4">
+                      Apresente a delimitação do tema e formule claramente a pergunta-problema que orientará a pesquisa.
+                    </p>
+                  </div>
+
+                  {/* Seção 2 */}
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5 uppercase">
+                      <span className="text-emerald-400 font-extrabold">2</span>
+                      <span>JUSTIFICATIVA</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-300 leading-relaxed pl-4">
+                      Argumente sobre a relevância científica, acadêmica e social da realização deste estudo.
+                    </p>
+                  </div>
+
+                  {/* Seção 3 */}
+                  <div className="space-y-1.5">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5 uppercase">
+                      <span className="text-emerald-400 font-extrabold">3</span>
+                      <span>OBJETIVOS</span>
+                    </h3>
+
+                    <div className="pl-4 space-y-1">
+                      <h4 className="text-xs font-semibold text-emerald-400">
+                        3.1 Objetivo Geral
+                      </h4>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        Defina em uma frase com verbo no infinitivo o propósito global da pesquisa.
+                      </p>
+                    </div>
+
+                    <div className="pl-4 space-y-1">
+                      <h4 className="text-xs font-semibold text-emerald-400">
+                        3.2 Objetivos Específicos
+                      </h4>
+                      <ul className="text-[11px] text-slate-300 space-y-0.5 list-disc list-inside">
+                        <li>Identificar as variáveis principais relacionadas ao fenômeno estudado;</li>
+                        <li>Analisar comparativamente os resultados obtidos em cenários controlados.</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Seção 4 */}
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5 uppercase">
+                      <span className="text-emerald-400 font-extrabold">4</span>
+                      <span>METODOLOGIA</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-300 leading-relaxed pl-4">
+                      Classifique a pesquisa quanto à abordagem, natureza e procedimentos técnicos para coleta e análise de dados.
+                    </p>
+                  </div>
+
+                  <div className="pt-2">
+                    <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 text-[11px] transition-colors">
+                      <Plus className="w-3 h-3 text-emerald-400" />
+                      <span>Adicionar parágrafo</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* ------------------------------------------------- */}
+                {/* PAINEL 3 (DIREITA): PRÉVIA PDF OFICIAL A4 AO VIVO */}
+                {/* ------------------------------------------------- */}
+                <div className="md:col-span-4 p-3 bg-[#090f1b] flex flex-col justify-between overflow-y-auto max-h-[480px]">
+                  {/* Topo do Painel de PDF */}
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[10px] text-slate-400 mb-2">
+                    <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                      <Eye className="w-3 h-3" />
+                      Prévia PDF • 8 pág (2mn)
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">160%</span>
+                      <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">Ver Typst</span>
+                    </div>
+                  </div>
+
+                  {/* Folha A4 Realista Simulada */}
+                  <div className="bg-white text-slate-950 p-6 rounded shadow-lg font-serif text-center flex flex-col justify-between min-h-[380px] my-auto">
+                    {/* Topo da Capa */}
+                    <div className="space-y-0.5 font-sans">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-900">
+                        UNIVERSIDADE FEDERAL
+                      </p>
+                      <p className="text-[8px] font-medium uppercase text-slate-700">
+                        PROGRAMA DE PESQUISA
+                      </p>
+                    </div>
+
+                    {/* Autor */}
+                    <div className="py-4">
+                      <p className="text-[10px] font-bold uppercase text-slate-900 font-sans">
+                        NOME DO PROPONENTE
+                      </p>
+                    </div>
+
+                    {/* Título e Subtítulo */}
+                    <div className="py-3 px-2">
+                      <h4 className="text-[10.5px] font-extrabold uppercase leading-snug text-slate-950 font-sans">
+                        PROPOSTA DE INVESTIGAÇÃO CIENTÍFICA:
+                      </h4>
+                      <p className="text-[9px] text-slate-700 font-sans mt-0.5">
+                        Projeto de pesquisa apresentado para qualificação
+                      </p>
+                    </div>
+
+                    {/* Cidade e Ano no Rodapé da A4 */}
+                    <div className="pt-4 font-sans text-[8px] text-slate-700 uppercase">
+                      <p>SÃO PAULO</p>
+                      <p>2026</p>
+                    </div>
+                  </div>
+
+                  {/* Rodapé da Prévia */}
+                  <div className="pt-2 flex items-center justify-between text-[10px] text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-amber-400" />
+                      <span>Compilado em 28ms</span>
+                    </span>
+                    <span className="font-mono text-emerald-400">ABNT NBR 14724</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ------------------------------------------------------- */}
+          {/* ABA 2: VISÃO LADO A LADO (EDITOR & PDF ABNT AO VIVO)     */}
           {/* ------------------------------------------------------- */}
           {activeTab === 'split' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full items-stretch">
-              {/* Lado Esquerdo: Editor Estilo Notion */}
-              <div
-                className={`lg:col-span-6 p-4 rounded-xl border flex flex-col justify-between transition-colors ${
-                  isDark ? 'bg-slate-950/60 border-slate-800/80' : 'bg-slate-50/80 border-slate-200/90'
-                }`}
-              >
-                <div className="space-y-3.5">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                      <FileCheck className="w-3.5 h-3.5" />
-                      Editor Visual de Blocos
-                    </span>
-                    <span className="text-[10px] text-slate-600 dark:text-slate-300 font-mono">
-                      Seção 1 • Introdução
-                    </span>
-                  </div>
+            <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+              {/* Lado Esquerdo: Editor com Texto Acadêmico Volumoso */}
+              <div className="lg:col-span-6 p-4 rounded-xl border border-slate-800 bg-[#0c1424] flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[11px] text-slate-400">
+                  <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    Editor de Texto (Blocos ABNT)
+                  </span>
+                  <span className="font-mono text-slate-500">542 palavras • Seção 1</span>
+                </div>
 
-                  {/* Bloco 1: Título ABNT */}
+                <div className="space-y-3 font-sans text-xs overflow-y-auto max-h-[380px] pr-1">
                   <div className="space-y-1">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                      Título NBR 6024 (Seção Primária)
-                    </span>
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase">
+                    <h4 className="text-sm font-bold text-white uppercase tracking-tight">
                       1 INTRODUÇÃO
-                    </h3>
-                  </div>
-
-                  {/* Bloco 2: Parágrafo comum com chamada de citação */}
-                  <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                    O desenvolvimento de trabalhos acadêmicos no Brasil historicamente enfrentou barreiras na padronização das normas da Associação Brasileira de Normas Técnicas{' '}
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
-                      @abnt2023
-                    </span>
-                    .
-                  </p>
-
-                  {/* Bloco 3: Citação Direta Longa ABNT com recuo */}
-                  <div className="pl-6 border-l-2 border-emerald-500 py-1 space-y-1 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-r-lg p-2.5">
-                    <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                      <Sparkles className="w-3 h-3" />
-                      Citação Longa ABNT (Recuo 4cm, Fonte 10pt)
-                    </span>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 italic leading-snug">
-                      &ldquo;A tipografia moderna automatizada via compiladores WebAssembly elimina a necessidade de diagramação manual, reduzindo a zero o risco de reprovação formal em bancas.&rdquo;
-                    </p>
-                    <p className="text-[10px] text-slate-600 dark:text-slate-300 text-right font-medium">
-                      (SILVA; PEREIRA, 2024, p. 112)
-                    </p>
-                  </div>
-                </div>
-
-                {/* Barra de Ferramentas Notion no rodapé do editor */}
-                <div className="pt-3 mt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
-                  <span>Digite &apos;/&apos; para inserir citação, tabela ou equação</span>
-                  <span className="font-mono text-emerald-700 dark:text-emerald-400 font-semibold">Salvo no Drive</span>
-                </div>
-              </div>
-
-              {/* Lado Direito: Preview do PDF ABNT */}
-              <div
-                className={`lg:col-span-6 p-4 rounded-xl border flex flex-col justify-between transition-colors ${
-                  isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'
-                }`}
-              >
-                {/* Folha A4 ABNT Simulada */}
-                <div className="bg-white text-slate-900 p-5 rounded-lg shadow-md border border-slate-200/90 font-serif text-[11px] leading-relaxed space-y-3 relative">
-                  {/* Cabeçalho ABNT: Número da página no canto superior direito */}
-                  <div className="flex justify-between items-center text-[10px] text-slate-500 font-sans pb-1 border-b border-dashed border-slate-200">
-                    <span className="italic text-[9px] text-slate-400">Margem Superior: 3 cm</span>
-                    <span className="font-bold text-slate-900 font-mono">15</span>
-                  </div>
-
-                  {/* Conteúdo formatado com rigor da NBR */}
-                  <h4 className="font-sans font-bold text-xs uppercase text-slate-950 tracking-tight">
-                    1 INTRODUÇÃO
-                  </h4>
-
-                  <p className="text-justify indent-6 text-[10.5px] leading-relaxed text-slate-800">
-                    O desenvolvimento de trabalhos acadêmicos no Brasil historicamente enfrentou barreiras na padronização das normas da Associação Brasileira de Normas Técnicas (ABNT, 2023). A sobrecarga formal imposta aos discentes muitas vezes desvia a atenção da fundamentação metodológica central da pesquisa.
-                  </p>
-
-                  {/* Citação Recuada no PDF */}
-                  <div className="ml-10 text-[9.5px] leading-snug text-slate-700 text-justify">
-                    A tipografia moderna automatizada via compiladores WebAssembly elimina a necessidade de diagramação manual, reduzindo a zero o risco de reprovação formal em bancas examinadoras. (SILVA; PEREIRA, 2024, p. 112).
-                  </div>
-
-                  {/* Margem Inferior e Esquerda informativas */}
-                  <div className="pt-2 flex justify-between text-[9px] text-slate-400 font-sans">
-                    <span>Margem Esquerda: 3 cm</span>
-                    <span>Margem Direita: 2 cm</span>
-                  </div>
-                </div>
-
-                {/* Rodapé da folha com detalhes de compilação */}
-                <div className="flex items-center justify-between text-xs pt-3 text-slate-600 dark:text-slate-300">
-                  <span className="flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Compilação Instantânea Typst WASM</span>
-                  </span>
-                  <span className="font-mono text-[11px]">Página 15 de 42</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ------------------------------------------------------- */}
-          {/* ABA 2: EDITOR VISUAL COMPLETO                           */}
-          {/* ------------------------------------------------------- */}
-          {activeTab === 'editor' && (
-            <div
-              className={`p-6 rounded-xl border space-y-4 ${
-                isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
-              }`}
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
-                    Tipologia Notion-like
-                  </span>
-                  <span className="text-xs text-slate-600 dark:text-slate-300">
-                    Blocos estruturados com validação ABNT contínua
-                  </span>
-                </div>
-                <div className="text-xs font-mono text-slate-600 dark:text-slate-300">
-                  Norma NBR 14724 Ativa
-                </div>
-              </div>
-
-              <div className="space-y-3 font-sans">
-                <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 flex items-start justify-between">
-                  <div>
-                    <span className="text-[10px] font-mono uppercase text-emerald-600 dark:text-emerald-400">
-                      Capítulo 2 • Seção Secundária NBR 6024
-                    </span>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white uppercase">
-                      2.1 ARQUITETURA LOCAL-FIRST E SEGURANÇA NO GOOGLE DRIVE
                     </h4>
+                    <p className="text-slate-300 leading-relaxed text-justify">
+                      A evolução das arquiteturas computacionais distribuídas e a crescente demanda por processamento de dados em tempo real transformaram profundamente o paradigma de desenvolvimento de software contemporâneo. Historicamente, os sistemas corporativos operavam sobre modelos monolíticos e síncronos, cujas limitações de escalabilidade vertical tornaram-se progressivamente evidentes à medida que o volume e a heterogeneidade das requisições atingiram escalas globais.
+                    </p>
                   </div>
-                  <span className="text-[10px] text-slate-600 dark:text-slate-300 font-mono">1.1.1</span>
+
+                  <p className="text-slate-300 leading-relaxed text-justify">
+                    Nesse cenário de transição paradigmática, as abordagens orientadas a eventos e os protocolos descentralizados emergiram como alternativas essenciais para garantir elasticidade, resiliência e baixa latência sob cargas extremas. A necessidade de mensurar rigorosamente o comportamento dessas arquiteturas em cenários de alta concorrência impõe desafios metodológicos fundamentais aos pesquisadores da área de engenharia de software.
+                  </p>
+
+                  {/* Citação Longa ABNT com Recuo Real de 4cm */}
+                  <div className="pl-6 border-l-2 border-emerald-500 py-1.5 bg-emerald-950/20 rounded-r text-[11px] space-y-1">
+                    <p className="italic text-slate-300 leading-snug">
+                      &ldquo;A capacidade de um sistema distribuído manter sua responsividade sob condições adversas não depende unicamente do provisionamento de recursos elásticos, mas da descentralização inteligente de seu fluxo de controle e da minimização do estado compartilhado entre os nós de processamento.&rdquo;
+                    </p>
+                    <p className="text-right text-[10px] font-semibold text-emerald-400">
+                      (SILVA; PEREIRA, 2024, p. 87)
+                    </p>
+                  </div>
+
+                  <p className="text-slate-300 leading-relaxed text-justify">
+                    Diante dessa problemática, o presente estudo investiga quantitativamente a eficiência de protocolos ponto a ponto em comparação com modelos tradicionais cliente-servidor, delimitando as condições de contorno em que a descentralização propicia ganhos observáveis de vazão transacional e integridade de dados.
+                  </p>
                 </div>
 
-                <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                  Ao contrário de editores em nuvem convencionais que centralizam os dados de estudantes em servidores de terceiros, o RedijaApp emprega uma abordagem centrada na soberania do usuário (Bring Your Own Storage), garantindo que as versões em formato Typst e as cópias em PDF permaneçam estritamente sincronizadas no Google Drive pessoal do autor.
+                <div className="pt-2 border-t border-slate-800 text-[10px] text-slate-500 flex items-center justify-between">
+                  <span>Digite &apos;/&apos; para inserir blocos</span>
+                  <span className="text-emerald-400 font-mono font-medium">Sincronizado</span>
+                </div>
+              </div>
+
+              {/* Lado Direito: Preview da Página 15 do PDF ABNT */}
+              <div className="lg:col-span-6 p-4 rounded-xl border border-slate-800 bg-[#090f1b] flex flex-col justify-between">
+                {/* Barra do Preview */}
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[10px] text-slate-400 mb-2">
+                  <span className="text-emerald-400 font-medium">Prévia PDF • NBR 14724</span>
+                  <div className="flex items-center gap-1 font-mono text-[9px]">
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">Pág. 15</span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">100%</span>
+                  </div>
                 </div>
 
-                {/* Simulação de Menu Flutuante de Comandos */}
-                <div className="p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-50/70 dark:bg-slate-900 shadow-lg text-xs space-y-1.5">
-                  <div className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
-                    Menu de Comandos ABNT Rápidos (Digite &apos;/&apos;)
+                {/* Folha A4 com Margens 3-3-2-2 e Recuo 4cm */}
+                <div className="bg-white text-slate-950 p-6 rounded shadow-md font-serif text-[10.5px] leading-relaxed space-y-2.5 my-auto">
+                  {/* Cabeçalho ABNT: Número no Canto Superior Direito */}
+                  <div className="text-right text-[9px] font-sans font-bold text-slate-800 pb-1 border-b border-slate-100">
+                    15
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <div className="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center gap-2">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
-                      <span className="font-medium text-slate-800 dark:text-slate-200">/citacao</span>
-                    </div>
-                    <div className="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center gap-2">
-                      <FileText className="w-3.5 h-3.5 text-blue-500" />
-                      <span className="font-medium text-slate-800 dark:text-slate-200">/referencia</span>
-                    </div>
-                    <div className="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center gap-2">
-                      <Layers className="w-3.5 h-3.5 text-amber-500" />
-                      <span className="font-medium text-slate-800 dark:text-slate-200">/tabela-ibge</span>
-                    </div>
-                    <div className="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center gap-2">
-                      <Users className="w-3.5 h-3.5 text-teal-500" />
-                      <span className="font-medium text-slate-800 dark:text-slate-200">/banca</span>
-                    </div>
+
+                  <h5 className="font-sans font-bold text-xs uppercase text-slate-900 tracking-tight">
+                    1 INTRODUÇÃO
+                  </h5>
+
+                  <p className="text-justify indent-6 text-[10px] leading-relaxed text-slate-800">
+                    A evolução das arquiteturas computacionais distribuídas e a crescente demanda por processamento de dados em tempo real transformaram profundamente o paradigma de desenvolvimento de software contemporâneo. Historicamente, os sistemas corporativos operavam sobre modelos monolíticos e síncronos, cujas limitações de escalabilidade vertical tornaram-se progressivamente evidentes.
+                  </p>
+
+                  <p className="text-justify indent-6 text-[10px] leading-relaxed text-slate-800">
+                    Nesse cenário de transição paradigmática, as abordagens orientadas a eventos e os protocolos descentralizados emergiram como alternativas essenciais para garantir elasticidade, resiliência e baixa latência sob cargas extremas.
+                  </p>
+
+                  {/* Citação Recuada na Folha A4 */}
+                  <div className="ml-8 text-[9px] leading-snug text-slate-700 text-justify">
+                    A capacidade de um sistema distribuído manter sua responsividade sob condições adversas não depende unicamente do provisionamento de recursos elásticos, mas da descentralização inteligente de seu fluxo de controle e da minimização do estado compartilhado entre os nós de processamento. (SILVA; PEREIRA, 2024, p. 87).
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800 mt-2">
+                  <span className="flex items-center gap-1.5 text-[10px]">
+                    <Zap className="w-3 h-3 text-amber-400" />
+                    <span>Typst WASM: 28ms</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400">Margens 3-3-2-2 cm</span>
                 </div>
               </div>
             </div>
           )}
 
           {/* ------------------------------------------------------- */}
-          {/* ABA 3: PDF OFICIAL ABNT                                 */}
-          {/* ------------------------------------------------------- */}
-          {activeTab === 'pdf' && (
-            <div className="max-w-2xl mx-auto w-full bg-white text-slate-900 p-8 rounded-xl shadow-xl border border-slate-200 font-serif text-xs leading-relaxed space-y-4">
-              <div className="flex justify-between items-center text-[10px] text-slate-400 font-sans border-b pb-2">
-                <span>Padronização ABNT NBR 14724 • Folha A4</span>
-                <span className="font-bold text-slate-900 font-mono">Página 1</span>
-              </div>
-
-              <div className="text-center py-4 space-y-2 font-sans">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
-                  UNIVERSIDADE FEDERAL DE TECNOLOGIA
-                </p>
-                <p className="text-[10px] text-slate-500 uppercase">
-                  PROGRAMA DE PÓS-GRADUAÇÃO EM ENGENHARIA DE SOFTWARE
-                </p>
-                <div className="py-6">
-                  <h3 className="text-base font-extrabold uppercase text-slate-950 max-w-md mx-auto leading-tight">
-                    AUTOMAÇÃO DE FORMATAÇÃO NORMATIVA COM COMPILAÇÃO EM WEBASSEMBLY
-                  </h3>
-                </div>
-                <p className="text-xs font-medium text-slate-800">
-                  MARIA CLARA DOS SANTOS
-                </p>
-              </div>
-
-              <div className="pt-8 text-center text-[10px] text-slate-500 font-sans">
-                <p>SÃO PAULO</p>
-                <p>2026</p>
-              </div>
-            </div>
-          )}
-
-          {/* ------------------------------------------------------- */}
-          {/* ABA 4: CÓDIGO TYPST GERADO                              */}
+          {/* ABA 3: CÓDIGO TYPST GERADO                              */}
           {/* ------------------------------------------------------- */}
           {activeTab === 'typst' && (
-            <div className="p-4 rounded-xl bg-[#0d1525] border border-slate-800 font-mono text-xs text-slate-300 space-y-2 overflow-x-auto">
+            <div className="p-4 sm:p-6 bg-[#0a1120] font-mono text-xs text-slate-300 space-y-2 overflow-x-auto">
               <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[11px] text-slate-400">
                 <span className="text-emerald-400 font-bold">main.typ (Gerado em tempo real pelo RedijaApp)</span>
                 <span>Typst 0.12+ Syntax</span>
@@ -349,8 +548,8 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
 {`#import "abnt.typ": *
 
 #show: abnt-document.with(
-  titulo: "Automação de Formatação Normativa com WebAssembly",
-  autor: "Maria Clara dos Santos",
+  titulo: "Arquiteturas Distribuídas e Sistemas Reativos em Tempo Real",
+  autor: "Carlos Eduardo Silva",
   instituicao: "Universidade Federal de Tecnologia",
   ano: "2026",
   cidade: "São Paulo",
@@ -358,18 +557,22 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
   estilo-citacao: "autor-data-2023"
 )
 
-= Introdução
+= 1 Introdução
 
-O desenvolvimento de trabalhos acadêmicos no Brasil historicamente enfrentou barreiras
-na padronização das normas da Associação Brasileira de Normas Técnicas @abnt2023.
+A evolução das arquiteturas computacionais distribuídas e a crescente demanda por processamento
+de dados em tempo real transformaram profundamente o paradigma de desenvolvimento de software contemporâneo.
+
+Nesse cenário de transição paradigmática, as abordagens orientadas a eventos e os protocolos descentralizados
+emergiram como alternativas essenciais para garantir elasticidade e resiliência sob cargas extremas.
 
 #citacao-longa(
   autor: "SILVA; PEREIRA",
   ano: "2024",
-  pagina: "112",
+  pagina: "87",
   conteudo: [
-    A tipografia moderna automatizada via compiladores WebAssembly elimina a necessidade
-    de diagramação manual, reduzindo a zero o risco de reprovação formal em bancas.
+    A capacidade de um sistema distribuído manter sua responsividade sob condições adversas
+    não depende unicamente do provisionamento de recursos elásticos, mas da descentralização inteligente
+    de seu fluxo de controle e da minimização do estado compartilhado entre os nós de processamento.
   ]
 )
 
@@ -379,26 +582,26 @@ na padronização das normas da Associação Brasileira de Normas Técnicas @abn
           )}
         </div>
 
-        {/* Rodapé Informativo do Mockup */}
+        {/* Rodapé do Mockup */}
         <div
-          className={`px-4 py-3 border-t text-xs flex flex-wrap items-center justify-between gap-2 ${
+          className={`px-4 py-2.5 border-t text-xs flex flex-wrap items-center justify-between gap-2 ${
             isDark ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
           }`}
         >
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-              <span>NBR 14724 &amp; NBR 6023 Validadas</span>
+              <span>NBR 14724, 6023 &amp; 10520</span>
             </span>
             <span className="hidden sm:flex items-center gap-1.5">
-              <Lock className="w-3.5 h-3.5 text-teal-500" />
+              <Cloud className="w-3.5 h-3.5 text-teal-500" />
               <span>Google Drive Pessoal (BYOS)</span>
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
-              100% Client-Side • Zero Servidor Intermediário
+            <span className="text-[11px] font-mono text-emerald-500 font-semibold">
+              Fiel à interface do RedijaApp • 100% Client-Side
             </span>
           </div>
         </div>
