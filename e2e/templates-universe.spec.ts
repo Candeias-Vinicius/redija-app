@@ -159,7 +159,8 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     await expect(sidebar.getByText('Artigo SBC', { exact: true })).toBeVisible();
     await expect(sidebar.getByText('Pré-Textuais & Listas')).not.toBeVisible();
     await expect(sidebar.getByText('Guia de Normas ABNT')).not.toBeVisible();
-    await expect(sidebar.getByText('Verificador (SBC)')).toBeVisible();
+    await expect(sidebar.getByText('Manual de Submissão SBC')).toBeVisible();
+    await expect(sidebar.getByText(/Verificador SBC \(\d+\)/)).toBeVisible();
 
     // 2. Cria TCC e aplica formatação customizada para validar ABNT Modificado
     await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
@@ -185,5 +186,76 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     await expect(sidebar.getByText('ABNT Modificado', { exact: true })).toBeVisible();
     await expect(sidebar.getByText('Verificador ABNT (Pausado)')).toBeVisible();
     await expect(sidebar.getByText('Guia de Normas ABNT')).toBeVisible();
+  });
+
+  test('personaliza campos da barra lateral e restaura padrão do modelo com zero perda de dados', async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('redija:beta_notice_dismissed', 'true');
+    });
+    const modalHeading = await ensureProjectsModal(page);
+    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`TCC Campos ${Date.now()}`);
+    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await expect(modalHeading).not.toBeVisible();
+
+    const sidebar = page.locator('aside').first();
+    await expect(sidebar.getByText('NBR 14724', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText(/Coorientador\(a\)/)).toBeVisible();
+
+    // Abre Personalizar Campos e oculta Coorientador(a)
+    await sidebar.getByRole('button', { name: /Personalizar Campos/i }).click();
+    await expect(page.getByText('Personalizar Campos da Barra Lateral')).toBeVisible();
+    await page.getByLabel(/Coorientador\(a\)/).uncheck();
+    await page.getByRole('button', { name: /Salvar Campos/i }).click();
+
+    await expect(sidebar.getByText('ABNT Modificado', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Verificador ABNT (Pausado)')).toBeVisible();
+    await expect(sidebar.getByText(/Coorientador\(a\)/)).not.toBeVisible();
+
+    // Restaura padrão do modelo
+    await sidebar.getByRole('button', { name: /Personalizar Campos/i }).click();
+    await page.getByRole('button', { name: /Restaurar Padrão do Modelo/i }).click();
+
+    await expect(sidebar.getByText('NBR 14724', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText(/Coorientador\(a\)/)).toBeVisible();
+  });
+
+  test('configura Central Universal de Citações/Referências e fonte CDN no Typst gerado', async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('redija:beta_notice_dismissed', 'true');
+    });
+    const modalHeading = await ensureProjectsModal(page);
+    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Artigo Central ${Date.now()}`);
+    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await expect(modalHeading).not.toBeVisible();
+
+    await page
+      .getByRole('button', {
+        name: 'Layout das Referências e Citações (Norma & Layout)',
+        exact: true,
+      })
+      .click();
+
+    await page.locator('#template-font-family').selectOption('inter');
+    await page.locator('#template-citation-format').selectOption('ieee_numeric');
+    await page.locator('#template-reference-alignment').selectOption('justify');
+    await page.locator('#template-reference-spacing').selectOption('compact');
+    await page.locator('#template-reference-highlight').selectOption('underline');
+
+    // Prévia instantânea reflete configuração selecionada
+    await expect(page.getByText(/Prévia Instantânea de Citação/i)).toBeVisible();
+    await expect(page.getByText(/Justificada • Espaço Compacto/i)).toBeVisible();
+
+    await page.getByRole('button', { name: /Aplicar e Atualizar PDF/i }).click();
+
+    await page.getByRole('button', { name: /Ver Typst/i }).click();
+    const codeViewer = page.locator('pre');
+    await expect(codeViewer).toContainText('fonte: ("Inter"');
+    await expect(codeViewer).toContainText('alinhamento: "justify"');
+    await expect(codeViewer).toContainText('espacamento: 0.5em');
+    await expect(codeViewer).toContainText('numeracao: "bracket"');
   });
 });

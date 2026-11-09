@@ -5,7 +5,22 @@ import {
   DEFAULT_TEMPLATE_CONFIG,
   DocumentMetadata,
   Block,
+  CitationFormat,
+  FontFamilyId,
+  ReferenceAlignment,
+  ReferenceHighlight,
+  ReferenceSpacing,
+  AcademicReference,
 } from '@/types/document';
+import {
+  FONT_CATALOG,
+  getFontEntry,
+  sanitizeCustomFontFamily,
+} from '@/core/typst/fontCatalog';
+import {
+  formatShortCitation,
+  resolveCitationFormat,
+} from '@/core/transpiler/abntLinter';
 import {
   calculateProjectImageBytes,
   validateImageUploadForProject,
@@ -23,8 +38,19 @@ import {
   Globe,
   Palette,
   ExternalLink,
+  Quote,
 } from 'lucide-react';
 import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
+
+const SAMPLE_PREVIEW_REF: AcademicReference = {
+  id: 'preview-sample',
+  type: 'book',
+  authors: 'SILVA, Roberto',
+  title: 'Engenharia de Software Moderna e Boas Práticas',
+  city: 'São Paulo',
+  publisher: 'Editora Acadêmica',
+  year: '2023',
+};
 
 interface TemplateCustomizerModalProps {
   isOpen: boolean;
@@ -65,7 +91,10 @@ const PRESETS: PresetInfo[] = [
       includeTitlePage: true,
       includeToc: true,
       citationStyle: 'uppercase',
+      citationFormat: 'abnt_upper',
       referenceHighlight: 'bold',
+      referenceAlignment: 'left',
+      referenceSpacing: 'single_blank',
     },
   },
   {
@@ -88,7 +117,10 @@ const PRESETS: PresetInfo[] = [
       includeTitlePage: true,
       includeToc: true,
       citationStyle: 'titlecase',
+      citationFormat: 'abnt_titlecase',
       referenceHighlight: 'bold',
+      referenceAlignment: 'left',
+      referenceSpacing: 'single_blank',
     },
   },
   {
@@ -111,7 +143,10 @@ const PRESETS: PresetInfo[] = [
       includeTitlePage: false,
       includeToc: false,
       citationStyle: 'titlecase',
+      citationFormat: 'abnt_titlecase',
       referenceHighlight: 'italic',
+      referenceAlignment: 'left',
+      referenceSpacing: 'compact',
     },
   },
   {
@@ -134,7 +169,10 @@ const PRESETS: PresetInfo[] = [
       includeTitlePage: false,
       includeToc: true,
       citationStyle: 'titlecase',
+      citationFormat: 'author_date',
       referenceHighlight: 'italic',
+      referenceAlignment: 'left',
+      referenceSpacing: 'double',
     },
   },
   {
@@ -157,7 +195,10 @@ const PRESETS: PresetInfo[] = [
       includeTitlePage: false,
       includeToc: false,
       citationStyle: 'uppercase',
+      citationFormat: 'abnt_upper',
       referenceHighlight: 'bold',
+      referenceAlignment: 'justify',
+      referenceSpacing: 'single_blank',
     },
   },
   {
@@ -180,7 +221,10 @@ const PRESETS: PresetInfo[] = [
       includeTitlePage: false,
       includeToc: false,
       citationStyle: 'uppercase',
+      citationFormat: 'ieee_numeric',
       referenceHighlight: 'italic',
+      referenceAlignment: 'left',
+      referenceSpacing: 'compact',
     },
   },
   {
@@ -203,7 +247,10 @@ const PRESETS: PresetInfo[] = [
       includeTitlePage: false,
       includeToc: false,
       citationStyle: 'uppercase',
+      citationFormat: 'abnt_upper',
       referenceHighlight: 'bold',
+      referenceAlignment: 'justify',
+      referenceSpacing: 'compact',
       posterDimensions: 'a0',
       posterOrientation: 'portrait',
       posterColumns: 3,
@@ -230,6 +277,33 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
       [key]: value,
     });
   };
+
+  const effectiveCitationFormat = resolveCitationFormat(config);
+  const selectedFontEntry = getFontEntry(config.fontFamily);
+  const effectiveAlignment: ReferenceAlignment = config.referenceAlignment ?? 'left';
+  const effectiveSpacing: ReferenceSpacing = config.referenceSpacing ?? 'single_blank';
+  const isCustomFontInvalid =
+    config.fontFamily === 'custom' &&
+    Boolean(config.customFontFamily?.trim()) &&
+    !sanitizeCustomFontFamily(config.customFontFamily);
+
+  const handleCitationFormatChange = (nextFormat: CitationFormat) => {
+    const syncedStyle: 'uppercase' | 'titlecase' =
+      nextFormat === 'abnt_titlecase' || nextFormat === 'author_date'
+        ? 'titlecase'
+        : 'uppercase';
+    onChangeConfig({
+      ...config,
+      preset: 'custom',
+      citationFormat: nextFormat,
+      citationStyle: syncedStyle,
+    });
+  };
+
+  const sampleInlineCall = formatShortCitation(SAMPLE_PREVIEW_REF, {
+    format: effectiveCitationFormat,
+    refNumber: 1,
+  });
 
   const applyPreset = (preset: PresetInfo) => {
     onChangeConfig({
@@ -427,26 +501,38 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                <label
+                  htmlFor="template-font-family"
+                  className="block text-[11px] font-medium text-neutral-600 mb-1"
+                >
                   Família da Fonte
                 </label>
                 <select
+                  id="template-font-family"
                   value={config.fontFamily}
                   onChange={(e) =>
-                    updateField('fontFamily', e.target.value as TemplateConfig['fontFamily'])
+                    updateField('fontFamily', e.target.value as FontFamilyId)
                   }
                   className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
                 >
-                  <option value="serif">Times New Roman (Tinos)</option>
-                  <option value="sans">Arial / Sem Serifa (Arimo)</option>
+                  {FONT_CATALOG.map((font) => (
+                    <option key={font.id} value={font.id}>
+                      {font.label}
+                    </option>
+                  ))}
+                  <option value="custom">Outra fonte via CDN / Google Fonts...</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                <label
+                  htmlFor="template-font-size"
+                  className="block text-[11px] font-medium text-neutral-600 mb-1"
+                >
                   Tamanho do Corpo
                 </label>
                 <select
+                  id="template-font-size"
                   value={config.fontSizePt}
                   onChange={(e) =>
                     updateField(
@@ -463,10 +549,14 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                <label
+                  htmlFor="template-line-spacing"
+                  className="block text-[11px] font-medium text-neutral-600 mb-1"
+                >
                   Entrelinha (Espaçamento)
                 </label>
                 <select
+                  id="template-line-spacing"
                   value={config.lineSpacing}
                   onChange={(e) =>
                     updateField('lineSpacing', e.target.value as TemplateConfig['lineSpacing'])
@@ -480,10 +570,14 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                <label
+                  htmlFor="template-columns"
+                  className="block text-[11px] font-medium text-neutral-600 mb-1"
+                >
                   Colunas do Texto
                 </label>
                 <select
+                  id="template-columns"
                   value={config.columns}
                   onChange={(e) =>
                     updateField('columns', Number(e.target.value) as TemplateConfig['columns'])
@@ -495,6 +589,52 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                 </select>
               </div>
             </div>
+
+            {config.fontFamily === 'custom' ? (
+              <div className="mt-3 p-3 rounded-xl bg-neutral-50 border border-neutral-200 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label
+                    htmlFor="template-custom-font-name"
+                    className="block text-[11px] font-semibold text-neutral-700"
+                  >
+                    Nome da Fonte Externa (Google Fonts / Fontsource CDN)
+                  </label>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
+                    Sob Demanda via jsDelivr
+                  </span>
+                </div>
+                <input
+                  id="template-custom-font-name"
+                  type="text"
+                  value={config.customFontFamily || ''}
+                  onChange={(e) => updateField('customFontFamily', e.target.value)}
+                  placeholder="Ex: Open Sans, Source Serif 4, Merriweather, PT Serif"
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-emerald-600"
+                />
+                {isCustomFontInvalid ? (
+                  <p className="text-[10px] text-red-600">
+                    Use apenas letras, números, espaços ou hífens no nome da fonte.
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-neutral-500">
+                    Baixada em tempo de compilação somente quando escolhida. Se estiver offline ou a fonte não existir no Fontsource, aplica fallback automático para Tinos/Arimo.
+                  </p>
+                )}
+              </div>
+            ) : (
+              selectedFontEntry && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[11px] text-neutral-500">
+                  <span className="px-1.5 py-0.5 rounded bg-neutral-100 border border-neutral-200 font-semibold text-neutral-700 text-[10px]">
+                    {selectedFontEntry.badge}
+                  </span>
+                  <span>
+                    {selectedFontEntry.description}
+                    {selectedFontEntry.source === 'cdn' &&
+                      ' Carregada sob demanda via CDN com fallback offline.'}
+                  </span>
+                </div>
+              )
+            )}
           </div>
 
           {/* 4. Margens e Recuo de Parágrafo */}
@@ -578,51 +718,156 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
             </div>
           </div>
 
-          {/* 5. Estilo de Citações e Referências */}
-          <div className="border-t border-neutral-200 pt-5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-3">
-              5. Estilo de Citações e Lista de Referências
+          {/* 5. Central Universal de Citações e Referências */}
+          <div className="border-t border-neutral-200 pt-5 space-y-3.5">
+            <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-neutral-500">
+              <Quote className="w-3.5 h-3.5 text-emerald-600" />
+              5. Central de Citações e Lista de Referências
             </label>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                  Caixa do Autor nas Citações entre Parênteses
+                <label
+                  htmlFor="template-citation-format"
+                  className="block text-[11px] font-medium text-neutral-600 mb-1"
+                >
+                  Formato da Chamada no Texto
                 </label>
                 <select
-                  value={config.citationStyle}
-                  onChange={(e) =>
-                    updateField(
-                      'citationStyle',
-                      e.target.value as TemplateConfig['citationStyle'],
-                    )
-                  }
+                  id="template-citation-format"
+                  value={effectiveCitationFormat}
+                  onChange={(e) => handleCitationFormatChange(e.target.value as CitationFormat)}
                   className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
                 >
-                  <option value="uppercase">MAIÚSCULAS: (SILVA, 2023) [NBR 10520:2002]</option>
-                  <option value="titlecase">
-                    Inicial Maiúscula: (Silva, 2023) [NBR 10520:2023]
+                  <option value="abnt_upper">
+                    ABNT Maiúsculas: (SILVA, 2023) [NBR 10520:2002]
+                  </option>
+                  <option value="abnt_titlecase">
+                    ABNT Caixa Mista: (Silva, 2023) [NBR 10520:2023]
+                  </option>
+                  <option value="ieee_numeric">
+                    Numérico Colchetes: [1] (IEEE / Vancouver)
+                  </option>
+                  <option value="superscript">
+                    Sobrescrito Numérico: ¹ (Nature / ABNT Numérico)
+                  </option>
+                  <option value="author_date">
+                    Autor-Data Internacional: (Silva, 2023) [APA 7ª]
                   </option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                  Destaque dos Títulos nas Referências Finais
+                <label
+                  htmlFor="template-reference-highlight"
+                  className="block text-[11px] font-medium text-neutral-600 mb-1"
+                >
+                  Destaque dos Títulos nas Referências
                 </label>
                 <select
+                  id="template-reference-highlight"
                   value={config.referenceHighlight}
                   onChange={(e) =>
-                    updateField(
-                      'referenceHighlight',
-                      e.target.value as TemplateConfig['referenceHighlight'],
-                    )
+                    updateField('referenceHighlight', e.target.value as ReferenceHighlight)
                   }
                   className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
                 >
                   <option value="bold">Negrito (Padrão ABNT NBR 6023)</option>
-                  <option value="italic">Itálico (Costume de algumas universidades / APA)</option>
+                  <option value="italic">Itálico (APA / Periódicos Internacionais)</option>
+                  <option value="underline">Sublinhado (Clássico)</option>
+                  <option value="none">Sem destaque (Texto simples)</option>
                 </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="template-reference-alignment"
+                  className="block text-[11px] font-medium text-neutral-600 mb-1"
+                >
+                  Alinhamento da Lista de Referências
+                </label>
+                <select
+                  id="template-reference-alignment"
+                  value={effectiveAlignment}
+                  onChange={(e) =>
+                    updateField('referenceAlignment', e.target.value as ReferenceAlignment)
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+                >
+                  <option value="left">Alinhada à Esquerda (Padrão ABNT / Sem Justificar)</option>
+                  <option value="justify">Justificada (Margens Simétricas)</option>
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="template-reference-spacing"
+                  className="block text-[11px] font-medium text-neutral-600 mb-1"
+                >
+                  Espaçamento entre Referências
+                </label>
+                <select
+                  id="template-reference-spacing"
+                  value={effectiveSpacing}
+                  onChange={(e) =>
+                    updateField('referenceSpacing', e.target.value as ReferenceSpacing)
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+                >
+                  <option value="single_blank">
+                    Espaço Simples em Branco (Padrão ABNT NBR 6023)
+                  </option>
+                  <option value="compact">Compacto (IEEE / Artigos 2 Colunas / Pôster)</option>
+                  <option value="double">Duplo (APA 7ª / Teses Espaçadas)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Prévia Instantânea */}
+            <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                  Prévia Instantânea de Citação &amp; Referência
+                </span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
+                  {effectiveAlignment === 'justify' ? 'Justificada' : 'Alinhada à Esquerda'} •{' '}
+                  {effectiveSpacing === 'compact'
+                    ? 'Espaço Compacto'
+                    : effectiveSpacing === 'double'
+                      ? 'Espaço Duplo'
+                      : 'Espaço Simples ABNT'}
+                </span>
+              </div>
+              <p className="text-xs text-neutral-700 leading-relaxed">
+                <strong>No texto:</strong> A arquitetura modular reduz o acoplamento entre módulos{' '}
+                <span className="font-semibold text-emerald-700">
+                  {effectiveCitationFormat === 'superscript' ? <sup>1</sup> : sampleInlineCall}
+                </span>
+                .
+              </p>
+              <div
+                className={`text-[11px] text-neutral-600 pt-2 border-t border-neutral-200 ${
+                  effectiveAlignment === 'justify' ? 'text-justify' : 'text-left'
+                }`}
+              >
+                <span className="font-semibold text-neutral-500 mr-1">Na bibliografia:</span>
+                {effectiveCitationFormat === 'ieee_numeric' && '[1] '}
+                {effectiveCitationFormat === 'superscript' && <sup className="mr-0.5">1</sup>}
+                SILVA, Roberto.{' '}
+                <span
+                  className={
+                    config.referenceHighlight === 'bold'
+                      ? 'font-bold text-neutral-900'
+                      : config.referenceHighlight === 'italic'
+                        ? 'italic text-neutral-900'
+                        : config.referenceHighlight === 'underline'
+                          ? 'underline text-neutral-900'
+                          : 'text-neutral-900'
+                  }
+                >
+                  Engenharia de Software Moderna e Boas Práticas
+                </span>
+                . São Paulo: Editora Acadêmica, 2023.
               </div>
             </div>
           </div>

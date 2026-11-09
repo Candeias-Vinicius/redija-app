@@ -13,7 +13,16 @@ import {
   ProjectTemplateType,
   NormPresetId,
   SidebarConfig,
+  FontFamilyId,
+  CitationFormat,
+  ReferenceHighlight,
+  ReferenceAlignment,
+  ReferenceSpacing,
 } from '@/types/document';
+import {
+  VALID_FONT_FAMILY_IDS,
+  sanitizeCustomFontFamily,
+} from '@/core/typst/fontCatalog';
 
 /**
  * Normaliza e valida um objeto desconhecido para o schema DocumentProject estrito.
@@ -134,13 +143,74 @@ export function normalizeProject(raw: unknown): DocumentProject {
     'custom',
   ];
 
+  const validCitationFormats: CitationFormat[] = [
+    'abnt_upper',
+    'abnt_titlecase',
+    'ieee_numeric',
+    'superscript',
+    'author_date',
+  ];
+  const validHighlights: ReferenceHighlight[] = ['bold', 'italic', 'underline', 'none'];
+  const validAlignments: ReferenceAlignment[] = ['left', 'justify'];
+  const validSpacings: ReferenceSpacing[] = ['single_blank', 'compact', 'double'];
+
+  const sanitizedPreset: NormPresetId =
+    typeof rawConfig.preset === 'string' && validPresets.includes(rawConfig.preset as NormPresetId)
+      ? (rawConfig.preset as NormPresetId)
+      : DEFAULT_TEMPLATE_CONFIG.preset;
+
+  const sanitizedFontFamily: FontFamilyId =
+    typeof rawConfig.fontFamily === 'string' &&
+    VALID_FONT_FAMILY_IDS.has(rawConfig.fontFamily as FontFamilyId)
+      ? (rawConfig.fontFamily as FontFamilyId)
+      : DEFAULT_TEMPLATE_CONFIG.fontFamily;
+
+  const sanitizedCustomFont = sanitizeCustomFontFamily(
+    typeof rawConfig.customFontFamily === 'string' ? rawConfig.customFontFamily : undefined,
+  );
+
+  const sanitizedCitationFormat: CitationFormat =
+    typeof rawConfig.citationFormat === 'string' &&
+    validCitationFormats.includes(rawConfig.citationFormat as CitationFormat)
+      ? (rawConfig.citationFormat as CitationFormat)
+      : rawConfig.citationStyle === 'titlecase'
+        ? 'abnt_titlecase'
+        : sanitizedPreset === 'ieee'
+          ? 'ieee_numeric'
+          : 'abnt_upper';
+
+  const sanitizedCitationStyle: 'uppercase' | 'titlecase' =
+    rawConfig.citationStyle === 'titlecase'
+      ? 'titlecase'
+      : rawConfig.citationStyle === 'uppercase'
+        ? 'uppercase'
+        : sanitizedCitationFormat === 'abnt_titlecase' || sanitizedCitationFormat === 'author_date'
+          ? 'titlecase'
+          : 'uppercase';
+
+  const sanitizedHighlight: ReferenceHighlight =
+    typeof rawConfig.referenceHighlight === 'string' &&
+    validHighlights.includes(rawConfig.referenceHighlight as ReferenceHighlight)
+      ? (rawConfig.referenceHighlight as ReferenceHighlight)
+      : DEFAULT_TEMPLATE_CONFIG.referenceHighlight;
+
+  const sanitizedAlignment: ReferenceAlignment =
+    typeof rawConfig.referenceAlignment === 'string' &&
+    validAlignments.includes(rawConfig.referenceAlignment as ReferenceAlignment)
+      ? (rawConfig.referenceAlignment as ReferenceAlignment)
+      : (DEFAULT_TEMPLATE_CONFIG.referenceAlignment ?? 'left');
+
+  const sanitizedSpacing: ReferenceSpacing =
+    typeof rawConfig.referenceSpacing === 'string' &&
+    validSpacings.includes(rawConfig.referenceSpacing as ReferenceSpacing)
+      ? (rawConfig.referenceSpacing as ReferenceSpacing)
+      : (DEFAULT_TEMPLATE_CONFIG.referenceSpacing ?? 'single_blank');
+
   const templateConfig: TemplateConfig = {
     ...DEFAULT_TEMPLATE_CONFIG,
-    preset:
-      typeof rawConfig.preset === 'string' && validPresets.includes(rawConfig.preset as NormPresetId)
-        ? (rawConfig.preset as NormPresetId)
-        : DEFAULT_TEMPLATE_CONFIG.preset,
-    fontFamily: rawConfig.fontFamily === 'sans' ? 'sans' : 'serif',
+    preset: sanitizedPreset,
+    fontFamily: sanitizedFontFamily,
+    ...(sanitizedCustomFont ? { customFontFamily: sanitizedCustomFont } : {}),
     fontSizePt:
       rawConfig.fontSizePt === 10 || rawConfig.fontSizePt === 11 || rawConfig.fontSizePt === 12
         ? rawConfig.fontSizePt
@@ -182,8 +252,11 @@ export function normalizeProject(raw: unknown): DocumentProject {
       typeof rawConfig.includeToc === 'boolean'
         ? rawConfig.includeToc
         : DEFAULT_TEMPLATE_CONFIG.includeToc,
-    citationStyle: rawConfig.citationStyle === 'titlecase' ? 'titlecase' : 'uppercase',
-    referenceHighlight: rawConfig.referenceHighlight === 'italic' ? 'italic' : 'bold',
+    citationStyle: sanitizedCitationStyle,
+    citationFormat: sanitizedCitationFormat,
+    referenceHighlight: sanitizedHighlight,
+    referenceAlignment: sanitizedAlignment,
+    referenceSpacing: sanitizedSpacing,
     posterDimensions:
       rawConfig.posterDimensions === 'a1' || rawConfig.posterDimensions === 'a2'
         ? rawConfig.posterDimensions
@@ -325,13 +398,20 @@ export function normalizeProject(raw: unknown): DocumentProject {
   let sidebarConfig: SidebarConfig | undefined = undefined;
   if (data.sidebarConfig && typeof data.sidebarConfig === 'object') {
     const rawSb = data.sidebarConfig as Record<string, unknown>;
+    const sanitizedEnabled = Array.isArray(rawSb.enabledFieldIds)
+      ? rawSb.enabledFieldIds
+          .filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+          .map((f) => f.trim())
+      : undefined;
+    const sanitizedHidden = Array.isArray(rawSb.hiddenFieldIds)
+      ? rawSb.hiddenFieldIds
+          .filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+          .map((f) => f.trim())
+      : undefined;
     sidebarConfig = {
       isCustomized: Boolean(rawSb.isCustomized),
-      hiddenFieldIds: Array.isArray(rawSb.hiddenFieldIds)
-        ? rawSb.hiddenFieldIds
-            .filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
-            .map((f) => f.trim())
-        : undefined,
+      ...(sanitizedEnabled ? { enabledFieldIds: sanitizedEnabled } : {}),
+      ...(sanitizedHidden ? { hiddenFieldIds: sanitizedHidden } : {}),
     };
   }
 

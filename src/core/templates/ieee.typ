@@ -9,7 +9,7 @@
 #let entrelinha-ieee = 0.48em
 
 // Citação direta adaptada ao padrão IEEE
-#let citacao(referencia: none, corpo) = block(
+#let citacao(referencia: none, parenteses: false, corpo) = block(
   inset: (left: 1.5cm),
   above: 0.8em,
   below: 0.8em,
@@ -18,7 +18,9 @@
     set text(size: 9pt)
     set par(leading: entrelinha-ieee, first-line-indent: 0pt, justify: true)
     corpo
-    if referencia != none [ #referencia]
+    if referencia != none {
+      if parenteses [ (#referencia)] else [ #referencia]
+    }
   },
 )
 
@@ -61,24 +63,46 @@
   },
 )
 
-// Lista de referências estilo IEEE com enumeração [1], [2]
-#let referencias(..itens) = {
+// Lista de referências estilo IEEE com enumeração configurável
+#let referencias(
+  alinhamento: "left",
+  espacamento: 0.4em,
+  numeracao: "bracket",
+  ..itens
+) = {
   v(1.2em, weak: true)
   align(center)[
     #text(size: 10pt)[#smallcaps[References]]
   ]
-  set par(justify: true, first-line-indent: 0pt, leading: entrelinha-ieee)
+  set par(
+    justify: alinhamento == "justify",
+    first-line-indent: 0pt,
+    leading: entrelinha-ieee,
+  )
   set text(size: 9pt)
   let idx = 1
   for item in itens.pos() {
-    grid(
-      columns: (1.5em, 1fr),
-      gutter: 0.3em,
-      align: (left, left),
-      [[#idx]],
-      [#item]
-    )
-    v(0.4em)
+    if numeracao == "bracket" {
+      grid(
+        columns: (1.5em, 1fr),
+        gutter: 0.3em,
+        align: (left, left),
+        [[#idx]],
+        [#item],
+      )
+      v(espacamento)
+    } else if numeracao == "dot" {
+      grid(
+        columns: (1.5em, 1fr),
+        gutter: 0.3em,
+        align: (left, left),
+        [#idx.],
+        [#item],
+      )
+      v(espacamento)
+    } else {
+      block(above: 0pt, below: espacamento, item)
+    }
     idx = idx + 1
   }
 }
@@ -104,7 +128,15 @@
 ) = {
   set document(title: titulo, author: autor)
 
-  let familia-fonte = if fonte == "sans" { fontes-sem-serifa } else { fontes-serifadas }
+  let familia-fonte = if type(fonte) == array {
+    fonte
+  } else if fonte == "sans" {
+    fontes-sem-serifa
+  } else if fonte == "serif" {
+    fontes-serifadas
+  } else {
+    (fonte, ..fontes-serifadas)
+  }
 
   // Normas IEEE: Margens top 1.9cm, bottom 2.54cm, laterais 1.57cm
   set page(

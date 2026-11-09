@@ -1,18 +1,29 @@
 import React, { useState, useMemo } from 'react';
-import { DocumentMetadata, AcademicReference, DocumentProject } from '@/types/document';
+import {
+  DocumentMetadata,
+  AcademicReference,
+  DocumentProject,
+  SidebarConfig,
+} from '@/types/document';
 import {
   countWords,
-  runAbntLinter,
   formatShortCitation,
   exportToBibtex,
+  getReferenceIndexMap,
+  resolveCitationFormat,
 } from '@/core/transpiler/abntLinter';
+import { runDocumentLinter } from '@/core/transpiler/linters';
 import {
   getTemplateCapabilities,
   getPreservedHiddenFields,
   IdentificacaoFieldId,
+  PreTextualFieldId,
+  PosTextualFieldId,
+  ContextualGuideMode,
 } from '@/core/templates/templateCapabilities';
 import { SidebarLinterSection } from './sidebar/SidebarLinterSection';
 import { SidebarPreservedFieldsSection } from './sidebar/SidebarPreservedFieldsSection';
+import { SidebarFieldCustomizerModal } from './sidebar/SidebarFieldCustomizerModal';
 import {
   BookOpen,
   Building,
@@ -27,6 +38,7 @@ import {
   Search,
   Download,
   Sliders,
+  SlidersHorizontal,
   Pencil,
   PanelLeftClose,
   Palette,
@@ -38,11 +50,13 @@ interface SidebarProps {
   project: DocumentProject;
   metadata: DocumentMetadata;
   onChangeMetadata: (meta: DocumentMetadata) => void;
+  onChangeSidebarConfig?: (sidebarConfig?: SidebarConfig) => void;
   references: AcademicReference[];
   onOpenReferenceModal: () => void;
   onEditReference?: (ref: AcademicReference) => void;
   onOpenTemplateCustomizer?: () => void;
   onOpenAbntGuide?: () => void;
+  onOpenGuide?: (mode: ContextualGuideMode) => void;
   onRemoveReference: (id: string) => void;
   onMinimize?: () => void;
 }
@@ -52,11 +66,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   project,
   metadata,
   onChangeMetadata,
+  onChangeSidebarConfig,
   references,
   onOpenReferenceModal,
   onEditReference,
   onOpenTemplateCustomizer,
   onOpenAbntGuide,
+  onOpenGuide,
   onRemoveReference,
   onMinimize,
 }) => {
@@ -68,6 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [copiedRefId, setCopiedRefId] = useState<string | null>(null);
   const [refSearchQuery, setRefSearchQuery] = useState('');
   const [refTypeFilter, setRefTypeFilter] = useState<string>('all');
+  const [isFieldCustomizerOpen, setIsFieldCustomizerOpen] = useState(false);
 
   const updateField = <K extends keyof DocumentMetadata>(
     field: K,
@@ -83,24 +100,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
   );
   const hasIdentField = (fieldId: IdentificacaoFieldId) =>
     capabilities.identificacaoFields.includes(fieldId);
+  const hasPreField = (fieldId: PreTextualFieldId) =>
+    capabilities.preTextualFields.includes(fieldId);
+  const hasPosField = (fieldId: PosTextualFieldId) =>
+    capabilities.posTextualFields.includes(fieldId);
 
   const abstractWordCount = useMemo(() => countWords(metadata.abstract), [metadata.abstract]);
-  const isArticleLength =
-    capabilities.effectiveType === 'artigo' || capabilities.effectiveType === 'sbc';
-  const abstractMin = isArticleLength ? 100 : 150;
-  const abstractMax = isArticleLength ? 250 : 500;
+  const abstractMin =
+    capabilities.effectiveType === 'sbc'
+      ? 50
+      : capabilities.effectiveType === 'artigo' || capabilities.effectiveType === 'ieee'
+        ? 100
+        : 150;
+  const abstractMax =
+    capabilities.effectiveType === 'sbc'
+      ? 200
+      : capabilities.effectiveType === 'artigo' || capabilities.effectiveType === 'ieee'
+        ? 250
+        : 500;
   const isAbstractCountIdeal = abstractWordCount >= abstractMin && abstractWordCount <= abstractMax;
 
-  const warnings = useMemo(
-    () => (capabilities.showAbntLinter ? runAbntLinter(project) : []),
-    [project, capabilities.showAbntLinter],
+  const citationFormat = resolveCitationFormat(project.templateConfig);
+  const refIndexMap = useMemo(() => getReferenceIndexMap(references), [references]);
+
+  const lintReport = useMemo(
+    () => runDocumentLinter(project, capabilities),
+    [project, capabilities],
   );
 
   const handleCopyCitation = (ref: AcademicReference) => {
-    const citation = formatShortCitation(
-      ref,
-      project.templateConfig?.citationStyle ?? 'uppercase',
-    );
+    const citation = formatShortCitation(ref, {
+      format: citationFormat,
+      refNumber: refIndexMap.get(ref.id),
+    });
     navigator.clipboard.writeText(citation);
     setCopiedRefId(ref.id);
     setTimeout(() => setCopiedRefId(null), 1800);
@@ -148,43 +180,55 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside
-      style={{ width: `${widthPx}px` }}
-      className="shrink-0 border-r border-neutral-200 bg-white flex flex-col h-full overflow-y-auto"
-    >
-      <div className="p-3.5 border-b border-neutral-100 flex items-start justify-between gap-2 sticky top-0 bg-white z-10">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-              {capabilities.headerTitle}
-            </h2>
-            <span
-              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${
-                capabilities.isModified
-                  ? 'bg-amber-50 text-amber-800 border-amber-200'
-                  : capabilities.isAbntFamily
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-neutral-100 text-neutral-700 border-neutral-200'
-              }`}
-            >
-              {capabilities.badgeLabel}
-            </span>
+    <>
+      <aside
+        style={{ width: `${widthPx}px` }}
+        className="shrink-0 border-r border-neutral-200 bg-white flex flex-col h-full overflow-y-auto"
+      >
+        <div className="p-3.5 border-b border-neutral-100 flex items-start justify-between gap-2 sticky top-0 bg-white z-10">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                {capabilities.headerTitle}
+              </h2>
+              <span
+                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${
+                  capabilities.isModified
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : capabilities.isAbntFamily
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-neutral-100 text-neutral-700 border-neutral-200'
+                }`}
+              >
+                {capabilities.badgeLabel}
+              </span>
+            </div>
+            <p className="text-[11px] text-neutral-500 mt-0.5">
+              {capabilities.headerSubtitle}
+            </p>
+            {onChangeSidebarConfig && (
+              <button
+                type="button"
+                onClick={() => setIsFieldCustomizerOpen(true)}
+                className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-emerald-50 hover:border-emerald-300 text-[10px] font-medium text-neutral-600 hover:text-emerald-700 transition-colors"
+                title="Escolher quais campos de metadados ficam visíveis nesta barra lateral"
+              >
+                <SlidersHorizontal className="w-3 h-3 text-emerald-600" />
+                <span>Personalizar Campos</span>
+              </button>
+            )}
           </div>
-          <p className="text-[11px] text-neutral-500 mt-0.5">
-            {capabilities.headerSubtitle}
-          </p>
+          {onMinimize && (
+            <button
+              type="button"
+              onClick={onMinimize}
+              className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors shrink-0"
+              title="Minimizar aba lateral esquerda"
+            >
+              <PanelLeftClose className="w-4 h-4" />
+            </button>
+          )}
         </div>
-        {onMinimize && (
-          <button
-            type="button"
-            onClick={onMinimize}
-            className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors shrink-0"
-            title="Minimizar aba lateral esquerda"
-          >
-            <PanelLeftClose className="w-4 h-4" />
-          </button>
-        )}
-      </div>
 
       <div className="divide-y divide-neutral-100 flex-1 pb-12">
         {/* Seção de Identificação / Capa e Folha de Rosto */}
@@ -422,150 +466,175 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {openPreTextual && (
               <div className="space-y-3 mt-2.5 pl-2 text-xs">
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-2 cursor-pointer text-neutral-700 font-medium">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(metadata.includeApprovalPage)}
-                      onChange={(e) => updateField('includeApprovalPage', e.target.checked)}
-                      className="rounded text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span>Incluir Folha de Aprovação (Banca Examinadora)</span>
-                  </label>
-
-                  {metadata.includeApprovalPage && (
-                    <div className="p-2.5 rounded-lg bg-neutral-50 border border-neutral-200 space-y-2 my-1">
-                      <div>
-                        <label className="text-[10px] font-medium text-neutral-500 block mb-0.5">
-                          Data de Aprovação (deixe em branco p/ linha de preenchimento)
+                {(hasPreField('includeApprovalPage') ||
+                  hasPreField('includeFiguresList') ||
+                  hasPreField('includeBoxesList') ||
+                  hasPreField('includeTablesList')) && (
+                  <div className="space-y-1.5">
+                    {hasPreField('includeApprovalPage') && (
+                      <>
+                        <label className="flex items-center gap-2 cursor-pointer text-neutral-700 font-medium">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(metadata.includeApprovalPage)}
+                            onChange={(e) => updateField('includeApprovalPage', e.target.checked)}
+                            className="rounded text-emerald-600 focus:ring-emerald-500"
+                          />
+                          <span>Incluir Folha de Aprovação (Banca Examinadora)</span>
                         </label>
+
+                        {metadata.includeApprovalPage && (
+                          <div className="p-2.5 rounded-lg bg-neutral-50 border border-neutral-200 space-y-2 my-1">
+                            <div>
+                              <label className="text-[10px] font-medium text-neutral-500 block mb-0.5">
+                                Data de Aprovação (deixe em branco p/ linha de preenchimento)
+                              </label>
+                              <input
+                                type="text"
+                                value={metadata.approvalDate || ''}
+                                onChange={(e) => updateField('approvalDate', e.target.value)}
+                                placeholder="Ex: 10 de dezembro de 2026"
+                                className="w-full text-xs px-2 py-1 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-medium text-neutral-500 block mb-0.5">
+                                Membros da Banca Examinadora (1 por linha)
+                              </label>
+                              <textarea
+                                rows={3}
+                                value={(metadata.committeeMembers ?? []).join('\n')}
+                                onChange={(e) =>
+                                  updateField('committeeMembers', e.target.value.split('\n'))
+                                }
+                                placeholder={'Prof. Dr. Carlos Eduardo (Convidado)\nProfa. Dra. Ana Beatriz (Avaliadora)'}
+                                className="w-full text-xs p-2 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {hasPreField('includeFiguresList') && (
+                      <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
                         <input
-                          type="text"
-                          value={metadata.approvalDate || ''}
-                          onChange={(e) => updateField('approvalDate', e.target.value)}
-                          placeholder="Ex: 10 de dezembro de 2026"
-                          className="w-full text-xs px-2 py-1 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+                          type="checkbox"
+                          checked={Boolean(metadata.includeFiguresList)}
+                          onChange={(e) => updateField('includeFiguresList', e.target.checked)}
+                          className="rounded text-emerald-600 focus:ring-emerald-500"
                         />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-medium text-neutral-500 block mb-0.5">
-                          Membros da Banca Examinadora (1 por linha)
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={(metadata.committeeMembers ?? []).join('\n')}
-                          onChange={(e) =>
-                            updateField('committeeMembers', e.target.value.split('\n'))
-                          }
-                          placeholder={'Prof. Dr. Carlos Eduardo (Convidado)\nProfa. Dra. Ana Beatriz (Avaliadora)'}
-                          className="w-full text-xs p-2 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+                        <span>Gerar Lista de Ilustrações automática</span>
+                      </label>
+                    )}
+
+                    {hasPreField('includeBoxesList') && (
+                      <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(metadata.includeBoxesList)}
+                          onChange={(e) => updateField('includeBoxesList', e.target.checked)}
+                          className="rounded text-emerald-600 focus:ring-emerald-500"
                         />
-                      </div>
-                    </div>
-                  )}
+                        <span>Gerar Lista de Quadros automática</span>
+                      </label>
+                    )}
 
-                  <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(metadata.includeFiguresList)}
-                      onChange={(e) => updateField('includeFiguresList', e.target.checked)}
-                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    {hasPreField('includeTablesList') && (
+                      <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(metadata.includeTablesList)}
+                          onChange={(e) => updateField('includeTablesList', e.target.checked)}
+                          className="rounded text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span>Gerar Lista de Tabelas automática</span>
+                      </label>
+                    )}
+                  </div>
+                )}
+
+                {hasPreField('dedicatory') && (
+                  <div>
+                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                      Dedicatória (Opcional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={metadata.dedicatory || ''}
+                      onChange={(e) => updateField('dedicatory', e.target.value)}
+                      placeholder="Ex: Dedico este trabalho aos meus pais..."
+                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                     />
-                    <span>Gerar Lista de Ilustrações automática</span>
-                  </label>
+                  </div>
+                )}
 
-                  <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(metadata.includeBoxesList)}
-                      onChange={(e) => updateField('includeBoxesList', e.target.checked)}
-                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                {hasPreField('acknowledgments') && (
+                  <div>
+                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                      Agradecimentos (Opcional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={metadata.acknowledgments || ''}
+                      onChange={(e) => updateField('acknowledgments', e.target.value)}
+                      placeholder="Texto de agradecimentos..."
+                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                     />
-                    <span>Gerar Lista de Quadros automática</span>
-                  </label>
+                  </div>
+                )}
 
-                  <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(metadata.includeTablesList)}
-                      onChange={(e) => updateField('includeTablesList', e.target.checked)}
-                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                {hasPreField('epigraph') && (
+                  <div>
+                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                      Epígrafe (Opcional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={metadata.epigraph || ''}
+                      onChange={(e) => updateField('epigraph', e.target.value)}
+                      placeholder="Citação filosófica ou epígrafe..."
+                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600 mb-1"
                     />
-                    <span>Gerar Lista de Tabelas automática</span>
-                  </label>
-                </div>
+                    <input
+                      type="text"
+                      value={metadata.epigraphAuthor || ''}
+                      onChange={(e) => updateField('epigraphAuthor', e.target.value)}
+                      placeholder="Autor da epígrafe (ex: Carl Sagan)"
+                      className="w-full text-xs px-2 py-1 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                )}
 
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Dedicatória (Opcional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={metadata.dedicatory || ''}
-                    onChange={(e) => updateField('dedicatory', e.target.value)}
-                    placeholder="Ex: Dedico este trabalho aos meus pais..."
-                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  />
-                </div>
+                {hasPreField('abbreviations') && (
+                  <div>
+                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                      Lista de Abreviaturas e Siglas (Opcional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={metadata.abbreviations || ''}
+                      onChange={(e) => updateField('abbreviations', e.target.value)}
+                      placeholder="Ex: ABNT: Associação Brasileira de Normas Técnicas&#10;IBGE: Instituto Brasileiro de Geografia e Estatística"
+                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                )}
 
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Agradecimentos (Opcional)
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={metadata.acknowledgments || ''}
-                    onChange={(e) => updateField('acknowledgments', e.target.value)}
-                    placeholder="Texto de agradecimentos..."
-                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Epígrafe (Opcional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={metadata.epigraph || ''}
-                    onChange={(e) => updateField('epigraph', e.target.value)}
-                    placeholder="Citação filosófica ou epígrafe..."
-                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600 mb-1"
-                  />
-                  <input
-                    type="text"
-                    value={metadata.epigraphAuthor || ''}
-                    onChange={(e) => updateField('epigraphAuthor', e.target.value)}
-                    placeholder="Autor da epígrafe (ex: Carl Sagan)"
-                    className="w-full text-xs px-2 py-1 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Lista de Abreviaturas e Siglas (Opcional)
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={metadata.abbreviations || ''}
-                    onChange={(e) => updateField('abbreviations', e.target.value)}
-                    placeholder="Ex: ABNT: Associação Brasileira de Normas Técnicas&#10;IBGE: Instituto Brasileiro de Geografia e Estatística"
-                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Lista de Símbolos (Opcional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={metadata.symbols || ''}
-                    onChange={(e) => updateField('symbols', e.target.value)}
-                    placeholder="Ex: Ω: Ohm (Resistência elétrica)&#10;λ: Comprimento de onda"
-                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  />
-                </div>
+                {hasPreField('symbols') && (
+                  <div>
+                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                      Lista de Símbolos (Opcional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={metadata.symbols || ''}
+                      onChange={(e) => updateField('symbols', e.target.value)}
+                      placeholder="Ex: Ω: Ohm (Resistência elétrica)&#10;λ: Comprimento de onda"
+                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -601,14 +670,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <label className="text-[11px] font-medium text-neutral-500">
                         {capabilities.effectiveType === 'ieee' ? 'Abstract' : 'Resumo em Português'}
                       </label>
-                      {capabilities.isAbntFamily ? (
+                      {capabilities.isAbntFamily ||
+                      capabilities.effectiveType === 'sbc' ||
+                      capabilities.effectiveType === 'ieee' ? (
                         <span
                           className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
                             isAbstractCountIdeal
                               ? 'bg-emerald-50 text-emerald-700'
                               : 'bg-amber-50 text-amber-700'
                           }`}
-                          title={`A NBR 6028 recomenda entre ${abstractMin} e ${abstractMax} palavras`}
+                          title={`Recomendação do modelo: entre ${abstractMin} e ${abstractMax} palavras`}
                         >
                           {abstractWordCount} / {abstractMin}–{abstractMax} palavras
                         </span>
@@ -786,10 +857,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               ) : (
                 <div className="space-y-2 max-h-80 overflow-y-auto pr-0.5">
                   {filteredReferences.map((ref) => {
-                    const shortCite = formatShortCitation(
-                      ref,
-                      project.templateConfig?.citationStyle ?? 'uppercase',
-                    );
+                    const shortCite = formatShortCitation(ref, {
+                      format: citationFormat,
+                      refNumber: refIndexMap.get(ref.id),
+                    });
                     return (
                       <div
                         key={ref.id}
@@ -890,44 +961,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {openPosTextual && (
               <div className="space-y-3 mt-2.5 pl-2 text-xs">
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Glossário (Definição de termos técnicos, Opcional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={metadata.glossary || ''}
-                    onChange={(e) => updateField('glossary', e.target.value)}
-                    placeholder="Ex: WebAssembly: Formato de instrução binária para execução na web..."
-                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  />
-                </div>
+                {hasPosField('glossary') && (
+                  <div>
+                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                      Glossário (Definição de termos técnicos, Opcional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={metadata.glossary || ''}
+                      onChange={(e) => updateField('glossary', e.target.value)}
+                      placeholder="Ex: WebAssembly: Formato de instrução binária para execução na web..."
+                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                )}
 
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Apêndices (Elaborados pelo autor, Opcional)
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={metadata.appendices || ''}
-                    onChange={(e) => updateField('appendices', e.target.value)}
-                    placeholder="Ex: APÊNDICE A - Questionário aplicado aos participantes..."
-                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  />
-                </div>
+                {hasPosField('appendices') && (
+                  <div>
+                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                      Apêndices (Elaborados pelo autor, Opcional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={metadata.appendices || ''}
+                      onChange={(e) => updateField('appendices', e.target.value)}
+                      placeholder="Ex: APÊNDICE A - Questionário aplicado aos participantes..."
+                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                )}
 
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Anexos (Documentos de terceiros, Opcional)
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={metadata.annexes || ''}
-                    onChange={(e) => updateField('annexes', e.target.value)}
-                    placeholder="Ex: ANEXO A - Parecer do Comitê de Ética..."
-                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  />
-                </div>
+                {hasPosField('annexes') && (
+                  <div>
+                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                      Anexos (Documentos de terceiros, Opcional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={metadata.annexes || ''}
+                      onChange={(e) => updateField('annexes', e.target.value)}
+                      placeholder="Ex: ANEXO A - Parecer do Comitê de Ética..."
+                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -939,13 +1016,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
           templateBadgeLabel={capabilities.badgeLabel}
         />
 
-        {/* Verificador Normativo & Guia Contextual */}
+        {/* Verificador Normativo Plural & Guia Contextual */}
         <SidebarLinterSection
           capabilities={capabilities}
-          warnings={warnings}
-          onOpenAbntGuide={onOpenAbntGuide}
+          lintReport={lintReport}
+          onOpenGuide={
+            onOpenGuide ?? (onOpenAbntGuide ? () => onOpenAbntGuide() : undefined)
+          }
         />
       </div>
-    </aside>
+      </aside>
+
+      {onChangeSidebarConfig && (
+        <SidebarFieldCustomizerModal
+          isOpen={isFieldCustomizerOpen}
+          onClose={() => setIsFieldCustomizerOpen(false)}
+          capabilities={capabilities}
+          onSave={onChangeSidebarConfig}
+        />
+      )}
+    </>
   );
 };

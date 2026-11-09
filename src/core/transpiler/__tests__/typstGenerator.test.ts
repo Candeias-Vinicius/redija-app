@@ -603,4 +603,86 @@ describe('Typst compilation integration', () => {
       expect(mainTyp).not.toContain('#panic("hack")');
     });
   });
+
+  describe('Fases 3–5: Sync Q3 de Campos, Central de Citações/Referências & Fontes', () => {
+    it('suprime campos ocultos do PDF em templates flexíveis (Q3) e compila sem erros', () => {
+      const proj = createSampleProject({
+        metadata: {
+          ...createSampleProject().metadata,
+          dedicatory: 'Aos meus pais.',
+          glossary: 'Typst: Compilador científico.',
+          appendices: 'APÊNDICE A — Código fonte.',
+        },
+        sidebarConfig: {
+          isCustomized: true,
+          hiddenFieldIds: ['dedicatory', 'glossary'],
+        },
+      });
+
+      const { [MAIN_FILE]: mainTyp } = generateTypstFiles(proj);
+      expect(mainTyp).not.toContain('dedicatoria:');
+      expect(mainTyp).not.toContain('GLOSSÁRIO');
+      expect(mainTyp).toContain('APÊNDICES');
+
+      const standalone = generateStandaloneTypst(proj);
+      const compiler = NodeCompiler.create();
+      const compileResult = compiler.compile({ mainFileContent: standalone });
+      expect(compileResult.hasError()).toBe(false);
+    });
+
+    it('emite todos os parâmetros de Central Universal de Referências e Fontes Externas e compila com fallback offline', () => {
+      const proj = createSampleProject({
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'custom',
+          fontFamily: 'inter',
+          citationStyle: 'uppercase',
+          citationFormat: 'ieee_numeric',
+          referenceHighlight: 'underline',
+          referenceAlignment: 'justify',
+          referenceSpacing: 'compact',
+        },
+      });
+
+      const standalone = generateStandaloneTypst(proj);
+      expect(standalone).toContain('fonte: ("Inter", "Arimo", "Liberation Sans")');
+      expect(standalone).toContain('\\[2, p. 42\\]');
+      expect(standalone).toContain('#underline[Engenharia de Software Moderna]');
+      expect(standalone).toContain('alinhamento: "justify"');
+      expect(standalone).toContain('espacamento: 0.5em');
+      expect(standalone).toContain('numeracao: "bracket"');
+
+      const compiler = NodeCompiler.create();
+      const compileResult = compiler.compile({ mainFileContent: standalone });
+      expect(compileResult.hasError()).toBe(false);
+      const pdfBuffer = compiler.pdf(compileResult.result!);
+      expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+    });
+
+    it('compila citação longa sobrescrita e destaque "none" nas referências com segurança', () => {
+      const proj = createSampleProject({
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'custom',
+          fontFamily: 'custom',
+          customFontFamily: 'Open Sans',
+          citationFormat: 'superscript',
+          referenceHighlight: 'none',
+          referenceSpacing: 'double',
+        },
+      });
+
+      const standalone = generateStandaloneTypst(proj);
+      expect(standalone).toContain('fonte: ("Open Sans", "Tinos", "Arimo", "Libertinus Serif")');
+      expect(standalone).toContain('#super[2]');
+      expect(standalone).toContain('espacamento: 1.8em');
+      expect(standalone).toContain('numeracao: "dot"');
+      expect(standalone).not.toContain('#strong[Engenharia de Software Moderna]');
+      expect(standalone).not.toContain('#emph[Engenharia de Software Moderna]');
+
+      const compiler = NodeCompiler.create();
+      const compileResult = compiler.compile({ mainFileContent: standalone });
+      expect(compileResult.hasError()).toBe(false);
+    });
+  });
 });

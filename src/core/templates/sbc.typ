@@ -10,7 +10,7 @@
 #let recuo-paragrafo = 1.25cm
 
 // Citação direta longa
-#let citacao(referencia: none, corpo) = block(
+#let citacao(referencia: none, parenteses: true, corpo) = block(
   inset: (left: 3cm),
   above: 1.2em,
   below: 1.2em,
@@ -19,7 +19,9 @@
     set text(size: 10pt)
     set par(leading: entrelinha-simples, first-line-indent: 0pt, justify: true)
     corpo
-    if referencia != none [ (#referencia)]
+    if referencia != none {
+      if parenteses [ (#referencia)] else [ #referencia]
+    }
   },
 )
 
@@ -68,14 +70,51 @@
   },
 )
 
-// Lista de referências no padrão SBC
-#let referencias(..itens) = {
+// Lista de referências no padrão SBC (configurável)
+#let referencias(
+  alinhamento: "justify",
+  espacamento: 0.8em,
+  numeracao: none,
+  ..itens
+) = {
   v(1.4em, weak: true)
   heading(numbering: none)[Referências]
-  set par(justify: true, first-line-indent: 0pt, leading: entrelinha-simples)
+  set par(
+    justify: alinhamento == "justify",
+    first-line-indent: 0pt,
+    leading: entrelinha-simples,
+  )
   set text(size: 11pt)
+  let idx = 1
   for item in itens.pos() {
-    block(above: 0pt, below: 0.8em, item)
+    if numeracao == "bracket" {
+      block(
+        above: 0pt,
+        below: espacamento,
+        grid(
+          columns: (1.8em, 1fr),
+          gutter: 0.4em,
+          align: (left, left),
+          [[#idx]],
+          [#item],
+        ),
+      )
+    } else if numeracao == "dot" {
+      block(
+        above: 0pt,
+        below: espacamento,
+        grid(
+          columns: (1.8em, 1fr),
+          gutter: 0.4em,
+          align: (left, left),
+          [#idx.],
+          [#item],
+        ),
+      )
+    } else {
+      block(above: 0pt, below: espacamento, item)
+    }
+    idx = idx + 1
   }
 }
 
@@ -100,7 +139,15 @@
 ) = {
   set document(title: titulo, author: autor)
 
-  let familia-fonte = if fonte == "sans" { fontes-sem-serifa } else { fontes-serifadas }
+  let familia-fonte = if type(fonte) == array {
+    fonte
+  } else if fonte == "sans" {
+    fontes-sem-serifa
+  } else if fonte == "serif" {
+    fontes-serifadas
+  } else {
+    (fonte, ..fontes-serifadas)
+  }
 
   // Normas SBC: A4, margem superior 3.5cm, inferior 2.5cm, laterais 3cm
   set page(

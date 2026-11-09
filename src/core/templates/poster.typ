@@ -38,7 +38,7 @@
 )
 
 // Citação no pôster
-#let citacao(referencia: none, corpo) = block(
+#let citacao(referencia: none, parenteses: true, corpo) = block(
   inset: (left: 2cm),
   above: 1em,
   below: 1em,
@@ -46,7 +46,9 @@
   {
     set text(size: 20pt, style: "italic")
     corpo
-    if referencia != none [ (#referencia)]
+    if referencia != none {
+      if parenteses [ (#referencia)] else [ #referencia]
+    }
   },
 )
 
@@ -96,13 +98,50 @@
   },
 )
 
-// Lista de referências compacta para pôster
-#let referencias(..itens) = {
+// Lista de referências compacta para pôster (configurável)
+#let referencias(
+  alinhamento: "justify",
+  espacamento: 0.6em,
+  numeracao: none,
+  ..itens
+) = {
   heading(level: 1)[Referências]
-  set par(justify: true, first-line-indent: 0pt, leading: 0.5em)
+  set par(
+    justify: alinhamento == "justify",
+    first-line-indent: 0pt,
+    leading: 0.5em,
+  )
   set text(size: 16pt)
+  let idx = 1
   for item in itens.pos() {
-    block(above: 0pt, below: 0.6em, item)
+    if numeracao == "bracket" {
+      block(
+        above: 0pt,
+        below: espacamento,
+        grid(
+          columns: (2.2em, 1fr),
+          gutter: 0.4em,
+          align: (left, left),
+          [[#idx]],
+          [#item],
+        ),
+      )
+    } else if numeracao == "dot" {
+      block(
+        above: 0pt,
+        below: espacamento,
+        grid(
+          columns: (2.2em, 1fr),
+          gutter: 0.4em,
+          align: (left, left),
+          [#idx.],
+          [#item],
+        ),
+      )
+    } else {
+      block(above: 0pt, below: espacamento, item)
+    }
+    idx = idx + 1
   }
 }
 
@@ -127,7 +166,15 @@
 ) = {
   set document(title: titulo, author: autor)
 
-  let familia-fonte = if fonte == "serif" { fontes-serifadas } else { fontes-sem-serifa }
+  let familia-fonte = if type(fonte) == array {
+    fonte
+  } else if fonte == "serif" {
+    fontes-serifadas
+  } else if fonte == "sans" {
+    fontes-sem-serifa
+  } else {
+    (fonte, ..fontes-sem-serifa)
+  }
   let colors = tema-cores.at(tema, default: tema-cores.emerald)
 
   let is-clean = tema == "clean"

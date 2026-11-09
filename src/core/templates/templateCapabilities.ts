@@ -3,29 +3,47 @@
 // =====================================================================
 
 import { DocumentMetadata, DocumentProject, ProjectTemplateType } from '@/types/document';
+import {
+  ConfigurableFieldId,
+  IdentificacaoFieldId,
+  METADATA_FIELD_REGISTRY,
+  PosTextualFieldId,
+  PreTextualFieldId,
+  getDefaultFieldIdsForTemplate,
+  resolveVisibleFieldSet,
+} from './fieldRegistry';
 
-export type IdentificacaoFieldId =
-  | 'title'
-  | 'subtitle'
-  | 'author'
-  | 'advisor'
-  | 'coadvisor'
-  | 'nature'
-  | 'institution'
-  | 'course'
-  | 'location'
-  | 'year';
+export type {
+  IdentificacaoFieldId,
+  PreTextualFieldId,
+  PosTextualFieldId,
+  ConfigurableFieldId,
+};
 
 export type LinterStatusMode = 'abnt_active' | 'abnt_modified' | 'non_abnt';
 
+export type ContextualGuideMode = 'abnt' | 'ieee' | 'sbc' | 'poster' | 'general';
+
 export interface TemplateProfile {
   isAbntFamily: boolean;
+  supportsSidebarFieldPdfSync: boolean;
   defaultBadge: string;
   modifiedBadge: string;
   headerTitle: string;
   headerSubtitle: string;
   identificacaoTitle: string;
+}
+
+export interface TemplateCapabilities extends TemplateProfile {
+  effectiveType: ProjectTemplateType;
+  isModified: boolean;
+  isSidebarCustomized: boolean;
+  badgeLabel: string;
+  baseFieldIds: ConfigurableFieldId[];
+  visibleFieldIds: ConfigurableFieldId[];
   identificacaoFields: IdentificacaoFieldId[];
+  preTextualFields: PreTextualFieldId[];
+  posTextualFields: PosTextualFieldId[];
   showPreTextuals: boolean;
   showResumoSection: boolean;
   resumoFields: {
@@ -34,15 +52,11 @@ export interface TemplateProfile {
     foreignAbstract: boolean;
   };
   showPostTextuals: boolean;
-}
-
-export interface TemplateCapabilities extends TemplateProfile {
-  effectiveType: ProjectTemplateType;
-  isModified: boolean;
-  badgeLabel: string;
   showAbntLinter: boolean;
   linterStatusMode: LinterStatusMode;
   showAbntGuide: boolean;
+  guideMode: ContextualGuideMode;
+  guideLabel: string;
 }
 
 export interface PreservedFieldInfo {
@@ -52,150 +66,90 @@ export interface PreservedFieldInfo {
   kind: 'text' | 'boolean' | 'list';
 }
 
-const ALL_IDENTIFICACAO_FIELDS: IdentificacaoFieldId[] = [
-  'title',
-  'subtitle',
-  'author',
-  'advisor',
-  'coadvisor',
-  'nature',
-  'institution',
-  'course',
-  'location',
-  'year',
-];
-
-const ARTICLE_IDENTIFICACAO_FIELDS: IdentificacaoFieldId[] = [
-  'title',
-  'subtitle',
-  'author',
-  'institution',
-  'course',
-  'location',
-  'year',
-];
-
 /**
  * Mapa declarativo de perfis de capacidade por tipo de template (OCP).
- * Alinhado com os parâmetros realmente consumidos pelo transpiler Typst.
  */
 const TEMPLATE_PROFILES: Record<ProjectTemplateType, TemplateProfile> = {
   tcc: {
     isAbntFamily: true,
+    supportsSidebarFieldPdfSync: true,
     defaultBadge: 'NBR 14724',
     modifiedBadge: 'ABNT Modificado',
     headerTitle: 'Estrutura ABNT (NBR 14724)',
     headerSubtitle: 'Capa, pré-textuais, resumo e referências.',
     identificacaoTitle: 'Capa & Folha de Rosto',
-    identificacaoFields: ALL_IDENTIFICACAO_FIELDS,
-    showPreTextuals: true,
-    showResumoSection: true,
-    resumoFields: { resumo: true, keywords: true, foreignAbstract: true },
-    showPostTextuals: true,
   },
   relatorio: {
     isAbntFamily: true,
+    supportsSidebarFieldPdfSync: true,
     defaultBadge: 'NBR 10719',
     modifiedBadge: 'ABNT Modificado',
     headerTitle: 'Relatório Técnico (NBR 10719)',
     headerSubtitle: 'Capa, pré-textuais, resumo e referências.',
     identificacaoTitle: 'Capa & Folha de Rosto',
-    identificacaoFields: ALL_IDENTIFICACAO_FIELDS,
-    showPreTextuals: true,
-    showResumoSection: true,
-    resumoFields: { resumo: true, keywords: true, foreignAbstract: true },
-    showPostTextuals: true,
   },
   projeto_pesquisa: {
     isAbntFamily: true,
+    supportsSidebarFieldPdfSync: true,
     defaultBadge: 'NBR 15287',
     modifiedBadge: 'ABNT Modificado',
     headerTitle: 'Projeto de Pesquisa (NBR 15287)',
     headerSubtitle: 'Capa, pré-textuais, resumo e referências.',
     identificacaoTitle: 'Capa & Folha de Rosto',
-    identificacaoFields: ALL_IDENTIFICACAO_FIELDS,
-    showPreTextuals: true,
-    showResumoSection: true,
-    resumoFields: { resumo: true, keywords: true, foreignAbstract: true },
-    showPostTextuals: true,
   },
   artigo: {
     isAbntFamily: true,
+    supportsSidebarFieldPdfSync: true,
     defaultBadge: 'NBR 6022',
     modifiedBadge: 'ABNT Modificado',
     headerTitle: 'Artigo Científico (NBR 6022)',
     headerSubtitle: 'Identificação, resumo, referências e pós-textuais.',
     identificacaoTitle: 'Identificação do Artigo',
-    identificacaoFields: ['title', 'subtitle', 'author', 'advisor', 'institution', 'course', 'location', 'year'],
-    showPreTextuals: false,
-    showResumoSection: true,
-    resumoFields: { resumo: true, keywords: true, foreignAbstract: true },
-    showPostTextuals: true,
   },
   sbc: {
     isAbntFamily: false,
+    supportsSidebarFieldPdfSync: false,
     defaultBadge: 'SBC',
     modifiedBadge: 'SBC Modificado',
     headerTitle: 'Artigo SBC',
     headerSubtitle: 'Cabeçalho SBC, resumo bilíngue e referências.',
     identificacaoTitle: 'Identificação do Artigo (SBC)',
-    identificacaoFields: ARTICLE_IDENTIFICACAO_FIELDS,
-    showPreTextuals: false,
-    showResumoSection: true,
-    resumoFields: { resumo: true, keywords: true, foreignAbstract: true },
-    showPostTextuals: false,
   },
   ieee: {
     isAbntFamily: false,
+    supportsSidebarFieldPdfSync: false,
     defaultBadge: 'IEEE',
     modifiedBadge: 'IEEE Modificado',
     headerTitle: 'Artigo IEEE Conference',
     headerSubtitle: 'Identificação, abstract, index terms e referências.',
     identificacaoTitle: 'Identificação do Artigo (IEEE)',
-    identificacaoFields: ARTICLE_IDENTIFICACAO_FIELDS,
-    showPreTextuals: false,
-    showResumoSection: true,
-    resumoFields: { resumo: true, keywords: true, foreignAbstract: true },
-    showPostTextuals: false,
   },
   poster: {
     isAbntFamily: false,
+    supportsSidebarFieldPdfSync: false,
     defaultBadge: 'Pôster A0/A1',
     modifiedBadge: 'Pôster Modificado',
     headerTitle: 'Pôster Acadêmico',
     headerSubtitle: 'Cabeçalho do banner, formato A0/A1 e referências.',
     identificacaoTitle: 'Cabeçalho do Pôster',
-    identificacaoFields: ARTICLE_IDENTIFICACAO_FIELDS,
-    showPreTextuals: false,
-    showResumoSection: false,
-    resumoFields: { resumo: false, keywords: false, foreignAbstract: false },
-    showPostTextuals: false,
   },
   universe_custom: {
     isAbntFamily: false,
+    supportsSidebarFieldPdfSync: false,
     defaultBadge: 'Typst Universe',
     modifiedBadge: 'Typst Universe',
     headerTitle: 'Typst Universe',
     headerSubtitle: 'Metadados compatíveis com o pacote externo.',
     identificacaoTitle: 'Metadados do Pacote',
-    identificacaoFields: ['title', 'author'],
-    showPreTextuals: false,
-    showResumoSection: true,
-    resumoFields: { resumo: true, keywords: false, foreignAbstract: false },
-    showPostTextuals: false,
   },
   em_branco: {
     isAbntFamily: false,
+    supportsSidebarFieldPdfSync: true,
     defaultBadge: 'Documento Livre',
     modifiedBadge: 'Livre Modificado',
     headerTitle: 'Documento Livre',
     headerSubtitle: 'Metadados básicos, corpo e referências.',
     identificacaoTitle: 'Metadados Básicos',
-    identificacaoFields: ['title', 'subtitle', 'author', 'institution', 'location', 'year'],
-    showPreTextuals: false,
-    showResumoSection: true,
-    resumoFields: { resumo: true, keywords: false, foreignAbstract: false },
-    showPostTextuals: true,
   },
 };
 
@@ -215,8 +169,31 @@ export function resolveEffectiveTemplateType(project: DocumentProject): ProjectT
   return project.templateType ?? 'tcc';
 }
 
+function resolveGuideMeta(
+  isAbntFamily: boolean,
+  effectiveType: ProjectTemplateType,
+  isApaPreset: boolean,
+): { guideMode: ContextualGuideMode; guideLabel: string } {
+  if (isAbntFamily) {
+    return { guideMode: 'abnt', guideLabel: 'Guia de Normas ABNT' };
+  }
+  if (!isApaPreset) {
+    if (effectiveType === 'ieee') {
+      return { guideMode: 'ieee', guideLabel: 'Diretrizes de Publicação IEEE' };
+    }
+    if (effectiveType === 'sbc') {
+      return { guideMode: 'sbc', guideLabel: 'Manual de Submissão SBC' };
+    }
+    if (effectiveType === 'poster') {
+      return { guideMode: 'poster', guideLabel: 'Boas Práticas de Pôster Científico' };
+    }
+  }
+  return { guideMode: 'general', guideLabel: 'Dicas de Diagramação e Boas Práticas' };
+}
+
 /**
- * Retorna as capacidades e metadados de exibição para o projeto atual.
+ * Retorna as capacidades e metadados de exibição para o projeto atual,
+ * mesclando o perfil padrão do template com customizações de campos em `sidebarConfig`.
  */
 export function getTemplateCapabilities(project: DocumentProject): TemplateCapabilities {
   const effectiveType = resolveEffectiveTemplateType(project);
@@ -225,21 +202,52 @@ export function getTemplateCapabilities(project: DocumentProject): TemplateCapab
 
   const isApaPreset = preset === 'apa_7';
   const isAbntFamily = profile.isAbntFamily && !isApaPreset;
+  const isSidebarCustomized = Boolean(project.sidebarConfig?.isCustomized);
   const isModified =
-    (preset === 'custom' && effectiveType !== 'em_branco') ||
-    Boolean(project.sidebarConfig?.isCustomized);
+    (preset === 'custom' && effectiveType !== 'em_branco') || isSidebarCustomized;
 
   let badgeLabel = isModified ? profile.modifiedBadge : profile.defaultBadge;
   if (isAbntFamily && !isModified && preset === 'abnt_2023') {
     badgeLabel = 'NBR 10520:2023';
   } else if (isApaPreset) {
-    badgeLabel = 'APA 7ª Ed.';
+    badgeLabel = isSidebarCustomized ? 'APA 7ª Modificada' : 'APA 7ª Ed.';
   }
 
   const headerTitle = isApaPreset ? 'Estrutura Acadêmica (APA 7)' : profile.headerTitle;
   const headerSubtitle = isApaPreset
     ? 'Identificação, abstract e referências APA.'
     : profile.headerSubtitle;
+
+  const baseFieldIds = getDefaultFieldIdsForTemplate(effectiveType);
+  const visibleSet = resolveVisibleFieldSet(baseFieldIds, project.sidebarConfig);
+
+  const visibleFieldIds: ConfigurableFieldId[] = [];
+  const identificacaoFields: IdentificacaoFieldId[] = [];
+  const preTextualFields: PreTextualFieldId[] = [];
+  const posTextualFields: PosTextualFieldId[] = [];
+
+  for (const def of METADATA_FIELD_REGISTRY) {
+    if (!visibleSet.has(def.id)) continue;
+    visibleFieldIds.push(def.id);
+    if (def.category === 'identificacao') {
+      identificacaoFields.push(def.id as IdentificacaoFieldId);
+    } else if (def.category === 'pre_textual') {
+      preTextualFields.push(def.id as PreTextualFieldId);
+    } else if (def.category === 'pos_textual') {
+      posTextualFields.push(def.id as PosTextualFieldId);
+    }
+  }
+
+  const resumoFields = {
+    resumo: visibleSet.has('abstract'),
+    keywords: visibleSet.has('keywords'),
+    foreignAbstract: visibleSet.has('foreignAbstract'),
+  };
+
+  const showPreTextuals = preTextualFields.length > 0;
+  const showResumoSection =
+    resumoFields.resumo || resumoFields.keywords || resumoFields.foreignAbstract;
+  const showPostTextuals = posTextualFields.length > 0;
 
   const showAbntLinter = isAbntFamily && !isModified;
   const linterStatusMode: LinterStatusMode = showAbntLinter
@@ -248,17 +256,31 @@ export function getTemplateCapabilities(project: DocumentProject): TemplateCapab
       ? 'abnt_modified'
       : 'non_abnt';
 
+  const { guideMode, guideLabel } = resolveGuideMeta(isAbntFamily, effectiveType, isApaPreset);
+
   return {
     ...profile,
     effectiveType,
     isAbntFamily,
     isModified,
+    isSidebarCustomized,
     badgeLabel,
     headerTitle,
     headerSubtitle,
+    baseFieldIds,
+    visibleFieldIds,
+    identificacaoFields,
+    preTextualFields,
+    posTextualFields,
+    showPreTextuals,
+    showResumoSection,
+    resumoFields,
+    showPostTextuals,
     showAbntLinter,
     linterStatusMode,
     showAbntGuide: isAbntFamily,
+    guideMode,
+    guideLabel,
   };
 }
 
@@ -285,8 +307,8 @@ function isMeaningfulString(field: keyof DocumentMetadata, val?: string): boolea
 }
 
 /**
- * Identifica metadados preenchidos que estão ocultos na vista primária do template ativo,
- * garantindo transparência e zero perda de dados ao alternar entre modelos.
+ * Identifica metadados preenchidos que estão ocultos na vista atual do template/sidebar,
+ * garantindo transparência e zero perda de dados ao alternar modelos ou ocultar campos.
  */
 export function getPreservedHiddenFields(
   project: DocumentProject,
@@ -294,52 +316,52 @@ export function getPreservedHiddenFields(
 ): PreservedFieldInfo[] {
   const m = project.metadata;
   const hidden: PreservedFieldInfo[] = [];
-  const visibleIdSet = new Set<string>(capabilities.identificacaoFields);
+  const visibleSet = new Set<ConfigurableFieldId>(capabilities.visibleFieldIds);
 
-  const checkText = (visible: boolean, id: keyof DocumentMetadata, label: string, val?: string) => {
-    if (!visible && isMeaningfulString(id, val)) {
+  const checkText = (fieldId: ConfigurableFieldId, id: keyof DocumentMetadata, label: string, val?: string) => {
+    if (!visibleSet.has(fieldId) && isMeaningfulString(id, val)) {
       hidden.push({ id, label, preview: val!.trim(), kind: 'text' });
     }
   };
 
-  checkText(visibleIdSet.has('subtitle'), 'subtitle', 'Subtítulo', m.subtitle);
-  checkText(visibleIdSet.has('advisor'), 'advisor', 'Orientador(a)', m.advisor);
-  checkText(visibleIdSet.has('coadvisor'), 'coadvisor', 'Coorientador(a)', m.coadvisor);
-  checkText(visibleIdSet.has('nature'), 'nature', 'Natureza do Trabalho', m.nature);
-  checkText(visibleIdSet.has('institution'), 'institution', 'Instituição', m.institution);
-  checkText(visibleIdSet.has('course'), 'course', 'Curso / Departamento', m.course);
-  checkText(visibleIdSet.has('location'), 'location', 'Cidade / Local', m.location);
-  checkText(visibleIdSet.has('year'), 'year', 'Ano', m.year);
+  checkText('title', 'title', 'Título do Trabalho', m.title);
+  checkText('subtitle', 'subtitle', 'Subtítulo', m.subtitle);
+  checkText('author', 'author', 'Autor', m.author);
+  checkText('advisor', 'advisor', 'Orientador(a)', m.advisor);
+  checkText('coadvisor', 'coadvisor', 'Coorientador(a)', m.coadvisor);
+  checkText('nature', 'nature', 'Natureza do Trabalho', m.nature);
+  checkText('institution', 'institution', 'Instituição', m.institution);
+  checkText('course', 'course', 'Curso / Departamento', m.course);
+  checkText('location', 'location', 'Cidade / Local', m.location);
+  checkText('year', 'year', 'Ano', m.year);
 
-  if (!capabilities.showPreTextuals) {
-    if (m.includeApprovalPage) {
-      hidden.push({
-        id: 'includeApprovalPage',
-        label: 'Folha de Aprovação (Banca)',
-        preview: m.approvalDate ? `Data: ${m.approvalDate}` : 'Habilitada',
-        kind: 'boolean',
-      });
-    }
-    if (m.includeFiguresList) {
-      hidden.push({ id: 'includeFiguresList', label: 'Lista de Ilustrações', preview: 'Habilitada', kind: 'boolean' });
-    }
-    if (m.includeBoxesList) {
-      hidden.push({ id: 'includeBoxesList', label: 'Lista de Quadros', preview: 'Habilitada', kind: 'boolean' });
-    }
-    if (m.includeTablesList) {
-      hidden.push({ id: 'includeTablesList', label: 'Lista de Tabelas', preview: 'Habilitada', kind: 'boolean' });
-    }
-    checkText(false, 'dedicatory', 'Dedicatória', m.dedicatory);
-    checkText(false, 'acknowledgments', 'Agradecimentos', m.acknowledgments);
-    checkText(false, 'epigraph', 'Epígrafe', m.epigraph);
-    checkText(false, 'abbreviations', 'Lista de Abreviaturas e Siglas', m.abbreviations);
-    checkText(false, 'symbols', 'Lista de Símbolos', m.symbols);
+  if (!visibleSet.has('includeApprovalPage') && m.includeApprovalPage) {
+    hidden.push({
+      id: 'includeApprovalPage',
+      label: 'Folha de Aprovação (Banca)',
+      preview: m.approvalDate ? `Data: ${m.approvalDate}` : 'Habilitada',
+      kind: 'boolean',
+    });
   }
+  if (!visibleSet.has('includeFiguresList') && m.includeFiguresList) {
+    hidden.push({ id: 'includeFiguresList', label: 'Lista de Ilustrações', preview: 'Habilitada', kind: 'boolean' });
+  }
+  if (!visibleSet.has('includeBoxesList') && m.includeBoxesList) {
+    hidden.push({ id: 'includeBoxesList', label: 'Lista de Quadros', preview: 'Habilitada', kind: 'boolean' });
+  }
+  if (!visibleSet.has('includeTablesList') && m.includeTablesList) {
+    hidden.push({ id: 'includeTablesList', label: 'Lista de Tabelas', preview: 'Habilitada', kind: 'boolean' });
+  }
+  checkText('dedicatory', 'dedicatory', 'Dedicatória', m.dedicatory);
+  checkText('acknowledgments', 'acknowledgments', 'Agradecimentos', m.acknowledgments);
+  checkText('epigraph', 'epigraph', 'Epígrafe', m.epigraph);
+  checkText('abbreviations', 'abbreviations', 'Lista de Abreviaturas e Siglas', m.abbreviations);
+  checkText('symbols', 'symbols', 'Lista de Símbolos', m.symbols);
 
-  if (!capabilities.resumoFields.resumo) {
-    checkText(false, 'abstract', 'Resumo', m.abstract);
+  if (!visibleSet.has('abstract')) {
+    checkText('abstract', 'abstract', 'Resumo', m.abstract);
   }
-  if (!capabilities.resumoFields.keywords) {
+  if (!visibleSet.has('keywords')) {
     const kws = (m.keywords ?? []).map((k) => k.trim()).filter(Boolean);
     const isPosterDefault =
       capabilities.effectiveType === 'poster' &&
@@ -352,15 +374,13 @@ export function getPreservedHiddenFields(
       hidden.push({ id: 'keywords', label: 'Palavras-chave', preview: kws.join(', '), kind: 'list' });
     }
   }
-  if (!capabilities.resumoFields.foreignAbstract) {
-    checkText(false, 'foreignAbstract', 'Abstract (Inglês)', m.foreignAbstract);
+  if (!visibleSet.has('foreignAbstract')) {
+    checkText('foreignAbstract', 'foreignAbstract', 'Abstract (Inglês)', m.foreignAbstract);
   }
 
-  if (!capabilities.showPostTextuals) {
-    checkText(false, 'glossary', 'Glossário', m.glossary);
-    checkText(false, 'appendices', 'Apêndices', m.appendices);
-    checkText(false, 'annexes', 'Anexos', m.annexes);
-  }
+  checkText('glossary', 'glossary', 'Glossário', m.glossary);
+  checkText('appendices', 'appendices', 'Apêndices', m.appendices);
+  checkText('annexes', 'annexes', 'Anexos', m.annexes);
 
   return hidden;
 }

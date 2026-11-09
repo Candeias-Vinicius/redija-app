@@ -1,10 +1,11 @@
 import {
-  Block,
   AcademicReference,
-  DocumentProject,
+  Block,
+  CitationFormat,
   DEFAULT_TEMPLATE_CONFIG,
-  TemplateConfig,
+  DocumentProject,
   ProjectTemplateType,
+  TemplateConfig,
 } from '@/types/document';
 import {
   escapeMarkup,
@@ -13,10 +14,27 @@ import {
   typstContent,
   typstString,
 } from './escape';
+import {
+  getPrimarySurname,
+  getReferenceIndexMap,
+  getSortedReferences,
+  resolveCitationFormat,
+} from './abntLinter';
+import { ConfigurableFieldId } from '@/core/templates/fieldRegistry';
+import {
+  getTemplateCapabilities,
+  TemplateCapabilities,
+} from '@/core/templates/templateCapabilities';
+import {
+  getTypstFontStack,
+  sanitizeCustomFontFamily,
+} from '@/core/typst/fontCatalog';
 import abntTemplate from '@/core/templates/abnt.typ?raw';
 import sbcTemplate from '@/core/templates/sbc.typ?raw';
 import ieeeTemplate from '@/core/templates/ieee.typ?raw';
 import posterTemplate from '@/core/templates/poster.typ?raw';
+
+export { getReferenceIndexMap, getSortedReferences, resolveCitationFormat };
 
 /** Nome do arquivo do modelo dentro do projeto Typst gerado. */
 export const TEMPLATE_FILE = 'abnt.typ';
@@ -157,10 +175,14 @@ export function generateStandaloneTypst(project: DocumentProject): string {
 
 /** Gera apenas o conteúdo do main.typ. */
 export function generateMain(project: DocumentProject, includeBinaryImages = false): string {
+  const resolvedCitationFormat = resolveCitationFormat(project.templateConfig);
   const cfg: TemplateConfig = {
     ...DEFAULT_TEMPLATE_CONFIG,
     ...(project.templateConfig ?? {}),
+    citationFormat: resolvedCitationFormat,
   };
+  const capabilities = getTemplateCapabilities(project);
+  const refIndexMap = getReferenceIndexMap(project.references);
 
   let importLine = `#import "${getTemplateFileName(project.templateType)}": *`;
   if (project.templateType === 'universe_custom') {
@@ -174,22 +196,32 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
 
   const parts: string[] = [
     importLine,
-    generateShowRule(project, cfg, includeBinaryImages),
+    generateShowRule(project, cfg, includeBinaryImages, capabilities),
     '',
   ];
 
   for (const block of project.blocks) {
-    const code = transpileBlock(block, includeBinaryImages, cfg);
+    const code = transpileBlock(block, includeBinaryImages, cfg, project.references, refIndexMap);
     if (code !== null) parts.push(code, '');
   }
 
   if (project.references.length > 0) {
-    parts.push(transpileReferences(project.references, cfg));
+    parts.push(transpileReferences(project.references, cfg, project.templateType));
   }
 
-  // Elementos Pós-Textuais Opcionais (NBR 14724): Glossário, Apêndices e Anexos (Apenas para ABNT/TCC)
-  if (project.templateType !== 'poster' && project.templateType !== 'ieee' && project.templateType !== 'sbc') {
-    if (project.metadata.glossary?.trim()) {
+  // Elementos Pós-Textuais Opcionais (NBR 14724): Glossário, Apêndices e Anexos
+  const canRenderPostTextuals =
+    project.templateType !== 'poster' &&
+    project.templateType !== 'ieee' &&
+    project.templateType !== 'sbc';
+
+  if (canRenderPostTextuals) {
+    const allowPostField = (fieldId: 'glossary' | 'appendices' | 'annexes') =>
+      !capabilities.supportsSidebarFieldPdfSync ||
+      !capabilities.isSidebarCustomized ||
+      capabilities.posTextualFields.includes(fieldId);
+
+    if (allowPostField('glossary') && project.metadata.glossary?.trim()) {
       parts.push(
         '',
         '#pagebreak(weak: true)',
@@ -198,7 +230,7 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
       );
     }
 
-    if (project.metadata.appendices?.trim()) {
+    if (allowPostField('appendices') && project.metadata.appendices?.trim()) {
       parts.push(
         '',
         '#pagebreak(weak: true)',
@@ -207,7 +239,7 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
       );
     }
 
-    if (project.metadata.annexes?.trim()) {
+    if (allowPostField('annexes') && project.metadata.annexes?.trim()) {
       parts.push(
         '',
         '#pagebreak(weak: true)',
@@ -220,10 +252,22 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
   return parts.join('\n');
 }
 
+function buildTypstFontValue(cfg: TemplateConfig, fallbackDefault: 'serif' | 'sans' = 'serif'): string {
+  const family = cfg.fontFamily;
+  if (family === 'serif') return typstString('serif');
+  if (family === 'sans') return typstString('sans');
+  if (family === 'custom' && !sanitizeCustomFontFamily(cfg.customFontFamily)) {
+    return typstString(fallbackDefault);
+  }
+  const stack = getTypstFontStack(family, cfg.customFontFamily);
+  return `(${stack.map(typstString).join(', ')})`;
+}
+
 function generateShowRule(
   project: DocumentProject,
   cfg: TemplateConfig,
   includeBinaryImages = false,
+  capabilities: TemplateCapabilities = getTemplateCapabilities(project),
 ): string {
   switch (project.templateType) {
     case 'sbc':
@@ -235,7 +279,7 @@ function generateShowRule(
     case 'universe_custom':
       return generateUniverseShowRule(project, cfg);
     default:
-      return generateAbntShowRule(project, cfg, includeBinaryImages);
+      return generateAbntShowRule(project, cfg, includeBinaryImages, capabilities);
   }
 }
 
@@ -256,7 +300,7 @@ function generateSbcShowRule(project: DocumentProject, cfg: TemplateConfig): str
   if (m.foreignAbstract?.trim()) args.push(`abstract: ${typstContent(m.foreignAbstract)}`);
   const foreignKeywords = (m.foreignKeywords ?? []).map((k) => k.trim()).filter(Boolean);
   if (foreignKeywords.length > 0) args.push(`keywords: (${foreignKeywords.map(typstString).join(', ')},)`);
-  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily === 'sans' ? 'sans' : 'serif')}`);
+  if (cfg.fontFamily) args.push(`fonte: ${buildTypstFontValue(cfg, 'serif')}`);
   const sbcCols = Number(cfg.columns) === 2 ? 2 : 1;
   args.push(`colunas: ${sbcCols}`);
 
@@ -280,7 +324,7 @@ function generateIeeeShowRule(project: DocumentProject, cfg: TemplateConfig): st
   if (m.foreignAbstract?.trim()) args.push(`abstract: ${typstContent(m.foreignAbstract)}`);
   const foreignKeywords = (m.foreignKeywords ?? []).map((k) => k.trim()).filter(Boolean);
   if (foreignKeywords.length > 0) args.push(`keywords: (${foreignKeywords.map(typstString).join(', ')},)`);
-  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily === 'sans' ? 'sans' : 'serif')}`);
+  if (cfg.fontFamily) args.push(`fonte: ${buildTypstFontValue(cfg, 'serif')}`);
   const ieeeCols = Number(cfg.columns) === 1 ? 1 : 2;
   args.push(`colunas: ${ieeeCols}`);
 
@@ -322,7 +366,7 @@ function generatePosterShowRule(
   args.push(`orientacao: ${typstString(safeOrientation)}`);
   args.push(`colunas: ${safeCols}`);
   args.push(`tema: ${typstString(safeTheme)}`);
-  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily === 'sans' ? 'sans' : 'serif')}`);
+  if (cfg.fontFamily) args.push(`fonte: ${buildTypstFontValue(cfg, 'sans')}`);
 
   return `#show: academic-poster.with(\n  ${args.join(',\n  ')},\n)`;
 }
@@ -346,19 +390,29 @@ function generateAbntShowRule(
   project: DocumentProject,
   cfg: TemplateConfig,
   includeBinaryImages = false,
+  capabilities: TemplateCapabilities = getTemplateCapabilities(project),
 ): string {
   const m = project.metadata;
+  const visibleSet = new Set<ConfigurableFieldId>(capabilities.visibleFieldIds);
+  const hasField = (id: ConfigurableFieldId): boolean =>
+    !capabilities.supportsSidebarFieldPdfSync ||
+    !capabilities.isSidebarCustomized ||
+    visibleSet.has(id);
+
   const args: string[] = [
-    `instituicao: ${typstString(m.institution)}`,
-    `curso: ${typstString(m.course)}`,
-    `autor: ${typstString(m.author)}`,
-    `titulo: ${typstString(m.title)}`,
+    `instituicao: ${hasField('institution') ? typstString(m.institution) : '""'}`,
+    `curso: ${hasField('course') ? typstString(m.course) : '""'}`,
+    `autor: ${hasField('author') ? typstString(m.author) : '""'}`,
+    `titulo: ${hasField('title') ? typstString(m.title) : '""'}`,
   ];
-  if (m.subtitle?.trim()) args.push(`subtitulo: ${typstString(m.subtitle)}`);
-  if (m.nature?.trim()) args.push(`natureza: ${typstContent(m.nature)}`);
-  if (m.advisor?.trim()) args.push(`orientador: ${typstString(m.advisor)}`);
-  if (m.coadvisor?.trim()) args.push(`coorientador: ${typstString(m.coadvisor)}`);
-  args.push(`local: ${typstString(m.location)}`, `ano: ${typstString(m.year)}`);
+  if (hasField('subtitle') && m.subtitle?.trim()) args.push(`subtitulo: ${typstString(m.subtitle)}`);
+  if (hasField('nature') && m.nature?.trim()) args.push(`natureza: ${typstContent(m.nature)}`);
+  if (hasField('advisor') && m.advisor?.trim()) args.push(`orientador: ${typstString(m.advisor)}`);
+  if (hasField('coadvisor') && m.coadvisor?.trim()) args.push(`coorientador: ${typstString(m.coadvisor)}`);
+  args.push(
+    `local: ${hasField('location') ? typstString(m.location) : '""'}`,
+    `ano: ${hasField('year') ? typstString(m.year) : '""'}`,
+  );
 
   if (includeBinaryImages && m.institutionLogoDataUrl) {
     const parsedLogo = parseDataUrl(m.institutionLogoDataUrl);
@@ -368,7 +422,7 @@ function generateAbntShowRule(
     }
   }
 
-  if (m.includeApprovalPage) {
+  if (hasField('includeApprovalPage') && m.includeApprovalPage) {
     args.push('incluir-folha-aprovacao: true');
     if (m.approvalDate?.trim()) {
       args.push(`data-aprovacao: ${typstString(m.approvalDate.trim())}`);
@@ -379,33 +433,34 @@ function generateAbntShowRule(
     }
   }
 
-  if (m.dedicatory?.trim()) args.push(`dedicatoria: ${typstContent(m.dedicatory)}`);
-  if (m.acknowledgments?.trim()) args.push(`agradecimentos: ${typstContent(m.acknowledgments)}`);
-  if (m.epigraph?.trim()) args.push(`epigrafe: ${typstContent(m.epigraph)}`);
-  if (m.epigraphAuthor?.trim()) args.push(`epigrafe-autor: ${typstContent(m.epigraphAuthor)}`);
-  if (m.abstract.trim()) args.push(`resumo: ${typstContent(m.abstract)}`);
+  if (hasField('dedicatory') && m.dedicatory?.trim()) args.push(`dedicatoria: ${typstContent(m.dedicatory)}`);
+  if (hasField('acknowledgments') && m.acknowledgments?.trim()) args.push(`agradecimentos: ${typstContent(m.acknowledgments)}`);
+  if (hasField('epigraph') && m.epigraph?.trim()) args.push(`epigrafe: ${typstContent(m.epigraph)}`);
+  if (hasField('epigraph') && m.epigraphAuthor?.trim()) args.push(`epigrafe-autor: ${typstContent(m.epigraphAuthor)}`);
+  if (hasField('abstract') && m.abstract.trim()) args.push(`resumo: ${typstContent(m.abstract)}`);
 
   const keywords = m.keywords.map((k) => k.trim()).filter(Boolean);
-  if (keywords.length > 0) {
+  if (hasField('keywords') && keywords.length > 0) {
     args.push(`palavras-chave: (${keywords.map(typstString).join(', ')},)`);
   }
 
-  if (m.foreignAbstract?.trim()) args.push(`abstract: ${typstContent(m.foreignAbstract)}`);
+  if (hasField('foreignAbstract') && m.foreignAbstract?.trim()) args.push(`abstract: ${typstContent(m.foreignAbstract)}`);
   const foreignKeywords = (m.foreignKeywords ?? []).map((k) => k.trim()).filter(Boolean);
-  if (foreignKeywords.length > 0) {
+  if (hasField('foreignAbstract') && foreignKeywords.length > 0) {
     args.push(`keywords: (${foreignKeywords.map(typstString).join(', ')},)`);
   }
 
-  if (m.includeFiguresList) args.push('lista-figuras: true');
-  if (m.includeBoxesList) args.push('lista-quadros: true');
-  if (m.includeTablesList) args.push('lista-tabelas: true');
-  if (m.abbreviations?.trim()) args.push(`siglas: ${typstContent(m.abbreviations)}`);
-  if (m.symbols?.trim()) args.push(`simbolos: ${typstContent(m.symbols)}`);
+  if (hasField('includeFiguresList') && m.includeFiguresList) args.push('lista-figuras: true');
+  if (hasField('includeBoxesList') && m.includeBoxesList) args.push('lista-quadros: true');
+  if (hasField('includeTablesList') && m.includeTablesList) args.push('lista-tabelas: true');
+  if (hasField('abbreviations') && m.abbreviations?.trim()) args.push(`siglas: ${typstContent(m.abbreviations)}`);
+  if (hasField('symbols') && m.symbols?.trim()) args.push(`simbolos: ${typstContent(m.symbols)}`);
 
   // Parâmetros de personalização do template / norma
   if (cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {
-    const safeFont = cfg.fontFamily === 'sans' ? 'sans' : 'serif';
-    args.push(`fonte: ${typstString(safeFont)}`);
+    if (cfg.fontFamily !== 'custom' || sanitizeCustomFontFamily(cfg.customFontFamily)) {
+      args.push(`fonte: ${buildTypstFontValue(cfg, 'serif')}`);
+    }
   }
   if (cfg.fontSizePt !== DEFAULT_TEMPLATE_CONFIG.fontSizePt) {
     const safeSize = Number(cfg.fontSizePt) || 12;
@@ -466,10 +521,31 @@ export function stripManualNumbering(title: string): string {
   return title.replace(/^\s*\d+(\.\d+)*(\.|\s*[-–—:])?(\s+|$)/, '').trim();
 }
 
+function findMatchingReferenceNumber(
+  author: string | undefined,
+  year: string | undefined,
+  references: AcademicReference[],
+  refIndexMap: Map<string, number>,
+): number | undefined {
+  if (!author?.trim() || references.length === 0) return undefined;
+  const targetSurname = getPrimarySurname(author);
+  if (!targetSurname) return undefined;
+  const exactYearMatch = references.find(
+    (r) =>
+      getPrimarySurname(r.authors) === targetSurname &&
+      (!year?.trim() || r.year?.trim() === year.trim()),
+  );
+  const surnameMatch =
+    exactYearMatch ?? references.find((r) => getPrimarySurname(r.authors) === targetSurname);
+  return surnameMatch ? refIndexMap.get(surnameMatch.id) : undefined;
+}
+
 function transpileBlock(
   block: Block,
   includeBinaryImages = false,
   cfg: TemplateConfig = DEFAULT_TEMPLATE_CONFIG,
+  references: AcademicReference[] = [],
+  refIndexMap: Map<string, number> = new Map(),
 ): string | null {
   const plainText = stripHtmlTags(block.content);
   const richContent = richTextToTypst(block.content);
@@ -503,11 +579,29 @@ function transpileBlock(
 
     case 'quote_long': {
       if (!plainText) return null;
+      const fmt = resolveCitationFormat(cfg);
+      if (fmt === 'ieee_numeric' || fmt === 'superscript') {
+        const matchedNum = findMatchingReferenceNumber(
+          block.meta?.author,
+          block.meta?.year,
+          references,
+          refIndexMap,
+        );
+        const idx = matchedNum ?? 1;
+        if (fmt === 'ieee_numeric') {
+          const pageSuffix = block.meta?.page?.trim()
+            ? `, p. ${escapeMarkup(block.meta.page.trim())}`
+            : '';
+          return `#citacao(referencia: [\\[${idx}${pageSuffix}\\]], parenteses: false)[${italicizeLatinTerms(richContent)}]`;
+        }
+        return `#citacao(referencia: [#super[${idx}]], parenteses: false)[${italicizeLatinTerms(richContent)}]`;
+      }
+
       const ref = formatCitationReference(
         block.meta?.author,
         block.meta?.year,
         block.meta?.page,
-        cfg.citationStyle,
+        fmt,
       );
       const refContent = ref ? italicizeLatinTerms(escapeMarkup(ref)) : '';
       const refArg = refContent ? `referencia: [${refContent}]` : '';
@@ -687,29 +781,89 @@ export function formatAuthorCase(
   return surnames.map((s) => formatSingle(s.replace(/\.+$/, ''))).join('; ');
 }
 
-/** Monta a chamada autor-data da citação: (SILVA, 2023, p. 42) ou (Silva, 2023, p. 42). */
+/** Monta a chamada autor-data da citação: SILVA, 2023, p. 42 | Silva, 2023 | Silva 2023. */
 export function formatCitationReference(
   author?: string,
   year?: string,
   page?: string,
-  citationStyle: 'uppercase' | 'titlecase' = 'uppercase',
+  citationStyleOrFormat: 'uppercase' | 'titlecase' | CitationFormat = 'uppercase',
 ): string {
+  const isAuthorDateSimple = citationStyleOrFormat === 'author_date';
+  const style: 'uppercase' | 'titlecase' =
+    citationStyleOrFormat === 'titlecase' ||
+    citationStyleOrFormat === 'abnt_titlecase' ||
+    isAuthorDateSimple
+      ? 'titlecase'
+      : 'uppercase';
+
+  if (isAuthorDateSimple) {
+    const rawAuthor = author?.trim() ? formatAuthorCase(author, 'titlecase').replace(/;\s+/g, ' & ') : '';
+    const rawYear = year?.trim() || '';
+    const head = [rawAuthor, rawYear].filter(Boolean).join(' ');
+    const pagePart = page?.trim() ? `p. ${page.trim()}` : '';
+    return [head, pagePart].filter(Boolean).join(', ');
+  }
+
   const parts: string[] = [];
-  if (author?.trim()) parts.push(formatAuthorCase(author, citationStyle));
+  if (author?.trim()) parts.push(formatAuthorCase(author, style));
   if (year?.trim()) parts.push(year.trim());
   if (page?.trim()) parts.push(`p. ${page.trim()}`);
   return parts.join(', ');
 }
 
+function getReferenceSpacingValue(spacing?: TemplateConfig['referenceSpacing']): string {
+  if (spacing === 'compact') return '0.5em';
+  if (spacing === 'double') return '1.8em';
+  return '1.2em';
+}
+
 function transpileReferences(
   references: AcademicReference[],
   cfg: TemplateConfig = DEFAULT_TEMPLATE_CONFIG,
+  templateType?: ProjectTemplateType,
 ): string {
-  const sorted = [...references].sort((a, b) =>
-    a.authors.localeCompare(b.authors, 'pt-BR', { sensitivity: 'base' }),
-  );
+  const sorted = getSortedReferences(references);
   const items = sorted.map((ref) => `  ${transpileReference(ref, cfg)},`);
-  return `#referencias(\n${items.join('\n')}\n)`;
+  const citationFormat = resolveCitationFormat(cfg);
+
+  const refArgs: string[] = [];
+
+  if (templateType === 'ieee') {
+    if (cfg.referenceAlignment === 'justify') refArgs.push('alinhamento: "justify"');
+    if (cfg.referenceSpacing && cfg.referenceSpacing !== 'compact') {
+      refArgs.push(`espacamento: ${getReferenceSpacingValue(cfg.referenceSpacing)}`);
+    }
+    if (citationFormat === 'superscript') {
+      refArgs.push('numeracao: "dot"');
+    } else if (citationFormat !== 'ieee_numeric') {
+      refArgs.push('numeracao: none');
+    }
+  } else if (templateType === 'sbc' || templateType === 'poster') {
+    if (cfg.referenceAlignment === 'left') refArgs.push('alinhamento: "left"');
+    if (cfg.referenceSpacing && cfg.referenceSpacing !== 'single_blank') {
+      refArgs.push(`espacamento: ${getReferenceSpacingValue(cfg.referenceSpacing)}`);
+    }
+    if (citationFormat === 'ieee_numeric') {
+      refArgs.push('numeracao: "bracket"');
+    } else if (citationFormat === 'superscript') {
+      refArgs.push('numeracao: "dot"');
+    }
+  } else {
+    if (cfg.referenceAlignment === 'justify') {
+      refArgs.push('alinhamento: "justify"');
+    }
+    if (cfg.referenceSpacing && cfg.referenceSpacing !== 'single_blank') {
+      refArgs.push(`espacamento: ${getReferenceSpacingValue(cfg.referenceSpacing)}`);
+    }
+    if (citationFormat === 'ieee_numeric') {
+      refArgs.push('numeracao: "bracket"');
+    } else if (citationFormat === 'superscript') {
+      refArgs.push('numeracao: "dot"');
+    }
+  }
+
+  const argsBlock = refArgs.length > 0 ? `  ${refArgs.join(',\n  ')},\n` : '';
+  return `#referencias(\n${argsBlock}${items.join('\n')}\n)`;
 }
 
 /**
@@ -750,8 +904,19 @@ export function transpileReference(
   const title = e(ref.title.trim());
   const subtitle = ref.subtitle?.trim() ? `: ${e(ref.subtitle.trim())}` : '';
   const year = e(ref.year?.trim() || '[s. d.]');
-  const hl = (text: string) =>
-    cfg.referenceHighlight === 'italic' ? `#emph[${text}]` : `#strong[${text}]`;
+  const hl = (text: string) => {
+    switch (cfg.referenceHighlight) {
+      case 'italic':
+        return `#emph[${text}]`;
+      case 'underline':
+        return `#underline[${text}]`;
+      case 'none':
+        return text;
+      case 'bold':
+      default:
+        return `#strong[${text}]`;
+    }
+  };
 
   let out: string;
 
