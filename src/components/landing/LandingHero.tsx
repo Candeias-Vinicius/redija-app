@@ -139,8 +139,8 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                 disabled={isLoading}
                 className={`w-full py-3.5 px-4 rounded-xl border font-semibold text-sm transition-all shadow-sm hover:shadow-md disabled:opacity-50 flex items-center justify-center gap-3 active:scale-[0.99] ${
                   isDark
-                    ? 'border-slate-700 hover:border-slate-600 bg-slate-800 hover:bg-slate-750 text-white'
-                    : 'border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800'
+                    ? 'border-slate-600 hover:border-slate-500 bg-[#ffffff] hover:bg-slate-100 text-slate-950'
+                    : 'border-slate-300 hover:border-slate-400 bg-[#ffffff] hover:bg-slate-50 text-slate-800'
                 }`}
               >
                 {isLoading ? (

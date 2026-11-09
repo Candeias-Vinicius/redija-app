@@ -23,6 +23,7 @@ export {
   parseCitationAuthors,
   resolveCitationDisplay,
   resolveCitationFormat,
+  splitAuthorEntries,
   toUnicodeSuperscript,
   type CitationCallMode,
   type ShortCitationOptions,

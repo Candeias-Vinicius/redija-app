@@ -12,6 +12,7 @@ import {
 } from '../typstGenerator';
 import {
   formatNarrativeCitation,
+  formatShortCitation,
 } from '../abntLinter';
 import { AcademicReference, DocumentProject, DEFAULT_TEMPLATE_CONFIG } from '@/types/document';
 import { ABNT_CONFIG } from '@/types/abnt';
@@ -209,6 +210,28 @@ describe('Conformidade ABNT NBR 10520 (Citações)', () => {
     expect(
       formatCitationReference('SILVA, R.; SOUZA, M.; SANTOS, P.', '2024', undefined, 'titlecase'),
     ).toBe('Silva; Souza; Santos, 2024');
+    // NBR 10520: até 3 autores listados com ponto e vírgula (sem "e" / "&")
+    expect(
+      formatCitationReference(
+        'AGHAJANYAN, Armen; GUPTA, Suchin; ZETTLEMOYER, Luke',
+        '2020',
+        undefined,
+        'titlecase',
+      ),
+    ).toBe('Aghajanyan; Gupta; Zettlemoyer, 2020');
+    expect(
+      formatShortCitation(
+        {
+          id: 'aghajanyan2020',
+          authors: 'Aghajanyan, Armen and Gupta, Suchin and Zettlemoyer, Luke',
+          title: 'Better Fine-Tuning',
+          city: '',
+          publisher: '',
+          year: '2020',
+        },
+        'abnt_titlecase',
+      ),
+    ).toBe('(Aghajanyan; Gupta; Zettlemoyer, 2020)');
   });
 
   it('formata citação autor-data com 4 ou mais autores com et al.', () => {

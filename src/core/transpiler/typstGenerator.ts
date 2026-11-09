@@ -27,6 +27,7 @@ import {
   getSortedReferences,
   parseCitationAuthors,
   resolveCitationFormat,
+  splitAuthorEntries,
 } from './abntLinter';
 import { ConfigurableFieldId } from '@/core/templates/fieldRegistry';
 import {
@@ -1131,10 +1132,7 @@ export function formatAuthorCase(
     }
   }
 
-  const entries = cleaned
-    .split(';')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const entries = splitAuthorEntries(trimmed);
 
   if (entries.length >= 4 || hasEtAl) {
     const first = entries[0] || cleaned;

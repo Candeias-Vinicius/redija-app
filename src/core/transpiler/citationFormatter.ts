@@ -62,6 +62,49 @@ export function toTitleCaseSurname(surname: string): string {
 }
 
 /**
+ * Divide a string de autores em entradas individuais.
+ * Aceita separadores ABNT (`;`), BibTeX (`and` / `&`) e o conectivo português (`e`)
+ * entre sobrenomes soltos (ex.: "Aghajanyan e Gupta e Zettlemoyer").
+ */
+export function splitAuthorEntries(authors: string): string[] {
+  const cleaned = authors.replace(/\bet\s+al\.?/gi, '').trim();
+  if (!cleaned) return [];
+
+  const primary = cleaned
+    .split(/\s*;\s*|\s+and\s+|\s+&\s+/i)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const entries: string[] = [];
+  for (const part of primary) {
+    // "Sobrenome e Sobrenome" (sem vírgula) → múltiplos autores
+    if (!part.includes(',') && /\s+e\s+/i.test(part)) {
+      const loose = part
+        .split(/\s+e\s+/i)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (loose.length > 1 && loose.every((s) => s.split(/\s+/).length <= 3)) {
+        entries.push(...loose);
+        continue;
+      }
+    }
+    entries.push(part);
+  }
+  return entries;
+}
+
+function extractCitationSurname(entry: string): string {
+  const cleanEntry = entry.trim();
+  if (!cleanEntry) return '';
+  if (cleanEntry.includes(',')) {
+    return cleanEntry.split(',')[0]?.trim() || cleanEntry;
+  }
+  // Ordem ocidental ("Armen Aghajanyan") → último token é o sobrenome
+  const words = cleanEntry.split(/\s+/).filter(Boolean);
+  return words[words.length - 1] || cleanEntry;
+}
+
+/**
  * Extrai a lista de sobrenomes (ou nomes de entidades) de uma string de autores ABNT
  * separada por ponto e vírgula, além de identificar se contém "et al.".
  */
@@ -70,17 +113,10 @@ export function parseCitationAuthors(authors: string): {
   hasEtAl: boolean;
 } {
   const hasEtAl = /\bet\s+al\.?/i.test(authors);
-  const cleaned = authors.replace(/\bet\s+al\.?/gi, '').trim();
-  const entries = cleaned
-    .split(';')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const entries = splitAuthorEntries(authors);
 
   const surnames = entries
-    .map((entry) => {
-      const surname = entry.split(',')[0]?.trim() || entry;
-      return surname.replace(/\.+$/, '').trim().toUpperCase();
-    })
+    .map((entry) => extractCitationSurname(entry).replace(/\.+$/, '').trim().toUpperCase())
     .filter(Boolean);
 
   return { surnames, hasEtAl };
