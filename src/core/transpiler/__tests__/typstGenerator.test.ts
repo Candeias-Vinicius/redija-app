@@ -603,4 +603,377 @@ describe('Typst compilation integration', () => {
       expect(mainTyp).not.toContain('#panic("hack")');
     });
   });
+
+  describe('Fases 3–5: Sync Q3 de Campos, Central de Citações/Referências & Fontes', () => {
+    it('suprime campos ocultos do PDF em templates flexíveis (Q3) e compila sem erros', () => {
+      const proj = createSampleProject({
+        metadata: {
+          ...createSampleProject().metadata,
+          dedicatory: 'Aos meus pais.',
+          glossary: 'Typst: Compilador científico.',
+          appendices: 'APÊNDICE A — Código fonte.',
+        },
+        sidebarConfig: {
+          isCustomized: true,
+          hiddenFieldIds: ['dedicatory', 'glossary'],
+        },
+      });
+
+      const { [MAIN_FILE]: mainTyp } = generateTypstFiles(proj);
+      expect(mainTyp).not.toContain('dedicatoria:');
+      expect(mainTyp).not.toContain('GLOSSÁRIO');
+      expect(mainTyp).toContain('APÊNDICES');
+
+      const standalone = generateStandaloneTypst(proj);
+      const compiler = NodeCompiler.create();
+      const compileResult = compiler.compile({ mainFileContent: standalone });
+      expect(compileResult.hasError()).toBe(false);
+    });
+
+    it('emite todos os parâmetros de Central Universal de Referências e Fontes Externas e compila com fallback offline', () => {
+      const proj = createSampleProject({
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'custom',
+          fontFamily: 'inter',
+          citationStyle: 'uppercase',
+          citationFormat: 'ieee_numeric',
+          referenceHighlight: 'underline',
+          referenceAlignment: 'justify',
+          referenceSpacing: 'compact',
+        },
+      });
+
+      const standalone = generateStandaloneTypst(proj);
+      expect(standalone).toContain('fonte: ("Inter", "Arimo", "Liberation Sans")');
+      expect(standalone).toContain('\\[2, p. 42\\]');
+      expect(standalone).toContain('#underline[Engenharia de Software Moderna]');
+      expect(standalone).toContain('alinhamento: "justify"');
+      expect(standalone).toContain('espacamento: 0.5em');
+      expect(standalone).toContain('numeracao: "bracket"');
+
+      const compiler = NodeCompiler.create();
+      const compileResult = compiler.compile({ mainFileContent: standalone });
+      expect(compileResult.hasError()).toBe(false);
+      const pdfBuffer = compiler.pdf(compileResult.result!);
+      expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+    });
+
+    it('compila citação longa sobrescrita e destaque "none" nas referências com segurança', () => {
+      const proj = createSampleProject({
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'custom',
+          fontFamily: 'custom',
+          customFontFamily: 'Open Sans',
+          citationFormat: 'superscript',
+          referenceHighlight: 'none',
+          referenceSpacing: 'double',
+        },
+      });
+
+      const standalone = generateStandaloneTypst(proj);
+      expect(standalone).toContain('fonte: ("Open Sans", "Tinos", "Arimo", "Libertinus Serif")');
+      expect(standalone).toContain('#super[2]');
+      expect(standalone).toContain('espacamento: 1.8em');
+      expect(standalone).toContain('numeracao: "dot"');
+      expect(standalone).not.toContain('#strong[Engenharia de Software Moderna]');
+      expect(standalone).not.toContain('#emph[Engenharia de Software Moderna]');
+
+      const compiler = NodeCompiler.create();
+      const compileResult = compiler.compile({ mainFileContent: standalone });
+      expect(compileResult.hasError()).toBe(false);
+    });
+  });
+
+  describe('Paridade Typst, Presets Multi-Norma, Citações Reativas & CSL Nativo', () => {
+    it('roteia preset "sbc" e "ieee" dentro de templateType "tcc" pelo modelo efetivo e compila em PDF', () => {
+      const baseTcc = createProjectFromTemplate('tcc');
+      const sbcViaPreset: DocumentProject = {
+        ...baseTcc,
+        templateConfig: {
+          ...baseTcc.templateConfig!,
+          preset: 'sbc',
+          fontSizePt: 11,
+          paperSize: 'letter',
+          runningHeader: 'Simpósio Brasileiro',
+          headingNumbering: '1.',
+        },
+      };
+
+      const sbcFiles = generateTypstFiles(sbcViaPreset);
+      expect(sbcFiles[MAIN_FILE]).toContain('#import "sbc.typ": *');
+      expect(sbcFiles[MAIN_FILE]).toContain('#show: sbc-article.with');
+      expect(sbcFiles[MAIN_FILE]).toContain('tamanho-fonte: 11pt');
+      expect(sbcFiles[MAIN_FILE]).toContain('tamanho-papel: "letter"');
+      expect(sbcFiles[MAIN_FILE]).toContain('cabecalho: "Simpósio Brasileiro"');
+      expect(sbcFiles[MAIN_FILE]).toContain('numeracao-secoes: "1."');
+
+      const compiler = NodeCompiler.create();
+      const sbcRes = compiler.compile({ mainFileContent: generateStandaloneTypst(sbcViaPreset) });
+      expect(sbcRes.hasError()).toBe(false);
+
+      const ieeeViaPreset: DocumentProject = {
+        ...baseTcc,
+        templateConfig: {
+          ...baseTcc.templateConfig!,
+          preset: 'ieee',
+        },
+      };
+      const ieeeFiles = generateTypstFiles(ieeeViaPreset);
+      expect(ieeeFiles[MAIN_FILE]).toContain('#import "ieee.typ": *');
+      expect(ieeeFiles[MAIN_FILE]).toContain('#show: ieee-article.with');
+      const ieeeRes = compiler.compile({ mainFileContent: generateStandaloneTypst(ieeeViaPreset) });
+      expect(ieeeRes.hasError()).toBe(false);
+
+      const posterProj = createProjectFromTemplate('poster');
+      posterProj.templateConfig = {
+        ...posterProj.templateConfig!,
+        preset: 'custom',
+        fontSizePt: 18,
+      };
+      const posterStandalone = generateStandaloneTypst(posterProj);
+      expect(posterStandalone).toContain('tamanho-fonte: 18pt');
+      const posterRes = compiler.compile({ mainFileContent: posterStandalone });
+      expect(posterRes.hasError()).toBe(false);
+    });
+
+    it('transpila tokens reativos <cite> em modo parentética e narrativa com ordenação dinâmica (alphabetical vs citation_order)', () => {
+      const proj = createSampleProject({
+        blocks: [
+          { id: 'h1', type: 'h1', content: 'Introdução' },
+          {
+            id: 'p1',
+            type: 'paragraph',
+            content:
+              '<p>Primeiro citado <cite data-cite-id="r1" data-cite-mode="narrative" data-cite-page="15">Silva e Souza (2024, p. 15)</cite>, depois <cite data-cite-id="r2" data-cite-mode="parenthetical">ALMEIDA, 2022</cite>.</p>',
+          },
+        ],
+      });
+
+      // 1. ABNT Upper + alphabetical
+      const abntMain = generateMain(proj);
+      expect(abntMain).toContain('Silva e Souza (2024, p. 15)');
+      expect(abntMain).toContain('(ALMEIDA, 2022)');
+
+      // 2. IEEE Numeric + citation_order: r1 aparece antes de r2 -> [1] Silva, [2] Almeida
+      const ieeeProj: DocumentProject = {
+        ...proj,
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'custom',
+          citationFormat: 'ieee_numeric',
+          referenceOrdering: 'citation_order',
+          referenceEntryFormat: 'ieee',
+        },
+      };
+      const ieeeStandalone = generateStandaloneTypst(ieeeProj);
+      expect(ieeeStandalone).toContain('Silva e Souza \\[1, p. 15\\]');
+      expect(ieeeStandalone).toContain('\\[2\\]');
+      const refsBlock = ieeeStandalone.slice(ieeeStandalone.indexOf('#referencias('));
+      expect(refsBlock.indexOf('M. Silva')).toBeGreaterThan(-1);
+      expect(refsBlock.indexOf('C. Almeida')).toBeGreaterThan(refsBlock.indexOf('M. Silva'));
+
+      const compiler = NodeCompiler.create();
+      expect(compiler.compile({ mainFileContent: ieeeStandalone }).hasError()).toBe(false);
+
+      // 3. Superscript + author_date
+      const supProj: DocumentProject = {
+        ...proj,
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'custom',
+          citationFormat: 'superscript',
+        },
+      };
+      const supMain = generateMain(supProj);
+      expect(supMain).toContain('Silva e Souza#super[2]');
+      expect(supMain).toContain('#super[1]');
+
+      const apaProj: DocumentProject = {
+        ...proj,
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'custom',
+          citationFormat: 'author_date',
+          referenceEntryFormat: 'apa',
+        },
+      };
+      const apaMain = generateMain(apaProj);
+      expect(apaMain).toContain('Silva & Souza (2024, p. 15)');
+      expect(apaMain).toContain('(Almeida 2022)');
+    });
+
+    it('formata entradas bibliográficas em APA 7 e IEEE no transpileReference', () => {
+      const bookRef = createSampleProject().references[0];
+      const articleRef = createSampleProject().references[1];
+
+      const apaBook = transpileReference(bookRef, {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        referenceEntryFormat: 'apa',
+        referenceHighlight: 'italic',
+      });
+      expect(apaBook).toContain('Silva, M., & Souza, J. (2024). #emph[Engenharia de Software Moderna]: Princípios e Práticas (2 ed.). Editora Acadêmica.');
+
+      const apaArticle = transpileReference(articleRef, {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        referenceEntryFormat: 'apa',
+        referenceHighlight: 'italic',
+      });
+      expect(apaArticle).toContain('Almeida, C. (2022). Compiladores e Transpiladores. #emph[Revista Brasileira de Computação], 15(2), 10\\-25.');
+
+      const ieeeBook = transpileReference(bookRef, {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        referenceEntryFormat: 'ieee',
+        referenceHighlight: 'italic',
+      });
+      expect(ieeeBook).toContain('M. Silva and J. Souza, #emph[Engenharia de Software Moderna]');
+
+      const ieeeArticle = transpileReference(articleRef, {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        referenceEntryFormat: 'ieee',
+        referenceHighlight: 'italic',
+      });
+      expect(ieeeArticle).toContain('C. Almeida, "Compiladores e Transpiladores," #emph[Revista Brasileira de Computação], vol. 15, no. 2, pp. 10\\-25, 2022.');
+    });
+
+    it('compila bibliografia via engine CSL nativo do Typst (typst_csl) com refs.bib e #cite(<key>)', () => {
+      const proj = createSampleProject({
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'custom',
+          bibliographyEngine: 'typst_csl',
+          cslStyle: 'ieee',
+        },
+        blocks: [
+          { id: 'h1', type: 'h1', content: 'Introdução' },
+          {
+            id: 'p1',
+            type: 'paragraph',
+            content:
+              '<p>Segundo <cite data-cite-id="r1" data-cite-mode="narrative" data-cite-page="42">Silva e Souza</cite> e <cite data-cite-id="r2" data-cite-mode="parenthetical">Almeida</cite>.</p>',
+          },
+        ],
+      });
+
+      const bundle = generateTypstFiles(proj);
+      expect(bundle['refs.bib']).toBeDefined();
+      expect(bundle['refs.bib']).toContain('@book{');
+      expect(bundle[MAIN_FILE]).toContain('#cite(<');
+      expect(bundle[MAIN_FILE]).toContain('form: "prose"');
+      expect(bundle[MAIN_FILE]).toContain('supplement: [p. 42]');
+      expect(bundle[MAIN_FILE]).toContain('#bibliography("refs.bib", style: "ieee", full: true');
+
+      const standalone = generateStandaloneTypst(proj);
+      expect(standalone).toContain('#bibliography(bytes(');
+
+      const compiler = NodeCompiler.create();
+      const res = compiler.compile({ mainFileContent: standalone });
+      expect(res.hasError()).toBe(false);
+      const pdfBuffer = compiler.pdf(res.result!);
+      expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+    });
+
+    it('suporta paridade Typst completa: fonte 13.5pt, paper letter, landscape, idioma EN, links, tachado, código inline, math inline e bloco raw_typst', () => {
+      const proj = createSampleProject({
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'custom',
+          fontSizePt: 13.5,
+          paperSize: 'letter',
+          pageOrientation: 'landscape',
+          documentLanguage: 'en',
+          bodyAlignment: 'left',
+          paragraphSpacingEm: 0.8,
+          pageNumbering: 'bottom_right',
+          romanPreTextual: true,
+          runningHeader: 'Redija Header',
+          headingNumbering: 'I.A',
+          h1PageBreak: false,
+        },
+        blocks: [
+          { id: 'h1', type: 'h1', content: 'Introduction' },
+          {
+            id: 'p_rich',
+            type: 'paragraph',
+            content:
+              '<p>Veja <a href="https://typst.app">Typst <code>v0.13</code></a>, <s>texto antigo</s>, <a href="javascript:alert(1)">Link Bloqueado</a>, código <code>apud et al.</code> e matemática <span data-inline-math="true" data-math="a^2 + b^2">a^2 + b^2</span>.</p>',
+          },
+          {
+            id: 'raw_1',
+            type: 'raw_typst',
+            content: '#rect(fill: luma(245), inset: 6pt)[Bloco *Typst* Direto]',
+          },
+        ],
+      });
+
+      const standalone = generateStandaloneTypst(proj);
+      expect(standalone).toContain('tamanho-fonte: 13.5pt');
+      expect(standalone).toContain('tamanho-papel: "letter"');
+      expect(standalone).toContain('orientacao: "landscape"');
+      expect(standalone).toContain('idioma: "en"');
+      expect(standalone).toContain('justificar-corpo: false');
+      expect(standalone).toContain('espacamento-paragrafo: 0.8em');
+      expect(standalone).toContain('posicao-pagina: "bottom_right"');
+      expect(standalone).toContain('romano-pre-textual: true');
+      expect(standalone).toContain('cabecalho: "Redija Header"');
+      expect(standalone).toContain('numeracao-secoes: "I.A"');
+      expect(standalone).toContain('quebra-h1: false');
+
+      expect(standalone).toContain('#link("https://typst.app/")[Typst #raw("v0.13")]');
+      expect(standalone).toContain('#strike[texto antigo]');
+      expect(standalone).toContain('Link Bloqueado');
+      expect(standalone).not.toContain('javascript:');
+      expect(standalone).toContain('#raw("apud et al.")');
+      expect(standalone).not.toContain('#raw("#emph[apud]')
+      expect(standalone).toContain('$a^2 + b^2$');
+      expect(standalone).toContain('#rect(fill: luma(245), inset: 6pt)[Bloco *Typst* Direto]');
+
+      const compiler = NodeCompiler.create();
+      const res = compiler.compile({ mainFileContent: standalone });
+      expect(res.hasError()).toBe(false);
+      const pdfBuffer = compiler.pdf(res.result!);
+      expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+    });
+
+    it('gera autores em formato dicionário para charged-ieee:0.1.4 e import de tema para touying:0.5.3', () => {
+      const ieeeProj = createSampleProject({
+        templateType: 'universe_custom',
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'universe_custom',
+          universePackage: '@preview/charged-ieee:0.1.4',
+          universeEntrypoint: 'ieee',
+        },
+        metadata: {
+          ...createSampleProject().metadata,
+          author: 'Alice Silva; Bruno Costa',
+          institution: 'UFPR',
+          location: 'Curitiba',
+        },
+      });
+      const { [MAIN_FILE]: ieeeMain } = generateTypstFiles(ieeeProj);
+      expect(ieeeMain).toContain('#import "@preview/charged-ieee:0.1.4": *');
+      expect(ieeeMain).toContain('#show: ieee.with(');
+      expect(ieeeMain).toContain('name: "Alice Silva"');
+      expect(ieeeMain).toContain('name: "Bruno Costa"');
+      expect(ieeeMain).toContain('organization: [UFPR]');
+      expect(ieeeMain).toContain('location: [Curitiba]');
+      expect(ieeeMain).toContain('#set text(font: ("Tinos"');
+
+      const touyingProj = createSampleProject({
+        templateType: 'universe_custom',
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'universe_custom',
+          universePackage: '@preview/touying:0.5.3',
+          universeEntrypoint: 'simple-theme',
+        },
+      });
+      const { [MAIN_FILE]: touyingMain } = generateTypstFiles(touyingProj);
+      expect(touyingMain).toContain('#import "@preview/touying:0.5.3": *');
+      expect(touyingMain).toContain('#import themes.simple: *');
+      expect(touyingMain).toContain('#show: simple-theme.with(aspect-ratio: "16-9")');
+    });
+  });
 });

@@ -2,6 +2,11 @@ import { test, expect } from '@playwright/test';
 
 test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
   test.beforeEach(async ({ page }) => {
+    // Silencia modal de boas-vindas do beta antes da navegação para evitar interceptação de cliques
+    await page.addInitScript(() => {
+      localStorage.setItem('redija:beta_notice_dismissed', 'true');
+    });
+
     // Aceita diálogos nativos automaticamente
     page.on('dialog', async (dialog) => {
       await dialog.accept();
@@ -14,7 +19,7 @@ test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
     page,
   }) => {
     // 1. Verifica landing page
-    await expect(page.getByText(/O Redija cuida de toda a ABNT/i)).toBeVisible();
+    await expect(page.getByText(/O Redija cuida das normas por você/i)).toBeVisible();
 
     // 2. Entra em Modo Demonstração
     const demoBtn = page.getByRole('button', { name: /Entrar como Usuário Demonstração/i });
@@ -98,7 +103,7 @@ test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
       await logoutBtn.click();
 
       // 7. Confirma retorno para a Landing Page
-      await expect(page.getByText(/O Redija cuida de toda a ABNT/i)).toBeVisible();
+      await expect(page.getByText(/O Redija cuida das normas por você/i)).toBeVisible();
     }
   });
 
@@ -132,6 +137,6 @@ test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
 
     // 4. Valida que o editor continua aberto imediatamente e NÃO foi deslogado para a landing page
     await expect(page.getByText('Redija', { exact: true })).toBeVisible();
-    await expect(page.getByText(/O Redija cuida de toda a ABNT/i)).not.toBeVisible();
+    await expect(page.getByText(/O Redija cuida das normas por você/i)).not.toBeVisible();
   });
 });

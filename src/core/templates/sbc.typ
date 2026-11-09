@@ -6,20 +6,24 @@
 #let fontes-serifadas = ("Tinos", "TeX Gyre Termes", "Liberation Serif", "Times New Roman")
 #let fontes-sem-serifa = ("Arimo", "Liberation Sans", "Arial", "Helvetica")
 
+#let entrelinha-1-5 = 1.05em
 #let entrelinha-simples = 0.52em
+#let entrelinha-dupla = 1.55em
 #let recuo-paragrafo = 1.25cm
 
 // Citação direta longa
-#let citacao(referencia: none, corpo) = block(
+#let citacao(referencia: none, parenteses: true, corpo) = block(
   inset: (left: 3cm),
   above: 1.2em,
   below: 1.2em,
   width: 100%,
   {
-    set text(size: 10pt)
+    set text(size: 0.85em)
     set par(leading: entrelinha-simples, first-line-indent: 0pt, justify: true)
     corpo
-    if referencia != none [ (#referencia)]
+    if referencia != none {
+      if parenteses [ (#referencia)] else [ #referencia]
+    }
   },
 )
 
@@ -34,13 +38,13 @@
         width: 80%,
         height: 4cm,
         stroke: 0.5pt + luma(150),
-        align(center + horizon, text(fill: luma(120), size: 10pt)[Imagem]),
+        align(center + horizon, text(fill: luma(120), size: 0.85em)[Imagem]),
       )
     } else {
       imagem
     }
     v(0.3em)
-    text(size: 10pt)[Fonte: #fonte.]
+    text(size: 0.85em)[Fonte: #fonte.]
   },
 )
 
@@ -52,7 +56,7 @@
   {
     corpo
     v(0.3em)
-    text(size: 10pt)[Fonte: #fonte.]
+    text(size: 0.85em)[Fonte: #fonte.]
   },
 )
 
@@ -64,18 +68,86 @@
   {
     corpo
     v(0.3em)
-    text(size: 10pt)[Fonte: #fonte.]
+    text(size: 0.85em)[Fonte: #fonte.]
   },
 )
 
-// Lista de referências no padrão SBC
-#let referencias(..itens) = {
+// Bloco de Código-Fonte / Algoritmo
+#let codigo(legenda: none, fonte: none, corpo) = block(
+  width: 100%,
+  above: 1.2em,
+  below: 1.2em,
+  {
+    if legenda != none {
+      align(center, text(size: 0.85em, weight: "bold")[Algoritmo — #legenda])
+      v(0.3em)
+    }
+    block(
+      width: 100%,
+      inset: 9pt,
+      radius: 3pt,
+      fill: luma(248),
+      stroke: 0.5pt + luma(200),
+      {
+        set par(justify: false, first-line-indent: 0pt, leading: 0.55em)
+        set text(size: 0.8em)
+        corpo
+      },
+    )
+    if fonte != none {
+      v(0.2em)
+      align(center, text(size: 0.85em)[Fonte: #fonte.])
+    }
+  },
+)
+
+// Lista de referências no padrão SBC (configurável)
+#let referencias(
+  titulo: auto,
+  alinhamento: "justify",
+  espacamento: 0.8em,
+  numeracao: none,
+  ..itens
+) = {
   v(1.4em, weak: true)
-  heading(numbering: none)[Referências]
-  set par(justify: true, first-line-indent: 0pt, leading: entrelinha-simples)
-  set text(size: 11pt)
+  let heading-title = if titulo != auto { titulo } else [Referências]
+  heading(numbering: none)[#heading-title]
+  set par(
+    justify: alinhamento == "justify",
+    first-line-indent: 0pt,
+    leading: entrelinha-simples,
+  )
+  set text(size: 0.92em)
+  let idx = 1
   for item in itens.pos() {
-    block(above: 0pt, below: 0.8em, item)
+    if numeracao == "bracket" {
+      block(
+        above: 0pt,
+        below: espacamento,
+        grid(
+          columns: (1.8em, 1fr),
+          gutter: 0.4em,
+          align: (left, left),
+          [[#idx]],
+          [#item],
+        ),
+      )
+    } else if numeracao == "dot" {
+      block(
+        above: 0pt,
+        below: espacamento,
+        grid(
+          columns: (1.8em, 1fr),
+          gutter: 0.4em,
+          align: (left, left),
+          [#idx.],
+          [#item],
+        ),
+      )
+    } else {
+      block(above: 0pt, below: espacamento, item)
+    }
+    idx = idx + 1
   }
 }
 
@@ -90,75 +162,137 @@
   curso: "",
   local: "",
   ano: "",
+  logo: none,
   resumo: none,
   palavras-chave: (),
   abstract: none,
   keywords: (),
   fonte: "serif",
+  tamanho-fonte: 12pt,
+  entrelinha: entrelinha-simples,
+  recuo: recuo-paragrafo,
+  espacamento-paragrafo: auto,
+  justificar-corpo: true,
+  margem-superior: 3.5cm,
+  margem-inferior: 2.5cm,
+  margem-esquerda: 3.0cm,
+  margem-direita: 3.0cm,
+  tamanho-papel: "a4",
+  orientacao: "portrait",
+  idioma: "pt",
+  regiao: auto,
+  posicao-pagina: "bottom_center",
+  ocultar-pagina-1: false,
+  cabecalho: auto,
+  numeracao-secoes: "none",
+  quebra-h1: false,
   colunas: 1,
   body,
 ) = {
   set document(title: titulo, author: autor)
 
-  let familia-fonte = if fonte == "sans" { fontes-sem-serifa } else { fontes-serifadas }
+  let familia-fonte = if type(fonte) == array {
+    fonte
+  } else if fonte == "sans" {
+    fontes-sem-serifa
+  } else if fonte == "serif" {
+    fontes-serifadas
+  } else {
+    (fonte, ..fontes-serifadas)
+  }
 
-  // Normas SBC: A4, margem superior 3.5cm, inferior 2.5cm, laterais 3cm
+  let papel-typst = if tamanho-papel == "letter" { "us-letter" } else { tamanho-papel }
+  let resolved-regiao = if regiao != auto {
+    regiao
+  } else if idioma == "en" {
+    "US"
+  } else if idioma == "es" {
+    "ES"
+  } else {
+    "BR"
+  }
+  let num-secoes = if numeracao-secoes == "none" or numeracao-secoes == none { none } else { numeracao-secoes }
+
+  // Normas SBC: A4, margem superior 3.5cm, inferior 2.5cm, laterais 3cm (personalizáveis)
   set page(
-    paper: "a4",
+    paper: papel-typst,
+    flipped: (orientacao == "landscape"),
     margin: (
-      top: 3.5cm,
-      bottom: 2.5cm,
-      left: 3.0cm,
-      right: 3.0cm,
+      top: margem-superior,
+      bottom: margem-inferior,
+      left: margem-esquerda,
+      right: margem-direita,
     ),
-    header: align(right)[
-      #text(size: 9pt, fill: luma(120))[
-        #context {
-          if counter(page).get().first() > 1 [
-            #titulo
-          ]
-        }
-      ]
-    ],
+    header: context {
+      let page-num = counter(page).get().first()
+      let header-text = if cabecalho == auto {
+        if page-num > 1 { titulo } else { none }
+      } else if cabecalho != none and cabecalho != "" {
+        cabecalho
+      } else {
+        none
+      }
+      let show-top-num = posicao-pagina == "top_right" and not (ocultar-pagina-1 and page-num == 1)
+      if header-text != none or show-top-num {
+        grid(
+          columns: (1fr, auto),
+          align(left, text(size: 0.75em, fill: luma(120))[#if header-text != none { header-text }]),
+          align(right, text(size: 0.85em)[#if show-top-num { counter(page).display() }]),
+        )
+      }
+    },
     footer: context {
       let page-num = counter(page).get().first()
-      align(center, text(size: 10pt)[#page-num])
+      let is-bottom = posicao-pagina == "bottom_center" or posicao-pagina == "bottom_right"
+      if is-bottom and not (ocultar-pagina-1 and page-num == 1) {
+        align(
+          if posicao-pagina == "bottom_right" { right } else { center },
+          text(size: 0.85em)[#counter(page).display()],
+        )
+      }
     },
   )
 
   set text(
     font: familia-fonte,
-    size: 12pt,
-    lang: "pt",
-    region: "BR",
+    size: tamanho-fonte,
+    lang: idioma,
+    region: resolved-regiao,
   )
 
+  set heading(numbering: num-secoes)
+
+  let par-spacing = if espacamento-paragrafo != auto { espacamento-paragrafo } else { 0.65em }
   set par(
-    leading: entrelinha-simples,
-    first-line-indent: (amount: recuo-paragrafo, all: true),
-    justify: true,
+    leading: entrelinha,
+    spacing: par-spacing,
+    first-line-indent: (amount: recuo, all: true),
+    justify: justificar-corpo,
   )
+
+  show figure.caption: set text(size: 0.85em)
 
   // Formatação de títulos no padrão SBC
   show heading: it => {
     set text(font: familia-fonte)
     set par(first-line-indent: 0pt)
     if it.level == 1 {
+      if quebra-h1 { pagebreak(weak: true) }
       v(1.4em, weak: true)
-      text(size: 13pt, weight: "bold")[
-        #it.body
+      text(size: 1.08em, weight: "bold")[
+        #if it.numbering != none [#numbering(it.numbering, ..counter(heading).at(it.location())) ]#it.body
       ]
       v(0.7em, weak: true)
     } else if it.level == 2 {
       v(1.1em, weak: true)
-      text(size: 12pt, weight: "bold")[
-        #it.body
+      text(size: 1em, weight: "bold")[
+        #if it.numbering != none [#numbering(it.numbering, ..counter(heading).at(it.location())) ]#it.body
       ]
       v(0.6em, weak: true)
     } else {
       v(0.9em, weak: true)
-      text(size: 12pt, style: "italic", weight: "bold")[
-        #it.body
+      text(size: 1em, style: "italic", weight: "bold")[
+        #if it.numbering != none [#numbering(it.numbering, ..counter(heading).at(it.location())) ]#it.body
       ]
       v(0.5em, weak: true)
     }
@@ -166,17 +300,21 @@
 
   // --- CABEÇALHO DO ARTIGO SBC ---
   align(center)[
+    #if logo != none {
+      logo
+      v(0.4cm)
+    }
     #v(0.5cm)
-    #text(size: 16pt, weight: "bold")[#titulo]
+    #text(size: 1.33em, weight: "bold")[#titulo]
     #if subtitulo != none [
-      \ #v(0.2cm) #text(size: 14pt, weight: "medium")[#subtitulo]
+      \ #v(0.2cm) #text(size: 1.17em, weight: "medium")[#subtitulo]
     ]
     #v(0.6cm)
 
-    #text(size: 12pt)[#autor]
+    #text(size: 1em)[#autor]
     #v(0.2cm)
 
-    #text(size: 10pt)[
+    #text(size: 0.85em)[
       #if curso != "" [#curso \ ]
       #if instituicao != "" [#instituicao \ ]
       #if local != "" [#local]
@@ -184,16 +322,19 @@
     #v(0.8cm)
   ]
 
+  let lbl-resumo = if idioma == "es" [Resumen.] else if idioma == "en" [Summary.] else [Resumo.]
+  let lbl-palavras = if idioma == "es" [Palabras clave:] else if idioma == "en" [Keywords:] else [Palavras-chave:]
+
   // --- RESUMO EM PORTUGUÊS ---
   if resumo != none [
     #block(
       inset: (x: 0.8cm),
       {
-        set text(size: 10pt)
+        set text(size: 0.85em)
         set par(leading: entrelinha-simples, first-line-indent: 0pt, justify: true)
-        [*Resumo.* #resumo]
+        [*#lbl-resumo* #resumo]
         if palavras-chave.len() > 0 [
-          \ \ *Palavras-chave:* #palavras-chave.join(", ").
+          \ \ *#lbl-palavras* #palavras-chave.join(", ").
         ]
       }
     )
@@ -205,7 +346,7 @@
     #block(
       inset: (x: 0.8cm),
       {
-        set text(size: 10pt)
+        set text(size: 0.85em)
         set par(leading: entrelinha-simples, first-line-indent: 0pt, justify: true)
         [*Abstract.* #abstract]
         if keywords.len() > 0 [

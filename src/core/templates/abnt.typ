@@ -25,25 +25,25 @@
 
 // ---------------------------------------------------------------------
 // Citação direta longa (NBR 10520): mais de 3 linhas, recuo de 4 cm,
-// fonte menor, espaçamento simples, sem aspas.
+// fonte proporcional (~10pt em 12pt), espaçamento simples, sem aspas.
 // ---------------------------------------------------------------------
-#let citacao(referencia: none, corpo) = block(
+#let citacao(referencia: none, parenteses: true, corpo) = block(
   inset: (left: 4cm),
   above: 1.5em,
   below: 1.5em,
   width: 100%,
   {
-    set text(size: 10pt)
+    set text(size: 0.85em)
     set par(leading: entrelinha-simples, first-line-indent: 0pt, justify: true)
     corpo
-    if referencia != none [ (#referencia)]
+    if referencia != none {
+      if parenteses [ (#referencia)] else [ #referencia]
+    }
   },
 )
 
 // ---------------------------------------------------------------------
 // Figura com legenda acima e fonte abaixo (NBR 14724).
-// Enquanto o upload de imagens não existir, `imagem` pode ser none e um
-// quadro de espaço reservado é desenhado.
 // ---------------------------------------------------------------------
 #let figura(legenda: [], fonte: [do autor], imagem: none) = figure(
   kind: image,
@@ -55,13 +55,13 @@
         width: 80%,
         height: 4cm,
         stroke: 0.5pt + luma(150),
-        align(center + horizon, text(fill: luma(120), size: 10pt)[Imagem]),
+        align(center + horizon, text(fill: luma(120), size: 0.85em)[Imagem]),
       )
     } else {
       imagem
     }
     v(0.3em)
-    text(size: 10pt)[Fonte: #fonte.]
+    text(size: 0.85em)[Fonte: #fonte.]
   },
 )
 
@@ -75,7 +75,7 @@
   {
     corpo
     v(0.3em)
-    text(size: 10pt)[Fonte: #fonte.]
+    text(size: 0.85em)[Fonte: #fonte.]
   },
 )
 
@@ -89,7 +89,7 @@
   {
     corpo
     v(0.3em)
-    text(size: 10pt)[Fonte: #fonte.]
+    text(size: 0.85em)[Fonte: #fonte.]
   },
 )
 
@@ -102,7 +102,7 @@
   below: 1.4em,
   {
     if legenda != none {
-      align(center, text(size: 10pt, weight: "bold")[Algoritmo — #legenda])
+      align(center, text(size: 0.85em, weight: "bold")[Algoritmo — #legenda])
       v(0.3em)
     }
     block(
@@ -113,26 +113,65 @@
       stroke: 0.5pt + luma(200),
       {
         set par(justify: false, first-line-indent: 0pt, leading: 0.55em)
-        set text(size: 9.5pt)
+        set text(size: 0.8em)
         corpo
       },
     )
     if fonte != none {
       v(0.2em)
-      align(center, text(size: 10pt)[Fonte: #fonte.])
+      align(center, text(size: 0.85em)[Fonte: #fonte.])
     }
   },
 )
 
 // ---------------------------------------------------------------------
 // Lista de referências (NBR 6023): alinhadas à esquerda, espaçamento
-// simples, separadas por uma linha em branco.
+// simples, separadas por uma linha em branco (configurável multi-norma).
 // ---------------------------------------------------------------------
-#let referencias(..itens) = {
-  heading(numbering: none)[Referências]
-  set par(justify: false, first-line-indent: 0pt, leading: entrelinha-simples)
+#let referencias(
+  titulo: auto,
+  alinhamento: "left",
+  espacamento: 1.2em,
+  numeracao: none,
+  ..itens
+) = {
+  let heading-title = if titulo != auto { titulo } else [Referências]
+  heading(numbering: none)[#heading-title]
+  set par(
+    justify: alinhamento == "justify",
+    first-line-indent: 0pt,
+    leading: entrelinha-simples,
+  )
+  let idx = 1
   for item in itens.pos() {
-    block(above: 0pt, below: 1.2em, item)
+    if numeracao == "bracket" {
+      block(
+        above: 0pt,
+        below: espacamento,
+        grid(
+          columns: (1.8em, 1fr),
+          gutter: 0.4em,
+          align: (left, left),
+          [[#idx]],
+          [#item],
+        ),
+      )
+    } else if numeracao == "dot" {
+      block(
+        above: 0pt,
+        below: espacamento,
+        grid(
+          columns: (1.8em, 1fr),
+          gutter: 0.4em,
+          align: (left, left),
+          [#idx.],
+          [#item],
+        ),
+      )
+    } else {
+      block(above: 0pt, below: espacamento, item)
+    }
+    idx = idx + 1
   }
 }
 
@@ -172,10 +211,22 @@
   tamanho-fonte: 12pt,
   entrelinha: entrelinha-1-5,
   recuo: recuo-paragrafo,
+  espacamento-paragrafo: auto,
+  justificar-corpo: true,
   margem-superior: 3cm,
   margem-esquerda: 3cm,
   margem-inferior: 2cm,
   margem-direita: 2cm,
+  tamanho-papel: "a4",
+  orientacao: "portrait",
+  idioma: "pt",
+  regiao: auto,
+  posicao-pagina: "top_right",
+  ocultar-pagina-1: false,
+  romano-pre-textual: false,
+  cabecalho: none,
+  numeracao-secoes: "1.1",
+  quebra-h1: auto,
   colunas: 1,
   incluir-capa: true,
   incluir-folha-rosto: true,
@@ -184,29 +235,128 @@
 ) = {
   set document(title: titulo, author: autor)
 
-  let familia-fonte = if fonte == "sans" { fontes-sem-serifa } else { fontes-serifadas }
+  let familia-fonte = if type(fonte) == array {
+    fonte
+  } else if fonte == "sans" {
+    fontes-sem-serifa
+  } else if fonte == "serif" {
+    fontes-serifadas
+  } else {
+    (fonte, ..fontes-serifadas)
+  }
+
+  let papel-typst = if tamanho-papel == "letter" { "us-letter" } else { tamanho-papel }
+  let resolved-regiao = if regiao != auto {
+    regiao
+  } else if idioma == "en" {
+    "us"
+  } else if idioma == "es" {
+    "es"
+  } else {
+    "br"
+  }
+  let espaco-paragrafo = if espacamento-paragrafo != auto { espacamento-paragrafo } else { entrelinha }
+  let num-secoes = if numeracao-secoes == "none" or numeracao-secoes == none { none } else { numeracao-secoes }
+
+  let lbl-orientador = if idioma == "en" [Advisor:] else if idioma == "es" [Director(a):] else [Orientador(a):]
+  let lbl-coorientador = if idioma == "en" [Co-advisor:] else if idioma == "es" [Codirector(a):] else [Coorientador(a):]
+  let lbl-aprovado = if idioma == "en" [Approved on:] else if idioma == "es" [Aprobado el:] else [Aprovado em:]
+  let lbl-banca = if idioma == "en" [EXAMINATION COMMITTEE] else if idioma == "es" [TRIBUNAL EXAMINADOR] else [BANCA EXAMINADORA]
+  let lbl-agradecimentos = if idioma == "en" [ACKNOWLEDGMENTS] else if idioma == "es" [AGRADECIMIENTOS] else [AGRADECIMENTOS]
+  let lbl-resumo = if idioma == "en" [SUMMARY] else if idioma == "es" [RESUMEN] else [RESUMO]
+  let lbl-palavras = if idioma == "en" [Keywords:] else if idioma == "es" [Palabras clave:] else [Palavras-chave:]
+  let lbl-lista-fig = if idioma == "en" [LIST OF FIGURES] else if idioma == "es" [LISTA DE FIGURAS] else [LISTA DE ILUSTRAÇÕES]
+  let lbl-lista-qua = if idioma == "en" [LIST OF CHARTS] else if idioma == "es" [LISTA DE CUADROS] else [LISTA DE QUADROS]
+  let lbl-lista-tab = if idioma == "en" [LIST OF TABLES] else if idioma == "es" [LISTA DE TABLAS] else [LISTA DE TABELAS]
+  let lbl-siglas = if idioma == "en" [LIST OF ABBREVIATIONS] else if idioma == "es" [LISTA DE SIGLAS] else [LISTA DE ABREVIATURAS E SIGLAS]
+  let lbl-simbolos = if idioma == "en" [LIST OF SYMBOLS] else if idioma == "es" [LISTA DE SÍMBOLOS] else [LISTA DE SÍMBOLOS]
+  let lbl-sumario = if idioma == "en" [CONTENTS] else if idioma == "es" [ÍNDICE] else [SUMÁRIO]
+
+  let doc-phase = state("redija-abnt-phase", if incluir-capa { "cover" } else { "pre" })
 
   set page(
-    paper: "a4",
+    paper: papel-typst,
+    flipped: (orientacao == "landscape"),
     margin: (
       top: margem-superior,
       left: margem-esquerda,
       bottom: margem-inferior,
       right: margem-direita,
     ),
-    header: none,
+    header: context {
+      let phase = doc-phase.get()
+      if phase == "cover" {
+        none
+      } else {
+        let pg = counter(page).get().first()
+        let show-num = if phase == "textual" {
+          posicao-pagina == "top_right" and not (ocultar-pagina-1 and pg == 1)
+        } else if romano-pre-textual {
+          posicao-pagina == "top_right" and not (ocultar-pagina-1 and not incluir-capa and pg == 1)
+        } else {
+          false
+        }
+        let num-text = if phase == "pre" and romano-pre-textual {
+          numbering("i", pg)
+        } else {
+          counter(page).display()
+        }
+        let header-left = if phase == "textual" and cabecalho != none and cabecalho != "" {
+          cabecalho
+        } else {
+          none
+        }
+        if header-left != none or show-num {
+          grid(
+            columns: (1fr, auto),
+            align(left, text(size: 0.85em, fill: luma(90))[#if header-left != none { header-left }]),
+            align(right, text(size: 0.85em)[#if show-num { num-text }]),
+          )
+        }
+      }
+    },
+    footer: context {
+      let phase = doc-phase.get()
+      if phase == "cover" {
+        none
+      } else {
+        let pg = counter(page).get().first()
+        let is-bottom = posicao-pagina == "bottom_center" or posicao-pagina == "bottom_right"
+        let show-num = if not is-bottom {
+          false
+        } else if phase == "textual" {
+          not (ocultar-pagina-1 and pg == 1)
+        } else if romano-pre-textual {
+          not (ocultar-pagina-1 and not incluir-capa and pg == 1)
+        } else {
+          false
+        }
+        if show-num {
+          let num-text = if phase == "pre" and romano-pre-textual {
+            numbering("i", pg)
+          } else {
+            counter(page).display()
+          }
+          align(
+            if posicao-pagina == "bottom_center" { center } else { right },
+            text(size: 0.85em)[#num-text],
+          )
+        }
+      }
+    },
   )
 
-  set text(font: familia-fonte, size: tamanho-fonte, lang: "pt", region: "br")
-  set par(justify: true, leading: entrelinha, spacing: entrelinha, first-line-indent: 0pt)
+  set text(font: familia-fonte, size: tamanho-fonte, lang: idioma, region: resolved-regiao)
+  set par(justify: justificar-corpo, leading: entrelinha, spacing: espaco-paragrafo, first-line-indent: 0pt)
 
   // Títulos: numeração progressiva (NBR 6024)
-  set heading(numbering: "1.1")
+  set heading(numbering: num-secoes)
   show heading: set text(size: tamanho-fonte)
   show heading: set block(above: 1.5em, below: 1.5em)
   show heading.where(level: 1): it => {
     // Em trabalhos de 1 coluna com capa, seções primárias começam em página nova
-    if incluir-capa and colunas == 1 {
+    let deve-quebrar = if quebra-h1 != auto { quebra-h1 } else { incluir-capa and colunas == 1 }
+    if deve-quebrar {
       pagebreak(weak: true)
     }
     text(weight: "bold", upper(it))
@@ -216,11 +366,11 @@
   show heading.where(level: 4): it => text(weight: "regular", underline(it))
   show heading.where(level: 5): it => text(weight: "regular", it)
 
-  // Figuras, Tabelas e Quadros: legenda acima, texto 10 pt, sem recuo
+  // Figuras, Tabelas e Quadros: legenda acima, texto proporcional, sem recuo
   show figure.where(kind: image): set figure.caption(position: top)
   show figure.where(kind: table): set figure.caption(position: top)
   show figure.where(kind: "quadro"): set figure.caption(position: top)
-  show figure.caption: set text(size: 10pt)
+  show figure.caption: set text(size: 0.85em)
   show figure: set par(first-line-indent: 0pt)
   show figure: set block(above: 1.5em, below: 1.5em)
 
@@ -236,8 +386,12 @@
         logo
         v(0.8em)
       }
-      #text(weight: "bold")[#upper(instituicao)] \
-      #upper(curso)
+      #if instituicao != "" [
+        #text(weight: "bold")[#upper(instituicao)]#if curso != "" [ \ ]
+      ]
+      #if curso != "" [
+        #upper(curso)
+      ]
 
       #v(1fr)
       #text(weight: "bold")[#upper(autor)]
@@ -246,8 +400,15 @@
       #text(weight: "bold")[#titulo-completo]
 
       #v(2fr)
-      #text(weight: "bold")[#local \ #ano]
+      #if local != "" and ano != "" [
+        #text(weight: "bold")[#local \ #ano]
+      ] else if local != "" [
+        #text(weight: "bold")[#local]
+      ] else if ano != "" [
+        #text(weight: "bold")[#ano]
+      ]
     ]
+    doc-phase.update("pre")
   }
 
   // -------------------------- FOLHA DE ROSTO --------------------------
@@ -267,20 +428,26 @@
     if natureza != none {
       align(right, block(width: 50%, {
         set par(leading: entrelinha-simples, justify: true)
-        set text(size: 11pt)
+        set text(size: 0.92em)
         natureza
         if orientador != none [
 
-          Orientador(a): #orientador
+          #lbl-orientador #orientador
         ]
         if coorientador != none [
 
-          Coorientador(a): #coorientador
+          #lbl-coorientador #coorientador
         ]
       }))
     }
     v(1fr)
-    align(center, text(weight: "bold")[#local \ #ano])
+    if local != "" and ano != "" {
+      align(center, text(weight: "bold")[#local \ #ano])
+    } else if local != "" {
+      align(center, text(weight: "bold")[#local])
+    } else if ano != "" {
+      align(center, text(weight: "bold")[#ano])
+    }
   } else if not incluir-capa {
     // Modo Artigo Científico (sem capa e sem folha de rosto): cabeçalho direto no topo
     counter(page).update(1)
@@ -290,18 +457,18 @@
         logo
         v(0.5em)
       }
-      #if instituicao != "" [
-        #text(size: 10pt)[#upper(instituicao) — #curso] \
+      #if instituicao != "" or curso != "" [
+        #text(size: 0.85em)[#upper(instituicao)#if instituicao != "" and curso != "" [ — ]#curso] \
         #v(0.4em)
       ]
-      #text(size: 14pt, weight: "bold")[#titulo-completo] \
+      #text(size: 1.17em, weight: "bold")[#titulo-completo] \
       #v(0.5em)
-      #text(size: 11pt, weight: "bold")[#autor]
+      #text(size: 0.92em, weight: "bold")[#autor]
       #if orientador != none [
-        \ #text(size: 10pt)[Orientador(a): #orientador]
+        \ #text(size: 0.85em)[#lbl-orientador #orientador]
       ]
       #if coorientador != none [
-        \ #text(size: 10pt)[Coorientador(a): #coorientador]
+        \ #text(size: 0.85em)[#lbl-coorientador #coorientador]
       ]
     ]
     v(1em)
@@ -323,40 +490,40 @@
     if natureza != none {
       align(right, block(width: 55%, {
         set par(leading: entrelinha-simples, justify: true)
-        set text(size: 11pt)
+        set text(size: 0.92em)
         natureza
       }))
     }
     v(2em)
     if data-aprovacao != none and data-aprovacao != "" [
-      Aprovado em: #data-aprovacao.
+      #lbl-aprovado #data-aprovacao.
     ] else [
-      Aprovado em: \_\_\_\_/\_\_\_\_/\_\_\_\_\_\_\_\_.
+      #lbl-aprovado \_\_\_\_/\_\_\_\_/\_\_\_\_\_\_\_\_.
     ]
 
     v(2.5em)
     align(center)[
-      #text(weight: "bold")[BANCA EXAMINADORA]
+      #text(weight: "bold")[#lbl-banca]
       #v(2.5em)
 
       #if orientador != none [
         #line(length: 65%, stroke: 0.5pt)
         #v(0.2em)
-        #text(size: 11pt)[#orientador (Orientador(a)) \ #instituicao]
+        #text(size: 0.92em)[#orientador (Orientador(a)) \ #instituicao]
         #v(2.2em)
       ]
 
       #if coorientador != none [
         #line(length: 65%, stroke: 0.5pt)
         #v(0.2em)
-        #text(size: 11pt)[#coorientador (Coorientador(a)) \ #instituicao]
+        #text(size: 0.92em)[#coorientador (Coorientador(a)) \ #instituicao]
         #v(2.2em)
       ]
 
       #for membro in banca [
         #line(length: 65%, stroke: 0.5pt)
         #v(0.2em)
-        #text(size: 11pt)[#membro]
+        #text(size: 0.92em)[#membro]
         #v(2.2em)
       ]
     ]
@@ -374,7 +541,7 @@
   if agradecimentos != none {
     pagebreak()
     set par(first-line-indent: (amount: recuo, all: true), leading: entrelinha)
-    align(center, text(weight: "bold")[AGRADECIMENTOS])
+    align(center, text(weight: "bold")[#lbl-agradecimentos])
     v(1.5em)
     agradecimentos
   }
@@ -388,7 +555,7 @@
       align(left, emph(epigrafe))
       if epigrafe-autor != none [
         \
-        #align(right, text(size: 10pt)[(#epigrafe-autor)])
+        #align(right, text(size: 0.85em)[(#epigrafe-autor)])
       ]
     }))
   }
@@ -401,12 +568,12 @@
       v(0.8em)
     }
     set par(first-line-indent: 0pt, leading: entrelinha-simples, spacing: entrelinha-simples)
-    align(center, text(weight: "bold")[RESUMO])
+    align(center, text(weight: "bold")[#lbl-resumo])
     v(1em)
     resumo
     if palavras-chave.len() > 0 {
       v(1em)
-      [*Palavras-chave:* #palavras-chave.join(". ").]
+      [*#lbl-palavras* #palavras-chave.join(". ").]
     }
   }
 
@@ -431,7 +598,7 @@
   if lista-figuras {
     pagebreak()
     set par(first-line-indent: 0pt)
-    align(center, text(weight: "bold")[LISTA DE ILUSTRAÇÕES])
+    align(center, text(weight: "bold")[#lbl-lista-fig])
     v(1.5em)
     outline(title: none, target: figure.where(kind: image))
   }
@@ -440,7 +607,7 @@
   if lista-quadros {
     pagebreak()
     set par(first-line-indent: 0pt)
-    align(center, text(weight: "bold")[LISTA DE QUADROS])
+    align(center, text(weight: "bold")[#lbl-lista-qua])
     v(1.5em)
     outline(title: none, target: figure.where(kind: "quadro"))
   }
@@ -449,7 +616,7 @@
   if lista-tabelas {
     pagebreak()
     set par(first-line-indent: 0pt)
-    align(center, text(weight: "bold")[LISTA DE TABELAS])
+    align(center, text(weight: "bold")[#lbl-lista-tab])
     v(1.5em)
     outline(title: none, target: figure.where(kind: table))
   }
@@ -458,7 +625,7 @@
   if siglas != none {
     pagebreak()
     set par(first-line-indent: 0pt, leading: entrelinha-simples)
-    align(center, text(weight: "bold")[LISTA DE ABREVIATURAS E SIGLAS])
+    align(center, text(weight: "bold")[#lbl-siglas])
     v(1.5em)
     siglas
   }
@@ -467,7 +634,7 @@
   if simbolos != none {
     pagebreak()
     set par(first-line-indent: 0pt, leading: entrelinha-simples)
-    align(center, text(weight: "bold")[LISTA DE SÍMBOLOS])
+    align(center, text(weight: "bold")[#lbl-simbolos])
     v(1.5em)
     simbolos
   }
@@ -476,7 +643,7 @@
   if incluir-sumario {
     pagebreak()
     set par(first-line-indent: 0pt)
-    align(center, text(weight: "bold")[SUMÁRIO])
+    align(center, text(weight: "bold")[#lbl-sumario])
     v(1.5em)
     outline(title: none, indent: auto)
   } else if not tem-pre-textual {
@@ -484,11 +651,11 @@
   }
 
   // -------------------------- PARTE TEXTUAL ---------------------------
-  // A partir daqui o número da página aparece no canto superior direito.
-  set page(
-    header: context align(right, text(size: 10pt, counter(page).display())),
-    columns: colunas,
-  )
+  doc-phase.update("textual")
+  if romano-pre-textual and tem-pre-textual {
+    counter(page).update(1)
+  }
+  set page(columns: colunas)
   // `all: true`: a ABNT recua também o primeiro parágrafo após um título.
   set par(first-line-indent: (amount: recuo, all: true))
   body

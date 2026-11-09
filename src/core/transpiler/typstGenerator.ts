@@ -1,26 +1,133 @@
 import {
-  Block,
   AcademicReference,
-  DocumentProject,
+  Block,
+  CitationFormat,
+  CslStyle,
   DEFAULT_TEMPLATE_CONFIG,
-  TemplateConfig,
+  DocumentLanguage,
+  DocumentProject,
   ProjectTemplateType,
+  TemplateConfig,
 } from '@/types/document';
 import {
   escapeMarkup,
   richTextToTypst,
+  RichTextTypstContext,
   stripHtmlTags,
   typstContent,
   typstString,
 } from './escape';
+import {
+  buildBibKeyMap,
+  exportToBibtex,
+  getOrderedReferences,
+  getPrimarySurname,
+  getReferenceBibKey,
+  getReferenceIndexMap,
+  getSortedReferences,
+  parseCitationAuthors,
+  resolveCitationFormat,
+} from './abntLinter';
+import { ConfigurableFieldId } from '@/core/templates/fieldRegistry';
+import {
+  getTemplateCapabilities,
+  TemplateCapabilities,
+} from '@/core/templates/templateCapabilities';
+import {
+  getTypstFontStack,
+  sanitizeCustomFontFamily,
+} from '@/core/typst/fontCatalog';
 import abntTemplate from '@/core/templates/abnt.typ?raw';
 import sbcTemplate from '@/core/templates/sbc.typ?raw';
 import ieeeTemplate from '@/core/templates/ieee.typ?raw';
 import posterTemplate from '@/core/templates/poster.typ?raw';
 
+export {
+  buildBibKeyMap,
+  getOrderedReferences,
+  getReferenceBibKey,
+  getReferenceIndexMap,
+  getSortedReferences,
+  resolveCitationFormat,
+};
+
 /** Nome do arquivo do modelo dentro do projeto Typst gerado. */
 export const TEMPLATE_FILE = 'abnt.typ';
 export const MAIN_FILE = 'main.typ';
+export type ResolvedReferenceEntryFormat = 'abnt' | 'apa' | 'ieee';
+
+export function resolveCslStyle(
+  cfg: TemplateConfig = DEFAULT_TEMPLATE_CONFIG,
+  effectiveType?: ProjectTemplateType,
+): CslStyle {
+  if (cfg.cslStyle) return cfg.cslStyle;
+  if (effectiveType === 'ieee' || cfg.preset === 'ieee' || cfg.citationFormat === 'ieee_numeric') {
+    return 'ieee';
+  }
+  if (cfg.preset === 'apa_7' || cfg.citationFormat === 'author_date') {
+    return 'apa';
+  }
+  return 'associacao-brasileira-de-normas-tecnicas';
+}
+
+export function resolveReferenceEntryFormat(
+  cfg: TemplateConfig = DEFAULT_TEMPLATE_CONFIG,
+  effectiveType?: ProjectTemplateType,
+): ResolvedReferenceEntryFormat {
+  if (
+    cfg.referenceEntryFormat === 'abnt' ||
+    cfg.referenceEntryFormat === 'apa' ||
+    cfg.referenceEntryFormat === 'ieee'
+  ) {
+    return cfg.referenceEntryFormat;
+  }
+  if (effectiveType === 'ieee' || cfg.preset === 'ieee') {
+    return 'ieee';
+  }
+  if (cfg.preset === 'apa_7' || cfg.citationFormat === 'author_date') {
+    return 'apa';
+  }
+  return 'abnt';
+}
+
+function getEffectiveCfg(project: DocumentProject): TemplateConfig {
+  const resolvedCitationFormat = resolveCitationFormat(project.templateConfig);
+  return {
+    ...DEFAULT_TEMPLATE_CONFIG,
+    ...(project.templateConfig ?? {}),
+    citationFormat: resolvedCitationFormat,
+  };
+}
+
+function getLocalizedLabels(lang?: DocumentLanguage): {
+  glossary: string;
+  appendices: string;
+  annexes: string;
+  references: string;
+} {
+  if (lang === 'en') {
+    return {
+      glossary: 'GLOSSARY',
+      appendices: 'APPENDICES',
+      annexes: 'ANNEXES',
+      references: 'References',
+    };
+  }
+  if (lang === 'es') {
+    return {
+      glossary: 'GLOSARIO',
+      appendices: 'APÉNDICES',
+      annexes: 'ANEXOS',
+      references: 'Referencias',
+    };
+  }
+  return {
+    glossary: 'GLOSSÁRIO',
+    appendices: 'APÊNDICES',
+    annexes: 'ANEXOS',
+    references: 'Referências',
+  };
+}
 
 export function getTemplateFileName(templateType?: ProjectTemplateType): string {
   switch (templateType) {
@@ -62,8 +169,17 @@ export function generateTypstFiles(
   project: DocumentProject,
   extraFiles?: Record<string, string>,
 ): Record<string, string> {
-  const currentTemplateFile = getTemplateFileName(project.templateType);
-  const currentTemplateContent = getTemplateRawContent(project.templateType);
+  const capabilities = getTemplateCapabilities(project);
+  const effectiveType = capabilities.effectiveType;
+  const cfg = getEffectiveCfg(project);
+  const orderedRefs = getOrderedReferences(
+    project.references || [],
+    cfg.referenceOrdering ?? 'alphabetical',
+    project.blocks,
+  );
+  const currentTemplateFile = getTemplateFileName(effectiveType);
+  const currentTemplateContent = getTemplateRawContent(effectiveType);
+  const useTypstCsl = cfg.bibliographyEngine === 'typst_csl' && orderedRefs.length > 0;
 
   return {
     [currentTemplateFile]: currentTemplateContent,
@@ -71,6 +187,7 @@ export function generateTypstFiles(
     'sbc.typ': sbcTemplate,
     'ieee.typ': ieeeTemplate,
     'poster.typ': posterTemplate,
+    ...(useTypstCsl ? { 'refs.bib': exportToBibtex(orderedRefs) } : {}),
     ...(extraFiles || {}),
     [MAIN_FILE]: generateMain(project, true),
   };
@@ -148,70 +265,114 @@ function parseDataUrl(dataUrl: string): { ext: string; bytes: Uint8Array } | nul
  * exportação e para abrir em outros editores Typst.
  */
 export function generateStandaloneTypst(project: DocumentProject): string {
-  const currentTemplateFile = getTemplateFileName(project.templateType);
-  const currentTemplateContent = getTemplateRawContent(project.templateType);
+  const capabilities = getTemplateCapabilities(project);
+  const effectiveType = capabilities.effectiveType;
+  const cfg = getEffectiveCfg(project);
+  const currentTemplateFile = getTemplateFileName(effectiveType);
+  const currentTemplateContent = getTemplateRawContent(effectiveType);
   const importLine = `#import "${currentTemplateFile}": *`;
-  const main = generateMain(project, false).replace(importLine, '').trim();
+  let main = generateMain(project, false).replace(importLine, '').trim();
+
+  if (cfg.bibliographyEngine === 'typst_csl' && project.references.length > 0) {
+    const orderedRefs = getOrderedReferences(
+      project.references,
+      cfg.referenceOrdering ?? 'alphabetical',
+      project.blocks,
+    );
+    const bibContent = exportToBibtex(orderedRefs);
+    main = main.replace(
+      '#bibliography("refs.bib"',
+      `#bibliography(bytes(${typstString(bibContent)})`,
+    );
+  }
+
   return `${currentTemplateContent}\n// ===================== DOCUMENTO =====================\n${main}`;
 }
 
 /** Gera apenas o conteúdo do main.typ. */
 export function generateMain(project: DocumentProject, includeBinaryImages = false): string {
-  const cfg: TemplateConfig = {
-    ...DEFAULT_TEMPLATE_CONFIG,
-    ...(project.templateConfig ?? {}),
+  const cfg = getEffectiveCfg(project);
+  const capabilities = getTemplateCapabilities(project);
+  const effectiveType = capabilities.effectiveType;
+  const ordering = cfg.referenceOrdering ?? 'alphabetical';
+  const orderedRefs = getOrderedReferences(project.references, ordering, project.blocks);
+  const refIndexMap = new Map<string, number>();
+  orderedRefs.forEach((ref, idx) => refIndexMap.set(ref.id, idx + 1));
+  const bibKeyMap = buildBibKeyMap(orderedRefs);
+
+  const richCtx: RichTextTypstContext = {
+    references: orderedRefs,
+    refIndexMap,
+    citationFormat: cfg.citationFormat,
+    bibliographyEngine: cfg.bibliographyEngine,
+    bibKeyMap,
   };
 
-  let importLine = `#import "${getTemplateFileName(project.templateType)}": *`;
-  if (project.templateType === 'universe_custom') {
+  let importLine = `#import "${getTemplateFileName(effectiveType)}": *`;
+  if (effectiveType === 'universe_custom') {
     const SAFE_PKG_REGEX = /^@[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+:[0-9.]+$/;
     const pkg =
       cfg.universePackage && SAFE_PKG_REGEX.test(cfg.universePackage.trim())
         ? cfg.universePackage.trim()
-        : '@preview/charged-ieee:0.1.1';
-    importLine = `#import "abnt.typ": *\n#import "${pkg}": *`;
+        : '@preview/charged-ieee:0.1.4';
+    if (pkg.startsWith('@preview/touying:')) {
+      importLine = `#import "abnt.typ": *\n#import "${pkg}": *\n#import themes.simple: *`;
+    } else {
+      importLine = `#import "abnt.typ": *\n#import "${pkg}": *`;
+    }
   }
 
   const parts: string[] = [
     importLine,
-    generateShowRule(project, cfg, includeBinaryImages),
+    generateShowRule(project, cfg, includeBinaryImages, capabilities),
     '',
   ];
 
   for (const block of project.blocks) {
-    const code = transpileBlock(block, includeBinaryImages, cfg);
+    const code = transpileBlock(block, includeBinaryImages, cfg, orderedRefs, refIndexMap, richCtx);
     if (code !== null) parts.push(code, '');
   }
 
-  if (project.references.length > 0) {
-    parts.push(transpileReferences(project.references, cfg));
+  if (orderedRefs.length > 0) {
+    parts.push(transpileReferences(orderedRefs, cfg, effectiveType));
   }
 
-  // Elementos Pós-Textuais Opcionais (NBR 14724): Glossário, Apêndices e Anexos (Apenas para ABNT/TCC)
-  if (project.templateType !== 'poster' && project.templateType !== 'ieee' && project.templateType !== 'sbc') {
-    if (project.metadata.glossary?.trim()) {
+  // Elementos Pós-Textuais Opcionais (NBR 14724): Glossário, Apêndices e Anexos
+  const canRenderPostTextuals =
+    effectiveType !== 'poster' &&
+    effectiveType !== 'ieee' &&
+    effectiveType !== 'sbc';
+
+  if (canRenderPostTextuals) {
+    const labels = getLocalizedLabels(cfg.documentLanguage);
+    const allowPostField = (fieldId: 'glossary' | 'appendices' | 'annexes') =>
+      !capabilities.supportsSidebarFieldPdfSync ||
+      !capabilities.isSidebarCustomized ||
+      capabilities.posTextualFields.includes(fieldId);
+
+    if (allowPostField('glossary') && project.metadata.glossary?.trim()) {
       parts.push(
         '',
         '#pagebreak(weak: true)',
-        '#heading(numbering: none)[GLOSSÁRIO]',
+        `#heading(numbering: none)[${labels.glossary}]`,
         escapeMarkup(project.metadata.glossary.trim()),
       );
     }
 
-    if (project.metadata.appendices?.trim()) {
+    if (allowPostField('appendices') && project.metadata.appendices?.trim()) {
       parts.push(
         '',
         '#pagebreak(weak: true)',
-        '#heading(numbering: none)[APÊNDICES]',
+        `#heading(numbering: none)[${labels.appendices}]`,
         escapeMarkup(project.metadata.appendices.trim()),
       );
     }
 
-    if (project.metadata.annexes?.trim()) {
+    if (allowPostField('annexes') && project.metadata.annexes?.trim()) {
       parts.push(
         '',
         '#pagebreak(weak: true)',
-        '#heading(numbering: none)[ANEXOS]',
+        `#heading(numbering: none)[${labels.annexes}]`,
         escapeMarkup(project.metadata.annexes.trim()),
       );
     }
@@ -220,26 +381,140 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
   return parts.join('\n');
 }
 
+function buildTypstFontValue(cfg: TemplateConfig, fallbackDefault: 'serif' | 'sans' = 'serif'): string {
+  const family = cfg.fontFamily;
+  if (family === 'serif') return typstString('serif');
+  if (family === 'sans') return typstString('sans');
+  if (family === 'custom' && !sanitizeCustomFontFamily(cfg.customFontFamily)) {
+    return typstString(fallbackDefault);
+  }
+  const stack = getTypstFontStack(family, cfg.customFontFamily);
+  return `(${stack.map(typstString).join(', ')})`;
+}
+
+function clampFontSizePt(val?: number, fallback = 12): number {
+  const num = Number(val);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(24, Math.max(8, Math.round(num * 2) / 2));
+}
+
+function clampParagraphSpacingEm(val?: number): number | undefined {
+  if (typeof val !== 'number' || !Number.isFinite(val)) return undefined;
+  return Math.min(3, Math.max(0, Math.round(val * 100) / 100));
+}
+
+function getLineSpacingVar(spacing: TemplateConfig['lineSpacing']): string {
+  if (spacing === '1.0') return 'entrelinha-simples';
+  if (spacing === '2.0') return 'entrelinha-dupla';
+  return 'entrelinha-1-5';
+}
+
+interface ShowRuleLayoutDefaults {
+  fontSizePt: number;
+  lineSpacing: TemplateConfig['lineSpacing'];
+  paragraphIndentCm: number;
+  marginTopCm: number;
+  marginLeftCm: number;
+  marginBottomCm: number;
+  marginRightCm: number;
+  lang: DocumentLanguage;
+  pageNumbering: NonNullable<TemplateConfig['pageNumbering']>;
+  headingNumbering: NonNullable<TemplateConfig['headingNumbering']>;
+  skipAbntSpreadDefaults?: boolean;
+}
+
+function appendCommonLayoutArgs(
+  args: string[],
+  cfg: TemplateConfig,
+  defaults: ShowRuleLayoutDefaults,
+): void {
+  const safeFontSize = clampFontSizePt(cfg.fontSizePt, defaults.fontSizePt);
+  if (safeFontSize !== defaults.fontSizePt) {
+    args.push(`tamanho-fonte: ${safeFontSize}pt`);
+  }
+  if (cfg.lineSpacing && cfg.lineSpacing !== defaults.lineSpacing) {
+    args.push(`entrelinha: ${getLineSpacingVar(cfg.lineSpacing)}`);
+  }
+
+  const ignoreAbntIndent =
+    defaults.skipAbntSpreadDefaults &&
+    cfg.paragraphIndentCm === DEFAULT_TEMPLATE_CONFIG.paragraphIndentCm;
+  if (!ignoreAbntIndent && cfg.paragraphIndentCm !== defaults.paragraphIndentCm) {
+    const safeIndent = Math.min(4, Math.max(0, Number(cfg.paragraphIndentCm) || defaults.paragraphIndentCm));
+    args.push(`recuo: ${safeIndent}cm`);
+  }
+
+  const parSpacing = clampParagraphSpacingEm(cfg.paragraphSpacingEm);
+  if (parSpacing !== undefined) {
+    args.push(`espacamento-paragrafo: ${parSpacing}em`);
+  }
+  if (cfg.bodyAlignment === 'left') {
+    args.push('justificar-corpo: false');
+  }
+
+  const pushMargin = (argName: string, val: number, defVal: number, abntDef: number) => {
+    if (defaults.skipAbntSpreadDefaults && val === abntDef) return;
+    if (val !== defVal && Number.isFinite(val)) {
+      const clamped = Math.min(6, Math.max(0.5, val));
+      args.push(`${argName}: ${clamped}cm`);
+    }
+  };
+  pushMargin('margem-superior', cfg.marginTopCm, defaults.marginTopCm, DEFAULT_TEMPLATE_CONFIG.marginTopCm);
+  pushMargin('margem-esquerda', cfg.marginLeftCm, defaults.marginLeftCm, DEFAULT_TEMPLATE_CONFIG.marginLeftCm);
+  pushMargin('margem-inferior', cfg.marginBottomCm, defaults.marginBottomCm, DEFAULT_TEMPLATE_CONFIG.marginBottomCm);
+  pushMargin('margem-direita', cfg.marginRightCm, defaults.marginRightCm, DEFAULT_TEMPLATE_CONFIG.marginRightCm);
+
+  if (cfg.paperSize && cfg.paperSize !== 'a4') {
+    args.push(`tamanho-papel: ${typstString(cfg.paperSize)}`);
+  }
+  if (cfg.pageOrientation === 'landscape') {
+    args.push('orientacao: "landscape"');
+  }
+  if (cfg.documentLanguage && cfg.documentLanguage !== defaults.lang) {
+    args.push(`idioma: ${typstString(cfg.documentLanguage)}`);
+  }
+  if (cfg.pageNumbering && cfg.pageNumbering !== defaults.pageNumbering) {
+    args.push(`posicao-pagina: ${typstString(cfg.pageNumbering)}`);
+  }
+  if (cfg.hideFirstPageNumber) {
+    args.push('ocultar-pagina-1: true');
+  }
+  if (cfg.runningHeader !== undefined && cfg.runningHeader.trim()) {
+    args.push(`cabecalho: ${typstString(cfg.runningHeader.trim())}`);
+  }
+  if (cfg.headingNumbering && cfg.headingNumbering !== defaults.headingNumbering) {
+    args.push(`numeracao-secoes: ${typstString(cfg.headingNumbering)}`);
+  }
+  if (typeof cfg.h1PageBreak === 'boolean') {
+    args.push(`quebra-h1: ${cfg.h1PageBreak}`);
+  }
+}
+
 function generateShowRule(
   project: DocumentProject,
   cfg: TemplateConfig,
   includeBinaryImages = false,
+  capabilities: TemplateCapabilities = getTemplateCapabilities(project),
 ): string {
-  switch (project.templateType) {
+  switch (capabilities.effectiveType) {
     case 'sbc':
-      return generateSbcShowRule(project, cfg);
+      return generateSbcShowRule(project, cfg, includeBinaryImages);
     case 'ieee':
-      return generateIeeeShowRule(project, cfg);
+      return generateIeeeShowRule(project, cfg, includeBinaryImages);
     case 'poster':
       return generatePosterShowRule(project, cfg, includeBinaryImages);
     case 'universe_custom':
       return generateUniverseShowRule(project, cfg);
     default:
-      return generateAbntShowRule(project, cfg, includeBinaryImages);
+      return generateAbntShowRule(project, cfg, includeBinaryImages, capabilities);
   }
 }
 
-function generateSbcShowRule(project: DocumentProject, cfg: TemplateConfig): string {
+function generateSbcShowRule(
+  project: DocumentProject,
+  cfg: TemplateConfig,
+  includeBinaryImages = false,
+): string {
   const m = project.metadata;
   const args: string[] = [
     `titulo: ${typstString(m.title)}`,
@@ -250,20 +525,46 @@ function generateSbcShowRule(project: DocumentProject, cfg: TemplateConfig): str
     `ano: ${typstString(m.year)}`,
   ];
   if (m.subtitle?.trim()) args.push(`subtitulo: ${typstString(m.subtitle)}`);
+  if (includeBinaryImages && m.institutionLogoDataUrl) {
+    const parsedLogo = parseDataUrl(m.institutionLogoDataUrl);
+    if (parsedLogo) {
+      const logoPath = `/assets/logo_instituicao.${parsedLogo.ext}`;
+      args.push(`logo: image(${typstString(logoPath)}, height: 2cm)`);
+    }
+  }
   if (m.abstract.trim()) args.push(`resumo: ${typstContent(m.abstract)}`);
   const keywords = m.keywords.map((k) => k.trim()).filter(Boolean);
   if (keywords.length > 0) args.push(`palavras-chave: (${keywords.map(typstString).join(', ')},)`);
   if (m.foreignAbstract?.trim()) args.push(`abstract: ${typstContent(m.foreignAbstract)}`);
   const foreignKeywords = (m.foreignKeywords ?? []).map((k) => k.trim()).filter(Boolean);
   if (foreignKeywords.length > 0) args.push(`keywords: (${foreignKeywords.map(typstString).join(', ')},)`);
-  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily === 'sans' ? 'sans' : 'serif')}`);
+  if (cfg.fontFamily) args.push(`fonte: ${buildTypstFontValue(cfg, 'serif')}`);
+
+  appendCommonLayoutArgs(args, cfg, {
+    fontSizePt: 12,
+    lineSpacing: '1.0',
+    paragraphIndentCm: 1.25,
+    marginTopCm: 3.5,
+    marginLeftCm: 3.0,
+    marginBottomCm: 2.5,
+    marginRightCm: 3.0,
+    lang: 'pt',
+    pageNumbering: 'bottom_center',
+    headingNumbering: 'none',
+    skipAbntSpreadDefaults: cfg.preset === 'sbc',
+  });
+
   const sbcCols = Number(cfg.columns) === 2 ? 2 : 1;
   args.push(`colunas: ${sbcCols}`);
 
   return `#show: sbc-article.with(\n  ${args.join(',\n  ')},\n)`;
 }
 
-function generateIeeeShowRule(project: DocumentProject, cfg: TemplateConfig): string {
+function generateIeeeShowRule(
+  project: DocumentProject,
+  cfg: TemplateConfig,
+  includeBinaryImages = false,
+): string {
   const m = project.metadata;
   const args: string[] = [
     `titulo: ${typstString(m.title)}`,
@@ -274,13 +575,35 @@ function generateIeeeShowRule(project: DocumentProject, cfg: TemplateConfig): st
     `ano: ${typstString(m.year)}`,
   ];
   if (m.subtitle?.trim()) args.push(`subtitulo: ${typstString(m.subtitle)}`);
+  if (includeBinaryImages && m.institutionLogoDataUrl) {
+    const parsedLogo = parseDataUrl(m.institutionLogoDataUrl);
+    if (parsedLogo) {
+      const logoPath = `/assets/logo_instituicao.${parsedLogo.ext}`;
+      args.push(`logo: image(${typstString(logoPath)}, height: 1.8cm)`);
+    }
+  }
   if (m.abstract.trim()) args.push(`resumo: ${typstContent(m.abstract)}`);
   const keywords = m.keywords.map((k) => k.trim()).filter(Boolean);
   if (keywords.length > 0) args.push(`palavras-chave: (${keywords.map(typstString).join(', ')},)`);
   if (m.foreignAbstract?.trim()) args.push(`abstract: ${typstContent(m.foreignAbstract)}`);
   const foreignKeywords = (m.foreignKeywords ?? []).map((k) => k.trim()).filter(Boolean);
   if (foreignKeywords.length > 0) args.push(`keywords: (${foreignKeywords.map(typstString).join(', ')},)`);
-  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily === 'sans' ? 'sans' : 'serif')}`);
+  if (cfg.fontFamily) args.push(`fonte: ${buildTypstFontValue(cfg, 'serif')}`);
+
+  appendCommonLayoutArgs(args, cfg, {
+    fontSizePt: 10,
+    lineSpacing: '1.0',
+    paragraphIndentCm: 0.35,
+    marginTopCm: 1.9,
+    marginLeftCm: 1.57,
+    marginBottomCm: 2.54,
+    marginRightCm: 1.57,
+    lang: 'en',
+    pageNumbering: 'bottom_center',
+    headingNumbering: 'none',
+    skipAbntSpreadDefaults: cfg.preset === 'ieee',
+  });
+
   const ieeeCols = Number(cfg.columns) === 1 ? 1 : 2;
   args.push(`colunas: ${ieeeCols}`);
 
@@ -322,43 +645,132 @@ function generatePosterShowRule(
   args.push(`orientacao: ${typstString(safeOrientation)}`);
   args.push(`colunas: ${safeCols}`);
   args.push(`tema: ${typstString(safeTheme)}`);
-  if (cfg.fontFamily) args.push(`fonte: ${typstString(cfg.fontFamily === 'sans' ? 'sans' : 'serif')}`);
+  if (cfg.fontFamily) args.push(`fonte: ${buildTypstFontValue(cfg, 'sans')}`);
+  if (cfg.fontSizePt >= 14 && cfg.fontSizePt !== 22) {
+    args.push(`tamanho-fonte: ${clampFontSizePt(cfg.fontSizePt, 22)}pt`);
+  }
+  if (cfg.bodyAlignment === 'left') args.push('justificar-corpo: false');
+  if (cfg.documentLanguage && cfg.documentLanguage !== 'pt') {
+    args.push(`idioma: ${typstString(cfg.documentLanguage)}`);
+  }
+  if (cfg.headingNumbering && cfg.headingNumbering !== 'none') {
+    args.push(`numeracao-secoes: ${typstString(cfg.headingNumbering)}`);
+  }
 
   return `#show: academic-poster.with(\n  ${args.join(',\n  ')},\n)`;
 }
 
+function buildNativeTypstFontTuple(
+  cfg: TemplateConfig,
+  fallbackDefault: 'serif' | 'sans' = 'serif',
+): string {
+  const effectiveFamily =
+    cfg.fontFamily === 'custom' && !sanitizeCustomFontFamily(cfg.customFontFamily)
+      ? fallbackDefault
+      : cfg.fontFamily || fallbackDefault;
+  const stack = getTypstFontStack(effectiveFamily, cfg.customFontFamily);
+  return `(${stack.map(typstString).join(', ')})`;
+}
+
 function generateUniverseShowRule(project: DocumentProject, cfg: TemplateConfig): string {
   const m = project.metadata;
-  const SAFE_ENTRY_REGEX = /^[a-zA-Z0-9_-]+$/;
-  const entry =
-    cfg.universeEntrypoint && SAFE_ENTRY_REGEX.test(cfg.universeEntrypoint.trim())
-      ? cfg.universeEntrypoint.trim()
-      : 'article';
+  const SAFE_PKG_REGEX = /^@[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+:[0-9.]+$/;
+  const pkg =
+    cfg.universePackage && SAFE_PKG_REGEX.test(cfg.universePackage.trim())
+      ? cfg.universePackage.trim()
+      : '@preview/charged-ieee:0.1.4';
+  const SAFE_ENTRY_REGEX = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
+  const rawEntry = cfg.universeEntrypoint?.trim() ?? '';
+  const entry = SAFE_ENTRY_REGEX.test(rawEntry) ? rawEntry : 'article';
+
+  const rawAuthors = (m.author || 'Autor')
+    .split(';')
+    .map((a) => a.trim())
+    .filter(Boolean);
+  const safeAuthors = rawAuthors.length > 0 ? rawAuthors : ['Autor'];
+
+  if (pkg.startsWith('@preview/touying:')) {
+    const lines = ['#show: simple-theme.with(aspect-ratio: "16-9")'];
+    if (cfg.fontFamily && cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {
+      if (cfg.fontFamily !== 'custom' || sanitizeCustomFontFamily(cfg.customFontFamily)) {
+        lines.push(`#set text(font: ${buildNativeTypstFontTuple(cfg, 'sans')})`);
+      }
+    }
+    return lines.join('\n');
+  }
+
+  const isChargedIeee = pkg.includes('charged-ieee') || entry === 'ieee';
+  if (isChargedIeee) {
+    const authorItems = safeAuthors.map((name) => {
+      const fields = [`name: ${typstString(name)}`];
+      if (m.institution?.trim()) {
+        fields.push(`organization: ${typstContent(m.institution.trim())}`);
+      }
+      if (m.location?.trim()) {
+        fields.push(`location: ${typstContent(m.location.trim())}`);
+      }
+      return `(${fields.join(', ')})`;
+    });
+    const authorsExpr =
+      authorItems.length === 1 ? `(${authorItems[0]},)` : `(${authorItems.join(', ')})`;
+
+    const args: string[] = [
+      `title: ${typstString(m.title)}`,
+      `authors: ${authorsExpr}`,
+    ];
+    if (m.abstract.trim()) args.push(`abstract: ${typstContent(m.abstract)}`);
+    const keywords = m.keywords.map((k) => k.trim()).filter(Boolean);
+    if (keywords.length > 0) {
+      args.push(`index-terms: (${keywords.map(typstString).join(', ')},)`);
+    }
+    if (cfg.paperSize === 'a4') {
+      args.push('paper-size: "a4"');
+    }
+
+    return `#show: ${entry}.with(\n  ${args.join(',\n  ')},\n)\n#set text(font: ${buildNativeTypstFontTuple(cfg, 'serif')})`;
+  }
+
   const args: string[] = [
     `title: ${typstString(m.title)}`,
-    `authors: (${typstString(m.author)},)`,
+    `authors: (${safeAuthors.map(typstString).join(', ')},)`,
   ];
   if (m.abstract.trim()) args.push(`abstract: ${typstContent(m.abstract)}`);
-  return `#show: ${entry}.with(\n  ${args.join(',\n  ')},\n)`;
+  const lines = [`#show: ${entry}.with(\n  ${args.join(',\n  ')},\n)`];
+  if (cfg.fontFamily && cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {
+    if (cfg.fontFamily !== 'custom' || sanitizeCustomFontFamily(cfg.customFontFamily)) {
+      lines.push(`#set text(font: ${buildNativeTypstFontTuple(cfg, 'serif')})`);
+    }
+  }
+  return lines.join('\n');
 }
 
 function generateAbntShowRule(
   project: DocumentProject,
   cfg: TemplateConfig,
   includeBinaryImages = false,
+  capabilities: TemplateCapabilities = getTemplateCapabilities(project),
 ): string {
   const m = project.metadata;
+  const visibleSet = new Set<ConfigurableFieldId>(capabilities.visibleFieldIds);
+  const hasField = (id: ConfigurableFieldId): boolean =>
+    !capabilities.supportsSidebarFieldPdfSync ||
+    !capabilities.isSidebarCustomized ||
+    visibleSet.has(id);
+
   const args: string[] = [
-    `instituicao: ${typstString(m.institution)}`,
-    `curso: ${typstString(m.course)}`,
-    `autor: ${typstString(m.author)}`,
-    `titulo: ${typstString(m.title)}`,
+    `instituicao: ${hasField('institution') ? typstString(m.institution) : '""'}`,
+    `curso: ${hasField('course') ? typstString(m.course) : '""'}`,
+    `autor: ${hasField('author') ? typstString(m.author) : '""'}`,
+    `titulo: ${hasField('title') ? typstString(m.title) : '""'}`,
   ];
-  if (m.subtitle?.trim()) args.push(`subtitulo: ${typstString(m.subtitle)}`);
-  if (m.nature?.trim()) args.push(`natureza: ${typstContent(m.nature)}`);
-  if (m.advisor?.trim()) args.push(`orientador: ${typstString(m.advisor)}`);
-  if (m.coadvisor?.trim()) args.push(`coorientador: ${typstString(m.coadvisor)}`);
-  args.push(`local: ${typstString(m.location)}`, `ano: ${typstString(m.year)}`);
+  if (hasField('subtitle') && m.subtitle?.trim()) args.push(`subtitulo: ${typstString(m.subtitle)}`);
+  if (hasField('nature') && m.nature?.trim()) args.push(`natureza: ${typstContent(m.nature)}`);
+  if (hasField('advisor') && m.advisor?.trim()) args.push(`orientador: ${typstString(m.advisor)}`);
+  if (hasField('coadvisor') && m.coadvisor?.trim()) args.push(`coorientador: ${typstString(m.coadvisor)}`);
+  args.push(
+    `local: ${hasField('location') ? typstString(m.location) : '""'}`,
+    `ano: ${hasField('year') ? typstString(m.year) : '""'}`,
+  );
 
   if (includeBinaryImages && m.institutionLogoDataUrl) {
     const parsedLogo = parseDataUrl(m.institutionLogoDataUrl);
@@ -368,7 +780,7 @@ function generateAbntShowRule(
     }
   }
 
-  if (m.includeApprovalPage) {
+  if (hasField('includeApprovalPage') && m.includeApprovalPage) {
     args.push('incluir-folha-aprovacao: true');
     if (m.approvalDate?.trim()) {
       args.push(`data-aprovacao: ${typstString(m.approvalDate.trim())}`);
@@ -379,66 +791,51 @@ function generateAbntShowRule(
     }
   }
 
-  if (m.dedicatory?.trim()) args.push(`dedicatoria: ${typstContent(m.dedicatory)}`);
-  if (m.acknowledgments?.trim()) args.push(`agradecimentos: ${typstContent(m.acknowledgments)}`);
-  if (m.epigraph?.trim()) args.push(`epigrafe: ${typstContent(m.epigraph)}`);
-  if (m.epigraphAuthor?.trim()) args.push(`epigrafe-autor: ${typstContent(m.epigraphAuthor)}`);
-  if (m.abstract.trim()) args.push(`resumo: ${typstContent(m.abstract)}`);
+  if (hasField('dedicatory') && m.dedicatory?.trim()) args.push(`dedicatoria: ${typstContent(m.dedicatory)}`);
+  if (hasField('acknowledgments') && m.acknowledgments?.trim()) args.push(`agradecimentos: ${typstContent(m.acknowledgments)}`);
+  if (hasField('epigraph') && m.epigraph?.trim()) args.push(`epigrafe: ${typstContent(m.epigraph)}`);
+  if (hasField('epigraph') && m.epigraphAuthor?.trim()) args.push(`epigrafe-autor: ${typstContent(m.epigraphAuthor)}`);
+  if (hasField('abstract') && m.abstract.trim()) args.push(`resumo: ${typstContent(m.abstract)}`);
 
   const keywords = m.keywords.map((k) => k.trim()).filter(Boolean);
-  if (keywords.length > 0) {
+  if (hasField('keywords') && keywords.length > 0) {
     args.push(`palavras-chave: (${keywords.map(typstString).join(', ')},)`);
   }
 
-  if (m.foreignAbstract?.trim()) args.push(`abstract: ${typstContent(m.foreignAbstract)}`);
+  if (hasField('foreignAbstract') && m.foreignAbstract?.trim()) args.push(`abstract: ${typstContent(m.foreignAbstract)}`);
   const foreignKeywords = (m.foreignKeywords ?? []).map((k) => k.trim()).filter(Boolean);
-  if (foreignKeywords.length > 0) {
+  if (hasField('foreignAbstract') && foreignKeywords.length > 0) {
     args.push(`keywords: (${foreignKeywords.map(typstString).join(', ')},)`);
   }
 
-  if (m.includeFiguresList) args.push('lista-figuras: true');
-  if (m.includeBoxesList) args.push('lista-quadros: true');
-  if (m.includeTablesList) args.push('lista-tabelas: true');
-  if (m.abbreviations?.trim()) args.push(`siglas: ${typstContent(m.abbreviations)}`);
-  if (m.symbols?.trim()) args.push(`simbolos: ${typstContent(m.symbols)}`);
+  if (hasField('includeFiguresList') && m.includeFiguresList) args.push('lista-figuras: true');
+  if (hasField('includeBoxesList') && m.includeBoxesList) args.push('lista-quadros: true');
+  if (hasField('includeTablesList') && m.includeTablesList) args.push('lista-tabelas: true');
+  if (hasField('abbreviations') && m.abbreviations?.trim()) args.push(`siglas: ${typstContent(m.abbreviations)}`);
+  if (hasField('symbols') && m.symbols?.trim()) args.push(`simbolos: ${typstContent(m.symbols)}`);
 
   // Parâmetros de personalização do template / norma
   if (cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {
-    const safeFont = cfg.fontFamily === 'sans' ? 'sans' : 'serif';
-    args.push(`fonte: ${typstString(safeFont)}`);
+    if (cfg.fontFamily !== 'custom' || sanitizeCustomFontFamily(cfg.customFontFamily)) {
+      args.push(`fonte: ${buildTypstFontValue(cfg, 'serif')}`);
+    }
   }
-  if (cfg.fontSizePt !== DEFAULT_TEMPLATE_CONFIG.fontSizePt) {
-    const safeSize = Number(cfg.fontSizePt) || 12;
-    args.push(`tamanho-fonte: ${safeSize}pt`);
-  }
-  if (cfg.lineSpacing !== DEFAULT_TEMPLATE_CONFIG.lineSpacing) {
-    const leadingVar =
-      cfg.lineSpacing === '1.0'
-        ? 'entrelinha-simples'
-        : cfg.lineSpacing === '2.0'
-          ? 'entrelinha-dupla'
-          : 'entrelinha-1-5';
-    args.push(`entrelinha: ${leadingVar}`);
-  }
-  if (cfg.paragraphIndentCm !== DEFAULT_TEMPLATE_CONFIG.paragraphIndentCm) {
-    const safeIndent = Number(cfg.paragraphIndentCm) || 1.25;
-    args.push(`recuo: ${safeIndent}cm`);
-  }
-  if (cfg.marginTopCm !== DEFAULT_TEMPLATE_CONFIG.marginTopCm) {
-    const safeMargin = Number(cfg.marginTopCm) || 3;
-    args.push(`margem-superior: ${safeMargin}cm`);
-  }
-  if (cfg.marginLeftCm !== DEFAULT_TEMPLATE_CONFIG.marginLeftCm) {
-    const safeMargin = Number(cfg.marginLeftCm) || 3;
-    args.push(`margem-esquerda: ${safeMargin}cm`);
-  }
-  if (cfg.marginBottomCm !== DEFAULT_TEMPLATE_CONFIG.marginBottomCm) {
-    const safeMargin = Number(cfg.marginBottomCm) || 2;
-    args.push(`margem-inferior: ${safeMargin}cm`);
-  }
-  if (cfg.marginRightCm !== DEFAULT_TEMPLATE_CONFIG.marginRightCm) {
-    const safeMargin = Number(cfg.marginRightCm) || 2;
-    args.push(`margem-direita: ${safeMargin}cm`);
+
+  appendCommonLayoutArgs(args, cfg, {
+    fontSizePt: DEFAULT_TEMPLATE_CONFIG.fontSizePt,
+    lineSpacing: DEFAULT_TEMPLATE_CONFIG.lineSpacing,
+    paragraphIndentCm: DEFAULT_TEMPLATE_CONFIG.paragraphIndentCm,
+    marginTopCm: DEFAULT_TEMPLATE_CONFIG.marginTopCm,
+    marginLeftCm: DEFAULT_TEMPLATE_CONFIG.marginLeftCm,
+    marginBottomCm: DEFAULT_TEMPLATE_CONFIG.marginBottomCm,
+    marginRightCm: DEFAULT_TEMPLATE_CONFIG.marginRightCm,
+    lang: 'pt',
+    pageNumbering: 'top_right',
+    headingNumbering: '1.1',
+  });
+
+  if (cfg.romanPreTextual) {
+    args.push('romano-pre-textual: true');
   }
   if (cfg.columns !== DEFAULT_TEMPLATE_CONFIG.columns) {
     const safeCols = Number(cfg.columns) === 2 ? 2 : 1;
@@ -466,13 +863,38 @@ export function stripManualNumbering(title: string): string {
   return title.replace(/^\s*\d+(\.\d+)*(\.|\s*[-–—:])?(\s+|$)/, '').trim();
 }
 
+function findMatchingReference(
+  author: string | undefined,
+  year: string | undefined,
+  references: AcademicReference[],
+): AcademicReference | undefined {
+  if (!author?.trim() || references.length === 0) return undefined;
+  const { surnames } = parseCitationAuthors(author);
+  const targetSurname = surnames[0] || getPrimarySurname(author);
+  if (!targetSurname) return undefined;
+  const exactYearMatch = references.find(
+    (r) =>
+      getPrimarySurname(r.authors) === targetSurname &&
+      (!year?.trim() || r.year?.trim() === year.trim()),
+  );
+  return exactYearMatch ?? references.find((r) => getPrimarySurname(r.authors) === targetSurname);
+}
+
 function transpileBlock(
   block: Block,
   includeBinaryImages = false,
   cfg: TemplateConfig = DEFAULT_TEMPLATE_CONFIG,
+  references: AcademicReference[] = [],
+  refIndexMap: Map<string, number> = new Map(),
+  richCtx?: RichTextTypstContext,
 ): string | null {
+  if (block.type === 'raw_typst') {
+    const raw = block.content.trim();
+    return raw ? raw : null;
+  }
+
   const plainText = stripHtmlTags(block.content);
-  const richContent = richTextToTypst(block.content);
+  const richContent = richTextToTypst(block.content, richCtx);
 
   switch (block.type) {
     case 'h1':
@@ -503,11 +925,36 @@ function transpileBlock(
 
     case 'quote_long': {
       if (!plainText) return null;
+      const matchedRef = findMatchingReference(block.meta?.author, block.meta?.year, references);
+
+      if (richCtx?.bibliographyEngine === 'typst_csl' && matchedRef) {
+        const bibKey = richCtx.bibKeyMap?.get(matchedRef.id);
+        if (bibKey) {
+          const safeKey = bibKey.replace(/[^a-zA-Z0-9_-]/g, '');
+          const supArg = block.meta?.page?.trim()
+            ? `, supplement: [p. ${escapeMarkup(block.meta.page.trim())}]`
+            : '';
+          return `#citacao(referencia: [#cite(<${safeKey}>${supArg})], parenteses: false)[${italicizeLatinTerms(richContent)}]`;
+        }
+      }
+
+      const fmt = resolveCitationFormat(cfg);
+      if (fmt === 'ieee_numeric' || fmt === 'superscript') {
+        const idx = (matchedRef ? refIndexMap.get(matchedRef.id) : undefined) ?? 1;
+        if (fmt === 'ieee_numeric') {
+          const pageSuffix = block.meta?.page?.trim()
+            ? `, p. ${escapeMarkup(block.meta.page.trim())}`
+            : '';
+          return `#citacao(referencia: [\\[${idx}${pageSuffix}\\]], parenteses: false)[${italicizeLatinTerms(richContent)}]`;
+        }
+        return `#citacao(referencia: [#super[${idx}]], parenteses: false)[${italicizeLatinTerms(richContent)}]`;
+      }
+
       const ref = formatCitationReference(
         block.meta?.author,
         block.meta?.year,
         block.meta?.page,
-        cfg.citationStyle,
+        fmt,
       );
       const refContent = ref ? italicizeLatinTerms(escapeMarkup(ref)) : '';
       const refArg = refContent ? `referencia: [${refContent}]` : '';
@@ -617,12 +1064,24 @@ function transpileBlock(
 
 /**
  * Aplica itálico automático às expressões latinas "et al." e "apud" (NBR 10520:2023)
- * quando ainda não estão dentro de `#emph[...]`.
+ * quando ainda não estão dentro de `#emph[...]`, preservando strings `#raw`/`#link`, `#cite` e matemática.
  */
 function italicizeLatinTerms(typstText: string): string {
-  return typstText
+  const protectedTokens: string[] = [];
+  const masked = typstText.replace(
+    /#(?:raw|link)\("(?:[^"\\]|\\.)*"\)|#cite\([^)]*\)|\$[^$]+\$/g,
+    (match) => {
+      const idx = protectedTokens.length;
+      protectedTokens.push(match);
+      return `\uE000REDIJAPROT${idx}\uE001`;
+    },
+  );
+  const replaced = masked
     .replace(/(?<!#emph\[)\b(et\s+al\.)/gi, '#emph[et al.]')
     .replace(/(?<!#emph\[)\b(apud)\b/gi, '#emph[apud]');
+  return protectedTokens.length === 0
+    ? replaced
+    : replaced.replace(/\uE000REDIJAPROT(\d+)\uE001/g, (_m, i) => protectedTokens[Number(i)] ?? '');
 }
 
 /**
@@ -687,29 +1146,196 @@ export function formatAuthorCase(
   return surnames.map((s) => formatSingle(s.replace(/\.+$/, ''))).join('; ');
 }
 
-/** Monta a chamada autor-data da citação: (SILVA, 2023, p. 42) ou (Silva, 2023, p. 42). */
+/** Monta a chamada autor-data da citação: SILVA, 2023, p. 42 | Silva, 2023 | Silva 2023. */
 export function formatCitationReference(
   author?: string,
   year?: string,
   page?: string,
-  citationStyle: 'uppercase' | 'titlecase' = 'uppercase',
+  citationStyleOrFormat: 'uppercase' | 'titlecase' | CitationFormat = 'uppercase',
 ): string {
+  const isAuthorDateSimple = citationStyleOrFormat === 'author_date';
+  const style: 'uppercase' | 'titlecase' =
+    citationStyleOrFormat === 'titlecase' ||
+    citationStyleOrFormat === 'abnt_titlecase' ||
+    isAuthorDateSimple
+      ? 'titlecase'
+      : 'uppercase';
+
+  if (isAuthorDateSimple) {
+    const rawAuthor = author?.trim() ? formatAuthorCase(author, 'titlecase').replace(/;\s+/g, ' & ') : '';
+    const rawYear = year?.trim() || '';
+    const head = [rawAuthor, rawYear].filter(Boolean).join(' ');
+    const pagePart = page?.trim() ? `p. ${page.trim()}` : '';
+    return [head, pagePart].filter(Boolean).join(', ');
+  }
+
   const parts: string[] = [];
-  if (author?.trim()) parts.push(formatAuthorCase(author, citationStyle));
+  if (author?.trim()) parts.push(formatAuthorCase(author, style));
   if (year?.trim()) parts.push(year.trim());
   if (page?.trim()) parts.push(`p. ${page.trim()}`);
   return parts.join(', ');
 }
 
+function getReferenceSpacingValue(spacing?: TemplateConfig['referenceSpacing']): string {
+  if (spacing === 'compact') return '0.5em';
+  if (spacing === 'double') return '1.8em';
+  return '1.2em';
+}
+
 function transpileReferences(
-  references: AcademicReference[],
+  orderedReferences: AcademicReference[],
   cfg: TemplateConfig = DEFAULT_TEMPLATE_CONFIG,
+  effectiveType?: ProjectTemplateType,
 ): string {
-  const sorted = [...references].sort((a, b) =>
-    a.authors.localeCompare(b.authors, 'pt-BR', { sensitivity: 'base' }),
-  );
-  const items = sorted.map((ref) => `  ${transpileReference(ref, cfg)},`);
-  return `#referencias(\n${items.join('\n')}\n)`;
+  if (cfg.bibliographyEngine === 'typst_csl') {
+    const style = resolveCslStyle(cfg, effectiveType);
+    const defaultLang: DocumentLanguage = effectiveType === 'ieee' ? 'en' : 'pt';
+    const labels = getLocalizedLabels(cfg.documentLanguage ?? defaultLang);
+    return `#bibliography("refs.bib", style: ${typstString(style)}, full: true, title: [${escapeMarkup(labels.references)}])`;
+  }
+
+  const entryFormat = resolveReferenceEntryFormat(cfg, effectiveType);
+  const items = orderedReferences.map((ref) => `  ${transpileReference(ref, cfg, entryFormat)},`);
+  const citationFormat = resolveCitationFormat(cfg);
+
+  const refArgs: string[] = [];
+
+  if (cfg.documentLanguage) {
+    const nativeLang: DocumentLanguage = effectiveType === 'ieee' ? 'en' : 'pt';
+    if (cfg.documentLanguage !== nativeLang) {
+      const labels = getLocalizedLabels(cfg.documentLanguage);
+      refArgs.push(`titulo: [${escapeMarkup(labels.references)}]`);
+    }
+  }
+
+  if (effectiveType === 'ieee') {
+    if (cfg.referenceAlignment === 'justify') refArgs.push('alinhamento: "justify"');
+    if (cfg.referenceSpacing && cfg.referenceSpacing !== 'compact') {
+      refArgs.push(`espacamento: ${getReferenceSpacingValue(cfg.referenceSpacing)}`);
+    }
+    if (citationFormat === 'superscript') {
+      refArgs.push('numeracao: "dot"');
+    } else if (citationFormat !== 'ieee_numeric') {
+      refArgs.push('numeracao: none');
+    }
+  } else if (effectiveType === 'sbc' || effectiveType === 'poster') {
+    if (cfg.referenceAlignment === 'left') refArgs.push('alinhamento: "left"');
+    if (cfg.referenceSpacing && cfg.referenceSpacing !== 'single_blank') {
+      refArgs.push(`espacamento: ${getReferenceSpacingValue(cfg.referenceSpacing)}`);
+    }
+    if (citationFormat === 'ieee_numeric') {
+      refArgs.push('numeracao: "bracket"');
+    } else if (citationFormat === 'superscript') {
+      refArgs.push('numeracao: "dot"');
+    }
+  } else {
+    if (cfg.referenceAlignment === 'justify') {
+      refArgs.push('alinhamento: "justify"');
+    }
+    if (cfg.referenceSpacing && cfg.referenceSpacing !== 'single_blank') {
+      refArgs.push(`espacamento: ${getReferenceSpacingValue(cfg.referenceSpacing)}`);
+    }
+    if (citationFormat === 'ieee_numeric') {
+      refArgs.push('numeracao: "bracket"');
+    } else if (citationFormat === 'superscript') {
+      refArgs.push('numeracao: "dot"');
+    }
+  }
+
+  const argsBlock = refArgs.length > 0 ? `  ${refArgs.join(',\n  ')},\n` : '';
+  return `#referencias(\n${argsBlock}${items.join('\n')}\n)`;
+}
+
+function toInitials(givenName: string): string {
+  return givenName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => `${part[0].toUpperCase()}.`)
+    .join(' ');
+}
+
+function toTitleCaseName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/(?:^|[\s-])(\S)/g, (m) => m.toUpperCase());
+}
+
+function parseAuthorNameParts(entry: string): { surname: string; initials: string; isInstitutional: boolean } {
+  const clean = entry.trim().replace(/\.+$/, '');
+  if (clean.includes(',')) {
+    const [last, ...rest] = clean.split(',');
+    const given = rest.join(',').trim();
+    return {
+      surname: toTitleCaseName(last.trim()),
+      initials: given ? toInitials(given) : '',
+      isInstitutional: false,
+    };
+  }
+  // Sem vírgula (ex.: "W3C", "BRASIL. Ministério") -> mantém institucional ou último sobrenome
+  if (/^[A-Z0-9.\s-]+$/.test(clean) && clean.split(/\s+/).length <= 3) {
+    return { surname: clean, initials: '', isInstitutional: true };
+  }
+  const words = clean.split(/\s+/);
+  if (words.length <= 1) {
+    return { surname: clean, initials: '', isInstitutional: true };
+  }
+  const last = words.pop()!;
+  return {
+    surname: toTitleCaseName(last),
+    initials: toInitials(words.join(' ')),
+    isInstitutional: false,
+  };
+}
+
+function formatApaAuthors(rawAuthors: string): string {
+  const e = escapeMarkup;
+  const trimmed = rawAuthors.trim();
+  const hasEtAl = /\bet\s+al\.?/i.test(trimmed);
+  const cleaned = trimmed.replace(/\bet\s+al\.?/gi, '').trim();
+  const entries = cleaned
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (entries.length === 0) return e(cleaned);
+  const formatted = entries.map((entry) => {
+    const p = parseAuthorNameParts(entry);
+    if (p.isInstitutional || !p.initials) return e(p.surname);
+    return e(`${p.surname}, ${p.initials}`);
+  });
+
+  if (hasEtAl || formatted.length >= 21) {
+    return `${formatted[0]} #emph[et al.]`;
+  }
+  if (formatted.length === 1) return formatted[0];
+  if (formatted.length === 2) return `${formatted[0]}, & ${formatted[1]}`;
+  return `${formatted.slice(0, -1).join(', ')}, & ${formatted[formatted.length - 1]}`;
+}
+
+function formatIeeeAuthors(rawAuthors: string): string {
+  const e = escapeMarkup;
+  const trimmed = rawAuthors.trim();
+  const hasEtAl = /\bet\s+al\.?/i.test(trimmed);
+  const cleaned = trimmed.replace(/\bet\s+al\.?/gi, '').trim();
+  const entries = cleaned
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (entries.length === 0) return e(cleaned);
+  const formatted = entries.map((entry) => {
+    const p = parseAuthorNameParts(entry);
+    if (p.isInstitutional || !p.initials) return e(p.surname);
+    return e(`${p.initials} ${p.surname}`);
+  });
+
+  if (hasEtAl || formatted.length >= 4) {
+    return `${formatted[0]} #emph[et al.]`;
+  }
+  if (formatted.length === 1) return formatted[0];
+  if (formatted.length === 2) return `${formatted[0]} and ${formatted[1]}`;
+  return `${formatted.slice(0, -1).join(', ')}, and ${formatted[formatted.length - 1]}`;
 }
 
 /**
@@ -737,22 +1363,99 @@ function formatReferenceAuthors(rawAuthors: string): string {
 }
 
 /**
- * Formato NBR 6023 para livros, artigos de periódico, teses/TCCs, sites e legislação,
- * respeitando a preferência de destaque (negrito ou itálico).
+ * Formata uma entrada bibliográfica em ABNT (NBR 6023), APA 7 ou IEEE,
+ * respeitando a preferência de destaque tipográfico do usuário.
  */
 export function transpileReference(
   ref: AcademicReference,
   cfg: TemplateConfig = DEFAULT_TEMPLATE_CONFIG,
+  entryFormatOverride?: ResolvedReferenceEntryFormat,
 ): string {
   const e = escapeMarkup;
+  const entryFormat = entryFormatOverride ?? resolveReferenceEntryFormat(cfg);
   const type = ref.type || 'book';
-  const authors = formatReferenceAuthors(ref.authors);
   const title = e(ref.title.trim());
   const subtitle = ref.subtitle?.trim() ? `: ${e(ref.subtitle.trim())}` : '';
-  const year = e(ref.year?.trim() || '[s. d.]');
-  const hl = (text: string) =>
-    cfg.referenceHighlight === 'italic' ? `#emph[${text}]` : `#strong[${text}]`;
+  const year = e(ref.year?.trim() || (entryFormat === 'abnt' ? '[s. d.]' : 'n.d.'));
+  const hl = (text: string) => {
+    switch (cfg.referenceHighlight) {
+      case 'italic':
+        return `#emph[${text}]`;
+      case 'underline':
+        return `#underline[${text}]`;
+      case 'none':
+        return text;
+      case 'bold':
+      default:
+        return `#strong[${text}]`;
+    }
+  };
 
+  if (entryFormat === 'apa') {
+    const authors = formatApaAuthors(ref.authors);
+    const apaLink = ref.doi?.trim()
+      ? ` https://doi.org/${e(ref.doi.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '')).replace(/\.+$/, '')}`
+      : ref.url?.trim()
+        ? ` ${e(ref.url.trim()).replace(/\.+$/, '')}`
+        : '';
+
+    let out: string;
+    if (type === 'article' && ref.journal?.trim()) {
+      out = `${authors} (${year}). ${title}${subtitle}. ${hl(e(ref.journal.trim()))}`;
+      if (ref.volume?.trim()) {
+        out += `, ${e(ref.volume.trim())}`;
+        if (ref.issue?.trim()) out += `(${e(ref.issue.trim())})`;
+      }
+      if (ref.pages?.trim()) out += `, ${e(ref.pages.trim())}`;
+      out += '.';
+    } else if (type === 'thesis') {
+      const degree = e(ref.degree?.trim() || 'Thesis');
+      const inst = e(ref.institution?.trim() || ref.publisher?.trim() || 'University');
+      out = `${authors} (${year}). ${hl(title)}${subtitle} [${degree}, ${inst}].`;
+    } else if (type === 'website') {
+      const site = ref.publisher?.trim() ? ` ${e(ref.publisher.trim())}.` : '';
+      out = `${authors} (${year}). ${hl(title)}${subtitle}.${site}`;
+    } else {
+      const ed = ref.edition?.trim() ? ` (${e(ref.edition.trim())} ed.)` : '';
+      const pub = e(ref.publisher?.trim() || 'Publisher');
+      out = `${authors} (${year}). ${hl(title)}${subtitle}${ed}. ${pub}.`;
+    }
+    return `[${out}${apaLink}]`;
+  }
+
+  if (entryFormat === 'ieee') {
+    const authors = formatIeeeAuthors(ref.authors);
+    const ieeeSuffix = ref.doi?.trim()
+      ? ` doi: ${e(ref.doi.trim()).replace(/\.+$/, '')}.`
+      : ref.url?.trim()
+        ? ` [Online]. Available: ${e(ref.url.trim()).replace(/\.+$/, '')}`
+        : '';
+
+    let out: string;
+    if (type === 'article' && ref.journal?.trim()) {
+      out = `${authors}, "${title}${subtitle}," ${hl(e(ref.journal.trim()))}`;
+      if (ref.volume?.trim()) out += `, vol. ${e(ref.volume.trim())}`;
+      if (ref.issue?.trim()) out += `, no. ${e(ref.issue.trim())}`;
+      if (ref.pages?.trim()) out += `, pp. ${e(ref.pages.trim())}`;
+      out += `, ${year}.`;
+    } else if (type === 'thesis') {
+      const degree = e(ref.degree?.trim() || 'Thesis');
+      const inst = e(ref.institution?.trim() || ref.publisher?.trim() || 'Institution');
+      const city = ref.city?.trim() ? `, ${e(ref.city.trim())}` : '';
+      out = `${authors}, "${title}${subtitle}," ${degree}, ${inst}${city}, ${year}.`;
+    } else if (type === 'website') {
+      out = `${authors}, "${title}${subtitle}," ${year}.`;
+    } else {
+      const ed = ref.edition?.trim() ? `, ${e(ref.edition.trim())} ed.` : '';
+      const city = ref.city?.trim() ? ` ${e(ref.city.trim())}:` : '';
+      const pub = e(ref.publisher?.trim() || 'Publisher');
+      out = `${authors}, ${hl(title)}${subtitle}${ed}.${city} ${pub}, ${year}.`;
+    }
+    return `[${out}${ieeeSuffix}]`;
+  }
+
+  // ABNT (NBR 6023)
+  const authors = formatReferenceAuthors(ref.authors);
   let out: string;
 
   if (type === 'article' && ref.journal?.trim()) {

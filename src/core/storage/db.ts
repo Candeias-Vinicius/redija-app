@@ -13,11 +13,12 @@ export const TRASH_RETENTION_DAYS = 30;
 const TRASH_RETENTION_MS = TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 
 export interface CachedUniversePackage {
-  id: string; // Ex: "@preview/charged-ieee:0.1.1"
+  id: string; // Ex: "@preview/charged-ieee:0.1.4"
   name: string;
   version: string;
   entrypoint: string;
   files: Record<string, string>;
+  tarGzBytes?: Uint8Array;
   downloadedAt: string;
 }
 

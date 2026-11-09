@@ -38,15 +38,17 @@
 )
 
 // Citação no pôster
-#let citacao(referencia: none, corpo) = block(
+#let citacao(referencia: none, parenteses: true, corpo) = block(
   inset: (left: 2cm),
   above: 1em,
   below: 1em,
   width: 100%,
   {
-    set text(size: 20pt, style: "italic")
+    set text(size: 0.9em, style: "italic")
     corpo
-    if referencia != none [ (#referencia)]
+    if referencia != none {
+      if parenteses [ (#referencia)] else [ #referencia]
+    }
   },
 )
 
@@ -62,13 +64,13 @@
         height: 12cm,
         stroke: 1pt + luma(180),
         radius: 8pt,
-        align(center + horizon, text(fill: luma(120), size: 20pt)[Imagem / Gráfico]),
+        align(center + horizon, text(fill: luma(120), size: 0.9em)[Imagem / Gráfico]),
       )
     } else {
       imagem
     }
     v(0.4em)
-    text(size: 18pt)[*Fonte:* #fonte.]
+    text(size: 0.82em)[*Fonte:* #fonte.]
   },
 )
 
@@ -80,7 +82,7 @@
   {
     corpo
     v(0.4em)
-    text(size: 18pt)[*Fonte:* #fonte.]
+    text(size: 0.82em)[*Fonte:* #fonte.]
   },
 )
 
@@ -92,17 +94,85 @@
   {
     corpo
     v(0.4em)
-    text(size: 18pt)[*Fonte:* #fonte.]
+    text(size: 0.82em)[*Fonte:* #fonte.]
   },
 )
 
-// Lista de referências compacta para pôster
-#let referencias(..itens) = {
-  heading(level: 1)[Referências]
-  set par(justify: true, first-line-indent: 0pt, leading: 0.5em)
-  set text(size: 16pt)
+// Bloco de Código-Fonte / Algoritmo no pôster
+#let codigo(legenda: none, fonte: none, corpo) = block(
+  width: 100%,
+  above: 1.2em,
+  below: 1.2em,
+  {
+    if legenda != none {
+      align(center, text(size: 0.85em, weight: "bold")[Algoritmo — #legenda])
+      v(0.3em)
+    }
+    block(
+      width: 100%,
+      inset: 14pt,
+      radius: 6pt,
+      fill: luma(248),
+      stroke: 0.8pt + luma(200),
+      {
+        set par(justify: false, first-line-indent: 0pt, leading: 0.55em)
+        set text(size: 0.8em)
+        corpo
+      },
+    )
+    if fonte != none {
+      v(0.3em)
+      align(center, text(size: 0.82em)[*Fonte:* #fonte.])
+    }
+  },
+)
+
+// Lista de referências compacta para pôster (configurável)
+#let referencias(
+  titulo: auto,
+  alinhamento: "justify",
+  espacamento: 0.6em,
+  numeracao: none,
+  ..itens
+) = {
+  let heading-title = if titulo != auto { titulo } else [Referências]
+  heading(level: 1, numbering: none)[#heading-title]
+  set par(
+    justify: alinhamento == "justify",
+    first-line-indent: 0pt,
+    leading: 0.5em,
+  )
+  set text(size: 0.75em)
+  let idx = 1
   for item in itens.pos() {
-    block(above: 0pt, below: 0.6em, item)
+    if numeracao == "bracket" {
+      block(
+        above: 0pt,
+        below: espacamento,
+        grid(
+          columns: (2.2em, 1fr),
+          gutter: 0.4em,
+          align: (left, left),
+          [[#idx]],
+          [#item],
+        ),
+      )
+    } else if numeracao == "dot" {
+      block(
+        above: 0pt,
+        below: espacamento,
+        grid(
+          columns: (2.2em, 1fr),
+          gutter: 0.4em,
+          align: (left, left),
+          [#idx.],
+          [#item],
+        ),
+      )
+    } else {
+      block(above: 0pt, below: espacamento, item)
+    }
+    idx = idx + 1
   }
 }
 
@@ -119,6 +189,11 @@
   ano: "",
   logo: none,
   fonte: "sans",
+  tamanho-fonte: 22pt,
+  justificar-corpo: true,
+  idioma: "pt",
+  regiao: auto,
+  numeracao-secoes: "none",
   dimensoes: "a0",
   orientacao: "portrait",
   colunas: 3,
@@ -127,15 +202,34 @@
 ) = {
   set document(title: titulo, author: autor)
 
-  let familia-fonte = if fonte == "serif" { fontes-serifadas } else { fontes-sem-serifa }
+  let familia-fonte = if type(fonte) == array {
+    fonte
+  } else if fonte == "serif" {
+    fontes-serifadas
+  } else if fonte == "sans" {
+    fontes-sem-serifa
+  } else {
+    (fonte, ..fontes-sem-serifa)
+  }
   let colors = tema-cores.at(tema, default: tema-cores.emerald)
 
   let is-clean = tema == "clean"
   let header-text-color = if is-clean { rgb("#0f172a") } else { rgb("#ffffff") }
+  let papel-typst = if dimensoes == "letter" { "us-letter" } else { dimensoes }
+  let resolved-regiao = if regiao != auto {
+    regiao
+  } else if idioma == "en" {
+    "US"
+  } else if idioma == "es" {
+    "ES"
+  } else {
+    "BR"
+  }
+  let num-secoes = if numeracao-secoes == "none" or numeracao-secoes == none { none } else { numeracao-secoes }
 
   // Tamanho do Pôster (A0: 84.1cm x 118.9cm)
   set page(
-    paper: dimensoes,
+    paper: papel-typst,
     flipped: (orientacao == "landscape"),
     margin: (
       top: 2.5cm,
@@ -148,15 +242,17 @@
 
   set text(
     font: familia-fonte,
-    size: 22pt,
-    lang: "pt",
-    region: "BR",
+    size: tamanho-fonte,
+    lang: idioma,
+    region: resolved-regiao,
   )
 
   set par(
     leading: 0.65em,
-    justify: true,
+    justify: justificar-corpo,
   )
+
+  set heading(numbering: num-secoes)
 
   // Formatação de títulos como caixas visuais de seção (Cards)
   show heading.where(level: 1): it => block(
@@ -168,8 +264,8 @@
     above: 1.6cm,
     below: 0.8cm,
     [
-      #set text(size: 28pt, weight: "bold", fill: colors.card-header-text)
-      #it.body
+      #set text(size: 1.27em, weight: "bold", fill: colors.card-header-text)
+      #if it.numbering != none [#numbering(it.numbering, ..counter(heading).at(it.location())) ]#it.body
     ]
   )
 
@@ -177,8 +273,8 @@
     above: 1.2cm,
     below: 0.5cm,
     [
-      #set text(size: 24pt, weight: "bold", fill: colors.primary)
-      #it.body
+      #set text(size: 1.09em, weight: "bold", fill: colors.primary)
+      #if it.numbering != none [#numbering(it.numbering, ..counter(heading).at(it.location())) ]#it.body
     ]
   )
 
@@ -200,14 +296,14 @@
         ],
         [
           #set text(fill: header-text-color)
-          #text(size: 52pt, weight: "bold")[#titulo]
+          #text(size: 2.36em, weight: "bold")[#titulo]
           #if subtitulo != none [
-            \ #v(0.6cm) #text(size: 32pt, weight: "medium", fill: header-text-color.lighten(20%))[#subtitulo]
+            \ #v(0.6cm) #text(size: 1.45em, weight: "medium", fill: header-text-color.lighten(20%))[#subtitulo]
           ]
           #v(1cm)
-          #text(size: 26pt, weight: "bold")[#autor] \
+          #text(size: 1.18em, weight: "bold")[#autor] \
           #v(0.3cm)
-          #text(size: 20pt, fill: header-text-color.lighten(15%))[
+          #text(size: 0.91em, fill: header-text-color.lighten(15%))[
             #if curso != "" [#curso | ]
             #if instituicao != "" [#instituicao]
             #if local != "" [ — #local]
@@ -218,7 +314,9 @@
   )
 
   // --- GRID DE COLUNAS DO PÔSTER ---
-  columns(colunas, gutter: 2cm)[
-    #body
-  ]
+  if colunas > 1 {
+    columns(colunas, gutter: 2cm)[#body]
+  } else {
+    body
+  }
 }

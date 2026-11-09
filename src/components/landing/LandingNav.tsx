@@ -8,11 +8,14 @@ import {
   FileCheck2,
 } from 'lucide-react';
 import { Logo } from '../Logo';
+import { GitHubIcon } from '../GitHubIcon';
+import { GITHUB_REPO_URL } from '@/core/links';
 
 interface LandingNavProps {
   isDark: boolean;
   onToggleTheme: () => void;
   onOpenDoc: (standardCode?: string) => void;
+  onOpenFullDocs?: () => void;
   onOpenLogin: () => void;
   isLoading: boolean;
 }
@@ -21,6 +24,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
   isDark,
   onToggleTheme,
   onOpenDoc,
+  onOpenFullDocs,
   onOpenLogin,
   isLoading,
 }) => {
@@ -39,6 +43,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
     { label: 'Recursos', href: '#recursos' },
     { label: 'Demonstração', href: '#demonstracao' },
     { label: 'Modelos', href: '#modelos' },
+    { label: 'Linters', href: '#linters' },
     { label: 'Dúvidas', href: '#faq' },
   ];
 
@@ -83,7 +88,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
               </a>
             ))}
 
-            {/* Link para o Guia ABNT com Modal Técnico */}
+            {/* Link para o Guia Técnico de Normas com Modal */}
             <button
               onClick={() => onOpenDoc()}
               className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-colors ${
@@ -92,15 +97,47 @@ export const LandingNav: React.FC<LandingNavProps> = ({
                   : 'text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50'
               }`}
             >
-              Normas ABNT
+              Normas &amp; Guias
             </button>
+
+            <a
+              href="/docs"
+              onClick={(e) => {
+                if (onOpenFullDocs && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                  e.preventDefault();
+                  onOpenFullDocs();
+                }
+              }}
+              className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-colors ${
+                isDark
+                  ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+              }`}
+            >
+              Documentação
+            </a>
           </nav>
 
           {/* Divisor vertical sutil no desktop */}
           <div className="hidden md:block w-px h-5 bg-slate-200 dark:bg-slate-800" />
 
-          {/* Ações da Extrema Direita: Tema + Entrar */}
+          {/* Ações da Extrema Direita: GitHub + Tema + Entrar */}
           <div className="flex items-center gap-2">
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`p-1.5 sm:p-2 rounded-xl border transition-colors ${
+                isDark
+                  ? 'border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+              title="Código aberto no GitHub"
+              aria-label="Repositório oficial no GitHub"
+            >
+              <GitHubIcon className="w-3.5 h-3.5" />
+            </a>
+
             {/* Alternar Tema (Dark/Light) */}
             <button
               onClick={onToggleTheme}
@@ -177,8 +214,43 @@ export const LandingNav: React.FC<LandingNavProps> = ({
             className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 text-xs font-semibold"
           >
             <FileCheck2 className="w-3.5 h-3.5" />
-            <span>Documentação das 9 Normas ABNT</span>
+            <span>Guia de Normas (ABNT, SBC, IEEE, APA)</span>
           </button>
+
+          <div className="grid grid-cols-2 gap-2">
+            <a
+              href="/docs"
+              onClick={(e) => {
+                setMobileMenuOpen(false);
+                if (onOpenFullDocs && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                  e.preventDefault();
+                  onOpenFullDocs();
+                }
+              }}
+              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-medium ${
+                isDark
+                  ? 'border-slate-800 text-slate-200 hover:bg-slate-800'
+                  : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <span>Guia /docs</span>
+            </a>
+
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-medium ${
+                isDark
+                  ? 'border-slate-800 text-slate-200 hover:bg-slate-800'
+                  : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <GitHubIcon className="w-3.5 h-3.5" />
+              <span>GitHub</span>
+            </a>
+          </div>
         </div>
       )}
     </header>

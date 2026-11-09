@@ -70,7 +70,7 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
   const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplateType>('tcc');
-  const [universePackageInput, setUniversePackageInput] = useState('@preview/charged-ieee:0.1.1');
+  const [universePackageInput, setUniversePackageInput] = useState('@preview/charged-ieee:0.1.4');
   const [newProjectName, setNewProjectName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -186,14 +186,14 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".redija,.docx,.zip,.json"
+              accept=".redija,.docx,.zip,.typ,.tex,.json"
               onChange={handleFileChange}
               className="hidden"
             />
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 transition-colors"
-              title="Importar documento Word (.docx), pacote (.zip do Redija ou Overleaf) ou backup (.redija)"
+              title="Importar documento Word (.docx), LaTeX (.tex), Typst (.typ), pacote (.zip do Redija, Overleaf ou Typst) ou backup (.redija)"
             >
               <Upload className="w-3.5 h-3.5 text-emerald-600" />
               <span>Importar Projeto</span>
@@ -539,7 +539,7 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                       type="text"
                       value={universePackageInput}
                       onChange={(e) => setUniversePackageInput(e.target.value)}
-                      placeholder="Ex: @preview/charged-ieee:0.1.1"
+                      placeholder="Ex: @preview/charged-ieee:0.1.4"
                       className="w-full text-xs px-2.5 py-1.5 bg-neutral-50 border border-neutral-300 rounded focus:outline-none focus:border-emerald-600 font-mono"
                     />
                     <div className="space-y-1">
@@ -586,10 +586,10 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                   className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 font-medium text-xs transition-colors"
                 >
                   <Upload className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Importar Word (.docx) ou ZIP (Redija / Overleaf)</span>
+                  <span>Importar Word (.docx), LaTeX (.tex), Typst (.typ) ou ZIP</span>
                 </button>
                 <p className="text-[10px] text-neutral-500 text-center mt-1">
-                  O formato e conteúdo são identificados e convertidos automaticamente.
+                  O modelo e os metadados (título, autores, resumo, referências) são detectados automaticamente.
                 </p>
               </div>
             </div>

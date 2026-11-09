@@ -2,12 +2,46 @@ version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "chore"
       include: "scope"
     labels:
       - "dependencies"
+      - "automated"
+    groups:
+      react-ecosystem:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      tiptap-ecosystem:
+        patterns:
+          - "@tiptap/*"
+      typst-ecosystem:
+        patterns:
+          - "@myriaddreamin/*"
+      tailwind-ecosystem:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/*"
+    ignore:
+      # Aguardar typescript-eslint suportar TypeScript >= 7 (peerDependency atual < 6.1.0)
+      - dependency-name: "typescript"
+        versions: [">= 7.0.0"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - "ci"
       - "automated"

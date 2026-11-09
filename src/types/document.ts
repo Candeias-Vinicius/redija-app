@@ -9,6 +9,7 @@ export type BlockType =
   | 'quote_long'
   | 'equation'
   | 'code'
+  | 'raw_typst'
   | 'image'
   | 'table'
   | 'box'
@@ -87,10 +88,52 @@ export type NormPresetId =
   | 'universe_custom'
   | 'custom';
 
+export type FontFamilyId =
+  | 'serif'
+  | 'sans'
+  | 'libertinus'
+  | 'new_cm'
+  | 'lora'
+  | 'eb_garamond'
+  | 'inter'
+  | 'roboto'
+  | 'fira_sans'
+  | 'jetbrains_mono'
+  | 'custom';
+
+export type CitationFormat =
+  | 'abnt_upper'
+  | 'abnt_titlecase'
+  | 'ieee_numeric'
+  | 'superscript'
+  | 'author_date';
+
+export type ReferenceHighlight = 'bold' | 'italic' | 'underline' | 'none';
+export type ReferenceAlignment = 'left' | 'justify';
+export type ReferenceSpacing = 'single_blank' | 'compact' | 'double';
+
+export type PaperSize = 'a4' | 'letter' | 'a5';
+export type PageOrientation = 'portrait' | 'landscape';
+export type DocumentLanguage = 'pt' | 'en' | 'es';
+export type BodyAlignment = 'justify' | 'left';
+export type PageNumberingPosition = 'top_right' | 'bottom_center' | 'bottom_right' | 'none';
+export type HeadingNumberingStyle = '1.1' | 'I.A' | '1.' | 'none';
+export type ReferenceOrdering = 'alphabetical' | 'citation_order';
+export type ReferenceEntryFormat = 'auto' | 'abnt' | 'apa' | 'ieee';
+export type BibliographyEngine = 'redija_custom' | 'typst_csl';
+export type CslStyle =
+  | 'associacao-brasileira-de-normas-tecnicas'
+  | 'apa'
+  | 'ieee'
+  | 'chicago-author-date'
+  | 'vancouver'
+  | 'harvard-cite-them-right';
+
 export interface TemplateConfig {
   preset: NormPresetId;
-  fontFamily: 'serif' | 'sans';
-  fontSizePt: 10 | 11 | 12;
+  fontFamily: FontFamilyId;
+  customFontFamily?: string;
+  fontSizePt: number;
   lineSpacing: '1.5' | '1.0' | '2.0';
   paragraphIndentCm: number;
   marginTopCm: number;
@@ -102,7 +145,29 @@ export interface TemplateConfig {
   includeTitlePage: boolean;
   includeToc: boolean;
   citationStyle: 'uppercase' | 'titlecase';
-  referenceHighlight: 'bold' | 'italic';
+  citationFormat?: CitationFormat;
+  referenceHighlight: ReferenceHighlight;
+  referenceAlignment?: ReferenceAlignment;
+  referenceSpacing?: ReferenceSpacing;
+
+  // Paridade Tipográfica e de Página (Typst)
+  bodyAlignment?: BodyAlignment;
+  paragraphSpacingEm?: number;
+  paperSize?: PaperSize;
+  pageOrientation?: PageOrientation;
+  documentLanguage?: DocumentLanguage;
+  pageNumbering?: PageNumberingPosition;
+  hideFirstPageNumber?: boolean;
+  romanPreTextual?: boolean;
+  runningHeader?: string;
+  headingNumbering?: HeadingNumberingStyle;
+  h1PageBreak?: boolean;
+
+  // Engine e Formatação Multi-Norma da Bibliografia
+  referenceOrdering?: ReferenceOrdering;
+  referenceEntryFormat?: ReferenceEntryFormat;
+  bibliographyEngine?: BibliographyEngine;
+  cslStyle?: CslStyle;
 
   // Configurações Específicas de Pôster Acadêmico A0/A1
   posterDimensions?: 'a0' | 'a1' | 'a2';
@@ -130,7 +195,10 @@ export const DEFAULT_TEMPLATE_CONFIG: TemplateConfig = {
   includeTitlePage: true,
   includeToc: true,
   citationStyle: 'uppercase',
+  citationFormat: 'abnt_upper',
   referenceHighlight: 'bold',
+  referenceAlignment: 'left',
+  referenceSpacing: 'single_blank',
 };
 
 export type ReferenceType = 'book' | 'article' | 'thesis' | 'website' | 'legislation';
@@ -168,11 +236,18 @@ export type ProjectTemplateType =
   | 'poster'
   | 'universe_custom';
 
+export interface SidebarConfig {
+  isCustomized?: boolean;
+  enabledFieldIds?: string[];
+  hiddenFieldIds?: string[];
+}
+
 export interface DocumentProject {
   id: string;
   name: string;
   templateType?: ProjectTemplateType;
   templateConfig?: TemplateConfig;
+  sidebarConfig?: SidebarConfig;
   metadata: DocumentMetadata;
   blocks: Block[];
   references: AcademicReference[];

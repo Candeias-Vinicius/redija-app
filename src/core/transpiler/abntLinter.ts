@@ -2,14 +2,226 @@
 // RedijaApp — Busca Automática de Referências por DOI / ISBN e Linter ABNT
 // =====================================================================
 
-import { AcademicReference, DocumentProject } from '@/types/document';
+import {
+  AcademicReference,
+  Block,
+  DocumentProject,
+  ReferenceOrdering,
+} from '@/types/document';
 import { stripHtmlTags } from './escape';
+import {
+  getPrimarySurname,
+  parseCitationAuthors,
+  resolveCitationFormat,
+  toUnicodeSuperscript,
+} from './citationFormatter';
+
+export {
+  formatNarrativeCitation,
+  formatShortCitation,
+  getPrimarySurname,
+  parseCitationAuthors,
+  resolveCitationDisplay,
+  resolveCitationFormat,
+  toUnicodeSuperscript,
+  type CitationCallMode,
+  type ShortCitationOptions,
+} from './citationFormatter';
 
 export interface AbntWarning {
   id: string;
   severity: 'warning' | 'info';
   title: string;
   description: string;
+}
+
+const SUPERSCRIPT_REVERSE: Record<string, string> = {
+  '⁰': '0',
+  '¹': '1',
+  '²': '2',
+  '³': '3',
+  '⁴': '4',
+  '⁵': '5',
+  '⁶': '6',
+  '⁷': '7',
+  '⁸': '8',
+  '⁹': '9',
+};
+
+const CITE_TAG_REGEX =
+  /<cite\b([^>]*)>([\s\S]*?)<\/cite>|<span\b([^>]*data-cite-id=[^>]*)>([\s\S]*?)<\/span>/gi;
+
+function extractAttr(attrs: string, name: string): string | undefined {
+  const regex = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i');
+  const m = attrs.match(regex);
+  return m ? (m[1] ?? m[2] ?? m[3] ?? '') : undefined;
+}
+
+/**
+ * Ordena a lista de referências em ordem alfabética (ABNT NBR 6023 / APA),
+ * servindo também como fallback para referências ainda não citadas.
+ */
+export function getSortedReferences(references: AcademicReference[]): AcademicReference[] {
+  return [...references].sort((a, b) =>
+    a.authors.localeCompare(b.authors, 'pt-BR', { sensitivity: 'base' }),
+  );
+}
+
+function findReferenceIdByAuthor(
+  references: AcademicReference[],
+  rawAuthor: string,
+  year?: string,
+): string | undefined {
+  const { surnames } = parseCitationAuthors(rawAuthor);
+  const target = surnames[0] || getPrimarySurname(rawAuthor);
+  if (!target) return undefined;
+  const cleanYear = year?.trim().replace(/[^0-9]/g, '');
+  const withYear = cleanYear
+    ? references.find(
+        (r) =>
+          getPrimarySurname(r.authors) === target &&
+          r.year?.trim().replace(/[^0-9]/g, '') === cleanYear,
+      )
+    : undefined;
+  return (withYear ?? references.find((r) => getPrimarySurname(r.authors) === target))?.id;
+}
+
+/**
+ * Ordena a bibliografia conforme o critério escolhido:
+ * - `alphabetical` (padrão): ordem alfabética pelo primeiro autor.
+ * - `citation_order`: ordem de primeira aparição no texto (IEEE / Vancouver),
+ *   mantendo eventuais obras não citadas ao final em ordem alfabética.
+ */
+export function getOrderedReferences(
+  references: AcademicReference[],
+  ordering: ReferenceOrdering = 'alphabetical',
+  blocks?: Block[],
+): AcademicReference[] {
+  const alphabetical = getSortedReferences(references);
+  if (ordering !== 'citation_order' || !blocks || blocks.length === 0) {
+    return alphabetical;
+  }
+
+  const refById = new Map(references.map((r) => [r.id, r]));
+  const orderedIds: string[] = [];
+  const seen = new Set<string>();
+  const addId = (id?: string) => {
+    if (id && refById.has(id) && !seen.has(id)) {
+      seen.add(id);
+      orderedIds.push(id);
+    }
+  };
+
+  const abntCiteRegex =
+    /\(([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s;.&-]+?(?:\s+et\s+al\.?)?),\s*([12]\d{3}[a-z]?(?:,\s*p\.\s*\d+(?:-\d+)?)?)\)/g;
+  const authorYearRegex =
+    /\(([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç.-]*(?:\s+(?:&|e|et\s+al\.?)\s+[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç.-]*|\s+et\s+al\.?)?)\s+([12]\d{3}[a-z]?(?:,\s*p\.\s*\d+(?:-\d+)?)?)\)/g;
+  const numericRegex =
+    /(?:^|[\s([{"'“])\[(\d{1,3}(?:\s*,\s*\d{1,3})*)(?:,\s*p\.\s*\d+(?:-\d+)?)?\](?=[\s.,;:!?)\]}"'”]|$)/g;
+
+  for (const b of blocks) {
+    if (b.type === 'code' || b.type === 'equation' || b.type === 'raw_typst') continue;
+
+    const hits: Array<{ pos: number; id: string }> = [];
+
+    // 1. Tokens estruturados <cite data-cite-id="...">
+    const citeRegex = new RegExp(CITE_TAG_REGEX.source, 'gi');
+    let m: RegExpExecArray | null;
+    while ((m = citeRegex.exec(b.content)) !== null) {
+      const attrs = m[1] ?? m[3] ?? '';
+      const id = extractAttr(attrs, 'data-cite-id')?.trim();
+      if (id && refById.has(id)) {
+        hits.push({ pos: m.index, id });
+      }
+    }
+
+    // 2. Citações legadas no texto limpo (fora de <cite>)
+    const textForLegacy = stripHtmlTags(
+      b.content
+        .replace(CITE_TAG_REGEX, ' ')
+        .replace(/<code\b[^>]*>[\s\S]*?<\/code>/gi, ' ')
+        .replace(/<span\b[^>]*data-inline-math=[^>]*>[\s\S]*?<\/span>/gi, ' '),
+    );
+
+    const r1 = new RegExp(abntCiteRegex.source, 'g');
+    while ((m = r1.exec(textForLegacy)) !== null) {
+      const id = findReferenceIdByAuthor(alphabetical, m[1].replace(/\s*&\s*/g, '; '), m[2]);
+      if (id) hits.push({ pos: m.index, id });
+    }
+
+    const r2 = new RegExp(authorYearRegex.source, 'g');
+    while ((m = r2.exec(textForLegacy)) !== null) {
+      const id = findReferenceIdByAuthor(alphabetical, m[1].replace(/\s*&\s*/g, '; '), m[2]);
+      if (id) hits.push({ pos: m.index, id });
+    }
+
+    const r3 = new RegExp(numericRegex.source, 'g');
+    while ((m = r3.exec(textForLegacy)) !== null) {
+      for (const n of parseNumericTokenList(m[1])) {
+        const ref = alphabetical[n - 1];
+        if (ref) hits.push({ pos: m.index, id: ref.id });
+      }
+    }
+
+    hits.sort((a, c) => a.pos - c.pos);
+    for (const hit of hits) {
+      addId(hit.id);
+    }
+
+    // 3. Citação direta longa com autoria nos metadados
+    if (b.type === 'quote_long' && b.meta?.author?.trim()) {
+      addId(findReferenceIdByAuthor(alphabetical, b.meta.author, b.meta.year));
+    }
+  }
+
+  const ordered: AcademicReference[] = orderedIds
+    .map((id) => refById.get(id))
+    .filter((r): r is AcademicReference => Boolean(r));
+
+  for (const ref of alphabetical) {
+    if (!seen.has(ref.id)) {
+      ordered.push(ref);
+    }
+  }
+
+  return ordered;
+}
+
+/**
+ * Retorna um mapa `refId -> índice 1-based` após ordenação da bibliografia.
+ */
+export function getReferenceIndexMap(
+  references: AcademicReference[],
+  ordering: ReferenceOrdering = 'alphabetical',
+  blocks?: Block[],
+): Map<string, number> {
+  const ordered = getOrderedReferences(references, ordering, blocks);
+  const map = new Map<string, number>();
+  ordered.forEach((ref, idx) => {
+    map.set(ref.id, idx + 1);
+  });
+  return map;
+}
+
+/** Gera chave BibTeX / Typst label determinística e segura para uma referência. */
+export function getReferenceBibKey(ref: AcademicReference, idx: number): string {
+  const surname =
+    getPrimarySurname(ref.authors)
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '') || 'ref';
+  const yearToken = (ref.year ?? '').replace(/[^a-zA-Z0-9]/g, '') || String(idx + 1);
+  return `${surname}${yearToken}_${idx + 1}`;
+}
+
+/** Gera o mapa `refId -> bibKey` coerente com o arquivo `.bib` gerado em `exportToBibtex`. */
+export function buildBibKeyMap(references: AcademicReference[]): Map<string, string> {
+  const map = new Map<string, string>();
+  references.forEach((ref, idx) => {
+    map.set(ref.id, getReferenceBibKey(ref, idx));
+  });
+  return map;
 }
 
 /**
@@ -19,103 +231,6 @@ export function countWords(text: string): number {
   const clean = stripHtmlTags(text).trim();
   if (!clean) return 0;
   return clean.split(/\s+/).filter(Boolean).length;
-}
-
-/**
- * Extrai o primeiro sobrenome em caixa alta de uma string de autores ABNT
- * (ex: "SILVA, Roberto; SOUZA, Maria" -> "SILVA").
- */
-export function getPrimarySurname(authors: string): string {
-  const cleaned = authors.replace(/\bet\s+al\.?/gi, '').trim();
-  const firstAuthor = cleaned.split(';')[0]?.trim() || '';
-  const surname = firstAuthor.split(',')[0]?.trim() || firstAuthor;
-  return surname.replace(/\.+$/, '').trim().toUpperCase();
-}
-
-function toTitleCaseSurname(surname: string): string {
-  return surname
-    .toLowerCase()
-    .replace(/(?:^|[\s-])(\S)/g, (m) => m.toUpperCase());
-}
-
-/**
- * Extrai a lista de sobrenomes (ou nomes de entidades) de uma string de autores ABNT
- * separada por ponto e vírgula, além de identificar se contém "et al.".
- */
-export function parseCitationAuthors(authors: string): {
-  surnames: string[];
-  hasEtAl: boolean;
-} {
-  const hasEtAl = /\bet\s+al\.?/i.test(authors);
-  const cleaned = authors.replace(/\bet\s+al\.?/gi, '').trim();
-  const entries = cleaned
-    .split(';')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const surnames = entries
-    .map((entry) => {
-      const surname = entry.split(',')[0]?.trim() || entry;
-      return surname.replace(/\.+$/, '').trim().toUpperCase();
-    })
-    .filter(Boolean);
-
-  return { surnames, hasEtAl };
-}
-
-/**
- * Gera a citação curta autor-data no padrão ABNT NBR 10520:
- * - 1 autor: `(SILVA, 2023)` ou `(Silva, 2023)`
- * - 2 ou 3 autores: `(SILVA; SOUZA, 2023)` ou `(Silva; Souza, 2023)`
- * - 4 ou mais autores (ou com et al.): `(SILVA et al., 2023)` ou `(Silva et al., 2023)`
- */
-export function formatShortCitation(
-  ref: AcademicReference,
-  style: 'uppercase' | 'titlecase' = 'uppercase',
-  page?: string,
-): string {
-  const { surnames, hasEtAl } = parseCitationAuthors(ref.authors);
-  const formatted =
-    style === 'titlecase' ? surnames.map(toTitleCaseSurname) : surnames;
-
-  let authorLabel = 'AUTOR';
-  if (formatted.length > 0) {
-    if (hasEtAl || formatted.length >= 4) {
-      authorLabel = `${formatted[0]} et al.`;
-    } else {
-      authorLabel = formatted.join('; ');
-    }
-  }
-
-  const year = ref.year?.trim() || 's.d.';
-  const pagePart = page?.trim() ? `, p. ${page.trim()}` : '';
-  return `(${authorLabel}, ${year}${pagePart})`;
-}
-
-/**
- * Gera a chamada narrativa com o autor na frase:
- * `Silva (2023)`, `Silva e Souza (2023)` ou `Silva et al. (2023, p. 42)`.
- */
-export function formatNarrativeCitation(ref: AcademicReference, page?: string): string {
-  const { surnames, hasEtAl } = parseCitationAuthors(ref.authors);
-  const formatted = surnames.map(toTitleCaseSurname);
-
-  let authorLabel = 'Autor';
-  if (formatted.length > 0) {
-    if (hasEtAl || formatted.length >= 4) {
-      authorLabel = `${formatted[0]} et al.`;
-    } else if (formatted.length === 1) {
-      authorLabel = formatted[0];
-    } else if (formatted.length === 2) {
-      authorLabel = `${formatted[0]} e ${formatted[1]}`;
-    } else {
-      authorLabel = `${formatted[0]}, ${formatted[1]} e ${formatted[2]}`;
-    }
-  }
-
-  const year = ref.year?.trim() || 's.d.';
-  const pagePart = page?.trim() ? `, p. ${page.trim()}` : '';
-  return `${authorLabel} (${year}${pagePart})`;
 }
 
 /**
@@ -324,8 +439,7 @@ export function parseBibtex(bibContent: string): AcademicReference[] {
 export function exportToBibtex(references: AcademicReference[]): string {
   return references
     .map((ref, idx) => {
-      const surname = getPrimarySurname(ref.authors).toLowerCase().replace(/[^a-z0-9]/g, '') || 'ref';
-      const key = `${surname}${ref.year || idx + 1}_${idx + 1}`;
+      const key = getReferenceBibKey(ref, idx);
       const bibType =
         ref.type === 'article'
           ? 'article'
@@ -355,6 +469,270 @@ export function exportToBibtex(references: AcademicReference[]): string {
     .join('\n\n');
 }
 
+export interface CitationAuditOptions {
+  checkUncited?: boolean;
+  uncitedDescription?: string;
+}
+
+function parseNumericTokenList(rawList: string): number[] {
+  return rawList
+    .split(',')
+    .map((n) => Number.parseInt(n.trim(), 10))
+    .filter((n) => Number.isFinite(n));
+}
+
+function decodeUnicodeSuperscript(token: string): number | null {
+  const normalized = token
+    .split('')
+    .map((ch) => SUPERSCRIPT_REVERSE[ch] ?? '')
+    .join('');
+  if (!normalized) return null;
+  const parsed = Number.parseInt(normalized, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function stripNonLegacyHtmlRegions(html: string): string {
+  return html
+    .replace(CITE_TAG_REGEX, ' ')
+    .replace(/<span\b[^>]*data-inline-math=[^>]*>[\s\S]*?<\/span>/gi, ' ')
+    .replace(/<code\b[^>]*>[\s\S]*?<\/code>/gi, ' ');
+}
+
+/**
+ * Audita cruzamento entre citações no texto (tokens `<cite>`, autor-data, numérico `[1]`, sobrescrito)
+ * e referências bibliográficas cadastradas no projeto.
+ */
+export function auditCitationsAndReferences(
+  project: DocumentProject,
+  options: CitationAuditOptions = {},
+): AbntWarning[] {
+  const warnings: AbntWarning[] = [];
+  const checkUncited = options.checkUncited ?? true;
+  const uncitedDescription =
+    options.uncitedDescription ||
+    'Pela NBR 6023, todas as obras listadas nas Referências devem ser citadas ao menos uma vez no texto.';
+
+  const citationFormat = resolveCitationFormat(project.templateConfig);
+  const ordering = project.templateConfig?.referenceOrdering ?? 'alphabetical';
+  const orderedRefs = getOrderedReferences(project.references || [], ordering, project.blocks);
+  const refCount = orderedRefs.length;
+  const validRefIds = new Set(orderedRefs.map((r) => r.id));
+
+  const citedNumbers = new Set<number>();
+  const citedRefIds = new Set<string>();
+  const reportedMissingTokens = new Set<string>();
+  const numericCitationRegex = /(?:^|[\s([{"'“])\[(\d{1,3}(?:\s*,\s*\d{1,3})*)(?:,\s*p\.\s*\d+(?:-\d+)?)?\](?=[\s.,;:!?)\]}"'”]|$)/g;
+  const htmlSupRegex = /<sup[^>]*>(\d{1,3}(?:\s*,\s*\d{1,3})*)<\/sup>/gi;
+  const unicodeSupRegex = /([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g;
+
+  const bodyChunks: string[] = [];
+
+  for (const b of project.blocks) {
+    if (b.type === 'code' || b.type === 'equation' || b.type === 'raw_typst') continue;
+
+    // 1. Varre tokens estruturados <cite data-cite-id="...">
+    const citeRegex = new RegExp(CITE_TAG_REGEX.source, 'gi');
+    let citeMatch: RegExpExecArray | null;
+    while ((citeMatch = citeRegex.exec(b.content)) !== null) {
+      const attrs = citeMatch[1] ?? citeMatch[3] ?? '';
+      const inner = citeMatch[2] ?? citeMatch[4] ?? '';
+      const citeId = extractAttr(attrs, 'data-cite-id')?.trim();
+      if (!citeId) continue;
+      if (validRefIds.has(citeId)) {
+        citedRefIds.add(citeId);
+      } else if (!reportedMissingTokens.has(citeId)) {
+        reportedMissingTokens.add(citeId);
+        const label = stripHtmlTags(inner) || citeId;
+        warnings.push({
+          id: `missing-ref-token-${citeId}`,
+          severity: 'warning',
+          title: `Citação vinculada a referência removida: ${label}`,
+          description:
+            'Esta citação aponta para uma referência que foi excluída. Remova a chamada ou vincule-a novamente.',
+        });
+      }
+    }
+
+    const legacyHtml = stripNonLegacyHtmlRegions(b.content);
+    const baseText = stripHtmlTags(legacyHtml);
+    if (b.type === 'quote_long' && b.meta?.author) {
+      bodyChunks.push(`${baseText} (${b.meta.author.toUpperCase()}, ${b.meta.year || ''})`);
+    } else {
+      bodyChunks.push(baseText);
+    }
+
+    const numRe = new RegExp(numericCitationRegex.source, 'g');
+    let numMatch: RegExpExecArray | null;
+    while ((numMatch = numRe.exec(baseText)) !== null) {
+      for (const n of parseNumericTokenList(numMatch[1])) {
+        citedNumbers.add(n);
+      }
+    }
+
+    if (citationFormat === 'superscript') {
+      const supRe = new RegExp(htmlSupRegex.source, 'gi');
+      let supMatch: RegExpExecArray | null;
+      while ((supMatch = supRe.exec(legacyHtml)) !== null) {
+        for (const n of parseNumericTokenList(supMatch[1])) {
+          citedNumbers.add(n);
+        }
+      }
+      const uniRe = new RegExp(unicodeSupRegex.source, 'g');
+      let uniMatch: RegExpExecArray | null;
+      while ((uniMatch = uniRe.exec(baseText)) !== null) {
+        const parsed = decodeUnicodeSuperscript(uniMatch[1]);
+        if (parsed !== null) citedNumbers.add(parsed);
+      }
+    }
+  }
+
+  const fullBodyText = bodyChunks.join(' ').toUpperCase();
+
+  if (checkUncited) {
+    orderedRefs.forEach((ref, idx) => {
+      const refNum = idx + 1;
+      const surname = getPrimarySurname(ref.authors);
+      const isCitedByToken = citedRefIds.has(ref.id);
+      const isCitedByAuthor = Boolean(surname && fullBodyText.includes(surname));
+      const isCitedByNumber = citedNumbers.has(refNum);
+      if (!isCitedByToken && !isCitedByAuthor && !isCitedByNumber) {
+        warnings.push({
+          id: `uncited-ref-${ref.id}`,
+          severity: 'info',
+          title: `Referência não citada no texto: ${surname || `[${refNum}]`} (${ref.year})`,
+          description: uncitedDescription,
+        });
+      }
+    });
+  }
+
+  // Verifica citações legadas cujos autores ou índices numéricos não constam na lista de referências
+  const registeredSurnames = new Set(
+    orderedRefs.map((r) => getPrimarySurname(r.authors)).filter(Boolean),
+  );
+  const reportedMissingCitations = new Set<string>();
+  const reportedMissingNumbers = new Set<number>();
+
+  // Regex para capturar citações autor-data: (SOBRENOME, ANO), (Sobrenome, ANO) e (Sobrenome ANO)
+  const inTextAbntRegex =
+    /\(([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s;.&-]+?(?:\s+et\s+al\.?)?),\s*([12]\d{3}[a-z]?(?:,\s*p\.\s*\d+(?:-\d+)?)?)\)/g;
+  const inTextAuthorYearRegex =
+    /\(([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç.-]*(?:\s+(?:&|e|et\s+al\.?)\s+[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç.-]*|\s+et\s+al\.?)?)\s+([12]\d{3}[a-z]?(?:,\s*p\.\s*\d+(?:-\d+)?)?)\)/g;
+
+  for (const b of project.blocks) {
+    if (b.type === 'code' || b.type === 'equation' || b.type === 'raw_typst') continue;
+
+    // Citações longas estruturadas
+    if (b.type === 'quote_long' && b.meta?.author?.trim()) {
+      const cited = getPrimarySurname(b.meta.author);
+      if (cited && !registeredSurnames.has(cited) && !reportedMissingCitations.has(cited)) {
+        reportedMissingCitations.add(cited);
+        warnings.push({
+          id: `missing-ref-${b.id}`,
+          severity: 'warning',
+          title: `Citação sem referência cadastrada: (${cited}, ${b.meta.year || 's.d.'})`,
+          description:
+            'Este autor foi citado em uma citação direta longa, mas não está cadastrado na seção de Referências.',
+        });
+      }
+    }
+
+    const legacyHtml = stripNonLegacyHtmlRegions(b.content);
+    const text = stripHtmlTags(legacyHtml);
+    const rAbnt = new RegExp(inTextAbntRegex.source, 'g');
+    let match: RegExpExecArray | null;
+    while ((match = rAbnt.exec(text)) !== null) {
+      const rawAuthorPart = match[1].trim().replace(/\s*&\s*/g, '; ');
+      const yearPart = match[2].trim();
+      const { surnames } = parseCitationAuthors(rawAuthorPart);
+      for (const s of surnames) {
+        if (s && !registeredSurnames.has(s) && !reportedMissingCitations.has(s)) {
+          reportedMissingCitations.add(s);
+          warnings.push({
+            id: `missing-ref-intext-${s.toLowerCase()}`,
+            severity: 'warning',
+            title: `Citação sem referência cadastrada: (${s}, ${yearPart})`,
+            description:
+              'Este autor foi citado no corpo do texto, mas não está cadastrado na seção de Referências.',
+          });
+        }
+      }
+    }
+
+    const rAuthYear = new RegExp(inTextAuthorYearRegex.source, 'g');
+    while ((match = rAuthYear.exec(text)) !== null) {
+      const rawAuthorPart = match[1].trim().replace(/\s*&\s*/g, '; ');
+      const yearPart = match[2].trim();
+      const { surnames } = parseCitationAuthors(rawAuthorPart);
+      for (const s of surnames) {
+        if (s && !registeredSurnames.has(s) && !reportedMissingCitations.has(s)) {
+          reportedMissingCitations.add(s);
+          warnings.push({
+            id: `missing-ref-intext-${s.toLowerCase()}`,
+            severity: 'warning',
+            title: `Citação sem referência cadastrada: (${s} ${yearPart})`,
+            description:
+              'Este autor foi citado no corpo do texto, mas não está cadastrado na seção de Referências.',
+          });
+        }
+      }
+    }
+
+    const rNum = new RegExp(numericCitationRegex.source, 'g');
+    let numMatch: RegExpExecArray | null;
+    while ((numMatch = rNum.exec(text)) !== null) {
+      for (const n of parseNumericTokenList(numMatch[1])) {
+        if ((n < 1 || n > refCount) && !reportedMissingNumbers.has(n)) {
+          reportedMissingNumbers.add(n);
+          warnings.push({
+            id: `missing-ref-numeric-${n}`,
+            severity: 'warning',
+            title: `Citação numérica [${n}] sem referência correspondente`,
+            description:
+              refCount === 0
+                ? 'O texto utiliza citação numérica, mas ainda não há referências cadastradas.'
+                : `O índice [${n}] ultrapassa o total de ${refCount} referência(s) cadastrada(s).`,
+          });
+        }
+      }
+    }
+
+    if (citationFormat === 'superscript') {
+      const rSup = new RegExp(htmlSupRegex.source, 'gi');
+      let supMatch: RegExpExecArray | null;
+      while ((supMatch = rSup.exec(legacyHtml)) !== null) {
+        for (const n of parseNumericTokenList(supMatch[1])) {
+          if ((n < 1 || n > refCount) && !reportedMissingNumbers.has(n)) {
+            reportedMissingNumbers.add(n);
+            warnings.push({
+              id: `missing-ref-sup-${n}`,
+              severity: 'warning',
+              title: `Citação sobrescrita ${toUnicodeSuperscript(n)} sem referência correspondente`,
+              description: `O marcador sobrescrito ${n} não possui obra correspondente na lista de Referências.`,
+            });
+          }
+        }
+      }
+      const rUni = new RegExp(unicodeSupRegex.source, 'g');
+      let uniMatch: RegExpExecArray | null;
+      while ((uniMatch = rUni.exec(text)) !== null) {
+        const n = decodeUnicodeSuperscript(uniMatch[1]);
+        if (n !== null && (n < 1 || n > refCount) && !reportedMissingNumbers.has(n)) {
+          reportedMissingNumbers.add(n);
+          warnings.push({
+            id: `missing-ref-sup-${n}`,
+            severity: 'warning',
+            title: `Citação sobrescrita ${uniMatch[1]} sem referência correspondente`,
+            description: `O marcador sobrescrito ${n} não possui obra correspondente na lista de Referências.`,
+          });
+        }
+      }
+    }
+  }
+
+  return warnings;
+}
+
 /**
  * Executa a verificação normativa ABNT sobre o documento:
  * - Resumo fora da faixa recomendada de 150–500 palavras (NBR 6028)
@@ -366,10 +744,17 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
   const warnings: AbntWarning[] = [];
 
   // 1. Contagem de palavras do resumo (NBR 6028: 150 a 500 palavras para TCC/monografias, 100 a 250 para artigos)
+  const effectiveTemplate =
+    project.templateConfig?.preset === 'sbc' ||
+    project.templateConfig?.preset === 'ieee' ||
+    project.templateConfig?.preset === 'poster' ||
+    project.templateConfig?.preset === 'universe_custom'
+      ? project.templateConfig.preset
+      : project.templateType;
   const isArticle =
-    project.templateType === 'artigo' ||
-    project.templateType === 'sbc' ||
-    project.templateType === 'ieee';
+    effectiveTemplate === 'artigo' ||
+    effectiveTemplate === 'sbc' ||
+    effectiveTemplate === 'ieee';
   const minWords = isArticle ? 100 : 150;
   const maxWords = isArticle ? 250 : 500;
 
@@ -440,76 +825,7 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
   }
 
   // 5. Cruzamento de Citações e Referências (NBR 10520 / NBR 6023)
-  const fullBodyText = project.blocks
-    .map((b) => {
-      const base = stripHtmlTags(b.content);
-      if (b.type === 'quote_long' && b.meta?.author) {
-        return `${base} (${b.meta.author.toUpperCase()}, ${b.meta.year || ''})`;
-      }
-      return base;
-    })
-    .join(' ')
-    .toUpperCase();
-
-  for (const ref of project.references || []) {
-    const surname = getPrimarySurname(ref.authors);
-    if (surname && !fullBodyText.includes(surname)) {
-      warnings.push({
-        id: `uncited-ref-${ref.id}`,
-        severity: 'info',
-        title: `Referência não citada no texto: ${surname} (${ref.year})`,
-        description:
-          'Pela NBR 6023, todas as obras listadas nas Referências devem ser citadas ao menos uma vez no texto.',
-      });
-    }
-  }
-
-  // Verifica citações cujos autores não constam na lista de referências
-  const registeredSurnames = new Set(
-    (project.references || []).map((r) => getPrimarySurname(r.authors)).filter(Boolean),
-  );
-  const reportedMissingCitations = new Set<string>();
-
-  // Regex para capturar citações autor-data no formato (SOBRENOME, ANO) no texto de parágrafos
-  const inTextCitationRegex = /\(([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ\s;.-]+(?:et\s+al\.?)?),\s*([12]\d{3}[a-z]?(?:,\s*p\.\s*\d+)?)\)/g;
-
-  for (const b of project.blocks) {
-    // Citações longas estruturadas
-    if (b.type === 'quote_long' && b.meta?.author?.trim()) {
-      const cited = getPrimarySurname(b.meta.author);
-      if (cited && !registeredSurnames.has(cited) && !reportedMissingCitations.has(cited)) {
-        reportedMissingCitations.add(cited);
-        warnings.push({
-          id: `missing-ref-${b.id}`,
-          severity: 'warning',
-          title: `Citação sem referência cadastrada: (${cited}, ${b.meta.year || 's.d.'})`,
-          description:
-            'Este autor foi citado em uma citação direta longa, mas não está cadastrado na seção de Referências.',
-        });
-      }
-    }
-
-    // Citações parentéticas no corpo dos parágrafos
-    const text = stripHtmlTags(b.content);
-    let match: RegExpExecArray | null;
-    while ((match = inTextCitationRegex.exec(text)) !== null) {
-      const rawAuthorPart = match[1].trim();
-      const yearPart = match[2].trim();
-      const { surnames } = parseCitationAuthors(rawAuthorPart);
-      for (const s of surnames) {
-        if (s && !registeredSurnames.has(s) && !reportedMissingCitations.has(s)) {
-          reportedMissingCitations.add(s);
-          warnings.push({
-            id: `missing-ref-intext-${s.toLowerCase()}`,
-            severity: 'warning',
-            title: `Citação sem referência cadastrada: (${s}, ${yearPart})`,
-            description:
-              'Este autor foi citado no corpo do texto, mas não está cadastrado na seção de Referências.',
-          });
-        }
-      }
-    }
-  }
+  warnings.push(...auditCitationsAndReferences(project));
 
   return warnings;
 }

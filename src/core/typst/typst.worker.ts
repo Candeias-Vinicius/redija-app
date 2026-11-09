@@ -7,6 +7,7 @@
 
 import {
   createTypstCompiler,
+  createTypstFontBuilder,
   CompileFormatEnum,
   type TypstCompiler,
 } from '@myriaddreamin/typst.ts/dist/esm/compiler.mjs';
@@ -15,10 +16,24 @@ import {
   type TypstRenderer,
   type RenderSession,
 } from '@myriaddreamin/typst.ts/dist/esm/renderer.mjs';
-import { loadFonts } from '@myriaddreamin/typst.ts/dist/esm/options.init.mjs';
+import {
+  loadFonts,
+  withAccessModel,
+  withPackageRegistry,
+} from '@myriaddreamin/typst.ts/dist/esm/options.init.mjs';
 import compilerWasmUrl from '@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_web_compiler_bg.wasm?url';
 import rendererWasmUrl from '@myriaddreamin/typst-ts-renderer/pkg/typst_ts_renderer_bg.wasm?url';
 import type { TypstDiagnostic } from './diagnostics';
+import {
+  getCdnUrlsForFont,
+  getFontCacheKey,
+  type RequestedFontDescriptor,
+} from './fontCatalog';
+import {
+  createTypstMemoryAccessModel,
+  splitCompileFiles,
+  WorkerPackageRegistry,
+} from './packageRegistry';
 
 export interface PageDimension {
   pageOffset: number;
@@ -31,6 +46,8 @@ export interface WorkerCompileRequest {
   type: 'compile-vector' | 'compile-pdf';
   files: Record<string, string>;
   binaryFiles?: Record<string, Uint8Array>;
+  requestedFont?: RequestedFontDescriptor;
+  packageArchives?: Record<string, Uint8Array>;
 }
 
 export interface WorkerRenderPagesRequest {
@@ -99,6 +116,12 @@ const FONT_FILES = [
 let compilerPromise: Promise<TypstCompiler> | null = null;
 let rendererPromise: Promise<TypstRenderer> | null = null;
 let latestRenderRequestId = 0;
+let baseFontBuffersPromise: Promise<Uint8Array[]> | null = null;
+const remoteFontBufferCache = new Map<string, Uint8Array | null>();
+let activeFontCacheKey = 'bundled';
+let fontUpdateQueue: Promise<void> = Promise.resolve();
+const workerAccessModel = createTypstMemoryAccessModel();
+const workerPackageRegistry = new WorkerPackageRegistry(workerAccessModel);
 
 function resolveFontUrls(): string[] {
   const origin = self.location?.origin || '';
@@ -110,17 +133,128 @@ function resolveFontUrls(): string[] {
   return FONT_FILES.map((file) => `${normalizedRoot}${file.replace(/^\/+/, '')}`);
 }
 
+function isValidFontBinary(bytes: Uint8Array): boolean {
+  if (bytes.byteLength < 12) return false;
+  const b0 = bytes[0];
+  const b1 = bytes[1];
+  const b2 = bytes[2];
+  const b3 = bytes[3];
+  const isTtf = b0 === 0x00 && b1 === 0x01 && b2 === 0x00 && b3 === 0x00;
+  const isTrue = b0 === 0x74 && b1 === 0x72 && b2 === 0x75 && b3 === 0x65; // 'true'
+  const isOtf = b0 === 0x4f && b1 === 0x54 && b2 === 0x54 && b3 === 0x4f; // 'OTTO'
+  const isTtc = b0 === 0x74 && b1 === 0x74 && b2 === 0x63 && b3 === 0x66; // 'ttcf'
+  return isTtf || isTrue || isOtf || isTtc;
+}
+
+async function getBaseFontBuffers(): Promise<Uint8Array[]> {
+  if (!baseFontBuffersPromise) {
+    baseFontBuffersPromise = Promise.all(
+      resolveFontUrls().map(async (url) => {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`Falha ao carregar fonte base ${url}: ${res.status}`);
+        }
+        return new Uint8Array(await res.arrayBuffer());
+      }),
+    ).catch((err) => {
+      baseFontBuffersPromise = null;
+      throw err;
+    });
+  }
+  return baseFontBuffersPromise;
+}
+
+async function fetchRemoteFontBuffer(url: string): Promise<Uint8Array | null> {
+  if (remoteFontBufferCache.has(url)) {
+    return remoteFontBufferCache.get(url) ?? null;
+  }
+
+  try {
+    const fetchOpts: RequestInit =
+      typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+        ? { signal: AbortSignal.timeout(8000) }
+        : {};
+    const res = await fetch(url, fetchOpts);
+    if (!res.ok) {
+      if (res.status === 404 || res.status === 400) {
+        remoteFontBufferCache.set(url, null);
+      }
+      return null;
+    }
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (!isValidFontBinary(bytes)) {
+      remoteFontBufferCache.set(url, null);
+      return null;
+    }
+    remoteFontBufferCache.set(url, bytes);
+    return bytes;
+  } catch {
+    // Falha de rede / offline: não envenena cache para permitir nova tentativa se voltar online
+    return null;
+  }
+}
+
+async function ensureCompilerFonts(
+  compiler: TypstCompiler,
+  requestedFont?: RequestedFontDescriptor,
+): Promise<void> {
+  if (!requestedFont || requestedFont.fontFamily === 'serif' || requestedFont.fontFamily === 'sans') {
+    return;
+  }
+
+  const urls = getCdnUrlsForFont(requestedFont.fontFamily, requestedFont.customFontFamily);
+  if (urls.length === 0) return;
+
+  const targetKey = getFontCacheKey(requestedFont.fontFamily, requestedFont.customFontFamily);
+  if (activeFontCacheKey === targetKey) return;
+
+  const task = fontUpdateQueue.then(async () => {
+    if (activeFontCacheKey === targetKey) return;
+
+    const fetched = await Promise.all(urls.map(fetchRemoteFontBuffer));
+    const extraBuffers = fetched.filter((b): b is Uint8Array => b !== null);
+    if (extraBuffers.length === 0) {
+      return;
+    }
+
+    const baseBuffers = await getBaseFontBuffers();
+    const builder = createTypstFontBuilder();
+    await builder.init({ getModule: () => compilerWasmUrl });
+
+    for (const buf of baseBuffers) {
+      await builder.addFontData(buf);
+    }
+    for (const buf of extraBuffers) {
+      await builder.addFontData(buf);
+    }
+
+    await builder.build(async (fonts) => {
+      compiler.setFonts(fonts);
+    });
+    activeFontCacheKey = targetKey;
+  });
+
+  fontUpdateQueue = task.catch((err) => {
+    console.warn('[TypstFonts] Fallback silencioso para fontes locais embutidas:', err);
+  });
+
+  await fontUpdateQueue;
+}
+
 async function getCompiler(): Promise<TypstCompiler> {
   if (!compilerPromise) {
     compilerPromise = (async () => {
       try {
         const instance = createTypstCompiler();
+        const baseBuffers = await getBaseFontBuffers();
         await instance.init({
           getModule: () => compilerWasmUrl,
           beforeBuild: [
-            loadFonts(resolveFontUrls(), {
+            loadFonts(baseBuffers, {
               assets: false,
             }),
+            withAccessModel(workerAccessModel),
+            withPackageRegistry(workerPackageRegistry),
           ],
         });
         return instance;
@@ -156,12 +290,15 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const start = performance.now();
 
   if (data.type === 'compile-vector' || data.type === 'compile-pdf') {
-    const { id, type, files, binaryFiles } = data;
+    const { id, type, files, binaryFiles, requestedFont, packageArchives } = data;
     try {
       const compiler = await getCompiler();
+      await ensureCompilerFonts(compiler, requestedFont);
+      const { sourceFiles, packageFiles } = splitCompileFiles(files);
+      workerPackageRegistry.setRequestPackages(packageArchives, packageFiles);
       compiler.resetShadow();
 
-      for (const [name, content] of Object.entries(files)) {
+      for (const [name, content] of Object.entries(sourceFiles)) {
         const virtualPath = name.startsWith('/') ? name : `/${name}`;
         compiler.addSource(virtualPath, content);
       }

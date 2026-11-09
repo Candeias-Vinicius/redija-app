@@ -12,7 +12,27 @@ import {
   DEFAULT_TEMPLATE_CONFIG,
   ProjectTemplateType,
   NormPresetId,
+  SidebarConfig,
+  FontFamilyId,
+  CitationFormat,
+  ReferenceHighlight,
+  ReferenceAlignment,
+  ReferenceSpacing,
+  PaperSize,
+  PageOrientation,
+  DocumentLanguage,
+  BodyAlignment,
+  PageNumberingPosition,
+  HeadingNumberingStyle,
+  ReferenceOrdering,
+  ReferenceEntryFormat,
+  BibliographyEngine,
+  CslStyle,
 } from '@/types/document';
+import {
+  VALID_FONT_FAMILY_IDS,
+  sanitizeCustomFontFamily,
+} from '@/core/typst/fontCatalog';
 
 /**
  * Normaliza e valida um objeto desconhecido para o schema DocumentProject estrito.
@@ -133,17 +153,111 @@ export function normalizeProject(raw: unknown): DocumentProject {
     'custom',
   ];
 
+  const validCitationFormats: CitationFormat[] = [
+    'abnt_upper',
+    'abnt_titlecase',
+    'ieee_numeric',
+    'superscript',
+    'author_date',
+  ];
+  const validHighlights: ReferenceHighlight[] = ['bold', 'italic', 'underline', 'none'];
+  const validAlignments: ReferenceAlignment[] = ['left', 'justify'];
+  const validSpacings: ReferenceSpacing[] = ['single_blank', 'compact', 'double'];
+
+  const sanitizedPreset: NormPresetId =
+    typeof rawConfig.preset === 'string' && validPresets.includes(rawConfig.preset as NormPresetId)
+      ? (rawConfig.preset as NormPresetId)
+      : DEFAULT_TEMPLATE_CONFIG.preset;
+
+  const sanitizedFontFamily: FontFamilyId =
+    typeof rawConfig.fontFamily === 'string' &&
+    VALID_FONT_FAMILY_IDS.has(rawConfig.fontFamily as FontFamilyId)
+      ? (rawConfig.fontFamily as FontFamilyId)
+      : DEFAULT_TEMPLATE_CONFIG.fontFamily;
+
+  const sanitizedCustomFont = sanitizeCustomFontFamily(
+    typeof rawConfig.customFontFamily === 'string' ? rawConfig.customFontFamily : undefined,
+  );
+
+  const sanitizedCitationFormat: CitationFormat =
+    typeof rawConfig.citationFormat === 'string' &&
+    validCitationFormats.includes(rawConfig.citationFormat as CitationFormat)
+      ? (rawConfig.citationFormat as CitationFormat)
+      : rawConfig.citationStyle === 'titlecase'
+        ? 'abnt_titlecase'
+        : sanitizedPreset === 'ieee'
+          ? 'ieee_numeric'
+          : 'abnt_upper';
+
+  const sanitizedCitationStyle: 'uppercase' | 'titlecase' =
+    rawConfig.citationStyle === 'titlecase'
+      ? 'titlecase'
+      : rawConfig.citationStyle === 'uppercase'
+        ? 'uppercase'
+        : sanitizedCitationFormat === 'abnt_titlecase' || sanitizedCitationFormat === 'author_date'
+          ? 'titlecase'
+          : 'uppercase';
+
+  const sanitizedHighlight: ReferenceHighlight =
+    typeof rawConfig.referenceHighlight === 'string' &&
+    validHighlights.includes(rawConfig.referenceHighlight as ReferenceHighlight)
+      ? (rawConfig.referenceHighlight as ReferenceHighlight)
+      : DEFAULT_TEMPLATE_CONFIG.referenceHighlight;
+
+  const sanitizedAlignment: ReferenceAlignment =
+    typeof rawConfig.referenceAlignment === 'string' &&
+    validAlignments.includes(rawConfig.referenceAlignment as ReferenceAlignment)
+      ? (rawConfig.referenceAlignment as ReferenceAlignment)
+      : (DEFAULT_TEMPLATE_CONFIG.referenceAlignment ?? 'left');
+
+  const sanitizedSpacing: ReferenceSpacing =
+    typeof rawConfig.referenceSpacing === 'string' &&
+    validSpacings.includes(rawConfig.referenceSpacing as ReferenceSpacing)
+      ? (rawConfig.referenceSpacing as ReferenceSpacing)
+      : (DEFAULT_TEMPLATE_CONFIG.referenceSpacing ?? 'single_blank');
+
+  const clampFontSize = (raw: unknown): number => {
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+      return DEFAULT_TEMPLATE_CONFIG.fontSizePt;
+    }
+    const clamped = Math.min(24, Math.max(8, raw));
+    return Math.round(clamped * 2) / 2;
+  };
+
+  const validBodyAlignments: BodyAlignment[] = ['justify', 'left'];
+  const validPaperSizes: PaperSize[] = ['a4', 'letter', 'a5'];
+  const validOrientations: PageOrientation[] = ['portrait', 'landscape'];
+  const validLanguages: DocumentLanguage[] = ['pt', 'en', 'es'];
+  const validPageNumberings: PageNumberingPosition[] = [
+    'top_right',
+    'bottom_center',
+    'bottom_right',
+    'none',
+  ];
+  const validHeadingNumberings: HeadingNumberingStyle[] = ['1.1', 'I.A', '1.', 'none'];
+  const validRefOrderings: ReferenceOrdering[] = ['alphabetical', 'citation_order'];
+  const validRefEntryFormats: ReferenceEntryFormat[] = ['auto', 'abnt', 'apa', 'ieee'];
+  const validBibEngines: BibliographyEngine[] = ['redija_custom', 'typst_csl'];
+  const validCslStyles: CslStyle[] = [
+    'associacao-brasileira-de-normas-tecnicas',
+    'apa',
+    'ieee',
+    'chicago-author-date',
+    'vancouver',
+    'harvard-cite-them-right',
+  ];
+
+  const sanitizedRunningHeader =
+    typeof rawConfig.runningHeader === 'string'
+      ? rawConfig.runningHeader.replace(/[\r\n\t]+/g, ' ').trim().slice(0, 120)
+      : undefined;
+
   const templateConfig: TemplateConfig = {
     ...DEFAULT_TEMPLATE_CONFIG,
-    preset:
-      typeof rawConfig.preset === 'string' && validPresets.includes(rawConfig.preset as NormPresetId)
-        ? (rawConfig.preset as NormPresetId)
-        : DEFAULT_TEMPLATE_CONFIG.preset,
-    fontFamily: rawConfig.fontFamily === 'sans' ? 'sans' : 'serif',
-    fontSizePt:
-      rawConfig.fontSizePt === 10 || rawConfig.fontSizePt === 11 || rawConfig.fontSizePt === 12
-        ? rawConfig.fontSizePt
-        : DEFAULT_TEMPLATE_CONFIG.fontSizePt,
+    preset: sanitizedPreset,
+    fontFamily: sanitizedFontFamily,
+    ...(sanitizedCustomFont ? { customFontFamily: sanitizedCustomFont } : {}),
+    fontSizePt: clampFontSize(rawConfig.fontSizePt),
     lineSpacing:
       rawConfig.lineSpacing === '1.0' || rawConfig.lineSpacing === '2.0'
         ? rawConfig.lineSpacing
@@ -181,8 +295,68 @@ export function normalizeProject(raw: unknown): DocumentProject {
       typeof rawConfig.includeToc === 'boolean'
         ? rawConfig.includeToc
         : DEFAULT_TEMPLATE_CONFIG.includeToc,
-    citationStyle: rawConfig.citationStyle === 'titlecase' ? 'titlecase' : 'uppercase',
-    referenceHighlight: rawConfig.referenceHighlight === 'italic' ? 'italic' : 'bold',
+    citationStyle: sanitizedCitationStyle,
+    citationFormat: sanitizedCitationFormat,
+    referenceHighlight: sanitizedHighlight,
+    referenceAlignment: sanitizedAlignment,
+    referenceSpacing: sanitizedSpacing,
+    ...(typeof rawConfig.bodyAlignment === 'string' &&
+    validBodyAlignments.includes(rawConfig.bodyAlignment as BodyAlignment)
+      ? { bodyAlignment: rawConfig.bodyAlignment as BodyAlignment }
+      : {}),
+    ...(typeof rawConfig.paragraphSpacingEm === 'number' &&
+    Number.isFinite(rawConfig.paragraphSpacingEm)
+      ? {
+          paragraphSpacingEm:
+            Math.round(Math.min(3, Math.max(0, rawConfig.paragraphSpacingEm)) * 100) / 100,
+        }
+      : {}),
+    ...(typeof rawConfig.paperSize === 'string' &&
+    validPaperSizes.includes(rawConfig.paperSize as PaperSize)
+      ? { paperSize: rawConfig.paperSize as PaperSize }
+      : {}),
+    ...(typeof rawConfig.pageOrientation === 'string' &&
+    validOrientations.includes(rawConfig.pageOrientation as PageOrientation)
+      ? { pageOrientation: rawConfig.pageOrientation as PageOrientation }
+      : {}),
+    ...(typeof rawConfig.documentLanguage === 'string' &&
+    validLanguages.includes(rawConfig.documentLanguage as DocumentLanguage)
+      ? { documentLanguage: rawConfig.documentLanguage as DocumentLanguage }
+      : {}),
+    ...(typeof rawConfig.pageNumbering === 'string' &&
+    validPageNumberings.includes(rawConfig.pageNumbering as PageNumberingPosition)
+      ? { pageNumbering: rawConfig.pageNumbering as PageNumberingPosition }
+      : {}),
+    ...(typeof rawConfig.hideFirstPageNumber === 'boolean'
+      ? { hideFirstPageNumber: rawConfig.hideFirstPageNumber }
+      : {}),
+    ...(typeof rawConfig.romanPreTextual === 'boolean'
+      ? { romanPreTextual: rawConfig.romanPreTextual }
+      : {}),
+    ...(sanitizedRunningHeader ? { runningHeader: sanitizedRunningHeader } : {}),
+    ...(typeof rawConfig.headingNumbering === 'string' &&
+    validHeadingNumberings.includes(rawConfig.headingNumbering as HeadingNumberingStyle)
+      ? { headingNumbering: rawConfig.headingNumbering as HeadingNumberingStyle }
+      : {}),
+    ...(typeof rawConfig.h1PageBreak === 'boolean'
+      ? { h1PageBreak: rawConfig.h1PageBreak }
+      : {}),
+    ...(typeof rawConfig.referenceOrdering === 'string' &&
+    validRefOrderings.includes(rawConfig.referenceOrdering as ReferenceOrdering)
+      ? { referenceOrdering: rawConfig.referenceOrdering as ReferenceOrdering }
+      : {}),
+    ...(typeof rawConfig.referenceEntryFormat === 'string' &&
+    validRefEntryFormats.includes(rawConfig.referenceEntryFormat as ReferenceEntryFormat)
+      ? { referenceEntryFormat: rawConfig.referenceEntryFormat as ReferenceEntryFormat }
+      : {}),
+    ...(typeof rawConfig.bibliographyEngine === 'string' &&
+    validBibEngines.includes(rawConfig.bibliographyEngine as BibliographyEngine)
+      ? { bibliographyEngine: rawConfig.bibliographyEngine as BibliographyEngine }
+      : {}),
+    ...(typeof rawConfig.cslStyle === 'string' &&
+    validCslStyles.includes(rawConfig.cslStyle as CslStyle)
+      ? { cslStyle: rawConfig.cslStyle as CslStyle }
+      : {}),
     posterDimensions:
       rawConfig.posterDimensions === 'a1' || rawConfig.posterDimensions === 'a2'
         ? rawConfig.posterDimensions
@@ -228,6 +402,7 @@ export function normalizeProject(raw: unknown): DocumentProject {
       'quote_long',
       'equation',
       'code',
+      'raw_typst',
       'image',
       'table',
       'box',
@@ -320,11 +495,33 @@ export function normalizeProject(raw: unknown): DocumentProject {
       ? data.deletedAt
       : null;
 
+  // Configuração opcional da aba lateral (Sidebar)
+  let sidebarConfig: SidebarConfig | undefined = undefined;
+  if (data.sidebarConfig && typeof data.sidebarConfig === 'object') {
+    const rawSb = data.sidebarConfig as Record<string, unknown>;
+    const sanitizedEnabled = Array.isArray(rawSb.enabledFieldIds)
+      ? rawSb.enabledFieldIds
+          .filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+          .map((f) => f.trim())
+      : undefined;
+    const sanitizedHidden = Array.isArray(rawSb.hiddenFieldIds)
+      ? rawSb.hiddenFieldIds
+          .filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+          .map((f) => f.trim())
+      : undefined;
+    sidebarConfig = {
+      isCustomized: Boolean(rawSb.isCustomized),
+      ...(sanitizedEnabled ? { enabledFieldIds: sanitizedEnabled } : {}),
+      ...(sanitizedHidden ? { hiddenFieldIds: sanitizedHidden } : {}),
+    };
+  }
+
   return {
     id,
     name,
     templateType,
     templateConfig,
+    ...(sidebarConfig ? { sidebarConfig } : {}),
     metadata,
     blocks,
     references,
