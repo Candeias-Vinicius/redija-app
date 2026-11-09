@@ -5,8 +5,9 @@ import {
   extractBinaryAssets,
   getTemplateFileName,
 } from '@/core/transpiler/typstGenerator';
+import { getTemplateCapabilities } from '@/core/templates/templateCapabilities';
 import { resolveUniversePackage } from '@/core/universe/universeResolver';
-import { exportToBibtex } from '@/core/transpiler/abntLinter';
+import { exportToBibtex, getOrderedReferences } from '@/core/transpiler/abntLinter';
 import {
   compileToVector,
   getVectorPagesInfo,
@@ -73,9 +74,10 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
   const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
   const latestCompileId = useRef(0);
 
+  const capabilities = useMemo(() => getTemplateCapabilities(project), [project]);
   const templateFileName = useMemo(
-    () => getTemplateFileName(project.templateType),
-    [project.templateType],
+    () => getTemplateFileName(capabilities.effectiveType),
+    [capabilities.effectiveType],
   );
 
   // Computa typstFiles e bibtexCode somente quando a aba de código estiver ativa
@@ -86,10 +88,16 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
 
   const bibtexCode = useMemo(() => {
     if (!showCode) return '';
-    return project.references.length > 0
-      ? exportToBibtex(project.references)
-      : '// Nenhuma referência cadastrada ainda no projeto.';
-  }, [showCode, project.references]);
+    if (project.references.length === 0) {
+      return '// Nenhuma referência cadastrada ainda no projeto.';
+    }
+    const ordered = getOrderedReferences(
+      project.references,
+      project.templateConfig?.referenceOrdering ?? 'alphabetical',
+      project.blocks,
+    );
+    return exportToBibtex(ordered);
+  }, [showCode, project.references, project.templateConfig?.referenceOrdering, project.blocks]);
 
   const getCurrentCode = () => {
     if (codeTab === 'bibtex') return bibtexCode;
@@ -113,7 +121,10 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
 
       try {
         let extraFiles: Record<string, string> | undefined = undefined;
-        if (project.templateType === 'universe_custom' && project.templateConfig?.universePackage) {
+        if (
+          capabilities.effectiveType === 'universe_custom' &&
+          project.templateConfig?.universePackage
+        ) {
           const resolved = await resolveUniversePackage(project.templateConfig.universePackage);
           extraFiles = resolved.files;
         }
@@ -154,7 +165,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [project]);
+  }, [project, capabilities.effectiveType]);
 
   // Renderiza os canvases sempre que o artefato ou a lista de páginas mudar
   useEffect(() => {

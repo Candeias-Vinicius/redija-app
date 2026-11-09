@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { NodeCompiler } from '@myriaddreamin/typst-ts-node-compiler';
 import {
   escapeMarkup,
+  hasRichHtmlMarkup,
   richTextToTypst,
+  sanitizeLinkUrl,
   stripHtmlTags,
 } from '../escape';
 import {
@@ -373,5 +375,44 @@ describe('Transpilador Typst: Compilação WASM Sob Estresse (Edge Cases Combina
     const pdfBuffer = compiler.pdf(compileResult.result!);
     expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
     expect(pdfBuffer.byteLength).toBeGreaterThan(1000);
+  });
+});
+
+describe('Transpilador Typst: Novas Marcas Inline e Átomos (Links, Tachado, Código, Matemática)', () => {
+  it('detecta marcação rica e átomos estruturados via hasRichHtmlMarkup', () => {
+    expect(hasRichHtmlMarkup('<p>Texto puro</p>')).toBe(false);
+    expect(hasRichHtmlMarkup('<p>Texto com <s>tachado</s></p>')).toBe(true);
+    expect(hasRichHtmlMarkup('<p><code>x = 1</code></p>')).toBe(true);
+    expect(hasRichHtmlMarkup('<p><a href="https://typst.app">Site</a></p>')).toBe(true);
+    expect(hasRichHtmlMarkup('<p><span data-inline-math="x^2">$x^2$</span></p>')).toBe(true);
+    expect(hasRichHtmlMarkup('<p><cite data-cite-id="r1">SILVA</cite></p>')).toBe(true);
+  });
+
+  it('sanitiza URLs bloqueando protocolos perigosos e permitindo apenas http, https e mailto', () => {
+    expect(sanitizeLinkUrl('https://redija.app/docs?a=1')).toBe('https://redija.app/docs?a=1');
+    expect(sanitizeLinkUrl('http://example.com')).toBe('http://example.com/');
+    expect(sanitizeLinkUrl('mailto:contato@redija.app')).toBe('mailto:contato@redija.app');
+    expect(sanitizeLinkUrl('javascript:alert(1)')).toBeNull();
+    expect(sanitizeLinkUrl('data:text/html,<script>1</script>')).toBeNull();
+    expect(sanitizeLinkUrl('nota-relativa')).toBeNull();
+  });
+
+  it('converte <s>, <code>, <a> e inline math preservando escape e aninhamento seguro', () => {
+    const html =
+      '<p>Veja <a href="https://typst.app">doc <code>foo("x")</code></a>, <s>removido #1</s> e <span data-inline-math="true" data-math="alpha + beta">alpha + beta</span>.</p>';
+    const typst = richTextToTypst(html);
+
+    expect(typst).toContain('#link("https://typst.app/")[doc #raw("foo(\\"x\\")")]');
+    expect(typst).toContain('#strike[removido \\#1]');
+    expect(typst).toContain('$alpha + beta$');
+    expect(typst).not.toContain('<a');
+  });
+
+  it('remove atributo link inseguro mantendo o rótulo escapado como texto comum', () => {
+    const unsafe = '<p><a href="javascript:evil()">Clique #aqui</a></p>';
+    const typst = richTextToTypst(unsafe);
+    expect(typst).toBe('Clique \\#aqui');
+    expect(typst).not.toContain('#link');
+    expect(typst).not.toContain('javascript:');
   });
 });

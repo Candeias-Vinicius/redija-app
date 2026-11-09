@@ -9,6 +9,7 @@ import {
   countWords,
   formatShortCitation,
   exportToBibtex,
+  getOrderedReferences,
   getReferenceIndexMap,
   resolveCitationFormat,
 } from '@/core/transpiler/abntLinter';
@@ -121,7 +122,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isAbstractCountIdeal = abstractWordCount >= abstractMin && abstractWordCount <= abstractMax;
 
   const citationFormat = resolveCitationFormat(project.templateConfig);
-  const refIndexMap = useMemo(() => getReferenceIndexMap(references), [references]);
+  const referenceOrdering = project.templateConfig?.referenceOrdering ?? 'alphabetical';
+  const refIndexMap = useMemo(
+    () => getReferenceIndexMap(references, referenceOrdering, project.blocks),
+    [references, referenceOrdering, project.blocks],
+  );
 
   const lintReport = useMemo(
     () => runDocumentLinter(project, capabilities),
@@ -139,7 +144,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleExportBibtex = () => {
-    const bib = exportToBibtex(references);
+    const ordered = getOrderedReferences(references, referenceOrdering, project.blocks);
+    const bib = exportToBibtex(ordered);
     const blob = new Blob([bib], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

@@ -274,12 +274,32 @@ describe('Conformidade ABNT NBR 10520 (Citações)', () => {
     // Deve transpolar o bloco quote_long usando a macro #citacao(...)
     expect(main).toContain('#citacao(referencia: [SILVA; SOUZA, 2023, p. 45\\-47])');
 
-    // Valida que o abnt.typ define citação com inset de 4cm e tamanho de fonte 10pt
+    // Valida que o abnt.typ define citação com inset de 4cm e fonte proporcional (0.85em)
     const files = generateTypstFiles(proj);
     const abntTyp = files[TEMPLATE_FILE];
     expect(abntTyp).toContain('inset: (left: 4cm)');
-    expect(abntTyp).toContain('set text(size: 10pt)');
+    expect(abntTyp).toContain('set text(size: 0.85em)');
     expect(abntTyp).toContain('entrelinha-simples');
+  });
+
+  it('escala citações longas e elementos auxiliares proporcionalmente quando fontSizePt muda (ex.: 16pt)', () => {
+    const baseProj = createAbntMonographProject();
+    const proj = {
+      ...baseProj,
+      templateConfig: {
+        ...baseProj.templateConfig!,
+        preset: 'custom' as const,
+        fontSizePt: 16,
+      },
+    };
+    const standalone = generateStandaloneTypst(proj);
+    expect(standalone).toContain('tamanho-fonte: 16pt');
+
+    const compiler = NodeCompiler.create();
+    const compileResult = compiler.compile({ mainFileContent: standalone });
+    expect(compileResult.hasError()).toBe(false);
+    const pdfBuffer = compiler.pdf(compileResult.result!);
+    expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
   });
 });
 

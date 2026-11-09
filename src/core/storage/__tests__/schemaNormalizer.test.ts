@@ -187,4 +187,70 @@ describe('schemaNormalizer: Regressão e Integridade de Dados', () => {
       hiddenFieldIds: ['advisor', 'nature'],
     });
   });
+
+  it('clampa fontSizePt e paragraphSpacingEm, higieniza runningHeader e preserva raw_typst e estilos CSL', () => {
+    const input = {
+      name: 'Projeto Paridade Typst',
+      templateType: 'tcc',
+      metadata: { title: 'Paridade' },
+      templateConfig: {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        fontSizePt: 40, // > 24 => 24
+        paragraphSpacingEm: 9, // > 3 => 3
+        runningHeader: 'Linha 1\nLinha 2\tTab',
+        paperSize: 'letter',
+        pageOrientation: 'landscape',
+        documentLanguage: 'es',
+        bodyAlignment: 'left',
+        pageNumbering: 'bottom_right',
+        headingNumbering: 'I.A',
+        referenceOrdering: 'citation_order',
+        referenceEntryFormat: 'ieee',
+        bibliographyEngine: 'typst_csl',
+        cslStyle: 'vancouver',
+        hideFirstPageNumber: false,
+        romanPreTextual: true,
+        h1PageBreak: false,
+      },
+      blocks: [
+        { id: 'raw1', type: 'raw_typst', content: '#rect[Teste]' },
+      ],
+    };
+
+    const normalized = normalizeProject(input);
+    expect(normalized.templateConfig?.fontSizePt).toBe(24);
+    expect(normalized.templateConfig?.paragraphSpacingEm).toBe(3);
+    expect(normalized.templateConfig?.runningHeader).toBe('Linha 1 Linha 2 Tab');
+    expect(normalized.templateConfig?.paperSize).toBe('letter');
+    expect(normalized.templateConfig?.pageOrientation).toBe('landscape');
+    expect(normalized.templateConfig?.documentLanguage).toBe('es');
+    expect(normalized.templateConfig?.bodyAlignment).toBe('left');
+    expect(normalized.templateConfig?.pageNumbering).toBe('bottom_right');
+    expect(normalized.templateConfig?.headingNumbering).toBe('I.A');
+    expect(normalized.templateConfig?.referenceOrdering).toBe('citation_order');
+    expect(normalized.templateConfig?.referenceEntryFormat).toBe('ieee');
+    expect(normalized.templateConfig?.bibliographyEngine).toBe('typst_csl');
+    expect(normalized.templateConfig?.cslStyle).toBe('vancouver');
+    expect(normalized.templateConfig?.hideFirstPageNumber).toBe(false);
+    expect(normalized.templateConfig?.romanPreTextual).toBe(true);
+    expect(normalized.templateConfig?.h1PageBreak).toBe(false);
+    expect(normalized.blocks[0].type).toBe('raw_typst');
+    expect(normalized.blocks[0].content).toBe('#rect[Teste]');
+
+    // Limite inferior de fontSizePt e fallback de cslStyle/paperSize inválidos
+    const low = normalizeProject({
+      name: 'Low',
+      metadata: { title: 'Low' },
+      templateConfig: {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        fontSizePt: 2,
+        paperSize: 'a99',
+        cslStyle: 'harvard-cite-them-right',
+      },
+      blocks: [],
+    });
+    expect(low.templateConfig?.fontSizePt).toBe(8);
+    expect(low.templateConfig?.paperSize).toBeUndefined();
+    expect(low.templateConfig?.cslStyle).toBe('harvard-cite-them-right');
+  });
 });
