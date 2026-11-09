@@ -314,8 +314,12 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
     const pkg =
       cfg.universePackage && SAFE_PKG_REGEX.test(cfg.universePackage.trim())
         ? cfg.universePackage.trim()
-        : '@preview/charged-ieee:0.1.1';
-    importLine = `#import "abnt.typ": *\n#import "${pkg}": *`;
+        : '@preview/charged-ieee:0.1.4';
+    if (pkg.startsWith('@preview/touying:')) {
+      importLine = `#import "abnt.typ": *\n#import "${pkg}": *\n#import themes.simple: *`;
+    } else {
+      importLine = `#import "abnt.typ": *\n#import "${pkg}": *`;
+    }
   }
 
   const parts: string[] = [
@@ -656,19 +660,88 @@ function generatePosterShowRule(
   return `#show: academic-poster.with(\n  ${args.join(',\n  ')},\n)`;
 }
 
+function buildNativeTypstFontTuple(
+  cfg: TemplateConfig,
+  fallbackDefault: 'serif' | 'sans' = 'serif',
+): string {
+  const effectiveFamily =
+    cfg.fontFamily === 'custom' && !sanitizeCustomFontFamily(cfg.customFontFamily)
+      ? fallbackDefault
+      : cfg.fontFamily || fallbackDefault;
+  const stack = getTypstFontStack(effectiveFamily, cfg.customFontFamily);
+  return `(${stack.map(typstString).join(', ')})`;
+}
+
 function generateUniverseShowRule(project: DocumentProject, cfg: TemplateConfig): string {
   const m = project.metadata;
-  const SAFE_ENTRY_REGEX = /^[a-zA-Z0-9_-]+$/;
-  const entry =
-    cfg.universeEntrypoint && SAFE_ENTRY_REGEX.test(cfg.universeEntrypoint.trim())
-      ? cfg.universeEntrypoint.trim()
-      : 'article';
+  const SAFE_PKG_REGEX = /^@[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+:[0-9.]+$/;
+  const pkg =
+    cfg.universePackage && SAFE_PKG_REGEX.test(cfg.universePackage.trim())
+      ? cfg.universePackage.trim()
+      : '@preview/charged-ieee:0.1.4';
+  const SAFE_ENTRY_REGEX = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
+  const rawEntry = cfg.universeEntrypoint?.trim() ?? '';
+  const entry = SAFE_ENTRY_REGEX.test(rawEntry) ? rawEntry : 'article';
+
+  const rawAuthors = (m.author || 'Autor')
+    .split(';')
+    .map((a) => a.trim())
+    .filter(Boolean);
+  const safeAuthors = rawAuthors.length > 0 ? rawAuthors : ['Autor'];
+
+  if (pkg.startsWith('@preview/touying:')) {
+    const lines = ['#show: simple-theme.with(aspect-ratio: "16-9")'];
+    if (cfg.fontFamily && cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {
+      if (cfg.fontFamily !== 'custom' || sanitizeCustomFontFamily(cfg.customFontFamily)) {
+        lines.push(`#set text(font: ${buildNativeTypstFontTuple(cfg, 'sans')})`);
+      }
+    }
+    return lines.join('\n');
+  }
+
+  const isChargedIeee = pkg.includes('charged-ieee') || entry === 'ieee';
+  if (isChargedIeee) {
+    const authorItems = safeAuthors.map((name) => {
+      const fields = [`name: ${typstString(name)}`];
+      if (m.institution?.trim()) {
+        fields.push(`organization: ${typstContent(m.institution.trim())}`);
+      }
+      if (m.location?.trim()) {
+        fields.push(`location: ${typstContent(m.location.trim())}`);
+      }
+      return `(${fields.join(', ')})`;
+    });
+    const authorsExpr =
+      authorItems.length === 1 ? `(${authorItems[0]},)` : `(${authorItems.join(', ')})`;
+
+    const args: string[] = [
+      `title: ${typstString(m.title)}`,
+      `authors: ${authorsExpr}`,
+    ];
+    if (m.abstract.trim()) args.push(`abstract: ${typstContent(m.abstract)}`);
+    const keywords = m.keywords.map((k) => k.trim()).filter(Boolean);
+    if (keywords.length > 0) {
+      args.push(`index-terms: (${keywords.map(typstString).join(', ')},)`);
+    }
+    if (cfg.paperSize === 'a4') {
+      args.push('paper-size: "a4"');
+    }
+
+    return `#show: ${entry}.with(\n  ${args.join(',\n  ')},\n)\n#set text(font: ${buildNativeTypstFontTuple(cfg, 'serif')})`;
+  }
+
   const args: string[] = [
     `title: ${typstString(m.title)}`,
-    `authors: (${typstString(m.author)},)`,
+    `authors: (${safeAuthors.map(typstString).join(', ')},)`,
   ];
   if (m.abstract.trim()) args.push(`abstract: ${typstContent(m.abstract)}`);
-  return `#show: ${entry}.with(\n  ${args.join(',\n  ')},\n)`;
+  const lines = [`#show: ${entry}.with(\n  ${args.join(',\n  ')},\n)`];
+  if (cfg.fontFamily && cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {
+    if (cfg.fontFamily !== 'custom' || sanitizeCustomFontFamily(cfg.customFontFamily)) {
+      lines.push(`#set text(font: ${buildNativeTypstFontTuple(cfg, 'serif')})`);
+    }
+  }
+  return lines.join('\n');
 }
 
 function generateAbntShowRule(

@@ -935,5 +935,45 @@ describe('Typst compilation integration', () => {
       const pdfBuffer = compiler.pdf(res.result!);
       expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
     });
+
+    it('gera autores em formato dicionário para charged-ieee:0.1.4 e import de tema para touying:0.5.3', () => {
+      const ieeeProj = createSampleProject({
+        templateType: 'universe_custom',
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'universe_custom',
+          universePackage: '@preview/charged-ieee:0.1.4',
+          universeEntrypoint: 'ieee',
+        },
+        metadata: {
+          ...createSampleProject().metadata,
+          author: 'Alice Silva; Bruno Costa',
+          institution: 'UFPR',
+          location: 'Curitiba',
+        },
+      });
+      const { [MAIN_FILE]: ieeeMain } = generateTypstFiles(ieeeProj);
+      expect(ieeeMain).toContain('#import "@preview/charged-ieee:0.1.4": *');
+      expect(ieeeMain).toContain('#show: ieee.with(');
+      expect(ieeeMain).toContain('name: "Alice Silva"');
+      expect(ieeeMain).toContain('name: "Bruno Costa"');
+      expect(ieeeMain).toContain('organization: [UFPR]');
+      expect(ieeeMain).toContain('location: [Curitiba]');
+      expect(ieeeMain).toContain('#set text(font: ("Tinos"');
+
+      const touyingProj = createSampleProject({
+        templateType: 'universe_custom',
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'universe_custom',
+          universePackage: '@preview/touying:0.5.3',
+          universeEntrypoint: 'simple-theme',
+        },
+      });
+      const { [MAIN_FILE]: touyingMain } = generateTypstFiles(touyingProj);
+      expect(touyingMain).toContain('#import "@preview/touying:0.5.3": *');
+      expect(touyingMain).toContain('#import themes.simple: *');
+      expect(touyingMain).toContain('#show: simple-theme.with(aspect-ratio: "16-9")');
+    });
   });
 });

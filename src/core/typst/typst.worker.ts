@@ -16,7 +16,11 @@ import {
   type TypstRenderer,
   type RenderSession,
 } from '@myriaddreamin/typst.ts/dist/esm/renderer.mjs';
-import { loadFonts } from '@myriaddreamin/typst.ts/dist/esm/options.init.mjs';
+import {
+  loadFonts,
+  withAccessModel,
+  withPackageRegistry,
+} from '@myriaddreamin/typst.ts/dist/esm/options.init.mjs';
 import compilerWasmUrl from '@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_web_compiler_bg.wasm?url';
 import rendererWasmUrl from '@myriaddreamin/typst-ts-renderer/pkg/typst_ts_renderer_bg.wasm?url';
 import type { TypstDiagnostic } from './diagnostics';
@@ -25,6 +29,11 @@ import {
   getFontCacheKey,
   type RequestedFontDescriptor,
 } from './fontCatalog';
+import {
+  createTypstMemoryAccessModel,
+  splitCompileFiles,
+  WorkerPackageRegistry,
+} from './packageRegistry';
 
 export interface PageDimension {
   pageOffset: number;
@@ -38,6 +47,7 @@ export interface WorkerCompileRequest {
   files: Record<string, string>;
   binaryFiles?: Record<string, Uint8Array>;
   requestedFont?: RequestedFontDescriptor;
+  packageArchives?: Record<string, Uint8Array>;
 }
 
 export interface WorkerRenderPagesRequest {
@@ -110,6 +120,8 @@ let baseFontBuffersPromise: Promise<Uint8Array[]> | null = null;
 const remoteFontBufferCache = new Map<string, Uint8Array | null>();
 let activeFontCacheKey = 'bundled';
 let fontUpdateQueue: Promise<void> = Promise.resolve();
+const workerAccessModel = createTypstMemoryAccessModel();
+const workerPackageRegistry = new WorkerPackageRegistry(workerAccessModel);
 
 function resolveFontUrls(): string[] {
   const origin = self.location?.origin || '';
@@ -241,6 +253,8 @@ async function getCompiler(): Promise<TypstCompiler> {
             loadFonts(baseBuffers, {
               assets: false,
             }),
+            withAccessModel(workerAccessModel),
+            withPackageRegistry(workerPackageRegistry),
           ],
         });
         return instance;
@@ -276,13 +290,15 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const start = performance.now();
 
   if (data.type === 'compile-vector' || data.type === 'compile-pdf') {
-    const { id, type, files, binaryFiles, requestedFont } = data;
+    const { id, type, files, binaryFiles, requestedFont, packageArchives } = data;
     try {
       const compiler = await getCompiler();
       await ensureCompilerFonts(compiler, requestedFont);
+      const { sourceFiles, packageFiles } = splitCompileFiles(files);
+      workerPackageRegistry.setRequestPackages(packageArchives, packageFiles);
       compiler.resetShadow();
 
-      for (const [name, content] of Object.entries(files)) {
+      for (const [name, content] of Object.entries(sourceFiles)) {
         const virtualPath = name.startsWith('/') ? name : `/${name}`;
         compiler.addSource(virtualPath, content);
       }

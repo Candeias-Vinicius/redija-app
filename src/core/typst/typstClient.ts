@@ -228,6 +228,7 @@ export async function compileToVector(
   files: Record<string, string>,
   binaryFiles?: Record<string, Uint8Array>,
   requestedFont?: RequestedFontDescriptor,
+  packageArchives?: Record<string, Uint8Array>,
 ): Promise<VectorCompileOutput> {
   const worker = getWorker();
   const id = ++requestCounter;
@@ -245,7 +246,7 @@ export async function compileToVector(
     }, WORKER_TIMEOUT_MS);
 
     pendingCompileRequests.set(id, { resolve, timeoutId });
-    worker.postMessage({ id, type: 'compile-vector', files, binaryFiles, requestedFont });
+    worker.postMessage({ id, type: 'compile-vector', files, binaryFiles, requestedFont, packageArchives });
   });
 
   return {
@@ -264,6 +265,7 @@ export async function compileToPdf(
   files: Record<string, string>,
   binaryFiles?: Record<string, Uint8Array>,
   requestedFont?: RequestedFontDescriptor,
+  packageArchives?: Record<string, Uint8Array>,
 ): Promise<PdfCompileOutput> {
   const worker = getWorker();
   const id = ++requestCounter;
@@ -280,7 +282,7 @@ export async function compileToPdf(
     }, WORKER_TIMEOUT_MS);
 
     pendingCompileRequests.set(id, { resolve, timeoutId });
-    worker.postMessage({ id, type: 'compile-pdf', files, binaryFiles, requestedFont });
+    worker.postMessage({ id, type: 'compile-pdf', files, binaryFiles, requestedFont, packageArchives });
   });
 
   return {

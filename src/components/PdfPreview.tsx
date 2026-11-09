@@ -6,7 +6,7 @@ import {
   getTemplateFileName,
 } from '@/core/transpiler/typstGenerator';
 import { getTemplateCapabilities } from '@/core/templates/templateCapabilities';
-import { resolveUniversePackage } from '@/core/universe/universeResolver';
+import { resolveProjectUniverseAssets } from '@/core/universe/universeResolver';
 import { exportToBibtex, getOrderedReferences } from '@/core/transpiler/abntLinter';
 import {
   compileToVector,
@@ -121,20 +121,26 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
 
       try {
         let extraFiles: Record<string, string> | undefined = undefined;
-        if (
-          capabilities.effectiveType === 'universe_custom' &&
-          project.templateConfig?.universePackage
-        ) {
-          const resolved = await resolveUniversePackage(project.templateConfig.universePackage);
-          extraFiles = resolved.files;
+        let packageArchives: Record<string, Uint8Array> | undefined = undefined;
+        if (capabilities.effectiveType === 'universe_custom') {
+          const pkgAssets = await resolveProjectUniverseAssets(
+            project.templateConfig?.universePackage || '@preview/charged-ieee:0.1.4',
+          );
+          extraFiles = pkgAssets.extraFiles;
+          packageArchives = pkgAssets.packageArchives;
         }
 
         const files = generateTypstFiles(project, extraFiles);
         const binaryFiles = extractBinaryAssets(project);
-        const result = await compileToVector(files, binaryFiles, {
-          fontFamily: project.templateConfig?.fontFamily ?? 'serif',
-          customFontFamily: project.templateConfig?.customFontFamily,
-        });
+        const result = await compileToVector(
+          files,
+          binaryFiles,
+          {
+            fontFamily: project.templateConfig?.fontFamily ?? 'serif',
+            customFontFamily: project.templateConfig?.customFontFamily,
+          },
+          packageArchives,
+        );
 
         if (currentId !== latestCompileId.current) return;
 

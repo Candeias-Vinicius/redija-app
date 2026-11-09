@@ -98,7 +98,7 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     await expect(page.getByText('Pacote Typst Universe:')).toBeVisible();
 
     // Preenche o identificador do pacote oficial
-    await page.getByPlaceholder('Ex: @preview/charged-ieee:0.1.1').fill('@preview/charged-ieee:0.1.1');
+    await page.getByPlaceholder('Ex: @preview/charged-ieee:0.1.4').fill('@preview/charged-ieee:0.1.4');
 
     const nameInput = page.getByPlaceholder(/Ex: TCC Engenharia/i);
     await nameInput.fill('Artigo Universe E2E');
@@ -356,5 +356,71 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     const codeViewer = page.locator('pre');
     await expect(codeViewer).toContainText('#import "@preview/modern-sbc:0.1.0": *');
     await expect(codeViewer).toContainText('#show: sbc-article.with');
+  });
+
+  test('mantém edições do Customizer apenas em rascunho até Aplicar, não gera erro ao clicar em Typst Universe num SBC e compila PDF sem Dummy Registry', async ({
+    page,
+  }) => {
+    const modalHeading = await ensureProjectsModal(page);
+    await page.getByRole('button', { name: /Artigo SBC/i }).click();
+    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`SBC Draft Safe ${Date.now()}`);
+    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await expect(modalHeading).not.toBeVisible();
+
+    // Aguarda a prévia PDF inicial do SBC renderizar sem erros
+    await expect(page.locator('aside canvas').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Atenção na compilação do documento')).not.toBeVisible();
+
+    // Abre o Personalizador e clica apenas em "Explorar no Typst Universe" sem selecionar pacote
+    await page
+      .getByRole('button', {
+        name: 'Layout das Referências e Citações (Norma & Layout)',
+        exact: true,
+      })
+      .click();
+    await page.getByRole('button', { name: /Explorar no Typst Universe/i }).click();
+    await expect(page.locator('#template-universe-package')).toBeVisible();
+
+    // Altera opções em outras abas (Tipografia & Citações) no rascunho
+    await page.getByRole('tab', { name: /Tipografia/i }).click();
+    await page.locator('#template-font-family').selectOption('inter');
+    await page.locator('#template-font-size').fill('14');
+    await page.getByRole('tab', { name: /Citações/i }).click();
+    await page.locator('#template-citation-format').selectOption('ieee_numeric');
+
+    // Fecha descartando com Cancelar -> nenhuma alteração deve ter sido aplicada ao projeto SBC
+    await page.getByRole('button', { name: /^Cancelar$/i }).click();
+    await expect(page.getByText('Personalizar Norma, Template e Layout da Faculdade')).not.toBeVisible();
+    await expect(page.getByText('Atenção na compilação do documento')).not.toBeVisible();
+    await expect(page.getByText(/Dummy Registry/i)).not.toBeVisible();
+
+    await page.getByRole('button', { name: /Ver Typst/i }).click();
+    const codeViewer = page.locator('pre');
+    await expect(codeViewer).toContainText('#show: sbc-article.with');
+    await expect(codeViewer).not.toContainText('@preview/charged-ieee');
+    await expect(codeViewer).not.toContainText('"Inter"');
+    await expect(codeViewer).not.toContainText('tamanho-fonte: 14pt');
+
+    // Volta ao modo PDF, seleciona pacote real (@preview/charged-ieee:0.1.4) e confirma apenas ao Aplicar
+    await page.getByRole('button', { name: /Ver PDF/i }).click();
+    await page
+      .getByRole('button', {
+        name: 'Layout das Referências e Citações (Norma & Layout)',
+        exact: true,
+      })
+      .click();
+    await page.getByRole('button', { name: /Explorar no Typst Universe/i }).click();
+    await page.getByRole('button', { name: '@preview/charged-ieee:0.1.4', exact: true }).click();
+    await page.getByRole('button', { name: /Aplicar e Atualizar PDF/i }).click();
+
+    // Deve compilar PDF no navegador sem Dummy Registry nem erros de compilação
+    await expect(page.locator('aside canvas').first()).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText('Atenção na compilação do documento')).not.toBeVisible();
+    await expect(page.getByText(/Dummy Registry/i)).not.toBeVisible();
+
+    // Valida código gerado do Universe para @preview/charged-ieee:0.1.4
+    await page.getByRole('button', { name: /Ver Typst/i }).click();
+    await expect(codeViewer).toContainText('#import "@preview/charged-ieee:0.1.4": *');
+    await expect(codeViewer).toContainText('authors: ((name:');
   });
 });

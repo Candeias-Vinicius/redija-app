@@ -72,6 +72,12 @@ const MODAL_TABS: Array<{ id: CustomizerTabId; label: string }> = [
   { id: 'structure', label: 'Capa & Pôster' },
 ];
 
+export interface TemplateCustomizerApplyPayload {
+  config: TemplateConfig;
+  metadata: DocumentMetadata;
+  selectedTemplateType?: ProjectTemplateType;
+}
+
 interface TemplateCustomizerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -79,8 +85,9 @@ interface TemplateCustomizerModalProps {
   metadata: DocumentMetadata;
   templateType?: ProjectTemplateType;
   blocks?: Block[];
-  onChangeConfig: (config: TemplateConfig) => void;
-  onChangeMetadata: (metadata: DocumentMetadata) => void;
+  onApply?: (payload: TemplateCustomizerApplyPayload) => void;
+  onChangeConfig?: (config: TemplateConfig) => void;
+  onChangeMetadata?: (metadata: DocumentMetadata) => void;
 }
 
 interface PresetInfo {
@@ -364,22 +371,80 @@ const PRESETS: PresetInfo[] = [
   },
 ];
 
-export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = ({
-  isOpen,
+function resolveDraftTemplateType(
+  cfg: TemplateConfig,
+  baseType?: ProjectTemplateType,
+): ProjectTemplateType {
+  const p = cfg.preset;
+  if (p === 'sbc' || p === 'ieee' || p === 'poster' || p === 'universe_custom') {
+    return p;
+  }
+  if (p === 'abnt_classic' || p === 'abnt_2023' || p === 'apa_7') {
+    if (
+      !baseType ||
+      baseType === 'sbc' ||
+      baseType === 'ieee' ||
+      baseType === 'poster' ||
+      baseType === 'universe_custom'
+    ) {
+      return 'tcc';
+    }
+    return baseType;
+  }
+  if (p === 'article_2col') {
+    if (
+      !baseType ||
+      baseType === 'sbc' ||
+      baseType === 'ieee' ||
+      baseType === 'poster' ||
+      baseType === 'universe_custom'
+    ) {
+      return 'artigo';
+    }
+    return baseType;
+  }
+  return baseType ?? 'tcc';
+}
+
+export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (props) => {
+  if (!props.isOpen) return null;
+  return <TemplateCustomizerModalContent {...props} />;
+};
+
+const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = ({
   onClose,
-  config,
-  metadata,
-  templateType,
+  config: initialConfig,
+  metadata: initialMetadata,
+  templateType: initialTemplateType,
   blocks = [],
+  onApply,
   onChangeConfig,
   onChangeMetadata,
 }) => {
   const [activeTab, setActiveTab] = useState<CustomizerTabId>('presets');
+  const [draftConfig, setDraftConfig] = useState<TemplateConfig>(() => ({ ...initialConfig }));
+  const [draftMetadata, setDraftMetadata] = useState<DocumentMetadata>(() => ({ ...initialMetadata }));
+  const [draftTemplateType, setDraftTemplateType] = useState<ProjectTemplateType>(() =>
+    resolveDraftTemplateType(initialConfig, initialTemplateType),
+  );
+  const initialIsUniverse =
+    initialConfig.preset === 'universe_custom' ||
+    (initialConfig.preset === 'custom' && initialTemplateType === 'universe_custom');
+  const [showUniverseExplorer, setShowUniverseExplorer] = useState<boolean>(initialIsUniverse);
+  const preUniverseRef = useRef<{
+    config: TemplateConfig;
+    templateType: ProjectTemplateType;
+  }>({
+    config: { ...initialConfig },
+    templateType: resolveDraftTemplateType(initialConfig, initialTemplateType),
+  });
   const universeConnectorRef = useRef<HTMLDivElement>(null);
 
-  if (!isOpen) return null;
+  const config = draftConfig;
+  const metadata = draftMetadata;
+  const templateType = draftTemplateType;
 
-  const isUniverseActive =
+  const isUniverseSelected =
     config.preset === 'universe_custom' ||
     (config.preset === 'custom' && templateType === 'universe_custom');
   const isPosterActive =
@@ -387,11 +452,11 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
     (config.preset === 'custom' && templateType === 'poster');
 
   const updateField = <K extends keyof TemplateConfig>(key: K, value: TemplateConfig[K]) => {
-    onChangeConfig({
-      ...config,
+    setDraftConfig((prev) => ({
+      ...prev,
       preset: 'custom',
       [key]: value,
-    });
+    }));
   };
 
   const effectiveCitationFormat = resolveCitationFormat(config);
@@ -427,12 +492,12 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
       nextFormat === 'abnt_titlecase' || nextFormat === 'author_date'
         ? 'titlecase'
         : 'uppercase';
-    onChangeConfig({
-      ...config,
+    setDraftConfig((prev) => ({
+      ...prev,
       preset: 'custom',
       citationFormat: nextFormat,
       citationStyle: syncedStyle,
-    });
+    }));
   };
 
   const sampleInlineCall = formatShortCitation(SAMPLE_PREVIEW_REF, {
@@ -441,46 +506,85 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
   });
 
   const applyPreset = (preset: PresetInfo) => {
-    onChangeConfig({
+    const nextConfig: TemplateConfig = {
       preset: preset.id,
       ...preset.config,
-    });
+    };
+    const nextType = resolveDraftTemplateType(nextConfig, draftTemplateType);
+    setDraftConfig(nextConfig);
+    setDraftTemplateType(nextType);
+    setShowUniverseExplorer(false);
+    preUniverseRef.current = { config: nextConfig, templateType: nextType };
   };
 
-  const applyUniversePreset = () => {
-    const pkg = config.universePackage?.trim() || '@preview/charged-ieee:0.1.1';
-    const known = POPULAR_UNIVERSE_TEMPLATES.find(
-      (t) => t.id.toLowerCase() === pkg.toLowerCase(),
-    );
-    const pkgMatch = pkg.match(/^@?[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+):[0-9.]+$/);
-    const entry =
-      known?.entrypoint || pkgMatch?.[1] || config.universeEntrypoint?.trim() || 'ieee';
-    onChangeConfig({
-      ...config,
-      preset: 'universe_custom',
-      universePackage: pkg,
-      universeEntrypoint: entry,
-    });
-    requestAnimationFrame(() => {
-      universeConnectorRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
-    });
+  const toggleUniverseExplorer = () => {
+    if (!showUniverseExplorer) {
+      setShowUniverseExplorer(true);
+      requestAnimationFrame(() => {
+        universeConnectorRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+      });
+    } else if (!isUniverseSelected) {
+      setShowUniverseExplorer(false);
+    }
   };
 
   const handleUniversePackageInput = (nextPkg: string) => {
     const trimmed = nextPkg.trim();
+    if (!trimmed) {
+      if (preUniverseRef.current.templateType !== 'universe_custom') {
+        setDraftConfig({
+          ...preUniverseRef.current.config,
+          universePackage: '',
+          universeEntrypoint: undefined,
+        });
+        setDraftTemplateType(preUniverseRef.current.templateType);
+      } else {
+        setDraftConfig((prev) => ({
+          ...prev,
+          universePackage: '',
+        }));
+      }
+      return;
+    }
+
+    if (!isUniverseSelected) {
+      preUniverseRef.current = {
+        config: draftConfig,
+        templateType: draftTemplateType,
+      };
+    }
+
     const known = POPULAR_UNIVERSE_TEMPLATES.find(
       (t) => t.id.toLowerCase() === trimmed.toLowerCase(),
     );
     const pkgMatch = trimmed.match(/^@?[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+):[0-9.]+$/);
     const nextEntrypoint = known
       ? known.entrypoint
-      : (pkgMatch?.[1] ?? config.universeEntrypoint);
-    onChangeConfig({
-      ...config,
+      : (pkgMatch?.[1] ?? draftConfig.universeEntrypoint);
+    setDraftConfig((prev) => ({
+      ...prev,
       universePackage: nextPkg,
       universeEntrypoint: nextEntrypoint,
       preset: 'universe_custom',
-    });
+    }));
+    setDraftTemplateType('universe_custom');
+  };
+
+  const handleSelectUniverseChip = (pkgId: string, entrypoint: string) => {
+    if (!isUniverseSelected) {
+      preUniverseRef.current = {
+        config: draftConfig,
+        templateType: draftTemplateType,
+      };
+    }
+    setDraftConfig((prev) => ({
+      ...prev,
+      universePackage: pkgId,
+      universeEntrypoint: entrypoint,
+      preset: 'universe_custom',
+    }));
+    setDraftTemplateType('universe_custom');
+    setShowUniverseExplorer(true);
   };
 
   const handleLogoUpload = (file: File) => {
@@ -497,13 +601,44 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        onChangeMetadata({
-          ...metadata,
-          institutionLogoDataUrl: reader.result,
-        });
+        setDraftMetadata((prev) => ({
+          ...prev,
+          institutionLogoDataUrl: reader.result as string,
+        }));
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleRestoreDefaults = () => {
+    const restoredConfig: TemplateConfig = { ...DEFAULT_TEMPLATE_CONFIG };
+    const restoredType = resolveDraftTemplateType(
+      restoredConfig,
+      draftTemplateType === 'universe_custom' ||
+        draftTemplateType === 'sbc' ||
+        draftTemplateType === 'ieee' ||
+        draftTemplateType === 'poster'
+        ? 'tcc'
+        : draftTemplateType,
+    );
+    setDraftConfig(restoredConfig);
+    setDraftTemplateType(restoredType);
+    setShowUniverseExplorer(false);
+    preUniverseRef.current = { config: restoredConfig, templateType: restoredType };
+  };
+
+  const handleApply = () => {
+    if (onApply) {
+      onApply({
+        config: draftConfig,
+        metadata: draftMetadata,
+        selectedTemplateType: draftTemplateType,
+      });
+    } else {
+      onChangeConfig?.(draftConfig);
+      onChangeMetadata?.(draftMetadata);
+    }
+    onClose();
   };
 
   const highlightClass =
@@ -626,11 +761,14 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                 {/* 8º Card: Conector Typst Universe */}
                 <button
                   type="button"
-                  onClick={applyUniversePreset}
+                  onClick={toggleUniverseExplorer}
+                  aria-expanded={showUniverseExplorer}
                   className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
-                    isUniverseActive
+                    isUniverseSelected
                       ? 'border-emerald-600 bg-emerald-50/60 ring-1 ring-emerald-600'
-                      : 'border-neutral-200 hover:border-emerald-400 hover:bg-neutral-50'
+                      : showUniverseExplorer
+                        ? 'border-emerald-400 bg-emerald-50/30'
+                        : 'border-neutral-200 hover:border-emerald-400 hover:bg-neutral-50'
                   }`}
                 >
                   <div>
@@ -639,7 +777,7 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                         <Globe className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                         Explorar no Typst Universe
                       </span>
-                      {isUniverseActive && (
+                      {isUniverseSelected && (
                         <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
                           <Check className="w-2.5 h-2.5" />
                         </span>
@@ -649,13 +787,13 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                       Comunidade • typst.app/universe
                     </span>
                     <p className="text-[11px] text-neutral-600 leading-relaxed">
-                      Conecte modelos oficiais e da comunidade do Typst Universe importando pelo identificador do pacote (ex: @preview/charged-ieee:0.1.1).
+                      Conecte modelos oficiais e da comunidade do Typst Universe importando pelo identificador do pacote (ex: @preview/charged-ieee:0.1.4).
                     </p>
                   </div>
                 </button>
               </div>
 
-              {isUniverseActive && (
+              {(showUniverseExplorer || isUniverseSelected) && (
                 <div
                   ref={universeConnectorRef}
                   className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-3"
@@ -691,7 +829,7 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                       id="template-universe-package"
                       type="text"
                       value={config.universePackage || ''}
-                      placeholder="Ex: @preview/charged-ieee:0.1.1 ou @preview/modern-sbc:0.1.0"
+                      placeholder="Ex: @preview/charged-ieee:0.1.4 ou @preview/modern-sbc:0.1.0"
                       onChange={(e) => handleUniversePackageInput(e.target.value)}
                       className="w-full text-xs px-3 py-2 bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-emerald-600 font-mono"
                     />
@@ -706,16 +844,9 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                         <button
                           key={t.id}
                           type="button"
-                          onClick={() => {
-                            onChangeConfig({
-                              ...config,
-                              universePackage: t.id,
-                              universeEntrypoint: t.entrypoint,
-                              preset: 'universe_custom',
-                            });
-                          }}
+                          onClick={() => handleSelectUniverseChip(t.id, t.entrypoint)}
                           className={`text-[10px] px-2 py-1 rounded-md border font-mono transition-colors ${
-                            config.universePackage === t.id
+                            isUniverseSelected && config.universePackage === t.id
                               ? 'border-emerald-600 bg-emerald-100 text-emerald-900 font-bold ring-1 ring-emerald-600'
                               : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400'
                           }`}
@@ -1487,7 +1618,10 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                         <button
                           type="button"
                           onClick={() =>
-                            onChangeMetadata({ ...metadata, institutionLogoDataUrl: undefined })
+                            setDraftMetadata((prev) => ({
+                              ...prev,
+                              institutionLogoDataUrl: undefined,
+                            }))
                           }
                           className="flex items-center gap-1 text-xs text-red-600 hover:bg-red-50 px-2 py-1 rounded"
                         >
@@ -1603,23 +1737,32 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
         </div>
 
         {/* Rodapé */}
-        <div className="p-4 border-t border-neutral-200 bg-neutral-50 flex items-center justify-between">
+        <div className="p-4 border-t border-neutral-200 bg-neutral-50 flex flex-wrap items-center justify-between gap-2">
           <button
             type="button"
-            onClick={() => onChangeConfig(DEFAULT_TEMPLATE_CONFIG)}
+            onClick={handleRestoreDefaults}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60 rounded-lg transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Restaurar Padrão ABNT
           </button>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors"
-          >
-            Aplicar e Atualizar PDF
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/70 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleApply}
+              className="px-5 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors"
+            >
+              Aplicar e Atualizar PDF
+            </button>
+          </div>
         </div>
       </div>
     </div>
