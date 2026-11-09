@@ -80,4 +80,60 @@ describe('projectExporter: Exportação de Pacote Completo Typst (.zip)', () => 
     expect(readmeContent).toContain('typst compile main.typ');
     expect(readmeContent).toContain('Tinymist Typst');
   });
+
+  it('exporta projeto IEEE ou TCC com preset SBC usando módulo correto e inclui refs.bib quando CSL está ativo', async () => {
+    const ieeeProj = createProjectFromTemplate('ieee', 'Paper IEEE Dual');
+    ieeeProj.references = [
+      {
+        id: 'r_z',
+        authors: 'ZANATTA, Carlos',
+        title: 'Zeta Networks',
+        year: '2025',
+        city: 'NY',
+        publisher: 'IEEE',
+      },
+      {
+        id: 'r_a',
+        authors: 'ALMEIDA, João',
+        title: 'Alpha Signals',
+        year: '2024',
+        city: 'SP',
+        publisher: 'SBC',
+      },
+    ];
+    ieeeProj.blocks = [
+      {
+        id: 'p1',
+        type: 'paragraph',
+        content: '<p>Citing <cite data-cite-id="r_z" data-cite-mode="parenthetical">[1]</cite>.</p>',
+      },
+    ];
+    ieeeProj.templateConfig = {
+      ...ieeeProj.templateConfig!,
+      bibliographyEngine: 'typst_csl',
+      referenceOrdering: 'citation_order',
+    };
+
+    const ieeeZipBlob = await exportTypstProjectZip(ieeeProj);
+    const ieeeZip = await JSZip.loadAsync(await ieeeZipBlob.arrayBuffer());
+    expect(ieeeZip.file('ieee.typ')).not.toBeNull();
+    expect(ieeeZip.file('main.typ')).not.toBeNull();
+    expect(ieeeZip.file('refs.bib')).not.toBeNull();
+
+    const ieeeMain = await ieeeZip.file('main.typ')!.async('string');
+    expect(ieeeMain).toContain('#import "ieee.typ": *');
+    const refsBib = await ieeeZip.file('refs.bib')!.async('string');
+    // citation_order: ZANATTA citado primeiro vem antes de ALMEIDA
+    expect(refsBib.indexOf('ZANATTA')).toBeGreaterThan(-1);
+    expect(refsBib.indexOf('ALMEIDA')).toBeGreaterThan(refsBib.indexOf('ZANATTA'));
+
+    // Também testa TCC com preset 'sbc'
+    const tccSbc = createProjectFromTemplate('tcc', 'TCC via SBC');
+    tccSbc.templateConfig = { ...tccSbc.templateConfig!, preset: 'sbc' };
+    const sbcZipBlob = await exportTypstProjectZip(tccSbc);
+    const sbcZip = await JSZip.loadAsync(await sbcZipBlob.arrayBuffer());
+    expect(sbcZip.file('sbc.typ')).not.toBeNull();
+    const sbcMain = await sbcZip.file('main.typ')!.async('string');
+    expect(sbcMain).toContain('#import "sbc.typ": *');
+  });
 });

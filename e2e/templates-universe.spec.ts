@@ -135,6 +135,9 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     // Seleciona o preset Pôster Acadêmico A0
     await page.getByRole('button', { name: /Pôster Acadêmico A0 \(Banner\)/i }).click();
 
+    // Vai para a aba Capa, Pôster & Universe para validar as opções de Pôster
+    await page.getByRole('tab', { name: /Capa, Pôster/i }).click();
+
     // Valida que as opções de Pôster estão visíveis
     await expect(page.getByText(/Configurações de Pôster Acadêmico/i)).toBeVisible();
     await expect(page.getByText('Tamanho do Pôster')).toBeVisible();
@@ -182,6 +185,7 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
         exact: true,
       })
       .click();
+    await page.getByRole('tab', { name: /Capa, Pôster/i }).click();
     await page.getByLabel(/Gerar Capa \(NBR 14724\)/i).uncheck();
     await page.getByRole('button', { name: /Aplicar e Atualizar PDF/i }).click();
 
@@ -235,23 +239,73 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
       })
       .click();
 
+    // Aba 2: Tipografia & Texto (tamanho livre + fonte, sem o badge Offline • ABNT)
+    await page.getByRole('tab', { name: /Tipografia/i }).click();
+    await expect(page.getByText('Offline • ABNT')).not.toBeVisible();
     await page.locator('#template-font-family').selectOption('inter');
+    await page.locator('#template-font-size').fill('13.5');
+
+    // Aba 4: Citações & Referências
+    await page.getByRole('tab', { name: /Citações/i }).click();
     await page.locator('#template-citation-format').selectOption('ieee_numeric');
     await page.locator('#template-reference-alignment').selectOption('justify');
     await page.locator('#template-reference-spacing').selectOption('compact');
     await page.locator('#template-reference-highlight').selectOption('underline');
 
-    // Prévia instantânea reflete configuração selecionada
+    // Prévia instantânea reflete configuração selecionada (sem o pill redundante)
     await expect(page.getByText(/Prévia Instantânea de Citação/i)).toBeVisible();
-    await expect(page.getByText(/Justificada • Espaço Compacto/i)).toBeVisible();
+    await expect(page.getByText(/Justificada • Espaço Compacto/i)).not.toBeVisible();
 
     await page.getByRole('button', { name: /Aplicar e Atualizar PDF/i }).click();
 
     await page.getByRole('button', { name: /Ver Typst/i }).click();
     const codeViewer = page.locator('pre');
     await expect(codeViewer).toContainText('fonte: ("Inter"');
+    await expect(codeViewer).toContainText('tamanho-fonte: 13.5pt');
     await expect(codeViewer).toContainText('alinhamento: "justify"');
     await expect(codeViewer).toContainText('espacamento: 0.5em');
     await expect(codeViewer).toContainText('numeracao: "bracket"');
+  });
+
+  test('insere token <cite> reativo com @ e atualiza chamada inline ao trocar formato para IEEE Numérico', async ({
+    page,
+  }) => {
+    const modalHeading = await ensureProjectsModal(page);
+    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Citação Reativa ${Date.now()}`);
+    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await expect(modalHeading).not.toBeVisible();
+
+    const firstParagraph = page.locator('.tiptap.ProseMirror').first();
+    await firstParagraph.click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' @');
+
+    // Picker de referências abre e permite escolher SILVA; SOUZA
+    await expect(page.getByText('Selecionar Referência')).toBeVisible();
+    await page.getByRole('button', { name: /^\(SILVA; SOUZA, 2023\)/i }).click();
+
+    // Pill reativo inserido no editor em formato ABNT
+    await expect(firstParagraph.getByRole('button', { name: '(SILVA; SOUZA, 2023)' })).toBeVisible();
+
+    // Troca o formato para IEEE Numérico e ordenação por ordem de citação
+    await page
+      .getByRole('button', {
+        name: 'Layout das Referências e Citações (Norma & Layout)',
+        exact: true,
+      })
+      .click();
+    await page.getByRole('tab', { name: /Citações/i }).click();
+    await page.locator('#template-citation-format').selectOption('ieee_numeric');
+    await page.locator('#template-reference-ordering').selectOption('citation_order');
+    await page.getByRole('button', { name: /Aplicar e Atualizar PDF/i }).click();
+
+    // O mesmo pill no texto deve atualizar retroativamente para [1]
+    await expect(firstParagraph.getByRole('button', { name: '[1]' })).toBeVisible();
+    await expect(firstParagraph.getByRole('button', { name: '(SILVA; SOUZA, 2023)' })).not.toBeVisible();
+
+    // Valida no código Typst gerado
+    await page.getByRole('button', { name: /Ver Typst/i }).click();
+    const codeViewer = page.locator('pre');
+    await expect(codeViewer).toContainText('\\[1\\]');
   });
 });

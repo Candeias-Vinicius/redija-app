@@ -9,6 +9,7 @@ export type BlockType =
   | 'quote_long'
   | 'equation'
   | 'code'
+  | 'raw_typst'
   | 'image'
   | 'table'
   | 'box'
@@ -111,11 +112,28 @@ export type ReferenceHighlight = 'bold' | 'italic' | 'underline' | 'none';
 export type ReferenceAlignment = 'left' | 'justify';
 export type ReferenceSpacing = 'single_blank' | 'compact' | 'double';
 
+export type PaperSize = 'a4' | 'letter' | 'a5';
+export type PageOrientation = 'portrait' | 'landscape';
+export type DocumentLanguage = 'pt' | 'en' | 'es';
+export type BodyAlignment = 'justify' | 'left';
+export type PageNumberingPosition = 'top_right' | 'bottom_center' | 'bottom_right' | 'none';
+export type HeadingNumberingStyle = '1.1' | 'I.A' | '1.' | 'none';
+export type ReferenceOrdering = 'alphabetical' | 'citation_order';
+export type ReferenceEntryFormat = 'auto' | 'abnt' | 'apa' | 'ieee';
+export type BibliographyEngine = 'redija_custom' | 'typst_csl';
+export type CslStyle =
+  | 'associacao-brasileira-de-normas-tecnicas'
+  | 'apa'
+  | 'ieee'
+  | 'chicago-author-date'
+  | 'vancouver'
+  | 'harvard-cite-them-right';
+
 export interface TemplateConfig {
   preset: NormPresetId;
   fontFamily: FontFamilyId;
   customFontFamily?: string;
-  fontSizePt: 10 | 11 | 12;
+  fontSizePt: number;
   lineSpacing: '1.5' | '1.0' | '2.0';
   paragraphIndentCm: number;
   marginTopCm: number;
@@ -131,6 +149,25 @@ export interface TemplateConfig {
   referenceHighlight: ReferenceHighlight;
   referenceAlignment?: ReferenceAlignment;
   referenceSpacing?: ReferenceSpacing;
+
+  // Paridade Tipográfica e de Página (Typst)
+  bodyAlignment?: BodyAlignment;
+  paragraphSpacingEm?: number;
+  paperSize?: PaperSize;
+  pageOrientation?: PageOrientation;
+  documentLanguage?: DocumentLanguage;
+  pageNumbering?: PageNumberingPosition;
+  hideFirstPageNumber?: boolean;
+  romanPreTextual?: boolean;
+  runningHeader?: string;
+  headingNumbering?: HeadingNumberingStyle;
+  h1PageBreak?: boolean;
+
+  // Engine e Formatação Multi-Norma da Bibliografia
+  referenceOrdering?: ReferenceOrdering;
+  referenceEntryFormat?: ReferenceEntryFormat;
+  bibliographyEngine?: BibliographyEngine;
+  cslStyle?: CslStyle;
 
   // Configurações Específicas de Pôster Acadêmico A0/A1
   posterDimensions?: 'a0' | 'a1' | 'a2';

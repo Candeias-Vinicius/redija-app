@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  auditCitationsAndReferences,
   countWords,
   exportToBibtex,
+  getOrderedReferences,
   getPrimarySurname,
   parseBibtex,
   runAbntLinter,
@@ -363,5 +365,82 @@ describe('ABNT Linter: Importação e Exportação BibTeX (.bib)', () => {
     expect(bibOutput).toContain('author = {SILVA, Maria and SOUZA, João}');
     expect(bibOutput).toContain('journal = {Revista Web}');
     expect(bibOutput).toContain('doi = {10.1000/web.2026}');
+  });
+});
+
+describe('ABNT Linter: Tokens <cite>, citation_order e EffectiveType', () => {
+  it('ordena referências por ordem de aparição no texto (citation_order) mantendo não citadas ao final', () => {
+    const refs: AcademicReference[] = [
+      { id: 'ref_a', authors: 'ALMEIDA, Ana', title: 'Alpha', city: 'SP', publisher: 'Ed', year: '2020' },
+      { id: 'ref_b', authors: 'BRASIL, Bruno', title: 'Beta', city: 'RJ', publisher: 'Ed', year: '2021' },
+      { id: 'ref_z', authors: 'ZANATTA, Zeca', title: 'Zeta', city: 'MG', publisher: 'Ed', year: '2022' },
+    ];
+    const blocks: DocumentProject['blocks'] = [
+      {
+        id: 'p1',
+        type: 'paragraph',
+        content:
+          '<p>Cita <cite data-cite-id="ref_z" data-cite-mode="parenthetical">(ZANATTA, 2022)</cite> e depois <cite data-cite-id="ref_a" data-cite-mode="narrative">Almeida (2020)</cite>.</p>',
+      },
+      {
+        id: 'raw1',
+        type: 'raw_typst',
+        content: '#text[BRASIL (2021)]', // raw_typst não deve contar como citação na ordenação
+      },
+    ];
+
+    const byAppearance = getOrderedReferences(refs, 'citation_order', blocks);
+    expect(byAppearance.map((r) => r.id)).toEqual(['ref_z', 'ref_a', 'ref_b']);
+
+    const alpha = getOrderedReferences(refs, 'alphabetical', blocks);
+    expect(alpha.map((r) => r.id)).toEqual(['ref_a', 'ref_b', 'ref_z']);
+  });
+
+  it('reconhece tokens <cite> válidos como citados e alerta sobre tokens pendentes removidos, ignorando raw_typst', () => {
+    const proj = createMockProject({
+      blocks: [
+        {
+          id: 'p1',
+          type: 'paragraph',
+          content:
+            '<p>Obra válida <cite data-cite-id="ref_silva" data-cite-mode="parenthetical">SILVA</cite> e removida <cite data-cite-id="ref_excluida">AUTOR REMOVIDO, 2020</cite>.</p>',
+        },
+        {
+          id: 'raw_block',
+          type: 'raw_typst',
+          content: '(FANTASMA, 2099)',
+        },
+      ],
+    });
+
+    const warnings = auditCitationsAndReferences(proj);
+    expect(warnings.some((w) => w.id === 'uncited-ref-ref_silva')).toBe(false);
+    expect(warnings.some((w) => w.id === 'missing-ref-token-ref_excluida')).toBe(true);
+    expect(warnings.some((w) => w.id.includes('fantasma'))).toBe(false);
+  });
+
+  it('usa resolveEffectiveTemplateType para avaliar faixa de palavras do resumo (ex.: preset sbc dentro de tcc)', () => {
+    const sbcInsideTcc120 = createMockProject({
+      templateType: 'tcc',
+      templateConfig: {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        preset: 'sbc',
+      },
+      metadata: {
+        ...createMockProject().metadata,
+        abstract: Array(120).fill('palavra').join(' '),
+      },
+    });
+    // SBC/artigo aceita 100-250 palavras
+    expect(runAbntLinter(sbcInsideTcc120).some((w) => w.id === 'abstract-length')).toBe(false);
+
+    const sbcInsideTcc300 = {
+      ...sbcInsideTcc120,
+      metadata: {
+        ...sbcInsideTcc120.metadata,
+        abstract: Array(300).fill('palavra').join(' '),
+      },
+    };
+    expect(runAbntLinter(sbcInsideTcc300).some((w) => w.id === 'abstract-length')).toBe(true);
   });
 });

@@ -22,7 +22,7 @@ const FONTSOURCE_CDN_BASE = 'https://cdn.jsdelivr.net/fontsource/fonts';
 export const FONT_CATALOG: FontCatalogEntry[] = [
   {
     id: 'serif',
-    label: 'Times New Roman / Tinos (Padrão ABNT Offline)',
+    label: 'Times New Roman (Tinos)',
     typstName: 'Tinos',
     category: 'serif',
     badge: 'Offline • ABNT',
@@ -33,7 +33,7 @@ export const FONT_CATALOG: FontCatalogEntry[] = [
   },
   {
     id: 'sans',
-    label: 'Arial / Arimo (Sem Serifa Offline)',
+    label: 'Arial (Arimo)',
     typstName: 'Arimo',
     category: 'sans',
     badge: 'Offline • ABNT',
@@ -44,7 +44,7 @@ export const FONT_CATALOG: FontCatalogEntry[] = [
   },
   {
     id: 'libertinus',
-    label: 'Libertinus Serif (Padrão Acadêmico Typst)',
+    label: 'Libertinus Serif',
     typstName: 'Libertinus Serif',
     category: 'serif',
     badge: 'CDN • Typst',
@@ -60,7 +60,7 @@ export const FONT_CATALOG: FontCatalogEntry[] = [
   },
   {
     id: 'new_cm',
-    label: 'New Computer Modern (Clássico LaTeX / Exatas)',
+    label: 'New Computer Modern',
     typstName: 'New Computer Modern',
     category: 'serif',
     badge: 'CDN • LaTeX',
@@ -76,7 +76,7 @@ export const FONT_CATALOG: FontCatalogEntry[] = [
   },
   {
     id: 'lora',
-    label: 'Lora (Editorial Serifada Moderna)',
+    label: 'Lora',
     typstName: 'Lora',
     category: 'serif',
     badge: 'CDN • Editorial',
@@ -92,7 +92,7 @@ export const FONT_CATALOG: FontCatalogEntry[] = [
   },
   {
     id: 'eb_garamond',
-    label: 'EB Garamond (Clássica Humanística)',
+    label: 'EB Garamond',
     typstName: 'EB Garamond',
     category: 'serif',
     badge: 'CDN • Clássica',
@@ -108,7 +108,7 @@ export const FONT_CATALOG: FontCatalogEntry[] = [
   },
   {
     id: 'inter',
-    label: 'Inter (Sem Serifa Contemporânea)',
+    label: 'Inter',
     typstName: 'Inter',
     category: 'sans',
     badge: 'CDN • Moderna',
@@ -124,7 +124,7 @@ export const FONT_CATALOG: FontCatalogEntry[] = [
   },
   {
     id: 'roboto',
-    label: 'Roboto (Técnica / Engenharia)',
+    label: 'Roboto',
     typstName: 'Roboto',
     category: 'sans',
     badge: 'CDN • Técnica',
@@ -140,7 +140,7 @@ export const FONT_CATALOG: FontCatalogEntry[] = [
   },
   {
     id: 'fira_sans',
-    label: 'Fira Sans (Pôsteres & Simpósios)',
+    label: 'Fira Sans',
     typstName: 'Fira Sans',
     category: 'sans',
     badge: 'CDN • Banners',
@@ -156,7 +156,7 @@ export const FONT_CATALOG: FontCatalogEntry[] = [
   },
   {
     id: 'jetbrains_mono',
-    label: 'JetBrains Mono (Monoespaçada / Computação)',
+    label: 'JetBrains Mono',
     typstName: 'JetBrains Mono',
     category: 'mono',
     badge: 'CDN • Código',

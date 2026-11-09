@@ -18,6 +18,16 @@ import {
   ReferenceHighlight,
   ReferenceAlignment,
   ReferenceSpacing,
+  PaperSize,
+  PageOrientation,
+  DocumentLanguage,
+  BodyAlignment,
+  PageNumberingPosition,
+  HeadingNumberingStyle,
+  ReferenceOrdering,
+  ReferenceEntryFormat,
+  BibliographyEngine,
+  CslStyle,
 } from '@/types/document';
 import {
   VALID_FONT_FAMILY_IDS,
@@ -206,15 +216,48 @@ export function normalizeProject(raw: unknown): DocumentProject {
       ? (rawConfig.referenceSpacing as ReferenceSpacing)
       : (DEFAULT_TEMPLATE_CONFIG.referenceSpacing ?? 'single_blank');
 
+  const clampFontSize = (raw: unknown): number => {
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+      return DEFAULT_TEMPLATE_CONFIG.fontSizePt;
+    }
+    const clamped = Math.min(24, Math.max(8, raw));
+    return Math.round(clamped * 2) / 2;
+  };
+
+  const validBodyAlignments: BodyAlignment[] = ['justify', 'left'];
+  const validPaperSizes: PaperSize[] = ['a4', 'letter', 'a5'];
+  const validOrientations: PageOrientation[] = ['portrait', 'landscape'];
+  const validLanguages: DocumentLanguage[] = ['pt', 'en', 'es'];
+  const validPageNumberings: PageNumberingPosition[] = [
+    'top_right',
+    'bottom_center',
+    'bottom_right',
+    'none',
+  ];
+  const validHeadingNumberings: HeadingNumberingStyle[] = ['1.1', 'I.A', '1.', 'none'];
+  const validRefOrderings: ReferenceOrdering[] = ['alphabetical', 'citation_order'];
+  const validRefEntryFormats: ReferenceEntryFormat[] = ['auto', 'abnt', 'apa', 'ieee'];
+  const validBibEngines: BibliographyEngine[] = ['redija_custom', 'typst_csl'];
+  const validCslStyles: CslStyle[] = [
+    'associacao-brasileira-de-normas-tecnicas',
+    'apa',
+    'ieee',
+    'chicago-author-date',
+    'vancouver',
+    'harvard-cite-them-right',
+  ];
+
+  const sanitizedRunningHeader =
+    typeof rawConfig.runningHeader === 'string'
+      ? rawConfig.runningHeader.replace(/[\r\n\t]+/g, ' ').trim().slice(0, 120)
+      : undefined;
+
   const templateConfig: TemplateConfig = {
     ...DEFAULT_TEMPLATE_CONFIG,
     preset: sanitizedPreset,
     fontFamily: sanitizedFontFamily,
     ...(sanitizedCustomFont ? { customFontFamily: sanitizedCustomFont } : {}),
-    fontSizePt:
-      rawConfig.fontSizePt === 10 || rawConfig.fontSizePt === 11 || rawConfig.fontSizePt === 12
-        ? rawConfig.fontSizePt
-        : DEFAULT_TEMPLATE_CONFIG.fontSizePt,
+    fontSizePt: clampFontSize(rawConfig.fontSizePt),
     lineSpacing:
       rawConfig.lineSpacing === '1.0' || rawConfig.lineSpacing === '2.0'
         ? rawConfig.lineSpacing
@@ -257,6 +300,63 @@ export function normalizeProject(raw: unknown): DocumentProject {
     referenceHighlight: sanitizedHighlight,
     referenceAlignment: sanitizedAlignment,
     referenceSpacing: sanitizedSpacing,
+    ...(typeof rawConfig.bodyAlignment === 'string' &&
+    validBodyAlignments.includes(rawConfig.bodyAlignment as BodyAlignment)
+      ? { bodyAlignment: rawConfig.bodyAlignment as BodyAlignment }
+      : {}),
+    ...(typeof rawConfig.paragraphSpacingEm === 'number' &&
+    Number.isFinite(rawConfig.paragraphSpacingEm)
+      ? {
+          paragraphSpacingEm:
+            Math.round(Math.min(3, Math.max(0, rawConfig.paragraphSpacingEm)) * 100) / 100,
+        }
+      : {}),
+    ...(typeof rawConfig.paperSize === 'string' &&
+    validPaperSizes.includes(rawConfig.paperSize as PaperSize)
+      ? { paperSize: rawConfig.paperSize as PaperSize }
+      : {}),
+    ...(typeof rawConfig.pageOrientation === 'string' &&
+    validOrientations.includes(rawConfig.pageOrientation as PageOrientation)
+      ? { pageOrientation: rawConfig.pageOrientation as PageOrientation }
+      : {}),
+    ...(typeof rawConfig.documentLanguage === 'string' &&
+    validLanguages.includes(rawConfig.documentLanguage as DocumentLanguage)
+      ? { documentLanguage: rawConfig.documentLanguage as DocumentLanguage }
+      : {}),
+    ...(typeof rawConfig.pageNumbering === 'string' &&
+    validPageNumberings.includes(rawConfig.pageNumbering as PageNumberingPosition)
+      ? { pageNumbering: rawConfig.pageNumbering as PageNumberingPosition }
+      : {}),
+    ...(typeof rawConfig.hideFirstPageNumber === 'boolean'
+      ? { hideFirstPageNumber: rawConfig.hideFirstPageNumber }
+      : {}),
+    ...(typeof rawConfig.romanPreTextual === 'boolean'
+      ? { romanPreTextual: rawConfig.romanPreTextual }
+      : {}),
+    ...(sanitizedRunningHeader ? { runningHeader: sanitizedRunningHeader } : {}),
+    ...(typeof rawConfig.headingNumbering === 'string' &&
+    validHeadingNumberings.includes(rawConfig.headingNumbering as HeadingNumberingStyle)
+      ? { headingNumbering: rawConfig.headingNumbering as HeadingNumberingStyle }
+      : {}),
+    ...(typeof rawConfig.h1PageBreak === 'boolean'
+      ? { h1PageBreak: rawConfig.h1PageBreak }
+      : {}),
+    ...(typeof rawConfig.referenceOrdering === 'string' &&
+    validRefOrderings.includes(rawConfig.referenceOrdering as ReferenceOrdering)
+      ? { referenceOrdering: rawConfig.referenceOrdering as ReferenceOrdering }
+      : {}),
+    ...(typeof rawConfig.referenceEntryFormat === 'string' &&
+    validRefEntryFormats.includes(rawConfig.referenceEntryFormat as ReferenceEntryFormat)
+      ? { referenceEntryFormat: rawConfig.referenceEntryFormat as ReferenceEntryFormat }
+      : {}),
+    ...(typeof rawConfig.bibliographyEngine === 'string' &&
+    validBibEngines.includes(rawConfig.bibliographyEngine as BibliographyEngine)
+      ? { bibliographyEngine: rawConfig.bibliographyEngine as BibliographyEngine }
+      : {}),
+    ...(typeof rawConfig.cslStyle === 'string' &&
+    validCslStyles.includes(rawConfig.cslStyle as CslStyle)
+      ? { cslStyle: rawConfig.cslStyle as CslStyle }
+      : {}),
     posterDimensions:
       rawConfig.posterDimensions === 'a1' || rawConfig.posterDimensions === 'a2'
         ? rawConfig.posterDimensions
@@ -302,6 +402,7 @@ export function normalizeProject(raw: unknown): DocumentProject {
       'quote_long',
       'equation',
       'code',
+      'raw_typst',
       'image',
       'table',
       'box',

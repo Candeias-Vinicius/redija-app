@@ -1463,6 +1463,7 @@ export const App: React.FC = () => {
               references={project.references}
               citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
               citationFormat={project.templateConfig?.citationFormat}
+              referenceOrdering={project.templateConfig?.referenceOrdering}
               isFullWidth={!showSidebar && !showPreview}
               activeCollaborators={activeCollaborators}
               onOpenReferenceModal={() => {

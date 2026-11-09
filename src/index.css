@@ -231,3 +231,23 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 .ProseMirror p {
   margin: 0;
 }
+
+.ProseMirror code {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+html.dark .ProseMirror code {
+  background-color: #334155;
+  color: #e2e8f0;
+}
+
+.ProseMirror a {
+  color: #059669;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

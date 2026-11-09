@@ -7,10 +7,12 @@
 
 import JSZip from 'jszip';
 import { DocumentProject } from '@/types/document';
+import { getTemplateCapabilities } from '@/core/templates/templateCapabilities';
 import {
   generateTypstFiles,
   extractBinaryAssets,
-  TEMPLATE_FILE,
+  getOrderedReferences,
+  getTemplateFileName,
   MAIN_FILE,
 } from './typstGenerator';
 import { exportToBibtex } from './abntLinter';
@@ -28,27 +30,28 @@ export function getCleanProjectSlug(name: string): string {
   return clean || 'projeto_redija';
 }
 
-function generateReadme(project: DocumentProject): string {
+function generateReadme(project: DocumentProject, templateFile: string, usesRefsBib = false): string {
   const title = project.metadata.title.trim() || project.name;
   const author = project.metadata.author.trim() || 'Autor';
+  const paddedFile = templateFile.padEnd(16, ' ');
 
   return `# ${title}
 **Autor:** ${author}  
-**Gerado por:** RedijaApp (https://app.redija.com.br): Editor Acadêmico ABNT & Typst
+**Gerado por:** RedijaApp (https://app.redija.com.br): Editor Acadêmico & Typst
 
 ---
 
 ## Liberdade Total e Zero Vendor Lock-in
 
-Este pacote contém o código-fonte completo do seu trabalho acadêmico, incluindo todas as figuras e imagens enviadas, o modelo de diagramação ABNT e suas referências bibliográficas. Você pode compilar e editar este projeto livremente em qualquer computador ou ferramenta sem depender do RedijaApp.
+Este pacote contém o código-fonte completo do seu trabalho acadêmico, incluindo todas as figuras e imagens enviadas, o módulo de diagramação (\`${templateFile}\`) e suas referências bibliográficas. Você pode compilar e editar este projeto livremente em qualquer computador ou ferramenta sem depender do RedijaApp.
 
 ## Estrutura de Arquivos
 
 \`\`\`
-├── main.typ          # Arquivo principal do documento (capítulos, seções e citações)
-├── abnt.typ          # Módulo com todas as diretrizes das normas ABNT
+├── main.typ          # Arquivo principal do documento (seções, texto e citações)
+├── ${paddedFile}  # Módulo de diagramação e regras tipográficas do modelo
 ├── assets/           # Figuras, tabelas ilustradas e brasão da instituição
-├── referencias.bib   # Referências bibliográficas no padrão BibTeX
+├── ${usesRefsBib ? 'refs.bib' : 'referencias.bib'}   # Referências bibliográficas no padrão BibTeX
 ├── ${getCleanProjectSlug(project.name)}.redija # Arquivo de backup para reabrir no RedijaApp
 └── README.md         # Este guia de instruções
 \`\`\`
@@ -91,19 +94,28 @@ Este pacote contém o código-fonte completo do seu trabalho acadêmico, incluin
 }
 
 /**
- * Empacota o projeto em um arquivo .zip contendo `main.typ`, `abnt.typ`,
- * imagens reais na pasta `assets/`, `referencias.bib`, cópia de backup `.redija` e `README.md`.
+ * Empacota o projeto em um arquivo .zip contendo `main.typ`, o módulo `.typ` efetivo
+ * do template selecionado, imagens reais na pasta `assets/`, BibTeX, cópia `.redija` e `README.md`.
  */
 export async function exportTypstProjectZip(project: DocumentProject): Promise<Blob> {
   const zip = new JSZip();
+  const capabilities = getTemplateCapabilities(project);
+  const templateFile = getTemplateFileName(capabilities.effectiveType);
 
   // 1. Arquivos fonte Typst
   const files = generateTypstFiles(project);
-  // Converte caminhos virtuais absolutos "/assets/..." em relativos "assets/..." para portabilidade
-  const portableMainTyp = files[MAIN_FILE].replace(/(image\(\s*["'])\/assets\//g, '$1assets/');
+  // Converte caminhos virtuais absolutos "/assets/..." e "/refs.bib" em relativos para portabilidade CLI
+  const portableMainTyp = files[MAIN_FILE]
+    .replace(/(image\(\s*["'])\/assets\//g, '$1assets/')
+    .replace(/(#bibliography\(\s*["'])\/refs\.bib/g, '$1refs.bib');
 
   zip.file(MAIN_FILE, portableMainTyp);
-  zip.file(TEMPLATE_FILE, files[TEMPLATE_FILE]);
+  if (files[templateFile]) {
+    zip.file(templateFile, files[templateFile]);
+  }
+  if (capabilities.effectiveType === 'universe_custom' && files['abnt.typ']) {
+    zip.file('abnt.typ', files['abnt.typ']);
+  }
 
   // 2. Extrai imagens reais do projeto e salva na pasta assets/
   const binaryAssets = extractBinaryAssets(project);
@@ -116,8 +128,17 @@ export async function exportTypstProjectZip(project: DocumentProject): Promise<B
   }
 
   // 3. Arquivo de referências BibTeX (.bib)
+  const usesRefsBib = Boolean(files['refs.bib']);
+  if (files['refs.bib']) {
+    zip.file('refs.bib', files['refs.bib']);
+  }
   if (project.references && project.references.length > 0) {
-    const bibtex = exportToBibtex(project.references);
+    const ordered = getOrderedReferences(
+      project.references,
+      project.templateConfig?.referenceOrdering ?? 'alphabetical',
+      project.blocks,
+    );
+    const bibtex = exportToBibtex(ordered);
     zip.file('referencias.bib', bibtex);
   }
 
@@ -130,7 +151,7 @@ export async function exportTypstProjectZip(project: DocumentProject): Promise<B
   }
 
   // 5. Guia de instruções README.md
-  zip.file('README.md', generateReadme(project));
+  zip.file('README.md', generateReadme(project, templateFile, usesRefsBib));
 
   return await zip.generateAsync({
     type: 'blob',

@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Block,
   BlockType,
   AcademicReference,
   DocumentMetadata,
   CitationFormat,
+  ReferenceOrdering,
 } from '@/types/document';
 import { RichTextInput } from './RichTextInput';
-import { stripHtmlTags } from '@/core/transpiler/escape';
+import { hasRichHtmlMarkup, stripHtmlTags } from '@/core/transpiler/escape';
+import { getReferenceIndexMap } from '@/core/transpiler/abntLinter';
 import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
 import {
   calculateProjectImageBytes,
@@ -32,6 +34,7 @@ import {
   LayoutGrid,
   Sigma,
   Code2,
+  Terminal,
   MessageSquareQuote,
   Scissors,
   Plus,
@@ -51,6 +54,7 @@ interface EditorProps {
   references: AcademicReference[];
   citationStyle?: 'uppercase' | 'titlecase';
   citationFormat?: CitationFormat;
+  referenceOrdering?: ReferenceOrdering;
   isFullWidth?: boolean;
   activeCollaborators?: CollaboratorPresence[];
   onOpenReferenceModal?: () => void;
@@ -188,6 +192,13 @@ const SLASH_OPTIONS: SlashMenuOption[] = [
     icon: <MessageSquareQuote className="w-4 h-4 text-amber-600" />,
   },
   {
+    type: 'raw_typst',
+    label: 'Bloco Typst Avançado',
+    description: 'Código Typst direto sem escape (diagramas, grades, caixas)',
+    keywords: 'typst raw codigo avancado diagrama grade cetz fletcher',
+    icon: <Terminal className="w-4 h-4 text-amber-600" />,
+  },
+  {
     type: 'pagebreak',
     label: 'Quebra de Página',
     description: 'Força o conteúdo seguinte a iniciar em nova folha A4',
@@ -230,6 +241,7 @@ export const Editor: React.FC<EditorProps> = ({
   references,
   citationStyle = 'uppercase',
   citationFormat,
+  referenceOrdering = 'alphabetical',
   isFullWidth = false,
   activeCollaborators = [],
   onOpenReferenceModal,
@@ -246,6 +258,10 @@ export const Editor: React.FC<EditorProps> = ({
   const [dragImageBlockId, setDragImageBlockId] = useState<string | null>(null);
   const [imageErrorByBlock, setImageErrorByBlock] = useState<Record<string, string | null>>({});
 
+  const refIndexMap = useMemo(
+    () => getReferenceIndexMap(references, referenceOrdering, blocks),
+    [references, referenceOrdering, blocks],
+  );
   const totalProjectImageBytes = calculateProjectImageBytes(blocks, metadata);
 
   const updateBlockContent = (id: string, content: string) => {
@@ -255,15 +271,9 @@ export const Editor: React.FC<EditorProps> = ({
     // Se a única diferença for a tag <p> inicial gerada pelo TipTap sobre texto puro, não dispara atualização de estado
     const plainCurrent = stripHtmlTags(current.content).trim();
     const plainNew = stripHtmlTags(content).trim();
-    const hasMarkup =
-      content.includes('<strong>') ||
-      content.includes('<em>') ||
-      content.includes('<u>') ||
-      content.includes('<sup>') ||
-      content.includes('<sub>');
+    const hasMarkup = hasRichHtmlMarkup(content);
 
     if (plainCurrent === plainNew && !hasMarkup && !current.content.startsWith('<')) {
-      current.content = content;
       return;
     }
 
@@ -733,6 +743,7 @@ export const Editor: React.FC<EditorProps> = ({
                 <RichTextInput
                   value={block.content}
                   references={references}
+                  refIndexMap={refIndexMap}
                   citationStyle={citationStyle}
                   citationFormat={citationFormat}
                   autoFocus={focusedBlockId === block.id}
@@ -745,7 +756,7 @@ export const Editor: React.FC<EditorProps> = ({
                     setActiveMenuBlockId(block.id);
                     setMenuSearch('');
                   }}
-                  placeholder='Digite seu parágrafo, "/" para comandos ABNT ou "@" para citar referência...'
+                  placeholder='Digite seu parágrafo, "/" para comandos ou "@" para citar referência...'
                   className="text-sm leading-relaxed text-neutral-800"
                 />
               )}
@@ -755,7 +766,12 @@ export const Editor: React.FC<EditorProps> = ({
                   <span className="w-1.5 h-1.5 rounded-full bg-neutral-500 mt-2 shrink-0" />
                   <RichTextInput
                     value={block.content}
+                    references={references}
+                    refIndexMap={refIndexMap}
+                    citationStyle={citationStyle}
+                    citationFormat={citationFormat}
                     autoFocus={focusedBlockId === block.id}
+                    onOpenNewReferenceModal={onOpenReferenceModal}
                     onChange={(html) => updateBlockContent(block.id, html)}
                     onEnter={() => addBlock(block.id, 'bullet')}
                     onBackspaceEmpty={() => changeBlockType(block.id, 'paragraph')}
@@ -770,7 +786,12 @@ export const Editor: React.FC<EditorProps> = ({
                   <span className="text-xs font-bold text-neutral-500 mt-1 shrink-0">1.</span>
                   <RichTextInput
                     value={block.content}
+                    references={references}
+                    refIndexMap={refIndexMap}
+                    citationStyle={citationStyle}
+                    citationFormat={citationFormat}
                     autoFocus={focusedBlockId === block.id}
+                    onOpenNewReferenceModal={onOpenReferenceModal}
                     onChange={(html) => updateBlockContent(block.id, html)}
                     onEnter={() => addBlock(block.id, 'numbered')}
                     onBackspaceEmpty={() => changeBlockType(block.id, 'paragraph')}
@@ -790,7 +811,12 @@ export const Editor: React.FC<EditorProps> = ({
                   </div>
                   <RichTextInput
                     value={block.content}
+                    references={references}
+                    refIndexMap={refIndexMap}
+                    citationStyle={citationStyle}
+                    citationFormat={citationFormat}
                     autoFocus={focusedBlockId === block.id}
+                    onOpenNewReferenceModal={onOpenReferenceModal}
                     onChange={(html) => updateBlockContent(block.id, html)}
                     onEnter={() => addBlock(block.id, 'paragraph')}
                     placeholder="Digite ou cole o trecho de mais de 3 linhas (sem aspas)..."
@@ -1231,13 +1257,40 @@ export const Editor: React.FC<EditorProps> = ({
                     </span>
                     <RichTextInput
                       value={block.content}
+                      references={references}
+                      refIndexMap={refIndexMap}
+                      citationStyle={citationStyle}
+                      citationFormat={citationFormat}
                       autoFocus={focusedBlockId === block.id}
+                      onOpenNewReferenceModal={onOpenReferenceModal}
                       onChange={(html) => updateBlockContent(block.id, html)}
                       onEnter={() => addBlock(block.id, 'paragraph')}
                       placeholder="Texto explicativo que aparecerá no rodapé da página..."
                       className="text-xs text-neutral-700"
                     />
                   </div>
+                </div>
+              )}
+
+              {block.type === 'raw_typst' && (
+                <div className="border border-amber-300 rounded-xl p-3.5 bg-amber-50/40 space-y-2 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-amber-900 flex items-center gap-1.5">
+                      <Terminal className="w-4 h-4 text-amber-600" />
+                      Bloco Typst Avançado
+                    </span>
+                    <span className="text-[10px] text-amber-800 bg-amber-100/80 border border-amber-200 px-2 py-0.5 rounded font-medium">
+                      Código Typst direto (sem escape automático)
+                    </span>
+                  </div>
+                  <textarea
+                    rows={4}
+                    value={block.content}
+                    autoFocus={focusedBlockId === block.id}
+                    onChange={(e) => updateBlockContent(block.id, e.target.value)}
+                    placeholder="#rect(fill: luma(245), inset: 10pt, radius: 4pt)[Conteúdo Typst livre]"
+                    className="w-full font-mono text-xs p-3 bg-neutral-900 text-neutral-100 rounded-lg focus:outline-none leading-relaxed"
+                  />
                 </div>
               )}
 
