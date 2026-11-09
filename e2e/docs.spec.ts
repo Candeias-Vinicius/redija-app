@@ -72,6 +72,20 @@ test.describe('RedijaApp: Documentação Integrada (/docs) & Links GitHub', () =
     await demoSection.getByRole('button', { name: /Editor & PDF/i }).click();
     await expect(demoSection.getByText('Editor de Texto (Blocos ABNT)')).toBeVisible();
     await expect(demoSection.getByText('Prévia PDF • NBR 14724')).toBeVisible();
+    await expect(demoSection.getByTestId('mockup-editor-panel')).toHaveCSS(
+      'background-color',
+      'rgb(255, 255, 255)',
+    );
+    await expect(demoSection.getByTestId('mockup-a4-sheet')).toHaveCSS(
+      'background-color',
+      'rgb(255, 255, 255)',
+    );
+
+    await demoSection.getByRole('button', { name: /Typst \(\.typ\)/i }).click();
+    await expect(demoSection.getByTestId('mockup-typst-panel')).toHaveCSS(
+      'background-color',
+      'rgb(255, 255, 255)',
+    );
 
     // Galeria de Modelos inclui padrões novos e Typst Universe
     const modelosSection = page.locator('#modelos');
@@ -110,7 +124,8 @@ test.describe('RedijaApp: Documentação Integrada (/docs) & Links GitHub', () =
         .toBe(true);
     }
 
-    // Alterna Landing Page para Modo Escuro -> Workspace Real e Linters trocam para captura escura
+    // Alterna Landing Page para Modo Escuro -> Workspace Real e Linters trocam para captura escura,
+    // e a folha A4 na aba Editor & PDF permanece sempre clara (branca)
     await page.getByRole('button', { name: 'Alternar tema' }).click();
     await demoSection.getByRole('button', { name: /Workspace Real \(3 Painéis\)/i }).click();
     await expect(workspaceImg).toHaveAttribute('src', '/images/workspace-real-dark.png');
@@ -119,6 +134,25 @@ test.describe('RedijaApp: Documentação Integrada (/docs) & Links GitHub', () =
         workspaceImg.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0),
       )
       .toBe(true);
+
+    const editPdfBtn = demoSection.getByRole('button', { name: /Editor & PDF/i });
+    await editPdfBtn.click();
+    await expect(editPdfBtn).not.toHaveCSS('background-color', 'rgb(30, 41, 59)');
+    await expect(editPdfBtn).toHaveCSS('background-color', /oklch\(0\.696/);
+    await expect(demoSection.getByTestId('mockup-editor-panel')).toHaveCSS(
+      'background-color',
+      'rgb(12, 20, 36)',
+    );
+    await expect(demoSection.getByTestId('mockup-a4-sheet')).toHaveCSS(
+      'background-color',
+      'rgb(255, 255, 255)',
+    );
+
+    await demoSection.getByRole('button', { name: /Typst \(\.typ\)/i }).click();
+    await expect(demoSection.getByTestId('mockup-typst-panel')).toHaveCSS(
+      'background-color',
+      'rgb(10, 17, 32)',
+    );
 
     await lintersSection.scrollIntoViewIfNeeded();
     const linterImgDark = lintersSection.locator('img');
