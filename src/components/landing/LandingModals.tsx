@@ -19,7 +19,12 @@ import {
 import type { FeedbackPayload } from '@/core/feedback/types';
 import { ABNT_STANDARDS_DOCS } from './abntStandardsDocs';
 import { GitHubIcon } from '../GitHubIcon';
-import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from '@/core/links';
+import {
+  GITHUB_ISSUES_URL,
+  GITHUB_LICENSE_URL,
+  GITHUB_REPO_URL,
+  GITHUB_THIRD_PARTY_NOTICES_URL,
+} from '@/core/links';
 
 export type LandingModalType = 'docs' | 'about' | 'contact' | 'privacy' | 'terms' | null;
 
@@ -264,7 +269,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
               >
                 <div className="flex items-center gap-2.5">
                   <GitHubIcon className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Projeto de código aberto sob licença MIT no GitHub.</span>
+                  <span>Projeto de código aberto sob licença AGPL-3.0 no GitHub.</span>
                 </div>
                 <div className="flex items-center gap-3 font-semibold">
                   <a
@@ -444,10 +449,22 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
             <div className="space-y-4 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
               <div className="space-y-2">
                 <h5 className="font-bold text-slate-900 dark:text-white">
-                  1. Natureza Gratuita e Aberta
+                  1. Natureza Gratuita e Aberta (GNU AGPL-3.0)
                 </h5>
                 <p>
-                  O RedijaApp é disponibilizado gratuitamente sob licença de código aberto, com o objetivo de apoiar estudantes, pesquisadores e a educação pública e privada brasileira.
+                  O RedijaApp é software livre disponibilizado gratuitamente sob a licença{' '}
+                  <a
+                    href={GITHUB_LICENSE_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                  >
+                    GNU Affero General Public License v3.0 (AGPL-3.0)
+                  </a>
+                  . Modificações distribuídas ou hospedadas em rede (SaaS) devem preservar os
+                  créditos originais e manter o código-fonte acessível sob a mesma licença. A
+                  licença do código não autoriza o uso do nome ou logotipo oficial RedijaApp em
+                  serviços de terceiros.
                 </p>
               </div>
 
@@ -466,6 +483,27 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                 </h5>
                 <p>
                   Embora o RedijaApp aplique rigorosamente as normas ABNT vigentes, a aprovação final de formatação é prerrogativa soberana das bancas examinadoras e das diretrizes específicas de cada instituição de ensino superior.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h5 className="font-bold text-slate-900 dark:text-white">
+                  4. Créditos ao Motor Typst &amp; Licenças de Terceiros
+                </h5>
+                <p>
+                  A compilação e renderização científica no navegador utiliza o motor{' '}
+                  <strong>Typst</strong> e os bindings WebAssembly <strong>typst.ts</strong>{' '}
+                  (ambos sob licença <strong>Apache-2.0</strong>), além das fontes locais Tinos e
+                  Arimo (<strong>Apache-2.0</strong>). Consulte o inventário completo em{' '}
+                  <a
+                    href={GITHUB_THIRD_PARTY_NOTICES_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                  >
+                    THIRD_PARTY_NOTICES.md
+                  </a>
+                  .
                 </p>
               </div>
             </div>

@@ -6,3 +6,5 @@ export const GITHUB_CONTRIBUTING_URL =
   'https://github.com/Candeias-Vinicius/redija-app/blob/develop/CONTRIBUTING.md';
 export const GITHUB_LICENSE_URL =
   'https://github.com/Candeias-Vinicius/redija-app/blob/main/LICENSE';
+export const GITHUB_THIRD_PARTY_NOTICES_URL =
+  'https://github.com/Candeias-Vinicius/redija-app/blob/develop/THIRD_PARTY_NOTICES.md';

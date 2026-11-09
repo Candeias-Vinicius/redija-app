@@ -17,12 +17,14 @@ test.describe('RedijaApp: Documentação Integrada (/docs) & Links GitHub', () =
     });
     expect(logoLoaded).toBe(true);
 
-    // Link oficial para o repositório no GitHub visível
+    // Link oficial para o repositório no GitHub e atribuições AGPL-3.0 / Typst visíveis
     const githubLink = page.getByRole('link', { name: /Ver Código no GitHub/i });
     await expect(githubLink).toHaveAttribute(
       'href',
       'https://github.com/Candeias-Vinicius/redija-app',
     );
+    await expect(page.getByText(/Código aberto sob licença AGPL-3\.0/i)).toBeVisible();
+    await expect(page.getByRole('link', { name: /Créditos & Typst \(Apache-2\.0\)/i })).toBeVisible();
 
     // Testa filtro de busca rápida
     await page.getByLabel('Buscar na documentação', { exact: true }).fill('NBR 14724');

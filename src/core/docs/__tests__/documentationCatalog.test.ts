@@ -6,11 +6,20 @@ import {
 } from '../documentationCatalog';
 
 describe('documentationCatalog', () => {
-  it('contém as 9 normas ABNT oficiais e todas as trilhas da central /docs', () => {
+  it('contém as 9 normas ABNT oficiais, créditos do motor Typst e trilha AGPL-3.0 na central /docs', () => {
     expect(ABNT_STANDARDS_DOCS).toHaveLength(9);
     expect(DOCS_SECTIONS.length).toBeGreaterThanOrEqual(5);
     expect(DOCS_SECTIONS.some((s) => s.id === 'normas-abnt')).toBe(true);
-    expect(DOCS_SECTIONS.some((s) => s.id === 'codigo-aberto')).toBe(true);
+    const openSourceSection = DOCS_SECTIONS.find((s) => s.id === 'codigo-aberto');
+    expect(openSourceSection).toBeDefined();
+    expect(openSourceSection?.description).toContain('AGPL-3.0');
+    expect(
+      openSourceSection?.articles.some(
+        (article) =>
+          article.id === 'licenca-agpl-e-creditos' &&
+          article.bullets.some((b) => b.includes('Apache-2.0') && b.includes('Typst')),
+      ),
+    ).toBe(true);
   });
 
   it('retorna todas as seções quando a busca estiver vazia', () => {

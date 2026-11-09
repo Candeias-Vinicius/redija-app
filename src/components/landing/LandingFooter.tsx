@@ -6,7 +6,11 @@ import { Logo } from '../Logo';
 import { GitHubIcon } from '../GitHubIcon';
 import { LandingModalType } from './LandingModals';
 import { APP_VERSION } from '@/core/version';
-import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from '@/core/links';
+import {
+  GITHUB_ISSUES_URL,
+  GITHUB_REPO_URL,
+  GITHUB_THIRD_PARTY_NOTICES_URL,
+} from '@/core/links';
 
 interface LandingFooterProps {
   isDark: boolean;
@@ -65,7 +69,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
                 }`}
               >
                 <GitHubIcon className="w-3.5 h-3.5" />
-                <span>GitHub (MIT)</span>
+                <span>GitHub (AGPL-3.0)</span>
               </a>
               <a
                 href="/docs"
@@ -288,8 +292,18 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
                   onClick={() => onOpenModal('terms')}
                   className="hover:text-emerald-500 transition-colors text-left"
                 >
-                  Código Aberto (MIT)
+                  Código Aberto (AGPL-3.0)
                 </button>
+              </li>
+              <li>
+                <a
+                  href={GITHUB_THIRD_PARTY_NOTICES_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-emerald-500 transition-colors"
+                >
+                  Créditos &amp; Typst (Apache-2.0)
+                </a>
               </li>
             </ul>
           </div>

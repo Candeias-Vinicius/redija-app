@@ -374,7 +374,7 @@ export const DOCS_SECTIONS: DocTrackSection[] = [
     id: 'codigo-aberto',
     label: 'Código Aberto & Comunidade',
     description:
-      'O RedijaApp é software livre sob licença MIT. Contribuições, correções e novos templates são sempre bem-vindos.',
+      'O RedijaApp é software livre sob licença GNU AGPL-3.0. Contribuições, correções e novos templates são sempre bem-vindos.',
     articles: [
       {
         id: 'como-contribuir-resumo',
@@ -386,6 +386,18 @@ export const DOCS_SECTIONS: DocTrackSection[] = [
           'Código-fonte completo disponível no GitHub (React 19, TypeScript 6, Vite 8, Typst WASM).',
           'Abra Issues para relatar bugs de diagramação ou sugerir normas institucionais e templates do Typst Universe.',
           'Consulte o README.md e o CONTRIBUTING.md do repositório para instruções de setup local, testes e fluxo de Pull Requests.',
+        ],
+      },
+      {
+        id: 'licenca-agpl-e-creditos',
+        badge: 'AGPL-3.0 & Créditos',
+        title: 'Licença AGPL-3.0, Marca & Créditos ao Motor Typst',
+        summary:
+          'Entenda os termos copyleft de rede do RedijaApp e as licenças originais do motor científico utilizado no navegador.',
+        bullets: [
+          'Licença do RedijaApp (GNU AGPL-3.0): o uso, estudo e modificação são livres; qualquer versão modificada disponibilizada em rede (SaaS) deve manter o código-fonte acessível sob AGPL-3.0.',
+          'Identidade visual protegida: a licença do código não autoriza o uso do nome RedijaApp ou logotipo oficial em serviços hospedados por terceiros.',
+          'Motor Tipográfico Typst & typst.ts (Apache-2.0): a compilação e renderização em WebAssembly são alimentadas por Typst (typst/typst) e typst.ts (Myriad-Dreamin), com fontes locais Tinos e Arimo (Apache-2.0). Consulte THIRD_PARTY_NOTICES.md.',
         ],
       },
     ],
