@@ -53,10 +53,12 @@ O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notio
 
 ---
 
-### 3. Importação Inteligente de Documentos Word (.docx) e Backups
+### 3. Importação Inteligente de Documentos (.docx, Overleaf/LaTeX, Typst e Backups)
 
-- **Importador Word (.docx):** Carregue trabalhos acadêmicos existentes criados no Microsoft Word. O conversor extrai automaticamente títulos hierárquicos, parágrafos, listas e imagens embutidas (convertendo-as em blocos de figura com metadados ABNT).
-- **Backups Portáteis (.redija):** Importação e exportação de projetos completos em arquivo JSON padronizado com preservação integral de referências, imagens e configurações normativas.
+- **Detecção Heurística & Field Matching:** Identifica automaticamente o modelo acadêmico compatível (TCC, Artigo Científico NBR 6022, Relatório Técnico, IEEE, SBC, Pôster ou Typst Universe) e preenche metadados semânticos (título, autores, orientador, instituição, resumo, abstract e palavras-chave).
+- **Importador Word (.docx):** Converte títulos hierárquicos, parágrafos, listas, tabelas e imagens embutidas com sanitização contra HTML/SVG malicioso.
+- **Projetos LaTeX / Overleaf (.tex / .zip) & Typst (.typ / .zip):** Extrai seções, equações, figuras, pacotes `@preview/...` e referências `.bib` preservando ativos em subpastas.
+- **Backups Portáteis (.redija):** Importação e exportação de projetos completos em JSON padronizado com preservação integral de referências, imagens e configurações normativas.
 
 ---
 
@@ -112,6 +114,7 @@ O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notio
 - **Artigo IEEE Conference:** Formato internacional de conferências de engenharia e tecnologia em 2 colunas (`ieee.typ`).
 - **Pôster Acadêmico A0:** Painel científico diagramado em alta resolução para impressão de congressos (`poster.typ`).
 - **Typst Universe Dinâmico:** Resolução e injeção automática de templates do repositório oficial da comunidade Typst (`@preview/...`) com fallback offline.
+- **Aba Lateral Adaptativa (Matriz de Capacidades):** A barra lateral adapta cabeçalho, badges de norma (ex.: `NBR 14724`, `ABNT Modificado`, `SBC`, `IEEE`, `Typst Universe`), campos de metadados, Linter ABNT e Guia de Normas ao template ativo, preservando em gaveta segura eventuais dados ocultos preenchidos em outro modelo.
 
 ---
 
@@ -195,6 +198,7 @@ redija-app/
 ├── src/
 │   ├── components/              # Componentes de interface do usuário (React 18)
 │   │   ├── landing/             # Seções modulares da Landing Page de entrada
+│   │   ├── sidebar/             # Subcomponentes modulares (Linter adaptativo e Campos preservados)
 │   │   ├── AccountSettingsModal.tsx  # Configurações de conta, armazenamento e privacidade
 │   │   ├── BackupNoticeBanner.tsx    # Alerta sutil de incentivo a backup para convidados
 │   │   ├── BugReportModal.tsx   # Modal de reporte de problemas com dados do ambiente
@@ -207,14 +211,14 @@ redija-app/
 │   │   ├── ReferenceModal.tsx   # Cadastro de referências ABNT e busca por DOI
 │   │   ├── RichTextInput.tsx    # Editor de texto rico TipTap (tags semânticas)
 │   │   ├── ShareModal.tsx       # Compartilhamento via Google Drive API
-│   │   ├── Sidebar.tsx          # Configurações ABNT, metadados, linter e sumário
+│   │   ├── Sidebar.tsx          # Aba lateral adaptativa por template, metadados, linter e referências
 │   │   ├── TemplateCustomizerModal.tsx # Personalização de normas, margens e fontes
 │   │   └── WelcomeModal.tsx     # Guia interativo inicial de recursos
 │   ├── core/
 │   │   ├── auth/                # Google Identity Services (OAuth2 Client)
 │   │   ├── collaboration/       # Motor P2P WebRTC (PeerJS) e BroadcastChannel
 │   │   ├── storage/             # Dexie.js (IndexedDB), Google Drive, Auto-Merge e Importer (.docx)
-│   │   ├── templates/           # Modelos Typst nativos (abnt.typ, sbc.typ, ieee.typ, poster.typ)
+│   │   ├── templates/           # Modelos Typst nativos e matriz de capacidades (templateCapabilities.ts)
 │   │   ├── transpiler/          # Transpilador de blocos, cache LRU de imagens e Linter ABNT
 │   │   ├── typst/               # Web Worker com Typst Compiler + Typst Renderer WASM isolados
 │   │   └── universe/            # Resolução e injeção de pacotes do Typst Universe (@preview/...)

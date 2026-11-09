@@ -67,6 +67,7 @@ import {
 const fallbackInitialProject = createProjectFromTemplate('tcc');
 
 interface HistorySnapshot {
+  templateType?: ProjectTemplateType;
   metadata: DocumentMetadata;
   blocks: Block[];
   references: AcademicReference[];
@@ -133,10 +134,12 @@ export const App: React.FC = () => {
   const getProjectContentSignature = useCallback((p: DocumentProject): string => {
     return JSON.stringify({
       name: p.name,
+      templateType: p.templateType,
       metadata: p.metadata,
       blocks: p.blocks,
       references: p.references,
       templateConfig: p.templateConfig,
+      sidebarConfig: p.sidebarConfig,
     });
   }, []);
 
@@ -244,6 +247,7 @@ export const App: React.FC = () => {
   const recordHistorySnapshot = useCallback((currentProj: DocumentProject, forceNewEntry = false) => {
     const now = Date.now();
     const snapshot: HistorySnapshot = {
+      templateType: currentProj.templateType,
       metadata: currentProj.metadata,
       blocks: currentProj.blocks,
       references: currentProj.references,
@@ -270,6 +274,7 @@ export const App: React.FC = () => {
       setProject((currentProj) => {
         setFuture((prevFuture) => [
           {
+            templateType: currentProj.templateType,
             metadata: currentProj.metadata,
             blocks: currentProj.blocks,
             references: currentProj.references,
@@ -279,6 +284,7 @@ export const App: React.FC = () => {
         ]);
         return {
           ...currentProj,
+          templateType: previous.templateType ?? currentProj.templateType,
           metadata: previous.metadata,
           blocks: previous.blocks,
           references: previous.references,
@@ -300,6 +306,7 @@ export const App: React.FC = () => {
         setPast((prevPast) => [
           ...prevPast.slice(-49),
           {
+            templateType: currentProj.templateType,
             metadata: currentProj.metadata,
             blocks: currentProj.blocks,
             references: currentProj.references,
@@ -308,6 +315,7 @@ export const App: React.FC = () => {
         ]);
         return {
           ...currentProj,
+          templateType: next.templateType ?? currentProj.templateType,
           metadata: next.metadata,
           blocks: next.blocks,
           references: next.references,
@@ -863,7 +871,30 @@ export const App: React.FC = () => {
         return prev;
       }
       recordHistorySnapshot(prev, true);
-      return { ...prev, templateConfig };
+
+      let nextTemplateType = prev.templateType;
+      const p = templateConfig.preset;
+      if (p === 'sbc' || p === 'ieee' || p === 'poster' || p === 'universe_custom') {
+        nextTemplateType = p;
+      } else if (
+        (p === 'abnt_classic' || p === 'abnt_2023') &&
+        (prev.templateType === 'sbc' ||
+          prev.templateType === 'ieee' ||
+          prev.templateType === 'poster' ||
+          prev.templateType === 'universe_custom')
+      ) {
+        nextTemplateType = 'tcc';
+      } else if (
+        p === 'article_2col' &&
+        (prev.templateType === 'sbc' ||
+          prev.templateType === 'ieee' ||
+          prev.templateType === 'poster' ||
+          prev.templateType === 'universe_custom')
+      ) {
+        nextTemplateType = 'artigo';
+      }
+
+      return { ...prev, templateType: nextTemplateType, templateConfig };
     });
   };
 

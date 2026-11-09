@@ -168,4 +168,23 @@ describe('schemaNormalizer: Regressão e Integridade de Dados', () => {
     // @ts-expect-error verificando propriedade removida
     expect(normalized.blocks[0].meta?.unknownMeta).toBeUndefined();
   });
+
+  it('higieniza sidebarConfig preservando isCustomized e hiddenFieldIds válidos', () => {
+    const withSidebarConfig = {
+      name: 'Projeto Sidebar Config',
+      metadata: { title: 'Teste' },
+      sidebarConfig: {
+        isCustomized: 'not-boolean-truthy',
+        hiddenFieldIds: ['advisor', 123, null, 'nature', ''],
+        extraEvilProp: 'strip-me',
+      },
+      blocks: [{ id: 'b1', type: 'paragraph', content: 'Texto' }],
+    };
+
+    const normalized = normalizeProject(withSidebarConfig);
+    expect(normalized.sidebarConfig).toEqual({
+      isCustomized: true,
+      hiddenFieldIds: ['advisor', 'nature'],
+    });
+  });
 });

@@ -140,4 +140,50 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     await page.getByRole('button', { name: /Aplicar e Atualizar PDF/i }).click();
     await expect(page.getByText('Personalizar Norma, Template e Layout da Faculdade')).not.toBeVisible();
   });
+
+  test('adapta aba lateral ao template SBC (oculta Pré-Textuais e Guia ABNT) e entra em modo ABNT Modificado ao customizar TCC', async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('redija:beta_notice_dismissed', 'true');
+    });
+    const modalHeading = await ensureProjectsModal(page);
+
+    // 1. Cria artigo SBC e verifica adaptação imediata da aba lateral
+    await page.getByRole('button', { name: /Artigo SBC/i }).click();
+    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill('SBC Adaptativo E2E');
+    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await expect(modalHeading).not.toBeVisible();
+
+    const sidebar = page.locator('aside').first();
+    await expect(sidebar.getByText('Artigo SBC', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Pré-Textuais & Listas')).not.toBeVisible();
+    await expect(sidebar.getByText('Guia de Normas ABNT')).not.toBeVisible();
+    await expect(sidebar.getByText('Verificador (SBC)')).toBeVisible();
+
+    // 2. Cria TCC e aplica formatação customizada para validar ABNT Modificado
+    await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
+    await expect(modalHeading).toBeVisible();
+    await page.getByText('Trabalho de Conclusão de Curso (TCC)').click();
+    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill('TCC Modificado E2E');
+    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await expect(modalHeading).not.toBeVisible();
+
+    await expect(sidebar.getByText('NBR 14724', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Guia de Normas ABNT')).toBeVisible();
+
+    // Personaliza a capa para mudar preset de abnt_classic -> custom
+    await sidebar
+      .getByRole('button', {
+        name: 'Layout das Referências e Citações (Norma & Layout)',
+        exact: true,
+      })
+      .click();
+    await page.getByLabel(/Gerar Capa \(NBR 14724\)/i).uncheck();
+    await page.getByRole('button', { name: /Aplicar e Atualizar PDF/i }).click();
+
+    await expect(sidebar.getByText('ABNT Modificado', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Verificador ABNT (Pausado)')).toBeVisible();
+    await expect(sidebar.getByText('Guia de Normas ABNT')).toBeVisible();
+  });
 });

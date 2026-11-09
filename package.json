@@ -1,7 +1,7 @@
 {
   "name": "redija-app",
   "private": true,
-  "version": "0.1.0-beta",
+  "version": "0.2.0-beta",
   "type": "module",
   "description": "RedijaApp - Editor acadêmico visual moderno, intuitivo e automatizado com foco em ABNT e Typst",
   "scripts": {

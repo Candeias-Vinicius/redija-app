@@ -746,8 +746,11 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                   value={config.universePackage || ''}
                   placeholder="Ex: @preview/charged-ieee:0.1.1 ou @preview/modern-sbc:0.1.0"
                   onChange={(e) => {
-                    updateField('universePackage', e.target.value);
-                    updateField('preset', 'universe_custom');
+                    onChangeConfig({
+                      ...config,
+                      universePackage: e.target.value,
+                      preset: 'universe_custom',
+                    });
                   }}
                   className="w-full text-xs px-3 py-2 bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-emerald-600 font-mono"
                 />
@@ -763,9 +766,12 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                       key={t.id}
                       type="button"
                       onClick={() => {
-                        updateField('universePackage', t.id);
-                        updateField('universeEntrypoint', t.entrypoint);
-                        updateField('preset', 'universe_custom');
+                        onChangeConfig({
+                          ...config,
+                          universePackage: t.id,
+                          universeEntrypoint: t.entrypoint,
+                          preset: 'universe_custom',
+                        });
                       }}
                       className={`text-[10px] px-2 py-1 rounded-md border font-mono transition-colors ${
                         config.universePackage === t.id

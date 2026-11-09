@@ -5,6 +5,10 @@ import {
   importFromZip,
   parseLatexToProject,
   parseDocxHtmlToProject,
+  detectLatexTemplate,
+  detectDocxTemplate,
+  detectTypstTemplate,
+  parseTypstToProject,
 } from '../documentImporter';
 import { serializeBackup } from '../db';
 import { createProjectFromTemplate } from '../projectTemplates';
@@ -250,6 +254,221 @@ describe('Document Importer (DOCX, ZIP Redija, ZIP Overleaf / LaTeX, .redija)', 
       const images = project.blocks.filter((b) => b.type === 'image');
       expect(images).toHaveLength(1);
       expect(images[0].meta?.imageDataUrl).toContain('data:image/png;base64');
+    });
+
+    it('detecta template semanticamente no DOCX (TCC vs Relatório vs Artigo) e extrai Resumo, Abstract e Palavras-chave', () => {
+      expect(detectDocxTemplate('<h1>Folha de Aprovação</h1><p>Trabalho de Conclusão de Curso</p>')).toBe('tcc');
+      expect(detectDocxTemplate('<h1>Relatório de Estágio Supervisionado</h1>')).toBe('relatorio');
+      expect(detectDocxTemplate('<h1>Introdução</h1><p>Artigo simples.</p>')).toBe('artigo');
+
+      const artigoHtml = `
+        <p>Autor: Mariana Costa</p>
+        <p>Orientador: Prof. Dr. Ricardo Alves</p>
+        <p>Instituição: Universidade Estadual Paulista</p>
+        <h1>Arquiteturas Reativas em Tempo Real</h1>
+        <h2>Resumo</h2>
+        <p>Este artigo avalia pipelines assíncronos em larga escala.</p>
+        <p>Palavras-chave: Sistemas Distribuídos, Latência, React.</p>
+        <h2>Abstract</h2>
+        <p>This paper evaluates large-scale asynchronous pipelines.</p>
+        <p>Keywords: Distributed Systems, Latency, React.</p>
+        <h2>1 Introdução</h2>
+        <p>Texto principal do artigo.</p>
+      `;
+
+      const project = parseDocxHtmlToProject(artigoHtml, 'Artigo Word');
+      expect(project.templateType).toBe('artigo');
+      expect(project.metadata.author).toBe('Mariana Costa');
+      expect(project.metadata.advisor).toBe('Prof. Dr. Ricardo Alves');
+      expect(project.metadata.institution).toBe('Universidade Estadual Paulista');
+      expect(project.metadata.abstract).toContain('pipelines assíncronos');
+      expect(project.metadata.keywords).toEqual(['Sistemas Distribuídos', 'Latência', 'React']);
+      expect(project.metadata.foreignAbstract).toContain('asynchronous pipelines');
+      expect(project.metadata.foreignKeywords).toEqual(['Distributed Systems', 'Latency', 'React']);
+    });
+
+    it('popula abstract e keywords principais em DOCX apenas em inglês', () => {
+      const enHtml = `
+        <h1>Edge Intelligence Study</h1>
+        <h2>Abstract</h2>
+        <p>English-only summary of edge computing benchmarks.</p>
+        <p>Keywords: Edge, WebAssembly, Benchmarks.</p>
+        <h2>1 Introduction</h2>
+        <p>Introduction paragraph.</p>
+      `;
+
+      const project = parseDocxHtmlToProject(enHtml, 'English Paper');
+      expect(project.templateType).toBe('artigo');
+      expect(project.metadata.abstract).toBe('English-only summary of edge computing benchmarks.');
+      expect(project.metadata.keywords).toEqual(['Edge', 'WebAssembly', 'Benchmarks']);
+    });
+  });
+
+  describe('Detecção Heurística & Field Matching LaTeX / Overleaf', () => {
+    it('identifica template IEEEtran, SBC, Pôster, abntex2 artigo e artigo genérico (sem fallback rígido para TCC)', () => {
+      expect(detectLatexTemplate('\\documentclass[conference]{IEEEtran}\\begin{document}\\end{document}')).toBe('ieee');
+      expect(detectLatexTemplate('\\documentclass{article}\\usepackage{sbc-template}\\begin{document}\\end{document}')).toBe('sbc');
+      expect(detectLatexTemplate('\\documentclass{tikzposter}\\begin{document}\\end{document}')).toBe('poster');
+      expect(detectLatexTemplate('\\documentclass[article]{abntex2}\\tipotrabalho{Artigo Científico}')).toBe('artigo');
+      expect(detectLatexTemplate('\\documentclass{abntex2}\\chapter{Introdução}')).toBe('tcc');
+      expect(detectLatexTemplate('\\documentclass{article}\\section{Intro}')).toBe('artigo');
+    });
+
+    it('extrai abstract, IEEEkeywords, autor com \\IEEEauthorblockN e chaves aninhadas no IEEE', async () => {
+      const ieeeTex = `
+        \\documentclass[conference]{IEEEtran}
+        \\title{Federated \\textbf{TinyML} on Edge Sensors}
+        \\author{\\IEEEauthorblockN{Lucas Silva} \\and \\IEEEauthorblockN{Ana Reis}}
+        \\begin{document}
+        \\maketitle
+        \\begin{abstract}
+        Low-power quantized inference for agricultural sensors.
+        \\end{abstract}
+        \\begin{IEEEkeywords}
+        TinyML, Federated Learning, IoT
+        \\end{IEEEkeywords}
+        \\section{Introduction}
+        Content paragraph here.
+        \\end{document}
+      `;
+
+      const encoder = new TextEncoder();
+      const imported = await importDocumentFile({
+        name: 'paper_ieee.tex',
+        arrayBuffer: async () => encoder.encode(ieeeTex).buffer,
+      });
+
+      expect(imported.templateType).toBe('ieee');
+      expect(imported.metadata.title).toBe('Federated TinyML on Edge Sensors');
+      expect(imported.metadata.author).toBe('Lucas Silva; Ana Reis');
+      expect(imported.metadata.abstract).toBe('Low-power quantized inference for agricultural sensors.');
+      expect(imported.metadata.keywords).toEqual(['TinyML', 'Federated Learning', 'IoT']);
+      expect(imported.blocks.some((b) => b.content.includes('\\maketitle'))).toBe(false);
+    });
+
+    it('extrai resumo e abstract bilíngues no padrão SBC', () => {
+      const sbcTex = `
+        \\documentclass{article}
+        \\usepackage{sbc-template}
+        \\title{Plataforma RedijaApp}
+        \\author{Vinícius Candeias\\inst{1}}
+        \\institution{UFSCar}
+        \\begin{document}
+        \\begin{resumo}
+        Resumo em português do artigo SBC.
+        \\end{resumo}
+        \\begin{abstract}
+        English abstract of SBC paper.
+        \\end{abstract}
+        \\section{Introdução}
+        Primeiro parágrafo.
+        \\end{document}
+      `;
+
+      const imported = parseLatexToProject(sbcTex, 'Artigo SBC', new Map());
+      expect(imported.templateType).toBe('sbc');
+      expect(imported.metadata.author).toBe('Vinícius Candeias');
+      expect(imported.metadata.abstract).toBe('Resumo em português do artigo SBC.');
+      expect(imported.metadata.foreignAbstract).toBe('English abstract of SBC paper.');
+    });
+  });
+
+  describe('Importação e Detecção de Typst (.typ e .zip)', () => {
+    it('importa .typ do Typst Universe com @preview e extrai pacote, entrypoint, authors tuple e código', async () => {
+      const typContent = `
+        #import "@preview/charged-ieee:0.1.1": *
+
+        #show: ieee.with(
+          title: "Compilação WASM no Navegador",
+          authors: ("Alice Silva", "Bruno Costa"),
+          abstract: [Resumo técnico direto no show rule.],
+        )
+
+        = 1. Introdução
+        Texto com *negrito* e _itálico_.
+
+        $ E = m c^2 $
+
+        \`\`\`rust
+        fn main() {}
+        \`\`\`
+      `;
+
+      const encoder = new TextEncoder();
+      const imported = await importDocumentFile({
+        name: 'meu_paper.typ',
+        arrayBuffer: async () => encoder.encode(typContent).buffer,
+      });
+
+      expect(imported.templateType).toBe('universe_custom');
+      expect(imported.templateConfig?.universePackage).toBe('@preview/charged-ieee:0.1.1');
+      expect(imported.templateConfig?.universeEntrypoint).toBe('ieee');
+      expect(imported.metadata.title).toBe('Compilação WASM no Navegador');
+      expect(imported.metadata.author).toBe('Alice Silva; Bruno Costa');
+      expect(imported.metadata.abstract).toBe('Resumo técnico direto no show rule.');
+
+      expect(imported.blocks.some((b) => b.type === 'h1' && b.content === '1. Introdução')).toBe(true);
+      expect(imported.blocks.some((b) => b.type === 'equation' && b.content === 'E = m c^2')).toBe(true);
+      expect(imported.blocks.some((b) => b.type === 'code' && b.meta?.language === 'rust')).toBe(true);
+    });
+
+    it('detecta projetos Typst nativos (SBC, IEEE, Pôster, ABNT) e importa ZIP Typst com .bib e imagens', async () => {
+      expect(detectTypstTemplate('#import "abnt.typ": *\n#show: abnt.with(titulo: "TCC")')).toBe('tcc');
+      expect(detectTypstTemplate('#show: abnt.with(incluir-capa: false)')).toBe('artigo');
+      expect(detectTypstTemplate('#show: ieee-article.with(titulo: "Paper")')).toBe('ieee');
+      expect(detectTypstTemplate('#show: academic-poster.with(titulo: "Banner")')).toBe('poster');
+
+      const sbcTyp = `
+        #import "sbc.typ": *
+        #show: sbc-article.with(
+          titulo: "Sistemas Multi-Template",
+          autor: "Carlos Eduardo",
+          instituicao: "UFRGS",
+          resumo: [Resumo em PT-BR.],
+          palavras-chave: ("Typst", "SBC",),
+          abstract: [Abstract in EN.],
+          keywords: ("Typst", "WASM",),
+        )
+
+        = Introdução
+        Texto introdutório com imagem abaixo.
+
+        #image("assets/arquitetura.png")
+      `;
+
+      const bibCode = `
+        @book{knuth1984,
+          author = {Donald Knuth},
+          title = {The TeXbook},
+          year = {1984}
+        }
+      `;
+
+      const zip = new JSZip();
+      zip.file('sbc.typ', '// template helper');
+      zip.file('main.typ', sbcTyp);
+      zip.file('referencias.bib', bibCode);
+      zip.file('assets/arquitetura.png', new Uint8Array([137, 80, 78, 71]));
+
+      const zipBuffer = await zip.generateAsync({ type: 'arraybuffer' });
+      const imported = await importFromZip(zipBuffer, 'projeto_sbc.zip');
+
+      expect(imported.templateType).toBe('sbc');
+      expect(imported.metadata.title).toBe('Sistemas Multi-Template');
+      expect(imported.metadata.author).toBe('Carlos Eduardo');
+      expect(imported.metadata.institution).toBe('UFRGS');
+      expect(imported.metadata.abstract).toBe('Resumo em PT-BR.');
+      expect(imported.metadata.foreignAbstract).toBe('Abstract in EN.');
+      expect(imported.metadata.keywords).toEqual(['Typst', 'SBC']);
+      expect(imported.metadata.foreignKeywords).toEqual(['Typst', 'WASM']);
+
+      const imgBlock = imported.blocks.find((b) => b.type === 'image');
+      expect(imgBlock?.meta?.imageDataUrl).toContain('data:image/png;base64,');
+      expect(imported.references).toHaveLength(1);
+      expect(imported.references[0].title).toContain('TeXbook');
+
+      const parsedStandalone = parseTypstToProject('= Só título\n\nParágrafo simples.', 'Avulso', new Map());
+      expect(parsedStandalone.templateType).toBe('artigo');
     });
   });
 });
