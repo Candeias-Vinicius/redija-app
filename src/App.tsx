@@ -365,7 +365,9 @@ export const App: React.FC = () => {
   useEffect(() => {
     if ((isAuthenticated || isGuestMode) && !isBetaNoticeDismissed()) {
       const timer = setTimeout(() => {
-        setIsBetaNoticeOpen(true);
+        if (!isBetaNoticeDismissed()) {
+          setIsBetaNoticeOpen(true);
+        }
       }, 700);
       return () => clearTimeout(timer);
     }

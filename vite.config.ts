@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 // https://vitejs.dev/config/
@@ -7,6 +8,7 @@ export default defineConfig({
   base: './',
   plugins: [
     react(),
+    tailwindcss(),
     {
       name: 'dev-api-feedback-mock',
       configureServer(server) {
@@ -23,25 +25,26 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
   worker: {
     format: 'es',
   },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          'tiptap-vendor': [
-            '@tiptap/react',
-            '@tiptap/starter-kit',
-            '@tiptap/extension-underline',
-            '@tiptap/extension-superscript',
-            '@tiptap/extension-subscript',
-            '@tiptap/extension-placeholder',
+        codeSplitting: {
+          groups: [
+            {
+              name: 'tiptap-vendor',
+              test: /node_modules[\\/]@tiptap[\\/]/,
+            },
+            {
+              name: 'storage-vendor',
+              test: /node_modules[\\/]dexie[\\/]/,
+            },
           ],
-          'storage-vendor': ['dexie'],
         },
       },
     },

@@ -1,6 +1,13 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('RedijaApp: Fluxo Principal E2E', () => {
+  test.beforeEach(async ({ page }) => {
+    // Silencia modal de boas-vindas do beta durante os testes do fluxo principal
+    await page.addInitScript(() => {
+      localStorage.setItem('redija:beta_notice_dismissed', 'true');
+    });
+  });
+
   test('exibe a tela de login, entra como convidado e interage com o editor ABNT', async ({
     page,
   }) => {
