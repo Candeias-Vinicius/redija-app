@@ -4,7 +4,7 @@ import {
   DocumentProject,
   ProjectTemplateType,
 } from '@/types/document';
-import { createProjectFromTemplate } from '../projectTemplates';
+import { createProjectBaseForImport } from './shared';
 import { stripHtmlTags } from '../../transpiler/escape';
 
 /**
@@ -97,6 +97,65 @@ function parseKeywordsList(raw: string): string[] {
     .filter(Boolean);
 }
 
+function extractLatexTableBlock(snippet: string): Block | null {
+  const capMatch = snippet.match(/\\caption\{([^}]+)\}/);
+  const caption = capMatch ? cleanLatexText(capMatch[1]) : 'Tabela de dados';
+
+  const srcMatch =
+    snippet.match(/\\(?:fonte|source)\{([^}]+)\}/i) ||
+    snippet.match(/(?:fonte|source):\s*([^\n\\]+)/i);
+  const source = srcMatch ? cleanLatexText(srcMatch[1]) : 'do autor';
+
+  const tabularMatch = snippet.match(
+    /\\begin\{tabular\*?\}(?:\{[^}]*\})?([\s\S]*?)\\end\{tabular\*?\}/i,
+  );
+  const tabularBody = tabularMatch ? tabularMatch[1] : snippet;
+
+  const rawRows = tabularBody.split(/\\\\/);
+  const rowsData: string[][] = [];
+
+  for (const rawRow of rawRows) {
+    const cleanedRow = rawRow
+      .replace(/\\hline/g, '')
+      .replace(/\\toprule/g, '')
+      .replace(/\\midrule/g, '')
+      .replace(/\\bottomrule/g, '')
+      .trim();
+
+    if (!cleanedRow) continue;
+
+    const cells = cleanedRow.split('&').map((c) => cleanLatexText(c));
+    if (cells.length > 0 && cells.some((c) => c !== '')) {
+      rowsData.push(cells);
+    }
+  }
+
+  if (rowsData.length === 0) return null;
+
+  const maxCols = Math.max(...rowsData.map((r) => r.length), 1);
+  const normalizedRows = rowsData.map((r) => {
+    if (r.length < maxCols) {
+      return [...r, ...Array(maxCols - r.length).fill('')];
+    }
+    return r;
+  });
+
+  const headers = normalizedRows[0];
+  const bodyRows = normalizedRows.length > 1 ? normalizedRows.slice(1) : [];
+
+  return {
+    id: crypto.randomUUID(),
+    type: 'table',
+    content: '',
+    meta: {
+      headers,
+      rows: bodyRows.length > 0 ? bodyRows : [Array(headers.length).fill('')],
+      caption,
+      source,
+    },
+  };
+}
+
 function latexInlineToHtml(latex: string): string {
   // Escapa entidades HTML brutas para evitar injeção XSS a partir do LaTeX
   const escaped = latex
@@ -147,7 +206,7 @@ export function parseLatexToProject(
   existingRefs: AcademicReference[] = [],
 ): DocumentProject {
   const detectedTemplate = detectLatexTemplate(texContent);
-  const base = createProjectFromTemplate(detectedTemplate, projectName);
+  const base = createProjectBaseForImport(detectedTemplate, projectName);
 
   // Extrai metadados do preâmbulo com suporte a chaves aninhadas
   const rawTitle = extractLatexCommandArg(texContent, /\\title\s*(?:\[[^\]]*\])?\s*(?=\{)/);
@@ -264,6 +323,24 @@ export function parseLatexToProject(
       continue;
     }
     if (/^\\(?:bibliography|bibliographystyle)\s*\{/.test(line)) {
+      continue;
+    }
+
+    // AMBIENTE: TABELA (\begin{table} ... \end{table} ou \begin{tabular} ... \end{tabular})
+    if (line.includes('\\begin{table}') || line.includes('\\begin{tabular}')) {
+      flushParagraph();
+      const isStandaloneTabular =
+        !line.includes('\\begin{table}') && line.includes('\\begin{tabular}');
+      const endMarker = isStandaloneTabular ? '\\end{tabular}' : '\\end{table}';
+      let tableContent = rawLine;
+      while (i + 1 < lines.length && !tableContent.includes(endMarker)) {
+        i++;
+        tableContent += '\n' + lines[i];
+      }
+      const tableBlock = extractLatexTableBlock(tableContent);
+      if (tableBlock) {
+        blocks.push(tableBlock);
+      }
       continue;
     }
 

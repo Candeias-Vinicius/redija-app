@@ -329,7 +329,6 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
           {activeTab === 'presets' && (
             <CustomizerPresetsTab
               config={draftConfig}
-              scope={scope}
               isPosterActive={isPosterActive}
               isUniverseSelected={isUniverseSelected}
               showUniverseExplorer={showUniverseExplorer}

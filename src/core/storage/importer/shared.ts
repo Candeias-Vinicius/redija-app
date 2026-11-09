@@ -1,3 +1,6 @@
+import { DocumentProject, ProjectTemplateType } from '@/types/document';
+import { createProjectFromTemplate } from '../projectTemplates';
+
 export function uint8ArrayToDataUrl(bytes: Uint8Array, ext: string): string {
   let mime = 'image/png';
   if (ext.includes('jpg') || ext.includes('jpeg')) mime = 'image/jpeg';
@@ -58,3 +61,61 @@ export function sanitizeHtml(html: string): string {
 export function cleanInlineFormatting(html: string): string {
   return sanitizeHtml(html);
 }
+
+/**
+ * Cria a estrutura base para um projeto importado (Word, Typst, LaTeX, etc.).
+ * Ao contrário dos templates de exemplo do RedijaApp, o projeto importado
+ * NÃO deve conter dados fictícios de demonstração (orientador mock, dedicatória mock,
+ * banca fictícia, etc.) para que a aba de estrutura inicie limpa, preenchendo
+ * apenas os campos que forem efetivamente identificados no arquivo do usuário.
+ */
+export function createProjectBaseForImport(
+  templateType: ProjectTemplateType,
+  projectName: string,
+): DocumentProject {
+  const templateBase = createProjectFromTemplate(templateType, projectName);
+  const currentYear = String(new Date().getFullYear());
+
+  return {
+    ...templateBase,
+    id: crypto.randomUUID(),
+    name: projectName.trim() || 'Documento Importado',
+    templateType,
+    updatedAt: new Date().toISOString(),
+    metadata: {
+      title: projectName.trim() || '',
+      subtitle: '',
+      author: '',
+      advisor: '',
+      coadvisor: undefined,
+      nature: '',
+      institution: '',
+      course: '',
+      location: '',
+      year: currentYear,
+      abstract: '',
+      keywords: [],
+      foreignAbstract: undefined,
+      foreignKeywords: undefined,
+      dedicatory: undefined,
+      acknowledgments: undefined,
+      epigraph: undefined,
+      epigraphAuthor: undefined,
+      committeeMembers: undefined,
+      approvalDate: undefined,
+      includeApprovalPage: false,
+      includeFiguresList: false,
+      includeTablesList: false,
+      includeBoxesList: false,
+      abbreviations: undefined,
+      symbols: undefined,
+      glossary: undefined,
+      appendices: undefined,
+      annexes: undefined,
+      institutionLogoDataUrl: undefined,
+    },
+    blocks: [],
+    references: [],
+  };
+}
+

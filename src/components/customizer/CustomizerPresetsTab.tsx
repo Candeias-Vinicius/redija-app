@@ -1,13 +1,11 @@
 import React from 'react';
 import { Check, ExternalLink, Globe } from 'lucide-react';
 import { TemplateConfig } from '@/types/document';
-import { CustomizerScope } from '@/core/templates/templateCapabilities';
 import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
 import { PRESETS, PresetInfo } from './presets';
 
 interface CustomizerPresetsTabProps {
   config: TemplateConfig;
-  scope?: CustomizerScope;
   isPosterActive: boolean;
   isUniverseSelected: boolean;
   showUniverseExplorer: boolean;
@@ -21,7 +19,6 @@ interface CustomizerPresetsTabProps {
 
 export const CustomizerPresetsTab: React.FC<CustomizerPresetsTabProps> = ({
   config,
-  scope,
   isPosterActive,
   isUniverseSelected,
   showUniverseExplorer,
@@ -32,12 +29,6 @@ export const CustomizerPresetsTab: React.FC<CustomizerPresetsTabProps> = ({
   onUniversePackageInput,
   onSelectUniverseChip,
 }) => {
-  const isUnrestricted = !scope || scope.isFullyUnrestricted;
-  const visiblePresets = isUnrestricted
-    ? PRESETS
-    : PRESETS.filter((preset) => scope.allowedPresetIds.includes(preset.id));
-  const allowUniverse =
-    isUnrestricted || (scope ? scope.allowedPresetIds.includes('universe_custom') : true);
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
@@ -56,7 +47,7 @@ export const CustomizerPresetsTab: React.FC<CustomizerPresetsTabProps> = ({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        {visiblePresets.map((preset) => {
+        {PRESETS.map((preset) => {
           const isSelected = config.preset === preset.id;
           return (
             <button
@@ -87,42 +78,40 @@ export const CustomizerPresetsTab: React.FC<CustomizerPresetsTabProps> = ({
           );
         })}
 
-        {/* Card: Conector Typst Universe (se permitido pelo escopo) */}
-        {allowUniverse && (
-          <button
-            type="button"
-            onClick={onToggleUniverseExplorer}
-            aria-expanded={showUniverseExplorer}
-            className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
-              isUniverseSelected
-                ? 'border-emerald-600 bg-emerald-50/60 ring-1 ring-emerald-600'
-                : showUniverseExplorer
-                  ? 'border-emerald-400 bg-emerald-50/30'
-                  : 'border-neutral-200 hover:border-emerald-400 hover:bg-neutral-50'
-            }`}
-          >
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="font-bold text-xs text-neutral-900 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  Explorar no Typst Universe
-                </span>
-                {isUniverseSelected && (
-                  <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                    <Check className="w-2.5 h-2.5" />
-                  </span>
-                )}
-              </div>
-              <span className="inline-block text-[10px] font-semibold bg-neutral-200/80 text-neutral-700 px-1.5 py-0.5 rounded mb-1.5">
-                Comunidade • typst.app/universe
+        {/* Card: Conector Typst Universe */}
+        <button
+          type="button"
+          onClick={onToggleUniverseExplorer}
+          aria-expanded={showUniverseExplorer}
+          className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+            isUniverseSelected
+              ? 'border-emerald-600 bg-emerald-50/60 ring-1 ring-emerald-600'
+              : showUniverseExplorer
+                ? 'border-emerald-400 bg-emerald-50/30'
+                : 'border-neutral-200 hover:border-emerald-400 hover:bg-neutral-50'
+          }`}
+        >
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="font-bold text-xs text-neutral-900 flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                Explorar no Typst Universe
               </span>
-              <p className="text-[11px] text-neutral-600 leading-relaxed">
-                Conecte modelos oficiais e da comunidade do Typst Universe importando pelo identificador
-                do pacote (ex: @preview/charged-ieee:0.1.4).
-              </p>
+              {isUniverseSelected && (
+                <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                  <Check className="w-2.5 h-2.5" />
+                </span>
+              )}
             </div>
-          </button>
-        )}
+            <span className="inline-block text-[10px] font-semibold bg-neutral-200/80 text-neutral-700 px-1.5 py-0.5 rounded mb-1.5">
+              Comunidade • typst.app/universe
+            </span>
+            <p className="text-[11px] text-neutral-600 leading-relaxed">
+              Conecte modelos oficiais e da comunidade do Typst Universe importando pelo identificador
+              do pacote (ex: @preview/charged-ieee:0.1.4).
+            </p>
+          </div>
+        </button>
       </div>
 
       {(showUniverseExplorer || isUniverseSelected) && (
