@@ -18,6 +18,8 @@ import {
 } from '@/core/feedback/feedbackService';
 import type { FeedbackPayload } from '@/core/feedback/types';
 import { ABNT_STANDARDS_DOCS } from './abntStandardsDocs';
+import { GitHubIcon } from '../GitHubIcon';
+import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from '@/core/links';
 
 export type LandingModalType = 'docs' | 'about' | 'contact' | 'privacy' | 'terms' | null;
 
@@ -25,6 +27,7 @@ interface LandingModalsProps {
   modalType: LandingModalType;
   selectedStandard?: string;
   onClose: () => void;
+  onOpenFullDocs?: (sectionId?: string) => void;
   isDark: boolean;
 }
 
@@ -32,6 +35,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
   modalType,
   selectedStandard,
   onClose,
+  onOpenFullDocs,
   isDark,
 }) => {
   const [copiedEmail, setCopiedEmail] = useState(false);
@@ -252,6 +256,35 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                   Nós não queremos e não precisamos hospedar seus arquivos de pesquisa. O RedijaApp integra diretamente com o seu próprio Google Drive e utiliza IndexedDB no seu computador, garantindo soberania total, privacidade inegociável e independência para você.
                 </p>
               </div>
+
+              <div
+                className={`p-4 rounded-2xl border flex flex-wrap items-center justify-between gap-3 text-xs ${
+                  isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <GitHubIcon className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>Projeto de código aberto sob licença MIT no GitHub.</span>
+                </div>
+                <div className="flex items-center gap-3 font-semibold">
+                  <a
+                    href={GITHUB_REPO_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-600 dark:text-emerald-400 hover:underline"
+                  >
+                    Repositório
+                  </a>
+                  <a
+                    href={GITHUB_ISSUES_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-600 dark:text-emerald-400 hover:underline"
+                  >
+                    Issues
+                  </a>
+                </div>
+              </div>
             </div>
           )}
 
@@ -441,10 +474,24 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
 
         {/* Rodapé do Modal */}
         <div
-          className={`px-6 py-4 border-t flex justify-end shrink-0 ${
+          className={`px-6 py-4 border-t flex items-center justify-between gap-3 shrink-0 ${
             isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
           }`}
         >
+          <a
+            href="/docs"
+            onClick={(e) => {
+              if (onOpenFullDocs && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                e.preventDefault();
+                onClose();
+                onOpenFullDocs(modalType === 'docs' ? 'normas-abnt' : undefined);
+              }
+            }}
+            className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+          >
+            Abrir Central de Documentação (/docs) &rarr;
+          </a>
+
           <button
             onClick={onClose}
             className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${

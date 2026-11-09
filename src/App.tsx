@@ -14,11 +14,13 @@ import { ShareModal } from '@/components/ShareModal';
 import { AccountSettingsModal } from '@/components/AccountSettingsModal';
 import { BackupNoticeBanner } from '@/components/BackupNoticeBanner';
 import { LoginScreen } from '@/components/LoginScreen';
+import { DocsPage } from '@/components/docs/DocsPage';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
 import { isBetaNoticeDismissed } from '@/core/version';
 import { AcademicReference, DEFAULT_TEMPLATE_CONFIG, DocumentProject } from '@/types/document';
 import { type ContextualGuideMode } from '@/core/templates/templateCapabilities';
+import { useAppRoute } from '@/hooks/useAppRoute';
 import { usePaneLayout } from '@/hooks/usePaneLayout';
 import { useUndoRedoHistory } from '@/hooks/useUndoRedoHistory';
 import { useRealtimeCollab } from '@/hooks/useRealtimeCollab';
@@ -65,6 +67,11 @@ export const App: React.FC = () => {
 
   const activeOwner = isAuthenticated && user ? user.email : 'local';
   const isSessionActive = isAuthenticated || isGuestMode;
+  const { route, sectionId, navigateTo } = useAppRoute();
+  const handleOpenFullDocs = useCallback(
+    (targetSectionId?: string) => navigateTo('/docs', targetSectionId),
+    [navigateTo],
+  );
 
   // Hooks de domínio & orquestração
   const {
@@ -200,7 +207,7 @@ export const App: React.FC = () => {
 
   // Exibição do aviso de boas-vindas do Beta no primeiro acesso do usuário
   useEffect(() => {
-    if (isSessionActive && !isBetaNoticeDismissed()) {
+    if (route !== 'docs' && isSessionActive && !isBetaNoticeDismissed()) {
       const timer = setTimeout(() => {
         if (!isBetaNoticeDismissed()) {
           setIsBetaNoticeOpen(true);
@@ -208,7 +215,19 @@ export const App: React.FC = () => {
       }, 700);
       return () => clearTimeout(timer);
     }
-  }, [isSessionActive]);
+  }, [isSessionActive, route]);
+
+  if (route === 'docs') {
+    return (
+      <DocsPage
+        isDark={darkMode}
+        onToggleDarkMode={toggleDarkMode}
+        isSessionActive={isSessionActive}
+        initialSectionId={sectionId}
+        onNavigateApp={() => navigateTo('/')}
+      />
+    );
+  }
 
   if (!isSessionActive) {
     return (
@@ -216,6 +235,7 @@ export const App: React.FC = () => {
         onLogin={() => login(false)}
         onLoginDevMock={loginDevMock}
         onContinueAsGuest={handleEnterGuestMode}
+        onOpenFullDocs={handleOpenFullDocs}
         isLoading={isAuthLoading}
         error={authError}
         isConfigured={isAuthConfigured}
@@ -261,6 +281,7 @@ export const App: React.FC = () => {
           setWelcomeInitialTab('overview');
           setIsWelcomeModalOpen(true);
         }}
+        onOpenFullDocs={() => handleOpenFullDocs()}
         onDownloadPdf={handleDownloadPdf}
         isExportingPdf={isExportingPdf}
         onExportTypst={handleExportTypst}
@@ -489,6 +510,7 @@ export const App: React.FC = () => {
         isOpen={isWelcomeModalOpen}
         onClose={() => setIsWelcomeModalOpen(false)}
         initialTab={welcomeInitialTab}
+        onOpenFullDocs={() => handleOpenFullDocs()}
       />
 
       <TemplateCustomizerModal

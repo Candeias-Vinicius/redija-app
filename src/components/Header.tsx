@@ -19,10 +19,13 @@ import {
   User,
   HardDrive,
   Loader2,
+  BookOpen,
 } from 'lucide-react';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
+import { GITHUB_REPO_URL } from '@/core/links';
 import { Logo } from './Logo';
+import { GitHubIcon } from './GitHubIcon';
 
 interface HeaderProps {
   projectName: string;
@@ -46,6 +49,7 @@ interface HeaderProps {
   onOpenBetaNoticeModal?: () => void;
   onOpenTemplateCustomizer?: () => void;
   onOpenWelcomeModal?: () => void;
+  onOpenFullDocs?: () => void;
   onDownloadPdf?: () => void;
   isExportingPdf?: boolean;
   onExportTypst?: () => void;
@@ -86,6 +90,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenProjectsModal,
   onOpenBugReportModal,
   onOpenBetaNoticeModal,
+  onOpenFullDocs,
   user,
   isAuthenticated,
   isAuthLoading,
@@ -362,6 +367,32 @@ export const Header: React.FC<HeaderProps> = ({
                     <Settings className="w-3.5 h-3.5 text-neutral-500" />
                     <span>Configurações da Conta</span>
                   </button>
+
+                  <a
+                    href="/docs"
+                    onClick={(e) => {
+                      setIsUserMenuOpen(false);
+                      if (onOpenFullDocs && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                        e.preventDefault();
+                        onOpenFullDocs();
+                      }
+                    }}
+                    className="w-full flex items-center gap-2 px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Documentação (/docs)</span>
+                  </a>
+
+                  <a
+                    href={GITHUB_REPO_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="w-full flex items-center gap-2 px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
+                  >
+                    <GitHubIcon className="w-3.5 h-3.5 text-neutral-500" />
+                    <span>GitHub (Código Aberto)</span>
+                  </a>
                 </div>
 
                 <div className="py-1">
@@ -448,6 +479,32 @@ export const Header: React.FC<HeaderProps> = ({
                         {darkMode ? 'Escuro' : 'Claro'}
                       </span>
                     </button>
+
+                    <a
+                      href="/docs"
+                      onClick={(e) => {
+                        setIsUserMenuOpen(false);
+                        if (onOpenFullDocs && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                          e.preventDefault();
+                          onOpenFullDocs();
+                        }
+                      }}
+                      className="w-full flex items-center gap-2 px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
+                    >
+                      <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Documentação (/docs)</span>
+                    </a>
+
+                    <a
+                      href={GITHUB_REPO_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="w-full flex items-center gap-2 px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
+                    >
+                      <GitHubIcon className="w-3.5 h-3.5 text-neutral-500" />
+                      <span>GitHub (Código Aberto)</span>
+                    </a>
                   </div>
 
                   <div className="py-1">

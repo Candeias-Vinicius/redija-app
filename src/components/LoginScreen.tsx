@@ -14,6 +14,7 @@ export interface LoginScreenProps {
   onLogin: () => Promise<string | null>;
   onLoginDevMock: () => void;
   onContinueAsGuest: () => void;
+  onOpenFullDocs?: (sectionId?: string) => void;
   isLoading: boolean;
   error: string | null;
   isConfigured: boolean;
@@ -25,6 +26,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLogin,
   onLoginDevMock,
   onContinueAsGuest,
+  onOpenFullDocs,
   isLoading,
   error,
   isConfigured,
@@ -94,6 +96,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         isDark={isDark}
         onToggleTheme={handleToggleTheme}
         onOpenDoc={handleOpenDoc}
+        onOpenFullDocs={onOpenFullDocs}
         onOpenLogin={onLogin}
         isLoading={isLoading}
       />
@@ -139,6 +142,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       <LandingFooter
         isDark={isDark}
         onOpenModal={handleOpenModal}
+        onOpenFullDocs={onOpenFullDocs}
         onScrollToTop={handleScrollToTop}
       />
 
@@ -147,6 +151,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         modalType={activeModal}
         selectedStandard={selectedStandard}
         onClose={() => setActiveModal(null)}
+        onOpenFullDocs={onOpenFullDocs}
         isDark={isDark}
       />
     </div>
