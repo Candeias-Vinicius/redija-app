@@ -124,7 +124,7 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
                 value={metadata.author}
                 onChange={(e) => onUpdateField('author', e.target.value)}
                 className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                placeholder="Ex: Vinícius Candeias"
+                placeholder="Ex: Nome do Autor"
               />
             </div>
           )}

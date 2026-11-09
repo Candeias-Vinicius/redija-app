@@ -17,14 +17,21 @@ import {
 } from './citationFormatter';
 
 export {
+  formatGroupedParentheticalCitations,
   formatNarrativeCitation,
+  formatParentheticalCitationBody,
+  formatParentheticalGroupSegment,
   formatShortCitation,
   getPrimarySurname,
+  isGroupableParentheticalFormat,
   parseCitationAuthors,
   resolveCitationDisplay,
   resolveCitationFormat,
+  resolveGroupedParentheticalDisplay,
+  splitAuthorEntries,
   toUnicodeSuperscript,
   type CitationCallMode,
+  type ParentheticalGroupRole,
   type ShortCitationOptions,
 } from './citationFormatter';
 

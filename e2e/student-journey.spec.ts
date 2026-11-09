@@ -44,7 +44,7 @@ test.describe('RedijaApp: Jornada Completa do Estudante', () => {
     await expect(page.getByText('TCC de Inteligência Artificial 2026')).toBeVisible();
 
     // 6. Preenche dados da Capa e Folha de Rosto na aba lateral
-    const authorInput = page.getByPlaceholder(/Ex: Vinícius Candeias/i);
+    const authorInput = page.getByPlaceholder(/Ex: Nome do Autor/i);
     await authorInput.fill('Carlos Alberto Santos');
 
     const titleInput = page.getByPlaceholder(/Ex: Análise da Eficiência Energética/i);
@@ -68,9 +68,9 @@ test.describe('RedijaApp: Jornada Completa do Estudante', () => {
 
     // Testa ocultar e reabrir barra de estrutura com exact match
     await page.getByRole('button', { name: 'Estrutura', exact: true }).click();
-    await expect(page.getByPlaceholder(/Ex: Vinícius Candeias/i)).not.toBeVisible();
+    await expect(page.getByPlaceholder(/Ex: Nome do Autor/i)).not.toBeVisible();
     await page.getByRole('button', { name: 'Estrutura', exact: true }).click();
-    await expect(page.getByPlaceholder(/Ex: Vinícius Candeias/i)).toBeVisible();
+    await expect(page.getByPlaceholder(/Ex: Nome do Autor/i)).toBeVisible();
 
     // 10. Testa o botão de Baixar PDF
     const downloadBtn = page.getByRole('button', { name: /Baixar PDF/i });

@@ -20,7 +20,7 @@ export const BetaNoticeModal: React.FC<BetaNoticeModalProps> = ({
   onClose,
   onOpenBugReport,
 }) => {
-  const [dontShowAgain, setDontShowAgain] = useState(true);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
 
   if (!isOpen) return null;
 
