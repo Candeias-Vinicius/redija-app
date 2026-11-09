@@ -7,6 +7,13 @@ import {
   exportToBibtex,
 } from '@/core/transpiler/abntLinter';
 import {
+  getTemplateCapabilities,
+  getPreservedHiddenFields,
+  IdentificacaoFieldId,
+} from '@/core/templates/templateCapabilities';
+import { SidebarLinterSection } from './sidebar/SidebarLinterSection';
+import { SidebarPreservedFieldsSection } from './sidebar/SidebarPreservedFieldsSection';
+import {
   BookOpen,
   Building,
   Plus,
@@ -15,9 +22,6 @@ import {
   ChevronRight,
   Bookmark,
   Layers,
-  ShieldCheck,
-  AlertTriangle,
-  Info,
   Copy,
   Check,
   Search,
@@ -25,6 +29,8 @@ import {
   Sliders,
   Pencil,
   PanelLeftClose,
+  Palette,
+  Globe,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -59,7 +65,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [openResumo, setOpenResumo] = useState(false);
   const [openPosTextual, setOpenPosTextual] = useState(false);
   const [openRefs, setOpenRefs] = useState(true);
-  const [openLinter, setOpenLinter] = useState(true);
   const [copiedRefId, setCopiedRefId] = useState<string | null>(null);
   const [refSearchQuery, setRefSearchQuery] = useState('');
   const [refTypeFilter, setRefTypeFilter] = useState<string>('all');
@@ -71,9 +76,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onChangeMetadata({ ...metadata, [field]: value });
   };
 
+  const capabilities = useMemo(() => getTemplateCapabilities(project), [project]);
+  const preservedHiddenFields = useMemo(
+    () => getPreservedHiddenFields(project, capabilities),
+    [project, capabilities],
+  );
+  const hasIdentField = (fieldId: IdentificacaoFieldId) =>
+    capabilities.identificacaoFields.includes(fieldId);
+
   const abstractWordCount = useMemo(() => countWords(metadata.abstract), [metadata.abstract]);
-  const isAbstractCountIdeal = abstractWordCount >= 150 && abstractWordCount <= 500;
-  const warnings = useMemo(() => runAbntLinter(project), [project]);
+  const isArticleLength =
+    capabilities.effectiveType === 'artigo' || capabilities.effectiveType === 'sbc';
+  const abstractMin = isArticleLength ? 100 : 150;
+  const abstractMax = isArticleLength ? 250 : 500;
+  const isAbstractCountIdeal = abstractWordCount >= abstractMin && abstractWordCount <= abstractMax;
+
+  const warnings = useMemo(
+    () => (capabilities.showAbntLinter ? runAbntLinter(project) : []),
+    [project, capabilities.showAbntLinter],
+  );
 
   const handleCopyCitation = (ref: AcademicReference) => {
     const citation = formatShortCitation(
@@ -132,12 +153,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
       className="shrink-0 border-r border-neutral-200 bg-white flex flex-col h-full overflow-y-auto"
     >
       <div className="p-3.5 border-b border-neutral-100 flex items-start justify-between gap-2 sticky top-0 bg-white z-10">
-        <div>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-            Estrutura ABNT (NBR 14724)
-          </h2>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+              {capabilities.headerTitle}
+            </h2>
+            <span
+              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${
+                capabilities.isModified
+                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                  : capabilities.isAbntFamily
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-neutral-100 text-neutral-700 border-neutral-200'
+              }`}
+            >
+              {capabilities.badgeLabel}
+            </span>
+          </div>
           <p className="text-[11px] text-neutral-500 mt-0.5">
-            Capa, pré-textuais, resumo e referências.
+            {capabilities.headerSubtitle}
           </p>
         </div>
         {onMinimize && (
@@ -153,7 +187,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div className="divide-y divide-neutral-100 flex-1 pb-12">
-        {/* Seção da Capa e Folha de Rosto */}
+        {/* Seção de Identificação / Capa e Folha de Rosto */}
         <div className="p-3">
           <button
             onClick={() => setOpenCapa(!openCapa)}
@@ -161,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <span className="flex items-center gap-2">
               <Building className="w-3.5 h-3.5 text-neutral-400" />
-              Capa & Folha de Rosto
+              {capabilities.identificacaoTitle}
             </span>
             {openCapa ? (
               <ChevronDown className="w-3.5 h-3.5" />
@@ -172,396 +206,488 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {openCapa && (
             <div className="space-y-2.5 mt-2.5 pl-2">
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Título do Trabalho
-                </label>
-                <input
-                  type="text"
-                  value={metadata.title}
-                  onChange={(e) => updateField('title', e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  placeholder="Ex: Análise da Eficiência Energética..."
-                />
-              </div>
+              {capabilities.effectiveType === 'poster' && onOpenTemplateCustomizer && (
+                <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-200 space-y-1.5">
+                  <div className="text-[11px] font-medium text-emerald-900 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Palette className="w-3.5 h-3.5 text-emerald-600" />
+                      Banner {(project.templateConfig?.posterDimensions || 'a0').toUpperCase()} •{' '}
+                      {project.templateConfig?.posterColumns || 3} Colunas
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onOpenTemplateCustomizer}
+                    className="w-full py-1 px-2 rounded bg-white border border-emerald-200 hover:bg-emerald-50 text-[11px] font-medium text-emerald-700 transition-colors"
+                  >
+                    Configurar Dimensões, Tema e Colunas
+                  </button>
+                </div>
+              )}
 
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Subtítulo (Opcional)
-                </label>
-                <input
-                  type="text"
-                  value={metadata.subtitle || ''}
-                  onChange={(e) => updateField('subtitle', e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  placeholder="Ex: Um estudo de caso regional"
-                />
-              </div>
+              {capabilities.effectiveType === 'universe_custom' && (
+                <div className="p-2.5 rounded-lg bg-neutral-50 border border-neutral-200 space-y-1.5">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500 flex items-center gap-1.5">
+                    <Globe className="w-3 h-3 text-emerald-600" />
+                    <span>Pacote Conectado</span>
+                  </div>
+                  <div className="text-[11px] font-mono text-neutral-800 truncate">
+                    {project.templateConfig?.universePackage || '@preview/charged-ieee:0.1.1'}
+                  </div>
+                  {onOpenTemplateCustomizer && (
+                    <button
+                      type="button"
+                      onClick={onOpenTemplateCustomizer}
+                      className="w-full py-1 px-2 rounded bg-white border border-neutral-200 hover:bg-neutral-100 text-[11px] font-medium text-neutral-700 transition-colors"
+                    >
+                      Alterar Pacote / Entrypoint Universe
+                    </button>
+                  )}
+                </div>
+              )}
 
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Nome do Autor
-                </label>
-                <input
-                  type="text"
-                  value={metadata.author}
-                  onChange={(e) => updateField('author', e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  placeholder="Ex: Vinícius Candeias"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Orientador(a) (Opcional)
-                </label>
-                <input
-                  type="text"
-                  value={metadata.advisor || ''}
-                  onChange={(e) => updateField('advisor', e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  placeholder="Ex: Prof. Dr. Nome do Orientador"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Coorientador(a) (Opcional)
-                </label>
-                <input
-                  type="text"
-                  value={metadata.coadvisor || ''}
-                  onChange={(e) => updateField('coadvisor', e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  placeholder="Ex: Profa. Dra. Nome da Coorientadora"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Natureza do Trabalho (Folha de Rosto)
-                </label>
-                <textarea
-                  rows={3}
-                  value={metadata.nature || ''}
-                  onChange={(e) => updateField('nature', e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  placeholder="Ex: Trabalho de Conclusão de Curso apresentado ao..."
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Instituição
-                </label>
-                <input
-                  type="text"
-                  value={metadata.institution}
-                  onChange={(e) => updateField('institution', e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  placeholder="Ex: Universidade Federal..."
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Curso / Departamento
-                </label>
-                <input
-                  type="text"
-                  value={metadata.course}
-                  onChange={(e) => updateField('course', e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                  placeholder="Ex: Bacharelado em Engenharia de Software"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
+              {hasIdentField('title') && (
                 <div>
                   <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Cidade
+                    Título do Trabalho
                   </label>
                   <input
                     type="text"
-                    value={metadata.location}
-                    onChange={(e) => updateField('location', e.target.value)}
-                    className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    placeholder="São Paulo"
+                    value={metadata.title}
+                    onChange={(e) => updateField('title', e.target.value)}
+                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    placeholder="Ex: Análise da Eficiência Energética..."
                   />
                 </div>
+              )}
+
+              {hasIdentField('subtitle') && (
                 <div>
                   <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Ano
+                    Subtítulo (Opcional)
                   </label>
                   <input
                     type="text"
-                    value={metadata.year}
-                    onChange={(e) => updateField('year', e.target.value)}
-                    className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    placeholder="2026"
+                    value={metadata.subtitle || ''}
+                    onChange={(e) => updateField('subtitle', e.target.value)}
+                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    placeholder="Ex: Um estudo de caso regional"
                   />
                 </div>
-              </div>
-            </div>
-          )}
-        </div>
+              )}
 
-        {/* Seção Elementos Pré-Textuais Opcionais */}
-        <div className="p-3">
-          <button
-            onClick={() => setOpenPreTextual(!openPreTextual)}
-            className="w-full flex items-center justify-between text-left text-xs font-semibold text-neutral-700 py-1.5 hover:text-neutral-900"
-          >
-            <span className="flex items-center gap-2">
-              <Layers className="w-3.5 h-3.5 text-neutral-400" />
-              Pré-Textuais & Listas
-            </span>
-            {openPreTextual ? (
-              <ChevronDown className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronRight className="w-3.5 h-3.5" />
-            )}
-          </button>
-
-          {openPreTextual && (
-            <div className="space-y-3 mt-2.5 pl-2 text-xs">
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-2 cursor-pointer text-neutral-700 font-medium">
+              {hasIdentField('author') && (
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Nome do Autor
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={Boolean(metadata.includeApprovalPage)}
-                    onChange={(e) => updateField('includeApprovalPage', e.target.checked)}
-                    className="rounded text-emerald-600 focus:ring-emerald-500"
+                    type="text"
+                    value={metadata.author}
+                    onChange={(e) => updateField('author', e.target.value)}
+                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    placeholder="Ex: Vinícius Candeias"
                   />
-                  <span>Incluir Folha de Aprovação (Banca Examinadora)</span>
-                </label>
+                </div>
+              )}
 
-                {metadata.includeApprovalPage && (
-                  <div className="p-2.5 rounded-lg bg-neutral-50 border border-neutral-200 space-y-2 my-1">
+              {hasIdentField('advisor') && (
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Orientador(a) (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={metadata.advisor || ''}
+                    onChange={(e) => updateField('advisor', e.target.value)}
+                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    placeholder="Ex: Prof. Dr. Nome do Orientador"
+                  />
+                </div>
+              )}
+
+              {hasIdentField('coadvisor') && (
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Coorientador(a) (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={metadata.coadvisor || ''}
+                    onChange={(e) => updateField('coadvisor', e.target.value)}
+                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    placeholder="Ex: Profa. Dra. Nome da Coorientadora"
+                  />
+                </div>
+              )}
+
+              {hasIdentField('nature') && (
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Natureza do Trabalho (Folha de Rosto)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={metadata.nature || ''}
+                    onChange={(e) => updateField('nature', e.target.value)}
+                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    placeholder="Ex: Trabalho de Conclusão de Curso apresentado ao..."
+                  />
+                </div>
+              )}
+
+              {hasIdentField('institution') && (
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Instituição
+                  </label>
+                  <input
+                    type="text"
+                    value={metadata.institution}
+                    onChange={(e) => updateField('institution', e.target.value)}
+                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    placeholder="Ex: Universidade Federal..."
+                  />
+                </div>
+              )}
+
+              {hasIdentField('course') && (
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Curso / Departamento
+                  </label>
+                  <input
+                    type="text"
+                    value={metadata.course}
+                    onChange={(e) => updateField('course', e.target.value)}
+                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    placeholder="Ex: Bacharelado em Engenharia de Software"
+                  />
+                </div>
+              )}
+
+              {(hasIdentField('location') || hasIdentField('year')) && (
+                <div className="grid grid-cols-2 gap-2">
+                  {hasIdentField('location') && (
                     <div>
-                      <label className="text-[10px] font-medium text-neutral-500 block mb-0.5">
-                        Data de Aprovação (deixe em branco p/ linha de preenchimento)
+                      <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                        Cidade
                       </label>
                       <input
                         type="text"
-                        value={metadata.approvalDate || ''}
-                        onChange={(e) => updateField('approvalDate', e.target.value)}
-                        placeholder="Ex: 10 de dezembro de 2026"
-                        className="w-full text-xs px-2 py-1 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+                        value={metadata.location}
+                        onChange={(e) => updateField('location', e.target.value)}
+                        className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                        placeholder="São Paulo"
                       />
                     </div>
+                  )}
+                  {hasIdentField('year') && (
                     <div>
-                      <label className="text-[10px] font-medium text-neutral-500 block mb-0.5">
-                        Membros da Banca Examinadora (1 por linha)
+                      <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                        Ano
                       </label>
-                      <textarea
-                        rows={3}
-                        value={(metadata.committeeMembers ?? []).join('\n')}
-                        onChange={(e) =>
-                          updateField('committeeMembers', e.target.value.split('\n'))
-                        }
-                        placeholder={'Prof. Dr. Carlos Eduardo (Convidado)\nProfa. Dra. Ana Beatriz (Avaliadora)'}
-                        className="w-full text-xs p-2 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+                      <input
+                        type="text"
+                        value={metadata.year}
+                        onChange={(e) => updateField('year', e.target.value)}
+                        className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                        placeholder="2026"
                       />
                     </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Seção Elementos Pré-Textuais Opcionais (Apenas monografias ABNT) */}
+        {capabilities.showPreTextuals && (
+          <div className="p-3">
+            <button
+              onClick={() => setOpenPreTextual(!openPreTextual)}
+              className="w-full flex items-center justify-between text-left text-xs font-semibold text-neutral-700 py-1.5 hover:text-neutral-900"
+            >
+              <span className="flex items-center gap-2">
+                <Layers className="w-3.5 h-3.5 text-neutral-400" />
+                Pré-Textuais & Listas
+              </span>
+              {openPreTextual ? (
+                <ChevronDown className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5" />
+              )}
+            </button>
+
+            {openPreTextual && (
+              <div className="space-y-3 mt-2.5 pl-2 text-xs">
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-2 cursor-pointer text-neutral-700 font-medium">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(metadata.includeApprovalPage)}
+                      onChange={(e) => updateField('includeApprovalPage', e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Incluir Folha de Aprovação (Banca Examinadora)</span>
+                  </label>
+
+                  {metadata.includeApprovalPage && (
+                    <div className="p-2.5 rounded-lg bg-neutral-50 border border-neutral-200 space-y-2 my-1">
+                      <div>
+                        <label className="text-[10px] font-medium text-neutral-500 block mb-0.5">
+                          Data de Aprovação (deixe em branco p/ linha de preenchimento)
+                        </label>
+                        <input
+                          type="text"
+                          value={metadata.approvalDate || ''}
+                          onChange={(e) => updateField('approvalDate', e.target.value)}
+                          placeholder="Ex: 10 de dezembro de 2026"
+                          className="w-full text-xs px-2 py-1 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-medium text-neutral-500 block mb-0.5">
+                          Membros da Banca Examinadora (1 por linha)
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={(metadata.committeeMembers ?? []).join('\n')}
+                          onChange={(e) =>
+                            updateField('committeeMembers', e.target.value.split('\n'))
+                          }
+                          placeholder={'Prof. Dr. Carlos Eduardo (Convidado)\nProfa. Dra. Ana Beatriz (Avaliadora)'}
+                          className="w-full text-xs p-2 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(metadata.includeFiguresList)}
+                      onChange={(e) => updateField('includeFiguresList', e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Gerar Lista de Ilustrações automática</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(metadata.includeBoxesList)}
+                      onChange={(e) => updateField('includeBoxesList', e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Gerar Lista de Quadros automática</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(metadata.includeTablesList)}
+                      onChange={(e) => updateField('includeTablesList', e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Gerar Lista de Tabelas automática</span>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Dedicatória (Opcional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={metadata.dedicatory || ''}
+                    onChange={(e) => updateField('dedicatory', e.target.value)}
+                    placeholder="Ex: Dedico este trabalho aos meus pais..."
+                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Agradecimentos (Opcional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={metadata.acknowledgments || ''}
+                    onChange={(e) => updateField('acknowledgments', e.target.value)}
+                    placeholder="Texto de agradecimentos..."
+                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Epígrafe (Opcional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={metadata.epigraph || ''}
+                    onChange={(e) => updateField('epigraph', e.target.value)}
+                    placeholder="Citação filosófica ou epígrafe..."
+                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600 mb-1"
+                  />
+                  <input
+                    type="text"
+                    value={metadata.epigraphAuthor || ''}
+                    onChange={(e) => updateField('epigraphAuthor', e.target.value)}
+                    placeholder="Autor da epígrafe (ex: Carl Sagan)"
+                    className="w-full text-xs px-2 py-1 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Lista de Abreviaturas e Siglas (Opcional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={metadata.abbreviations || ''}
+                    onChange={(e) => updateField('abbreviations', e.target.value)}
+                    placeholder="Ex: ABNT: Associação Brasileira de Normas Técnicas&#10;IBGE: Instituto Brasileiro de Geografia e Estatística"
+                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Lista de Símbolos (Opcional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={metadata.symbols || ''}
+                    onChange={(e) => updateField('symbols', e.target.value)}
+                    placeholder="Ex: Ω: Ohm (Resistência elétrica)&#10;λ: Comprimento de onda"
+                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Seção Resumo + Abstract */}
+        {capabilities.showResumoSection && (
+          <div className="p-3">
+            <button
+              onClick={() => setOpenResumo(!openResumo)}
+              className="w-full flex items-center justify-between text-left text-xs font-semibold text-neutral-700 py-1.5 hover:text-neutral-900"
+            >
+              <span className="flex items-center gap-2">
+                <BookOpen className="w-3.5 h-3.5 text-neutral-400" />
+                {capabilities.isAbntFamily
+                  ? 'Resumo & Abstract (NBR 6028)'
+                  : capabilities.effectiveType === 'ieee'
+                    ? 'Abstract & Index Terms'
+                    : 'Resumo & Palavras-chave'}
+              </span>
+              {openResumo ? (
+                <ChevronDown className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5" />
+              )}
+            </button>
+
+            {openResumo && (
+              <div className="space-y-2.5 mt-2 pl-2">
+                {capabilities.resumoFields.resumo && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-medium text-neutral-500">
+                        {capabilities.effectiveType === 'ieee' ? 'Abstract' : 'Resumo em Português'}
+                      </label>
+                      {capabilities.isAbntFamily ? (
+                        <span
+                          className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                            isAbstractCountIdeal
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-amber-50 text-amber-700'
+                          }`}
+                          title={`A NBR 6028 recomenda entre ${abstractMin} e ${abstractMax} palavras`}
+                        >
+                          {abstractWordCount} / {abstractMin}–{abstractMax} palavras
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600">
+                          {abstractWordCount} palavras
+                        </span>
+                      )}
+                    </div>
+                    <textarea
+                      rows={4}
+                      value={metadata.abstract}
+                      onChange={(e) => updateField('abstract', e.target.value)}
+                      placeholder={
+                        capabilities.effectiveType === 'ieee'
+                          ? 'Concise English abstract summarizing objectives, methodology and main findings...'
+                          : `Texto do resumo em parágrafo único (${abstractMin} a ${abstractMax} palavras conforme NBR 6028)...`
+                      }
+                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    />
                   </div>
                 )}
 
-                <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(metadata.includeFiguresList)}
-                    onChange={(e) => updateField('includeFiguresList', e.target.checked)}
-                    className="rounded text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <span>Gerar Lista de Ilustrações automática</span>
-                </label>
+                {capabilities.resumoFields.keywords && (
+                  <div>
+                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                      {capabilities.effectiveType === 'ieee'
+                        ? 'Index Terms / Palavras-chave (vírgula)'
+                        : 'Palavras-chave (separadas por vírgula)'}
+                    </label>
+                    <input
+                      type="text"
+                      value={metadata.keywords.join(', ')}
+                      onChange={(e) =>
+                        updateField(
+                          'keywords',
+                          e.target.value.split(',').map((k) => k.trim()),
+                        )
+                      }
+                      placeholder={
+                        capabilities.effectiveType === 'ieee'
+                          ? 'Ex: Edge Computing, IoT, Performance'
+                          : 'Ex: ABNT, Typst, Editor Acadêmico'
+                      }
+                      className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                )}
 
-                <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(metadata.includeBoxesList)}
-                    onChange={(e) => updateField('includeBoxesList', e.target.checked)}
-                    className="rounded text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <span>Gerar Lista de Quadros automática</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(metadata.includeTablesList)}
-                    onChange={(e) => updateField('includeTablesList', e.target.checked)}
-                    className="rounded text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <span>Gerar Lista de Tabelas automática</span>
-                </label>
+                {capabilities.resumoFields.foreignAbstract && (
+                  <div className="pt-2 border-t border-neutral-100">
+                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                      Abstract (Língua Estrangeira, Opcional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={metadata.foreignAbstract || ''}
+                      onChange={(e) => updateField('foreignAbstract', e.target.value)}
+                      placeholder="English abstract..."
+                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600 mb-1.5"
+                    />
+                    <input
+                      type="text"
+                      value={(metadata.foreignKeywords ?? []).join(', ')}
+                      onChange={(e) =>
+                        updateField(
+                          'foreignKeywords',
+                          e.target.value.split(',').map((k) => k.trim()),
+                        )
+                      }
+                      placeholder="Keywords separated by comma"
+                      className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                )}
               </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Dedicatória (Opcional)
-                </label>
-                <textarea
-                  rows={2}
-                  value={metadata.dedicatory || ''}
-                  onChange={(e) => updateField('dedicatory', e.target.value)}
-                  placeholder="Ex: Dedico este trabalho aos meus pais..."
-                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Agradecimentos (Opcional)
-                </label>
-                <textarea
-                  rows={3}
-                  value={metadata.acknowledgments || ''}
-                  onChange={(e) => updateField('acknowledgments', e.target.value)}
-                  placeholder="Texto de agradecimentos..."
-                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Epígrafe (Opcional)
-                </label>
-                <textarea
-                  rows={2}
-                  value={metadata.epigraph || ''}
-                  onChange={(e) => updateField('epigraph', e.target.value)}
-                  placeholder="Citação filosófica ou epígrafe..."
-                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600 mb-1"
-                />
-                <input
-                  type="text"
-                  value={metadata.epigraphAuthor || ''}
-                  onChange={(e) => updateField('epigraphAuthor', e.target.value)}
-                  placeholder="Autor da epígrafe (ex: Carl Sagan)"
-                  className="w-full text-xs px-2 py-1 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Lista de Abreviaturas e Siglas (Opcional)
-                </label>
-                <textarea
-                  rows={3}
-                  value={metadata.abbreviations || ''}
-                  onChange={(e) => updateField('abbreviations', e.target.value)}
-                  placeholder="Ex: ABNT: Associação Brasileira de Normas Técnicas&#10;IBGE: Instituto Brasileiro de Geografia e Estatística"
-                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Lista de Símbolos (Opcional)
-                </label>
-                <textarea
-                  rows={2}
-                  value={metadata.symbols || ''}
-                  onChange={(e) => updateField('symbols', e.target.value)}
-                  placeholder="Ex: Ω: Ohm (Resistência elétrica)&#10;λ: Comprimento de onda"
-                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Seção Resumo + Abstract */}
-        <div className="p-3">
-          <button
-            onClick={() => setOpenResumo(!openResumo)}
-            className="w-full flex items-center justify-between text-left text-xs font-semibold text-neutral-700 py-1.5 hover:text-neutral-900"
-          >
-            <span className="flex items-center gap-2">
-              <BookOpen className="w-3.5 h-3.5 text-neutral-400" />
-              Resumo & Abstract (NBR 6028)
-            </span>
-            {openResumo ? (
-              <ChevronDown className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronRight className="w-3.5 h-3.5" />
             )}
-          </button>
-
-          {openResumo && (
-            <div className="space-y-2.5 mt-2 pl-2">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] font-medium text-neutral-500">
-                    Resumo em Português
-                  </label>
-                  <span
-                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                      isAbstractCountIdeal
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-amber-50 text-amber-700'
-                    }`}
-                    title="A NBR 6028 recomenda entre 150 e 500 palavras para TCC/Monografias"
-                  >
-                    {abstractWordCount} / 150–500 palavras
-                  </span>
-                </div>
-                <textarea
-                  rows={4}
-                  value={metadata.abstract}
-                  onChange={(e) => updateField('abstract', e.target.value)}
-                  placeholder="Texto do resumo em parágrafo único (150 a 500 palavras conforme NBR 6028)..."
-                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Palavras-chave (separadas por vírgula)
-                </label>
-                <input
-                  type="text"
-                  value={metadata.keywords.join(', ')}
-                  onChange={(e) =>
-                    updateField(
-                      'keywords',
-                      e.target.value.split(',').map((k) => k.trim()),
-                    )
-                  }
-                  placeholder="Ex: ABNT, Typst, Editor Acadêmico"
-                  className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div className="pt-2 border-t border-neutral-100">
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Abstract (Língua Estrangeira, Opcional)
-                </label>
-                <textarea
-                  rows={3}
-                  value={metadata.foreignAbstract || ''}
-                  onChange={(e) => updateField('foreignAbstract', e.target.value)}
-                  placeholder="English abstract..."
-                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600 mb-1.5"
-                />
-                <input
-                  type="text"
-                  value={(metadata.foreignKeywords ?? []).join(', ')}
-                  onChange={(e) =>
-                    updateField(
-                      'foreignKeywords',
-                      e.target.value.split(',').map((k) => k.trim()),
-                    )
-                  }
-                  placeholder="Keywords separated by comma"
-                  className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Seção Referências */}
         <div className="p-3">
@@ -745,133 +871,80 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Seção Pós-Textuais Opcionais (Apêndices e Anexos) */}
-        <div className="p-3">
-          <button
-            onClick={() => setOpenPosTextual(!openPosTextual)}
-            className="w-full flex items-center justify-between text-left text-xs font-semibold text-neutral-700 py-1.5 hover:text-neutral-900"
-          >
-            <span className="flex items-center gap-2">
-              <Layers className="w-3.5 h-3.5 text-neutral-400" />
-              Apêndices & Anexos (Pós-Textual)
-            </span>
-            {openPosTextual ? (
-              <ChevronDown className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronRight className="w-3.5 h-3.5" />
-            )}
-          </button>
-
-          {openPosTextual && (
-            <div className="space-y-3 mt-2.5 pl-2 text-xs">
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Glossário (Definição de termos técnicos, Opcional)
-                </label>
-                <textarea
-                  rows={2}
-                  value={metadata.glossary || ''}
-                  onChange={(e) => updateField('glossary', e.target.value)}
-                  placeholder="Ex: WebAssembly: Formato de instrução binária para execução na web..."
-                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Apêndices (Elaborados pelo autor, Opcional)
-                </label>
-                <textarea
-                  rows={3}
-                  value={metadata.appendices || ''}
-                  onChange={(e) => updateField('appendices', e.target.value)}
-                  placeholder="Ex: APÊNDICE A - Questionário aplicado aos participantes..."
-                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                  Anexos (Documentos de terceiros, Opcional)
-                </label>
-                <textarea
-                  rows={3}
-                  value={metadata.annexes || ''}
-                  onChange={(e) => updateField('annexes', e.target.value)}
-                  placeholder="Ex: ANEXO A - Parecer do Comitê de Ética..."
-                  className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Seção Verificador ABNT (Linter) */}
-        <div className="p-3">
-          <button
-            onClick={() => setOpenLinter(!openLinter)}
-            className="w-full flex items-center justify-between text-left text-xs font-semibold text-neutral-700 py-1.5 hover:text-neutral-900"
-          >
-            <span className="flex items-center gap-2">
-              <ShieldCheck
-                className={`w-3.5 h-3.5 ${
-                  warnings.length === 0 ? 'text-emerald-600' : 'text-amber-500'
-                }`}
-              />
-              <span>Verificador ABNT ({warnings.length})</span>
-            </span>
-            {openLinter ? (
-              <ChevronDown className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronRight className="w-3.5 h-3.5" />
-            )}
-          </button>
-
-          {openLinter && (
-            <div className="mt-2 space-y-1.5 pl-2">
-              {warnings.length === 0 ? (
-                <div className="p-2.5 rounded-md bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800 flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Tudo em conformidade com as regras verificadas da ABNT!</span>
-                </div>
+        {capabilities.showPostTextuals && (
+          <div className="p-3">
+            <button
+              onClick={() => setOpenPosTextual(!openPosTextual)}
+              className="w-full flex items-center justify-between text-left text-xs font-semibold text-neutral-700 py-1.5 hover:text-neutral-900"
+            >
+              <span className="flex items-center gap-2">
+                <Layers className="w-3.5 h-3.5 text-neutral-400" />
+                Apêndices & Anexos (Pós-Textual)
+              </span>
+              {openPosTextual ? (
+                <ChevronDown className="w-3.5 h-3.5" />
               ) : (
-                warnings.map((w) => (
-                  <div
-                    key={w.id}
-                    className={`p-2 rounded-md border text-[11px] space-y-0.5 ${
-                      w.severity === 'warning'
-                        ? 'bg-amber-50/80 border-amber-200 text-amber-900'
-                        : 'bg-blue-50/60 border-blue-200 text-blue-900'
-                    }`}
-                  >
-                    <div className="font-semibold flex items-center gap-1.5">
-                      {w.severity === 'warning' ? (
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      ) : (
-                        <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      )}
-                      <span>{w.title}</span>
-                    </div>
-                    <p className="text-[10px] opacity-85 leading-snug pl-5">
-                      {w.description}
-                    </p>
-                  </div>
-                ))
+                <ChevronRight className="w-3.5 h-3.5" />
               )}
+            </button>
 
-              {onOpenAbntGuide && (
-                <button
-                  type="button"
-                  onClick={onOpenAbntGuide}
-                  className="w-full mt-2.5 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-neutral-50 dark:hover:bg-neutral-750 transition-colors shadow-2xs"
-                  title="Consultar resumo rápido das normas ABNT atendidas (NBR 14724, 10520, 6023, 6028)"
-                >
-                  <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>Guia de Normas ABNT</span>
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+            {openPosTextual && (
+              <div className="space-y-3 mt-2.5 pl-2 text-xs">
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Glossário (Definição de termos técnicos, Opcional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={metadata.glossary || ''}
+                    onChange={(e) => updateField('glossary', e.target.value)}
+                    placeholder="Ex: WebAssembly: Formato de instrução binária para execução na web..."
+                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Apêndices (Elaborados pelo autor, Opcional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={metadata.appendices || ''}
+                    onChange={(e) => updateField('appendices', e.target.value)}
+                    placeholder="Ex: APÊNDICE A - Questionário aplicado aos participantes..."
+                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
+                    Anexos (Documentos de terceiros, Opcional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={metadata.annexes || ''}
+                    onChange={(e) => updateField('annexes', e.target.value)}
+                    placeholder="Ex: ANEXO A - Parecer do Comitê de Ética..."
+                    className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Campos preenchidos mas ocultos pelo modelo atual (Zero Perda de Dados) */}
+        <SidebarPreservedFieldsSection
+          fields={preservedHiddenFields}
+          templateBadgeLabel={capabilities.badgeLabel}
+        />
+
+        {/* Verificador Normativo & Guia Contextual */}
+        <SidebarLinterSection
+          capabilities={capabilities}
+          warnings={warnings}
+          onOpenAbntGuide={onOpenAbntGuide}
+        />
       </div>
     </aside>
   );

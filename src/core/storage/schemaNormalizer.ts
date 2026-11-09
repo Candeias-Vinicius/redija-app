@@ -12,6 +12,7 @@ import {
   DEFAULT_TEMPLATE_CONFIG,
   ProjectTemplateType,
   NormPresetId,
+  SidebarConfig,
 } from '@/types/document';
 
 /**
@@ -320,11 +321,26 @@ export function normalizeProject(raw: unknown): DocumentProject {
       ? data.deletedAt
       : null;
 
+  // Configuração opcional da aba lateral (Sidebar)
+  let sidebarConfig: SidebarConfig | undefined = undefined;
+  if (data.sidebarConfig && typeof data.sidebarConfig === 'object') {
+    const rawSb = data.sidebarConfig as Record<string, unknown>;
+    sidebarConfig = {
+      isCustomized: Boolean(rawSb.isCustomized),
+      hiddenFieldIds: Array.isArray(rawSb.hiddenFieldIds)
+        ? rawSb.hiddenFieldIds
+            .filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+            .map((f) => f.trim())
+        : undefined,
+    };
+  }
+
   return {
     id,
     name,
     templateType,
     templateConfig,
+    ...(sidebarConfig ? { sidebarConfig } : {}),
     metadata,
     blocks,
     references,

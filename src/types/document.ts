@@ -168,11 +168,17 @@ export type ProjectTemplateType =
   | 'poster'
   | 'universe_custom';
 
+export interface SidebarConfig {
+  isCustomized?: boolean;
+  hiddenFieldIds?: string[];
+}
+
 export interface DocumentProject {
   id: string;
   name: string;
   templateType?: ProjectTemplateType;
   templateConfig?: TemplateConfig;
+  sidebarConfig?: SidebarConfig;
   metadata: DocumentMetadata;
   blocks: Block[];
   references: AcademicReference[];
