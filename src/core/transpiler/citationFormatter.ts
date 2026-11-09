@@ -12,6 +12,9 @@ export interface ShortCitationOptions {
 
 export type CitationCallMode = 'parenthetical' | 'narrative';
 
+/** Posição de uma chamada parentética dentro de um grupo NBR 10520. */
+export type ParentheticalGroupRole = 'solo' | 'first' | 'middle' | 'last';
+
 const MARKUP_ESCAPE_FOR_CITE = /[\\#*_`$@<>[\]~/=+-]/g;
 
 function escapeCiteMarkup(text: string): string {
@@ -209,6 +212,78 @@ export function formatShortCitation(
 }
 
 /**
+ * Formatos autor-data (ABNT / APA-like) que admitem agrupamento NBR 10520 §6.1.8:
+ * várias obras no mesmo parêntese, separadas por ponto e vírgula.
+ * Formatos numéricos (`ieee_numeric`, `superscript`) ficam de fora.
+ */
+export function isGroupableParentheticalFormat(format?: CitationFormat): boolean {
+  return format !== 'ieee_numeric' && format !== 'superscript';
+}
+
+/**
+ * Corpo da chamada parentética sem os parênteses externos.
+ * Ex.: `SILVA, 2024` | `Silva; Souza, 2023` | `Silva & Souza 2023`.
+ */
+export function formatParentheticalCitationBody(
+  ref: AcademicReference,
+  styleOrOptions: 'uppercase' | 'titlecase' | CitationFormat | ShortCitationOptions = 'uppercase',
+  pageArg?: string,
+  refNumberArg?: number,
+): string {
+  const full = formatShortCitation(ref, styleOrOptions, pageArg, refNumberArg);
+  if (full.startsWith('(') && full.endsWith(')')) {
+    return full.slice(1, -1);
+  }
+  return full;
+}
+
+/**
+ * Agrupa várias obras parentéticas no padrão NBR 10520:
+ * `(AutorA, anoA; AutorB, anoB; AutorC, anoC)`.
+ */
+export function formatGroupedParentheticalCitations(
+  items: Array<{ ref: AcademicReference; page?: string; refNumber?: number }>,
+  format?: CitationFormat,
+): string {
+  if (items.length === 0) return '';
+  if (items.length === 1) {
+    const only = items[0];
+    return formatShortCitation(only.ref, {
+      format,
+      page: only.page,
+      refNumber: only.refNumber,
+    });
+  }
+
+  const bodies = items.map((item) =>
+    formatParentheticalCitationBody(item.ref, {
+      format,
+      page: item.page,
+      refNumber: item.refNumber,
+    }),
+  );
+  return `(${bodies.join('; ')})`;
+}
+
+/**
+ * Segmento visual de uma citação dentro de um grupo parentético (editor TipTap).
+ * `first` → `(Silva, 2020;` · `middle` → `Souza, 2021;` · `last` → `Almeida, 2022)`.
+ */
+export function formatParentheticalGroupSegment(
+  ref: AcademicReference,
+  role: ParentheticalGroupRole,
+  options: ShortCitationOptions = {},
+): string {
+  if (role === 'solo') {
+    return formatShortCitation(ref, options);
+  }
+  const body = formatParentheticalCitationBody(ref, options);
+  if (role === 'first') return `(${body};`;
+  if (role === 'middle') return `${body};`;
+  return `${body})`;
+}
+
+/**
  * Gera a chamada narrativa com o autor na frase:
  * `Silva (2023)`, `Silva e Souza (2023)` ou `Silva et al. (2023, p. 42)`.
  */
@@ -223,6 +298,10 @@ export function formatNarrativeCitation(
   return `${authorLabel} (${year}${pagePart})`;
 }
 
+function toTypstCitationMarkup(label: string): string {
+  return escapeCiteMarkup(label).replace(/\b(et\s+al\.)/gi, '#emph[et al.]');
+}
+
 /**
  * Resolve simultaneamente o rótulo de exibição na UI (editor TipTap) e a marcação
  * Typst correspondente para um token `<cite>` reativo.
@@ -234,12 +313,15 @@ export function resolveCitationDisplay(
     mode?: CitationCallMode;
     page?: string;
     refNumber?: number;
+    /** Papel no agrupamento NBR 10520 de parentéticas consecutivas (somente autor-data). */
+    groupRole?: ParentheticalGroupRole;
   } = {},
 ): { label: string; typst: string } {
   const format = options.format ?? 'abnt_upper';
   const mode: CitationCallMode = options.mode === 'narrative' ? 'narrative' : 'parenthetical';
   const cleanPage = options.page?.trim() || '';
   const refNumber = Math.max(1, options.refNumber ?? 1);
+  const groupRole = options.groupRole ?? 'solo';
 
   if (format === 'ieee_numeric') {
     const pageSuffix = cleanPage ? `, p. ${escapeCiteMarkup(cleanPage)}` : '';
@@ -280,11 +362,26 @@ export function resolveCitationDisplay(
     };
   }
 
-  const label =
-    mode === 'narrative'
-      ? formatNarrativeCitation(ref, cleanPage || undefined, format)
-      : formatShortCitation(ref, { format, page: cleanPage || undefined, refNumber });
+  if (mode === 'narrative') {
+    const label = formatNarrativeCitation(ref, cleanPage || undefined, format);
+    return { label, typst: toTypstCitationMarkup(label) };
+  }
 
-  const typst = escapeCiteMarkup(label).replace(/\b(et\s+al\.)/gi, '#emph[et al.]');
-  return { label, typst };
+  const label = formatParentheticalGroupSegment(ref, groupRole, {
+    format,
+    page: cleanPage || undefined,
+    refNumber,
+  });
+  return { label, typst: toTypstCitationMarkup(label) };
+}
+
+/**
+ * Resolve rótulo + Typst para um grupo de parentéticas autor-data (NBR 10520 §6.1.8).
+ */
+export function resolveGroupedParentheticalDisplay(
+  items: Array<{ ref: AcademicReference; page?: string; refNumber?: number }>,
+  format?: CitationFormat,
+): { label: string; typst: string } {
+  const label = formatGroupedParentheticalCitations(items, format);
+  return { label, typst: toTypstCitationMarkup(label) };
 }

@@ -1,14 +1,79 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { NodeViewProps, NodeViewWrapper } from '@tiptap/react';
+import { Editor, NodeViewProps, NodeViewWrapper } from '@tiptap/react';
+import { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { Trash2 } from 'lucide-react';
-import { resolveCitationDisplay, type CitationCallMode } from '@/core/transpiler/citationFormatter';
+import {
+  isGroupableParentheticalFormat,
+  resolveCitationDisplay,
+  type CitationCallMode,
+  type ParentheticalGroupRole,
+} from '@/core/transpiler/citationFormatter';
 import { CitationRenderContext } from './citationRenderContext';
+
+function isWhitespaceOnlyText(node: ProseMirrorNode | null | undefined): boolean {
+  return !!node?.isText && /^\s*$/.test(node.text || '');
+}
+
+function isGroupableParentheticalCite(
+  node: ProseMirrorNode | null | undefined,
+  format: string,
+): boolean {
+  if (!node || node.type.name !== 'citationNode') return false;
+  if (node.attrs.citeMode === 'narrative') return false;
+  return isGroupableParentheticalFormat(format as never);
+}
+
+/**
+ * Descobre se esta chamada parentética faz parte de um grupo NBR 10520
+ * (várias obras no mesmo parêntese, separadas só por whitespace).
+ */
+function resolveParentheticalGroupRole(
+  editor: Editor | null | undefined,
+  getPos: (() => number | undefined) | boolean | undefined,
+  citeMode: CitationCallMode,
+  format: string,
+): ParentheticalGroupRole {
+  if (citeMode !== 'parenthetical' || !isGroupableParentheticalFormat(format as never)) {
+    return 'solo';
+  }
+  if (!editor || typeof getPos !== 'function') return 'solo';
+
+  const pos = getPos();
+  if (typeof pos !== 'number') return 'solo';
+
+  const $pos = editor.state.doc.resolve(pos);
+  const index = $pos.index();
+  const parent = $pos.parent;
+
+  const hasGroupableNeighbor = (from: number, step: 1 | -1): boolean => {
+    let i = from;
+    while (i >= 0 && i < parent.childCount) {
+      const child = parent.child(i);
+      if (isWhitespaceOnlyText(child)) {
+        i += step;
+        continue;
+      }
+      return isGroupableParentheticalCite(child, format);
+    }
+    return false;
+  };
+
+  const hasPrev = hasGroupableNeighbor(index - 1, -1);
+  const hasNext = hasGroupableNeighbor(index + 1, 1);
+
+  if (!hasPrev && !hasNext) return 'solo';
+  if (!hasPrev && hasNext) return 'first';
+  if (hasPrev && hasNext) return 'middle';
+  return 'last';
+}
 
 export const CitationNodeView: React.FC<NodeViewProps> = ({
   node,
   updateAttributes,
   deleteNode,
   selected,
+  getPos,
+  editor,
 }) => {
   const { references, refIndexMap, citationFormat } = useContext(CitationRenderContext);
   const [isOpen, setIsOpen] = useState(false);
@@ -23,6 +88,7 @@ export const CitationNodeView: React.FC<NodeViewProps> = ({
 
   const matchedRef = references.find((r) => r.id === citeId);
   const refNumber = refIndexMap.get(citeId) ?? 1;
+  const groupRole = resolveParentheticalGroupRole(editor, getPos, citeMode, citationFormat);
 
   const display = matchedRef
     ? resolveCitationDisplay(matchedRef, {
@@ -30,6 +96,7 @@ export const CitationNodeView: React.FC<NodeViewProps> = ({
         mode: citeMode,
         page: citePage,
         refNumber,
+        groupRole,
       })
     : null;
 
@@ -54,6 +121,8 @@ export const CitationNodeView: React.FC<NodeViewProps> = ({
           mode: nextMode,
           page: cleanPage,
           refNumber,
+          // fallbackLabel guarda a forma solo para o HTML exportado / parse
+          groupRole: 'solo',
         })
       : null;
     updateAttributes({
@@ -63,11 +132,15 @@ export const CitationNodeView: React.FC<NodeViewProps> = ({
     });
   };
 
+  const isGrouped = groupRole !== 'solo';
+
   return (
     <NodeViewWrapper
       as="span"
       ref={containerRef}
-      className="relative inline-block align-baseline mx-0.5 select-none"
+      className={`relative inline-block align-baseline select-none ${
+        isGrouped ? 'mx-0' : 'mx-0.5'
+      }`}
       contentEditable={false}
     >
       <button
@@ -83,7 +156,15 @@ export const CitationNodeView: React.FC<NodeViewProps> = ({
             ? `${matchedRef.authors} — ${matchedRef.title} (${matchedRef.year}) • Clique para editar chamada/página`
             : 'Referência não encontrada na bibliografia atual'
         }
-        className={`inline-flex items-center px-1.5 py-0.2 rounded text-[12px] font-semibold transition-colors cursor-pointer ${
+        className={`inline-flex items-center px-1.5 py-0.2 text-[12px] font-semibold transition-colors cursor-pointer ${
+          isGrouped
+            ? groupRole === 'first'
+              ? 'rounded-l text-right'
+              : groupRole === 'last'
+                ? 'rounded-r text-left'
+                : 'rounded-none'
+            : 'rounded'
+        } ${
           !matchedRef
             ? 'bg-red-50 text-red-700 border border-red-300'
             : selected || isOpen
