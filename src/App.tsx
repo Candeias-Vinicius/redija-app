@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { FolderOpen, Plus, Upload } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
@@ -16,9 +16,12 @@ import { BackupNoticeBanner } from '@/components/BackupNoticeBanner';
 import { LoginScreen } from '@/components/LoginScreen';
 import { DocsPage } from '@/components/docs/DocsPage';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { CommentsDrawer } from '@/components/comments/CommentsDrawer';
 import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
 import { isBetaNoticeDismissed } from '@/core/version';
 import { AcademicReference, DEFAULT_TEMPLATE_CONFIG, DocumentProject } from '@/types/document';
+import { getEffectiveUserRole, ProjectRole } from '@/types/members';
+import { CommentAuthor, CommentThread } from '@/types/comments';
 import { type ContextualGuideMode } from '@/core/templates/templateCapabilities';
 import { useAppRoute } from '@/hooks/useAppRoute';
 import { usePaneLayout } from '@/hooks/usePaneLayout';
@@ -49,6 +52,8 @@ export const App: React.FC = () => {
   const [isBetaNoticeOpen, setIsBetaNoticeOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
+  const [isCommentsDrawerOpen, setIsCommentsDrawerOpen] = useState(false);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
 
   // Autenticação Google e perfil convidado local
   const {
@@ -103,6 +108,10 @@ export const App: React.FC = () => {
     broadcastCursor,
     broadcastBlocksSync,
     broadcastBlockUpdate,
+    broadcastCommentAdd,
+    broadcastCommentReply,
+    broadcastCommentResolve,
+    broadcastCommentDelete,
   } = useRealtimeCollab({
     isAuthenticated,
     user,
@@ -138,6 +147,11 @@ export const App: React.FC = () => {
     handlePermanentDelete,
     handleExportBackup,
     handleImportBackup,
+    handleAddCommentThread,
+    handleAddCommentReply,
+    handleToggleResolveComment,
+    handleDeleteCommentThread,
+    handleUpdateProjectMembers,
   } = useProjectWorkspace({
     project,
     setProject,
@@ -204,6 +218,90 @@ export const App: React.FC = () => {
     setIsGuestMode,
     onResetWorkspace: handleResetSessionWorkspace,
   });
+
+  const effectiveUserRole = useMemo<ProjectRole>(
+    () => getEffectiveUserRole(project, user?.email),
+    [project, user?.email]
+  );
+
+  const currentCommentAuthor = useMemo<CommentAuthor>(
+    () => ({
+      id: user?.id || 'guest',
+      name: user?.name || (isGuestMode ? 'Convidado' : 'Usuário'),
+      email: user?.email || 'local',
+      picture: user?.picture,
+      role: effectiveUserRole,
+    }),
+    [user, isGuestMode, effectiveUserRole]
+  );
+
+  const handleAddCommentFromEditor = useCallback(
+    (blockId: string, commentId: string, highlightedText: string) => {
+      const userPrompt = window.prompt('Digite seu comentário ou apontamento para este trecho:');
+      if (userPrompt && userPrompt.trim()) {
+        const newThread: CommentThread = {
+          id: commentId,
+          blockId,
+          highlightedText,
+          author: currentCommentAuthor,
+          content: userPrompt.trim(),
+          createdAt: new Date().toISOString(),
+          resolved: false,
+          replies: [],
+        };
+        handleAddCommentThread(newThread);
+        broadcastCommentAdd(newThread);
+        setActiveCommentId(commentId);
+        setIsCommentsDrawerOpen(true);
+      }
+    },
+    [currentCommentAuthor, handleAddCommentThread, broadcastCommentAdd]
+  );
+
+  const handleReplyComment = useCallback(
+    (threadId: string, content: string) => {
+      const reply = {
+        id: `rep_${crypto.randomUUID().slice(0, 8)}`,
+        author: currentCommentAuthor,
+        content,
+        createdAt: new Date().toISOString(),
+      };
+      handleAddCommentReply(threadId, reply);
+      broadcastCommentReply(threadId, reply);
+    },
+    [currentCommentAuthor, handleAddCommentReply, broadcastCommentReply]
+  );
+
+  const handleToggleResolve = useCallback(
+    (threadId: string) => {
+      handleToggleResolveComment(threadId, currentCommentAuthor);
+      const target = (project.comments || []).find((c) => c.id === threadId);
+      broadcastCommentResolve(threadId, !target?.resolved, currentCommentAuthor);
+    },
+    [project.comments, currentCommentAuthor, handleToggleResolveComment, broadcastCommentResolve]
+  );
+
+  const handleDeleteThread = useCallback(
+    (threadId: string) => {
+      handleDeleteCommentThread(threadId);
+      broadcastCommentDelete(threadId);
+    },
+    [handleDeleteCommentThread, broadcastCommentDelete]
+  );
+
+  const handleOpenCommentFromEditor = useCallback((commentId: string) => {
+    setActiveCommentId(commentId);
+    setIsCommentsDrawerOpen(true);
+  }, []);
+
+  const handleSelectThreadFromDrawer = useCallback(
+    (threadId: string) => {
+      setActiveCommentId(threadId);
+      const el = document.querySelector(`[data-comment-id="${threadId}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    },
+    []
+  );
 
   // Exibição do aviso de boas-vindas do Beta no primeiro acesso do usuário
   useEffect(() => {
@@ -299,6 +397,10 @@ export const App: React.FC = () => {
         onExitGuestMode={handleExitGuestMode}
         onOpenShareModal={() => setIsShareModalOpen(true)}
         onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+        onOpenCommentsDrawer={() => setIsCommentsDrawerOpen((prev) => !prev)}
+        commentsCount={(project.comments || []).length}
+        pendingCommentsCount={(project.comments || []).filter((c) => !c.resolved).length}
+        currentUserRole={effectiveUserRole}
       />
 
       {projects.length === 0 ? (
@@ -362,6 +464,7 @@ export const App: React.FC = () => {
                   setIsWelcomeModalOpen(true);
                 }}
                 onMinimize={toggleSidebar}
+                isReadOnly={effectiveUserRole === 'reader'}
                 widthPx={!showEditor && !showPreview ? window.innerWidth : sidebarWidth}
               />
             </ErrorBoundary>
@@ -400,6 +503,7 @@ export const App: React.FC = () => {
                 referenceOrdering={project.templateConfig?.referenceOrdering}
                 isFullWidth={!showSidebar && !showPreview}
                 activeCollaborators={activeCollaborators}
+                currentUserRole={effectiveUserRole}
                 onOpenReferenceModal={() => {
                   setEditingReference(null);
                   setIsModalOpen(true);
@@ -407,6 +511,8 @@ export const App: React.FC = () => {
                 onChangeBlocks={handleBlocksChange}
                 onFocusBlock={broadcastCursor}
                 onMinimize={toggleEditor}
+                onAddComment={handleAddCommentFromEditor}
+                onOpenComment={handleOpenCommentFromEditor}
               />
             </ErrorBoundary>
           )}
@@ -448,6 +554,22 @@ export const App: React.FC = () => {
                 onMinimize={togglePreview}
               />
             </ErrorBoundary>
+          )}
+
+          {/* Painel Lateral Direito: Comentários Ancorados */}
+          {isCommentsDrawerOpen && (
+            <CommentsDrawer
+              isOpen={isCommentsDrawerOpen}
+              onClose={() => setIsCommentsDrawerOpen(false)}
+              comments={project.comments || []}
+              activeCommentId={activeCommentId}
+              currentUser={currentCommentAuthor}
+              canComment={effectiveUserRole !== 'reader'}
+              onAddReply={handleReplyComment}
+              onToggleResolve={handleToggleResolve}
+              onDeleteThread={handleDeleteThread}
+              onSelectThread={handleSelectThreadFromDrawer}
+            />
           )}
         </div>
       )}
@@ -492,6 +614,7 @@ export const App: React.FC = () => {
         getAccessToken={getValidAccessToken}
         currentUserEmail={user?.email}
         onEnsureProjectSavedToDrive={handleEnsureProjectSavedToDrive}
+        onMembersUpdated={handleUpdateProjectMembers}
       />
 
       <AccountSettingsModal

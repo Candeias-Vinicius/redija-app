@@ -1,4 +1,4 @@
-import { Node } from '@tiptap/core';
+import { Mark, Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { CitationNodeView } from './CitationNodeView';
 import { InlineMathNodeView } from './InlineMathNodeView';
@@ -100,5 +100,38 @@ export const InlineMathNode = Node.create({
 
   addNodeView() {
     return ReactNodeViewRenderer(InlineMathNodeView);
+  },
+});
+
+export const CommentMark = Mark.create({
+  name: 'comment',
+  inclusive: false,
+
+  addAttributes() {
+    return {
+      commentId: {
+        default: null,
+        parseHTML: (el) => el.getAttribute('data-comment-id'),
+        renderHTML: (attrs) => (attrs.commentId ? { 'data-comment-id': attrs.commentId } : {}),
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      { tag: 'mark[data-comment-id]' },
+      { tag: 'span[data-comment-id]' },
+    ];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      'mark',
+      mergeAttributes(HTMLAttributes, {
+        class:
+          'redija-comment-highlight bg-amber-100 dark:bg-amber-950/60 border-b-2 border-amber-500 cursor-pointer rounded-xs px-0.5 transition-colors hover:bg-amber-200 dark:hover:bg-amber-900/80',
+      }),
+      0,
+    ];
   },
 });

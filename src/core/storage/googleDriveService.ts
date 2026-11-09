@@ -23,7 +23,7 @@ export interface Collaborator {
   id: string; // Permission ID do Google
   displayName: string;
   emailAddress: string;
-  role: 'owner' | 'writer' | 'reader';
+  role: 'owner' | 'writer' | 'commenter' | 'reader';
   photoLink?: string;
 }
 
@@ -40,7 +40,7 @@ interface GoogleDrivePermissionApi {
   id: string;
   displayName?: string;
   emailAddress?: string;
-  role?: 'owner' | 'writer' | 'reader';
+  role?: 'owner' | 'writer' | 'commenter' | 'reader';
   photoLink?: string;
 }
 
@@ -718,16 +718,49 @@ export async function deleteAllUserDriveProjects(accessToken: string): Promise<n
 // COMPARTILHAMENTO E PERMISSÕES (Google Drive Permissions API)
 // ============================================================================
 
+// Estado em memória para persistir alterações de colaboradores no modo mock de desenvolvimento
+let devMockCollaborators: Collaborator[] = [
+  {
+    id: 'perm_owner',
+    displayName: 'Vinicius Candeias (Você)',
+    emailAddress: 'vinicandeias@gmail.com',
+    role: 'owner',
+  },
+  {
+    id: 'perm_collab_1',
+    displayName: 'Prof. Dr. Orientador',
+    emailAddress: 'orientador@universidade.edu.br',
+    role: 'commenter',
+  },
+];
+
 /**
- * Convida um usuário via e-mail para ter permissão de escrita/edição no projeto.
+ * Convida um usuário via e-mail para ter permissão (escrita/comentário/leitura) no projeto.
  */
 export async function inviteCollaborator(
   fileId: string,
   emailAddress: string,
-  accessToken: string
+  roleOrToken: 'writer' | 'commenter' | 'reader' | string,
+  optionalToken?: string
 ): Promise<void> {
+  const role: 'writer' | 'commenter' | 'reader' =
+    optionalToken !== undefined &&
+    (roleOrToken === 'writer' || roleOrToken === 'commenter' || roleOrToken === 'reader')
+      ? roleOrToken
+      : 'writer';
+  const accessToken = optionalToken !== undefined ? optionalToken : roleOrToken;
+
   if (accessToken.startsWith('mock_dev_token')) {
     await new Promise((r) => setTimeout(r, 400));
+    const trimmed = emailAddress.trim();
+    if (!devMockCollaborators.some((c) => c.emailAddress.toLowerCase() === trimmed.toLowerCase())) {
+      devMockCollaborators.push({
+        id: `perm_${Date.now()}`,
+        displayName: trimmed.split('@')[0],
+        emailAddress: trimmed,
+        role,
+      });
+    }
     return;
   }
 
@@ -740,7 +773,7 @@ export async function inviteCollaborator(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        role: 'writer',
+        role,
         type: 'user',
         emailAddress: emailAddress.trim(),
       }),
@@ -754,6 +787,44 @@ export async function inviteCollaborator(
 }
 
 /**
+ * Atualiza o papel de permissão de um colaborador existente (ex: mudar de 'commenter' para 'writer' ou 'reader').
+ */
+export async function updateCollaboratorRole(
+  fileId: string,
+  permissionId: string,
+  role: 'writer' | 'commenter' | 'reader',
+  accessToken: string
+): Promise<void> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    await new Promise((r) => setTimeout(r, 200));
+    const target = devMockCollaborators.find((c) => c.id === permissionId);
+    if (target) {
+      target.role = role;
+    }
+    return;
+  }
+
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}/permissions/${permissionId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        role,
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || 'Erro ao atualizar a permissão do colaborador.');
+  }
+}
+
+/**
  * Lista os colaboradores com acesso ao projeto.
  */
 export async function listCollaborators(
@@ -761,20 +832,7 @@ export async function listCollaborators(
   accessToken: string
 ): Promise<Collaborator[]> {
   if (accessToken.startsWith('mock_dev_token')) {
-    return [
-      {
-        id: 'perm_owner',
-        displayName: 'Vinicius Candeias (Você)',
-        emailAddress: 'vinicandeias@gmail.com',
-        role: 'owner',
-      },
-      {
-        id: 'perm_collab_1',
-        displayName: 'Prof. Dr. Orientador',
-        emailAddress: 'orientador@universidade.edu.br',
-        role: 'writer',
-      },
-    ];
+    return [...devMockCollaborators];
   }
 
   const fields = encodeURIComponent('permissions(id, displayName, emailAddress, role, photoLink)');
@@ -810,6 +868,7 @@ export async function removeCollaborator(
 ): Promise<void> {
   if (accessToken.startsWith('mock_dev_token')) {
     await new Promise((r) => setTimeout(r, 300));
+    devMockCollaborators = devMockCollaborators.filter((c) => c.id !== permissionId);
     return;
   }
   const res = await fetch(

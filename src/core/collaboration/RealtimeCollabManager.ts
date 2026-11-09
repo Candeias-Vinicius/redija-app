@@ -4,6 +4,7 @@
 // =====================================================================
 
 import { Block } from '@/types/document';
+import { CommentAuthor, CommentReply, CommentThread } from '@/types/comments';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { Peer, DataConnection } from 'peerjs';
 
@@ -32,6 +33,16 @@ export type CollabMessage =
       senderPeerId: string;
     }
   | { type: 'blocks_sync'; blocks: Block[]; senderPeerId: string }
+  | { type: 'comment_thread_add'; thread: CommentThread; senderPeerId: string }
+  | { type: 'comment_thread_reply'; threadId: string; reply: CommentReply; senderPeerId: string }
+  | {
+      type: 'comment_thread_resolve';
+      threadId: string;
+      resolved: boolean;
+      resolvedBy?: CommentAuthor;
+      senderPeerId: string;
+    }
+  | { type: 'comment_thread_delete'; threadId: string; senderPeerId: string }
   | { type: 'peer_leave'; peerId: string };
 
 export type RemoteBlockUpdateHandler = (update: {
@@ -41,6 +52,14 @@ export type RemoteBlockUpdateHandler = (update: {
 }) => void;
 export type RemoteBlocksSyncHandler = (blocks: Block[]) => void;
 export type PresenceChangeHandler = (presences: CollaboratorPresence[]) => void;
+export type RemoteCommentAddHandler = (thread: CommentThread) => void;
+export type RemoteCommentReplyHandler = (threadId: string, reply: CommentReply) => void;
+export type RemoteCommentResolveHandler = (
+  threadId: string,
+  resolved: boolean,
+  resolvedBy?: CommentAuthor
+) => void;
+export type RemoteCommentDeleteHandler = (threadId: string) => void;
 
 const COLLAB_COLORS_COUNT = 5;
 const HEARTBEAT_INTERVAL_MS = 4000;
@@ -62,6 +81,10 @@ export class RealtimeCollabManager {
   private onRemoteBlockUpdateHandlers: Set<RemoteBlockUpdateHandler> = new Set();
   private onRemoteBlocksSyncHandlers: Set<RemoteBlocksSyncHandler> = new Set();
   private onPresenceChangeHandlers: Set<PresenceChangeHandler> = new Set();
+  private onRemoteCommentAddHandlers: Set<RemoteCommentAddHandler> = new Set();
+  private onRemoteCommentReplyHandlers: Set<RemoteCommentReplyHandler> = new Set();
+  private onRemoteCommentResolveHandlers: Set<RemoteCommentResolveHandler> = new Set();
+  private onRemoteCommentDeleteHandlers: Set<RemoteCommentDeleteHandler> = new Set();
 
   private heartbeatTimer: number | null = null;
   private cleanupTimer: number | null = null;
@@ -189,6 +212,45 @@ export class RealtimeCollabManager {
     this.sendPresence();
   }
 
+  public broadcastCommentAdd(thread: CommentThread): void {
+    this.broadcast({
+      type: 'comment_thread_add',
+      thread,
+      senderPeerId: this.myPeerId,
+    });
+  }
+
+  public broadcastCommentReply(threadId: string, reply: CommentReply): void {
+    this.broadcast({
+      type: 'comment_thread_reply',
+      threadId,
+      reply,
+      senderPeerId: this.myPeerId,
+    });
+  }
+
+  public broadcastCommentResolve(
+    threadId: string,
+    resolved: boolean,
+    resolvedBy?: CommentAuthor
+  ): void {
+    this.broadcast({
+      type: 'comment_thread_resolve',
+      threadId,
+      resolved,
+      resolvedBy,
+      senderPeerId: this.myPeerId,
+    });
+  }
+
+  public broadcastCommentDelete(threadId: string): void {
+    this.broadcast({
+      type: 'comment_thread_delete',
+      threadId,
+      senderPeerId: this.myPeerId,
+    });
+  }
+
   // ==========================================================================
   // INSCRIÇÃO DE EVENTOS
   // ==========================================================================
@@ -206,6 +268,26 @@ export class RealtimeCollabManager {
   public onPresenceChange(handler: PresenceChangeHandler): () => void {
     this.onPresenceChangeHandlers.add(handler);
     return () => this.onPresenceChangeHandlers.delete(handler);
+  }
+
+  public onRemoteCommentAdd(handler: RemoteCommentAddHandler): () => void {
+    this.onRemoteCommentAddHandlers.add(handler);
+    return () => this.onRemoteCommentAddHandlers.delete(handler);
+  }
+
+  public onRemoteCommentReply(handler: RemoteCommentReplyHandler): () => void {
+    this.onRemoteCommentReplyHandlers.add(handler);
+    return () => this.onRemoteCommentReplyHandlers.delete(handler);
+  }
+
+  public onRemoteCommentResolve(handler: RemoteCommentResolveHandler): () => void {
+    this.onRemoteCommentResolveHandlers.add(handler);
+    return () => this.onRemoteCommentResolveHandlers.delete(handler);
+  }
+
+  public onRemoteCommentDelete(handler: RemoteCommentDeleteHandler): () => void {
+    this.onRemoteCommentDeleteHandlers.add(handler);
+    return () => this.onRemoteCommentDeleteHandlers.delete(handler);
   }
 
   public getActivePresences(): CollaboratorPresence[] {
@@ -431,6 +513,34 @@ export class RealtimeCollabManager {
         if (validBlocks.length > 0) {
           this.onRemoteBlocksSyncHandlers.forEach((h) => h(validBlocks));
         }
+        break;
+      }
+
+      case 'comment_thread_add': {
+        if (typeof msg.senderPeerId !== 'string' || msg.senderPeerId === this.myPeerId) return;
+        if (!msg.thread || typeof msg.thread !== 'object' || typeof msg.thread.id !== 'string') return;
+        this.onRemoteCommentAddHandlers.forEach((h) => h(msg.thread));
+        break;
+      }
+
+      case 'comment_thread_reply': {
+        if (typeof msg.senderPeerId !== 'string' || msg.senderPeerId === this.myPeerId) return;
+        if (!msg.threadId || !msg.reply || typeof msg.reply !== 'object') return;
+        this.onRemoteCommentReplyHandlers.forEach((h) => h(msg.threadId, msg.reply));
+        break;
+      }
+
+      case 'comment_thread_resolve': {
+        if (typeof msg.senderPeerId !== 'string' || msg.senderPeerId === this.myPeerId) return;
+        if (!msg.threadId || typeof msg.resolved !== 'boolean') return;
+        this.onRemoteCommentResolveHandlers.forEach((h) => h(msg.threadId, msg.resolved, msg.resolvedBy));
+        break;
+      }
+
+      case 'comment_thread_delete': {
+        if (typeof msg.senderPeerId !== 'string' || msg.senderPeerId === this.myPeerId) return;
+        if (!msg.threadId) return;
+        this.onRemoteCommentDeleteHandlers.forEach((h) => h(msg.threadId));
         break;
       }
 

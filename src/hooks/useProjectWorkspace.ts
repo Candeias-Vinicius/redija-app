@@ -8,6 +8,8 @@ import {
   SidebarConfig,
   TemplateConfig,
 } from '@/types/document';
+import type { CommentAuthor, CommentReply, CommentThread } from '@/types/comments';
+import type { ProjectMember } from '@/types/members';
 import { type TemplateCustomizerApplyPayload } from '@/components/TemplateCustomizerModal';
 import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
 import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
@@ -571,6 +573,84 @@ export function useProjectWorkspace({
     [activeOwner, clearHistory, setProject, onProjectImported],
   );
 
+  const handleAddCommentThread = useCallback(
+    (thread: CommentThread) => {
+      setProject((prev) => {
+        const nextComments = [...(prev.comments || []), thread];
+        return {
+          ...prev,
+          comments: nextComments,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+    },
+    [setProject],
+  );
+
+  const handleAddCommentReply = useCallback(
+    (threadId: string, reply: CommentReply) => {
+      setProject((prev) => {
+        const nextComments = (prev.comments || []).map((t) =>
+          t.id === threadId ? { ...t, replies: [...(t.replies || []), reply] } : t,
+        );
+        return {
+          ...prev,
+          comments: nextComments,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+    },
+    [setProject],
+  );
+
+  const handleToggleResolveComment = useCallback(
+    (threadId: string, resolver: CommentAuthor) => {
+      setProject((prev) => {
+        const nextComments = (prev.comments || []).map((t) => {
+          if (t.id !== threadId) return t;
+          const nextResolved = !t.resolved;
+          return {
+            ...t,
+            resolved: nextResolved,
+            resolvedAt: nextResolved ? new Date().toISOString() : undefined,
+            resolvedBy: nextResolved ? resolver : undefined,
+          };
+        });
+        return {
+          ...prev,
+          comments: nextComments,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+    },
+    [setProject],
+  );
+
+  const handleDeleteCommentThread = useCallback(
+    (threadId: string) => {
+      setProject((prev) => {
+        const nextComments = (prev.comments || []).filter((t) => t.id !== threadId);
+        return {
+          ...prev,
+          comments: nextComments,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+    },
+    [setProject],
+  );
+
+  const handleUpdateProjectMembers = useCallback(
+    (members: ProjectMember[]) => {
+      setProject((prev) => ({
+        ...prev,
+        members,
+        updatedAt: new Date().toISOString(),
+      }));
+    },
+    [setProject],
+  );
+
   return {
     projects,
     setProjects,
@@ -595,5 +675,10 @@ export function useProjectWorkspace({
     handlePermanentDelete,
     handleExportBackup,
     handleImportBackup,
+    handleAddCommentThread,
+    handleAddCommentReply,
+    handleToggleResolveComment,
+    handleDeleteCommentThread,
+    handleUpdateProjectMembers,
   };
 }

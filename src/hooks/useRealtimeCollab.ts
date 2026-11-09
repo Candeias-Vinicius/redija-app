@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Block, DocumentProject } from '@/types/document';
+import { CommentAuthor, CommentReply, CommentThread } from '@/types/comments';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { autoMergeProjects } from '@/core/storage/projectMerger';
 import {
@@ -57,10 +58,59 @@ export function useRealtimeCollab({
       });
     });
 
+    const unsubRemoteCommentAdd = realtimeCollab.onRemoteCommentAdd((thread) => {
+      setProject((prev) => {
+        if ((prev.comments || []).some((c) => c.id === thread.id)) return prev;
+        return {
+          ...prev,
+          comments: [...(prev.comments || []), thread],
+        };
+      });
+    });
+
+    const unsubRemoteCommentReply = realtimeCollab.onRemoteCommentReply((threadId, reply) => {
+      setProject((prev) => {
+        const nextComments = (prev.comments || []).map((t) => {
+          if (t.id !== threadId) return t;
+          if ((t.replies || []).some((r) => r.id === reply.id)) return t;
+          return { ...t, replies: [...(t.replies || []), reply] };
+        });
+        return { ...prev, comments: nextComments };
+      });
+    });
+
+    const unsubRemoteCommentResolve = realtimeCollab.onRemoteCommentResolve(
+      (threadId, resolved, resolvedBy) => {
+        setProject((prev) => {
+          const nextComments = (prev.comments || []).map((t) => {
+            if (t.id !== threadId) return t;
+            return {
+              ...t,
+              resolved,
+              resolvedAt: resolved ? new Date().toISOString() : undefined,
+              resolvedBy: resolved ? resolvedBy : undefined,
+            };
+          });
+          return { ...prev, comments: nextComments };
+        });
+      }
+    );
+
+    const unsubRemoteCommentDelete = realtimeCollab.onRemoteCommentDelete((threadId) => {
+      setProject((prev) => {
+        const nextComments = (prev.comments || []).filter((t) => t.id !== threadId);
+        return { ...prev, comments: nextComments };
+      });
+    });
+
     return () => {
       unsubPresence();
       unsubRemoteUpdate();
       unsubRemoteSync();
+      unsubRemoteCommentAdd();
+      unsubRemoteCommentReply();
+      unsubRemoteCommentResolve();
+      unsubRemoteCommentDelete();
       realtimeCollab.disconnect();
     };
   }, [isAuthenticated, user, driveFileId, setProject]);
@@ -80,10 +130,33 @@ export function useRealtimeCollab({
     [],
   );
 
+  const broadcastCommentAdd = useCallback((thread: CommentThread) => {
+    realtimeCollab.broadcastCommentAdd(thread);
+  }, []);
+
+  const broadcastCommentReply = useCallback((threadId: string, reply: CommentReply) => {
+    realtimeCollab.broadcastCommentReply(threadId, reply);
+  }, []);
+
+  const broadcastCommentResolve = useCallback(
+    (threadId: string, resolved: boolean, resolvedBy?: CommentAuthor) => {
+      realtimeCollab.broadcastCommentResolve(threadId, resolved, resolvedBy);
+    },
+    []
+  );
+
+  const broadcastCommentDelete = useCallback((threadId: string) => {
+    realtimeCollab.broadcastCommentDelete(threadId);
+  }, []);
+
   return {
     activeCollaborators,
     broadcastCursor,
     broadcastBlocksSync,
     broadcastBlockUpdate,
+    broadcastCommentAdd,
+    broadcastCommentReply,
+    broadcastCommentResolve,
+    broadcastCommentDelete,
   };
 }

@@ -1,3 +1,6 @@
+import type { ProjectMember } from './members';
+import type { CommentThread } from './comments';
+
 export type BlockType =
   | 'h1'
   | 'h2'
@@ -264,6 +267,10 @@ export interface DocumentProject {
     email?: string;
     photoLink?: string;
   };
+
+  // Gestão de Membros e Comentários Ancorados
+  members?: ProjectMember[];
+  comments?: CommentThread[];
 }
 
 export interface RedijaBackupFile {
