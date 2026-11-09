@@ -6,6 +6,7 @@
 
 import TypstCompilerWorker from './typst.worker?worker';
 import { filterErrors, type FriendlyDiagnostic, type TypstDiagnostic } from './diagnostics';
+import type { RequestedFontDescriptor } from './fontCatalog';
 
 export interface PageDimension {
   pageOffset: number;
@@ -226,6 +227,7 @@ function getWorker(): Worker {
 export async function compileToVector(
   files: Record<string, string>,
   binaryFiles?: Record<string, Uint8Array>,
+  requestedFont?: RequestedFontDescriptor,
 ): Promise<VectorCompileOutput> {
   const worker = getWorker();
   const id = ++requestCounter;
@@ -243,7 +245,7 @@ export async function compileToVector(
     }, WORKER_TIMEOUT_MS);
 
     pendingCompileRequests.set(id, { resolve, timeoutId });
-    worker.postMessage({ id, type: 'compile-vector', files, binaryFiles });
+    worker.postMessage({ id, type: 'compile-vector', files, binaryFiles, requestedFont });
   });
 
   return {
@@ -261,6 +263,7 @@ export async function compileToVector(
 export async function compileToPdf(
   files: Record<string, string>,
   binaryFiles?: Record<string, Uint8Array>,
+  requestedFont?: RequestedFontDescriptor,
 ): Promise<PdfCompileOutput> {
   const worker = getWorker();
   const id = ++requestCounter;
@@ -277,7 +280,7 @@ export async function compileToPdf(
     }, WORKER_TIMEOUT_MS);
 
     pendingCompileRequests.set(id, { resolve, timeoutId });
-    worker.postMessage({ id, type: 'compile-pdf', files, binaryFiles });
+    worker.postMessage({ id, type: 'compile-pdf', files, binaryFiles, requestedFont });
   });
 
   return {

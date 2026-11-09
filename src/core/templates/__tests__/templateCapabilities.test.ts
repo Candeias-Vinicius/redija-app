@@ -136,6 +136,44 @@ describe('templateCapabilities: Matriz de Capacidades e Preservação de Metadad
       expect(getTemplateCapabilities(poster).badgeLabel).toBe('Pôster Modificado');
     });
 
+    it('expõe supportsSidebarFieldPdfSync, guia contextual plural e isSidebarCustomized por modelo', () => {
+      const tcc = createProjectFromTemplate('tcc');
+      const tccCaps = getTemplateCapabilities(tcc);
+      expect(tccCaps.supportsSidebarFieldPdfSync).toBe(true);
+      expect(tccCaps.guideMode).toBe('abnt');
+      expect(tccCaps.guideLabel).toBe('Guia de Normas ABNT');
+
+      tcc.sidebarConfig = { isCustomized: true, hiddenFieldIds: ['dedicatory'] };
+      const tccSidebarCustomCaps = getTemplateCapabilities(tcc);
+      expect(tccSidebarCustomCaps.isSidebarCustomized).toBe(true);
+      expect(tccSidebarCustomCaps.isModified).toBe(true);
+      expect(tccSidebarCustomCaps.badgeLabel).toBe('ABNT Modificado');
+      expect(tccSidebarCustomCaps.preTextualFields).not.toContain('dedicatory');
+
+      const sbc = createProjectFromTemplate('sbc');
+      const sbcCaps = getTemplateCapabilities(sbc);
+      expect(sbcCaps.supportsSidebarFieldPdfSync).toBe(false);
+      expect(sbcCaps.guideMode).toBe('sbc');
+      expect(sbcCaps.guideLabel).toBe('Manual de Submissão SBC');
+
+      const ieee = createProjectFromTemplate('ieee');
+      const ieeeCaps = getTemplateCapabilities(ieee);
+      expect(ieeeCaps.supportsSidebarFieldPdfSync).toBe(false);
+      expect(ieeeCaps.guideMode).toBe('ieee');
+      expect(ieeeCaps.guideLabel).toBe('Diretrizes de Publicação IEEE');
+
+      const poster = createProjectFromTemplate('poster');
+      const posterCaps = getTemplateCapabilities(poster);
+      expect(posterCaps.supportsSidebarFieldPdfSync).toBe(false);
+      expect(posterCaps.guideMode).toBe('poster');
+      expect(posterCaps.guideLabel).toBe('Boas Práticas de Pôster Científico');
+
+      tcc.templateConfig = { ...DEFAULT_TEMPLATE_CONFIG, preset: 'apa_7' };
+      const apaCaps = getTemplateCapabilities(tcc);
+      expect(apaCaps.guideMode).toBe('general');
+      expect(apaCaps.guideLabel).toBe('Dicas de Diagramação e Boas Práticas');
+    });
+
     it('não marca Documento em Branco recém-criado como Livre Modificado', () => {
       const blank = createProjectFromTemplate('em_branco');
       const caps = getTemplateCapabilities(blank);

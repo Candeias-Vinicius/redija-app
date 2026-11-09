@@ -30,9 +30,11 @@ import {
   Block,
   AcademicReference,
   ProjectTemplateType,
+  SidebarConfig,
   TemplateConfig,
   DEFAULT_TEMPLATE_CONFIG,
 } from '@/types/document';
+import type { ContextualGuideMode } from '@/core/templates/templateCapabilities';
 import {
   generateStandaloneTypst,
   generateTypstFiles,
@@ -72,6 +74,7 @@ interface HistorySnapshot {
   blocks: Block[];
   references: AcademicReference[];
   templateConfig?: TemplateConfig;
+  sidebarConfig?: SidebarConfig;
 }
 
 export const App: React.FC = () => {
@@ -85,6 +88,9 @@ export const App: React.FC = () => {
   const [editingReference, setEditingReference] = useState<AcademicReference | null>(null);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
+  const [welcomeInitialTab, setWelcomeInitialTab] = useState<'overview' | ContextualGuideMode>(
+    'overview',
+  );
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [isBetaNoticeOpen, setIsBetaNoticeOpen] = useState(false);
@@ -252,6 +258,7 @@ export const App: React.FC = () => {
       blocks: currentProj.blocks,
       references: currentProj.references,
       templateConfig: currentProj.templateConfig,
+      sidebarConfig: currentProj.sidebarConfig,
     };
 
     setPast((prev) => {
@@ -279,6 +286,7 @@ export const App: React.FC = () => {
             blocks: currentProj.blocks,
             references: currentProj.references,
             templateConfig: currentProj.templateConfig,
+            sidebarConfig: currentProj.sidebarConfig,
           },
           ...prevFuture.slice(0, 49),
         ]);
@@ -289,6 +297,7 @@ export const App: React.FC = () => {
           blocks: previous.blocks,
           references: previous.references,
           templateConfig: previous.templateConfig,
+          sidebarConfig: previous.sidebarConfig,
         };
       });
 
@@ -311,6 +320,7 @@ export const App: React.FC = () => {
             blocks: currentProj.blocks,
             references: currentProj.references,
             templateConfig: currentProj.templateConfig,
+            sidebarConfig: currentProj.sidebarConfig,
           },
         ]);
         return {
@@ -320,6 +330,7 @@ export const App: React.FC = () => {
           blocks: next.blocks,
           references: next.references,
           templateConfig: next.templateConfig,
+          sidebarConfig: next.sidebarConfig,
         };
       });
 
@@ -512,7 +523,10 @@ export const App: React.FC = () => {
           try {
             const files = generateTypstFiles(projectToSync);
             const binaryFiles = extractBinaryAssets(projectToSync);
-            const pdfResult = await compileToPdf(files, binaryFiles);
+            const pdfResult = await compileToPdf(files, binaryFiles, {
+              fontFamily: projectToSync.templateConfig?.fontFamily ?? 'serif',
+              customFontFamily: projectToSync.templateConfig?.customFontFamily,
+            });
             if (pdfResult.pdf) {
               await saveProjectPdfToDrive(projectToSync, new Uint8Array(pdfResult.pdf), token);
             }
@@ -580,7 +594,10 @@ export const App: React.FC = () => {
         try {
           const files = generateTypstFiles(projectToSync);
           const binaryFiles = extractBinaryAssets(projectToSync);
-          const pdfResult = await compileToPdf(files, binaryFiles);
+          const pdfResult = await compileToPdf(files, binaryFiles, {
+            fontFamily: projectToSync.templateConfig?.fontFamily ?? 'serif',
+            customFontFamily: projectToSync.templateConfig?.customFontFamily,
+          });
           if (pdfResult.pdf) {
             await saveProjectPdfToDrive(projectToSync, new Uint8Array(pdfResult.pdf), token);
           }
@@ -862,6 +879,22 @@ export const App: React.FC = () => {
       }
       recordHistorySnapshot(prev);
       return { ...prev, metadata };
+    });
+  };
+
+  const handleChangeSidebarConfig = (sidebarConfig?: SidebarConfig) => {
+    setProject((prev) => {
+      if (JSON.stringify(prev.sidebarConfig) === JSON.stringify(sidebarConfig)) {
+        return prev;
+      }
+      recordHistorySnapshot(prev, true);
+      const next = { ...prev };
+      if (sidebarConfig) {
+        next.sidebarConfig = sidebarConfig;
+      } else {
+        delete next.sidebarConfig;
+      }
+      return next;
     });
   };
 
@@ -1187,7 +1220,10 @@ export const App: React.FC = () => {
     try {
       const files = generateTypstFiles(project);
       const binaryFiles = extractBinaryAssets(project);
-      const result = await compileToPdf(files, binaryFiles);
+      const result = await compileToPdf(files, binaryFiles, {
+        fontFamily: project.templateConfig?.fontFamily ?? 'serif',
+        customFontFamily: project.templateConfig?.customFontFamily,
+      });
       if (result.error || !result.pdf) {
         const msg =
           result.error ||
@@ -1306,7 +1342,10 @@ export const App: React.FC = () => {
         onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
         onOpenBugReportModal={() => setIsBugReportOpen(true)}
         onOpenBetaNoticeModal={() => setIsBetaNoticeOpen(true)}
-        onOpenWelcomeModal={() => setIsWelcomeModalOpen(true)}
+        onOpenWelcomeModal={() => {
+          setWelcomeInitialTab('overview');
+          setIsWelcomeModalOpen(true);
+        }}
         onDownloadPdf={handleDownloadPdf}
         isExportingPdf={isExportingPdf}
         onExportTypst={handleExportTypst}
@@ -1366,6 +1405,7 @@ export const App: React.FC = () => {
               project={project}
               metadata={project.metadata}
               onChangeMetadata={handleMetadataChange}
+              onChangeSidebarConfig={handleChangeSidebarConfig}
               references={project.references}
               onOpenReferenceModal={() => {
                 setEditingReference(null);
@@ -1377,7 +1417,14 @@ export const App: React.FC = () => {
               }}
               onRemoveReference={handleRemoveReference}
               onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
-              onOpenAbntGuide={() => setIsWelcomeModalOpen(true)}
+              onOpenAbntGuide={() => {
+                setWelcomeInitialTab('abnt');
+                setIsWelcomeModalOpen(true);
+              }}
+              onOpenGuide={(mode) => {
+                setWelcomeInitialTab(mode);
+                setIsWelcomeModalOpen(true);
+              }}
               onMinimize={toggleSidebar}
               widthPx={!showEditor && !showPreview ? window.innerWidth : sidebarWidth}
             />
@@ -1413,6 +1460,7 @@ export const App: React.FC = () => {
               metadata={project.metadata}
               references={project.references}
               citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
+              citationFormat={project.templateConfig?.citationFormat}
               isFullWidth={!showSidebar && !showPreview}
               activeCollaborators={activeCollaborators}
               onOpenReferenceModal={() => {
@@ -1524,6 +1572,7 @@ export const App: React.FC = () => {
       <WelcomeModal
         isOpen={isWelcomeModalOpen}
         onClose={() => setIsWelcomeModalOpen(false)}
+        initialTab={welcomeInitialTab}
       />
 
       <TemplateCustomizerModal

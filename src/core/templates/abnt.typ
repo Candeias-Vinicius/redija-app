@@ -27,7 +27,7 @@
 // Citação direta longa (NBR 10520): mais de 3 linhas, recuo de 4 cm,
 // fonte menor, espaçamento simples, sem aspas.
 // ---------------------------------------------------------------------
-#let citacao(referencia: none, corpo) = block(
+#let citacao(referencia: none, parenteses: true, corpo) = block(
   inset: (left: 4cm),
   above: 1.5em,
   below: 1.5em,
@@ -36,7 +36,9 @@
     set text(size: 10pt)
     set par(leading: entrelinha-simples, first-line-indent: 0pt, justify: true)
     corpo
-    if referencia != none [ (#referencia)]
+    if referencia != none {
+      if parenteses [ (#referencia)] else [ #referencia]
+    }
   },
 )
 
@@ -126,13 +128,50 @@
 
 // ---------------------------------------------------------------------
 // Lista de referências (NBR 6023): alinhadas à esquerda, espaçamento
-// simples, separadas por uma linha em branco.
+// simples, separadas por uma linha em branco (configurável multi-norma).
 // ---------------------------------------------------------------------
-#let referencias(..itens) = {
+#let referencias(
+  alinhamento: "left",
+  espacamento: 1.2em,
+  numeracao: none,
+  ..itens
+) = {
   heading(numbering: none)[Referências]
-  set par(justify: false, first-line-indent: 0pt, leading: entrelinha-simples)
+  set par(
+    justify: alinhamento == "justify",
+    first-line-indent: 0pt,
+    leading: entrelinha-simples,
+  )
+  let idx = 1
   for item in itens.pos() {
-    block(above: 0pt, below: 1.2em, item)
+    if numeracao == "bracket" {
+      block(
+        above: 0pt,
+        below: espacamento,
+        grid(
+          columns: (1.8em, 1fr),
+          gutter: 0.4em,
+          align: (left, left),
+          [[#idx]],
+          [#item],
+        ),
+      )
+    } else if numeracao == "dot" {
+      block(
+        above: 0pt,
+        below: espacamento,
+        grid(
+          columns: (1.8em, 1fr),
+          gutter: 0.4em,
+          align: (left, left),
+          [#idx.],
+          [#item],
+        ),
+      )
+    } else {
+      block(above: 0pt, below: espacamento, item)
+    }
+    idx = idx + 1
   }
 }
 
@@ -184,7 +223,15 @@
 ) = {
   set document(title: titulo, author: autor)
 
-  let familia-fonte = if fonte == "sans" { fontes-sem-serifa } else { fontes-serifadas }
+  let familia-fonte = if type(fonte) == array {
+    fonte
+  } else if fonte == "sans" {
+    fontes-sem-serifa
+  } else if fonte == "serif" {
+    fontes-serifadas
+  } else {
+    (fonte, ..fontes-serifadas)
+  }
 
   set page(
     paper: "a4",
@@ -236,8 +283,12 @@
         logo
         v(0.8em)
       }
-      #text(weight: "bold")[#upper(instituicao)] \
-      #upper(curso)
+      #if instituicao != "" [
+        #text(weight: "bold")[#upper(instituicao)]#if curso != "" [ \ ]
+      ]
+      #if curso != "" [
+        #upper(curso)
+      ]
 
       #v(1fr)
       #text(weight: "bold")[#upper(autor)]
@@ -246,7 +297,13 @@
       #text(weight: "bold")[#titulo-completo]
 
       #v(2fr)
-      #text(weight: "bold")[#local \ #ano]
+      #if local != "" and ano != "" [
+        #text(weight: "bold")[#local \ #ano]
+      ] else if local != "" [
+        #text(weight: "bold")[#local]
+      ] else if ano != "" [
+        #text(weight: "bold")[#ano]
+      ]
     ]
   }
 
@@ -280,7 +337,13 @@
       }))
     }
     v(1fr)
-    align(center, text(weight: "bold")[#local \ #ano])
+    if local != "" and ano != "" {
+      align(center, text(weight: "bold")[#local \ #ano])
+    } else if local != "" {
+      align(center, text(weight: "bold")[#local])
+    } else if ano != "" {
+      align(center, text(weight: "bold")[#ano])
+    }
   } else if not incluir-capa {
     // Modo Artigo Científico (sem capa e sem folha de rosto): cabeçalho direto no topo
     counter(page).update(1)
@@ -290,8 +353,8 @@
         logo
         v(0.5em)
       }
-      #if instituicao != "" [
-        #text(size: 10pt)[#upper(instituicao) — #curso] \
+      #if instituicao != "" or curso != "" [
+        #text(size: 10pt)[#upper(instituicao)#if instituicao != "" and curso != "" [ — ]#curso] \
         #v(0.4em)
       ]
       #text(size: 14pt, weight: "bold")[#titulo-completo] \

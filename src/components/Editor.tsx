@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
-import { Block, BlockType, AcademicReference, DocumentMetadata } from '@/types/document';
+import {
+  Block,
+  BlockType,
+  AcademicReference,
+  DocumentMetadata,
+  CitationFormat,
+} from '@/types/document';
 import { RichTextInput } from './RichTextInput';
 import { stripHtmlTags } from '@/core/transpiler/escape';
 import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
@@ -44,6 +50,7 @@ interface EditorProps {
   metadata?: DocumentMetadata;
   references: AcademicReference[];
   citationStyle?: 'uppercase' | 'titlecase';
+  citationFormat?: CitationFormat;
   isFullWidth?: boolean;
   activeCollaborators?: CollaboratorPresence[];
   onOpenReferenceModal?: () => void;
@@ -222,6 +229,7 @@ export const Editor: React.FC<EditorProps> = ({
   metadata,
   references,
   citationStyle = 'uppercase',
+  citationFormat,
   isFullWidth = false,
   activeCollaborators = [],
   onOpenReferenceModal,
@@ -726,6 +734,7 @@ export const Editor: React.FC<EditorProps> = ({
                   value={block.content}
                   references={references}
                   citationStyle={citationStyle}
+                  citationFormat={citationFormat}
                   autoFocus={focusedBlockId === block.id}
                   openCitationTrigger={citationTriggerByBlock[block.id] ?? 0}
                   onOpenNewReferenceModal={onOpenReferenceModal}

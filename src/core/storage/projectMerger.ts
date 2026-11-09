@@ -188,6 +188,8 @@ export function mergeMetadata(
     epigraph: local.epigraph?.trim() || remote.epigraph,
     epigraphAuthor: local.epigraphAuthor?.trim() || remote.epigraphAuthor,
     abbreviations: local.abbreviations?.trim() || remote.abbreviations,
+    symbols: local.symbols?.trim() || remote.symbols,
+    glossary: local.glossary?.trim() || remote.glossary,
     appendices: local.appendices?.trim() || remote.appendices,
     annexes: local.annexes?.trim() || remote.annexes,
   };
@@ -216,6 +218,7 @@ export function autoMergeProjects(
     blocks: mergedBlocks,
     references: mergedRefs,
     templateConfig: local.templateConfig || remote.templateConfig,
+    sidebarConfig: local.sidebarConfig || remote.sidebarConfig,
     driveFileId: local.driveFileId || remote.driveFileId,
     driveSyncedAt: remote.driveSyncedAt || local.driveSyncedAt,
     updatedAt: new Date().toISOString(),

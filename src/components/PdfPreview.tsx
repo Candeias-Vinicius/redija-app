@@ -120,7 +120,10 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
 
         const files = generateTypstFiles(project, extraFiles);
         const binaryFiles = extractBinaryAssets(project);
-        const result = await compileToVector(files, binaryFiles);
+        const result = await compileToVector(files, binaryFiles, {
+          fontFamily: project.templateConfig?.fontFamily ?? 'serif',
+          customFontFamily: project.templateConfig?.customFontFamily,
+        });
 
         if (currentId !== latestCompileId.current) return;
 

@@ -1,6 +1,6 @@
 # ✍️ RedijaApp
 
-> **Editor acadêmico visual moderno, colaborativo e automatizado com conformidade estrita às normas da ABNT e motor tipográfico Typst WASM.**
+> **Editor acadêmico visual multi-normas, colaborativo e automatizado com motor tipográfico Typst WASM (ABNT, SBC, IEEE, APA 7ª, Pôsteres e Typst Universe).**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://reactjs.org/)
@@ -62,18 +62,17 @@ O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notio
 
 ---
 
-### 4. Normatização e Formatação ABNT 100% Automática
+### 4. Tipografia Sob Demanda & Personalização Normativa
 
-- **Margens Oficiais:** Configuração estrita de 3 cm (superior e esquerda) e 2 cm (inferior e direita).
-- **Tipografia Acadêmica:** Escolha entre fontes padrão _serif_ (Times New Roman) e _sans-serif_ (Arial), com corpo de texto em 12 pt e notas/legendas em 10 pt.
-- **Espaçamento e Indentação:** Espaçamento 1,5 entre linhas no corpo do texto e recuo de parágrafo automático de 1,25 cm.
+- **Margens & Layouts Configuráveis:** Configuração estrita de 3/3/2/2 cm na ABNT ou personalização livre de margens, colunas (1 ou 2), espaçamento e capa/folha de rosto/sumário.
+- **Catálogo de Fontes & Fontes CDN Sob Demanda (`fontCatalog.ts`):** Fontes nativas 100% offline (_Tinos / Times New Roman_ e _Arimo / Arial_) somadas a carregamento dinâmico via `cdn.jsdelivr.net` (_Libertinus Serif_, _New Computer Modern_, _Lora_, _EB Garamond_, _Inter_, _Roboto_, _Fira Sans_, _JetBrains Mono_) ou qualquer família do **Google Fonts / Fontsource**, com cache no Web Worker e fallback silencioso offline.
 - **Predefinições Normativas (Presets):**
-  - _ABNT Clássica_ (Monografias e Teses).
+  - _ABNT Clássica_ (Monografias e Teses NBR 14724 + 10520:2002).
   - _ABNT 2023_ (Atualizações da NBR 10520:2023 com citações em caixa mista).
   - _Artigo em 2 Colunas_ (Formato acadêmico para periódicos e conferências).
-  - _APA 7ª Edição_ (Padrão internacional com margens de 2,54 cm).
-  - _Configuração Customizada_ (Ajuste fino de margens, colunas e estilos).
-- **Modelos Prontos para Uso:** Crie projetos a partir de templates estruturados para **TCC / Monografia**, **Artigo Científico**, **Relatório Técnico**, **Projeto de Pesquisa** ou comece com um **Documento em Branco**.
+  - _APA 7ª Edição_ (Padrão internacional com margens de 2,54 cm e espaçamento duplo).
+  - _SBC / IEEE / Pôster A0_ & _Configuração Customizada_.
+- **Modelos Prontos para Uso:** Crie projetos a partir de templates estruturados para **TCC / Monografia**, **Artigo Científico**, **Relatório Técnico**, **Projeto de Pesquisa**, **SBC**, **IEEE Conference**, **Pôster A0**, **Typst Universe** ou **Documento em Branco**.
 
 ---
 
@@ -89,11 +88,11 @@ O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notio
 
 ---
 
-### 6. Gerenciador Bibliográfico Inteligente (NBR 6023)
+### 6. Central Universal de Citações e Gerenciador Bibliográfico
 
 - **Cadastro Estruturado por Tipo:** Suporte a Livros, Artigos de Periódicos, Teses/Dissertações, Páginas da Web e Documentos Legislativos.
-- **Busca e Autopreenchimento por DOI:** Integração com a API pública da CrossRef: basta colar o código DOI para que título, autores, revista, volume, páginas e ano sejam preenchidos em segundos.
-- **Ordenação Alfabética e Destaque:** Ordenação automática por sobrenome do autor e formatação do título com destaque configurável (Negrito ou Itálico) e estilo de citação (Caixa Alta `SOBRENOME, Ano` ou `Sobrenome, Ano`).
+- **Busca e Autopreenchimento por DOI & BibTeX:** Integração com a API pública da CrossRef e importação/exportação `.bib`.
+- **Central de Citações e Layout das Referências:** Suporte sincronizado entre Editor (`@`), Sidebar e PDF a 5 formatos de chamada — **(SILVA, 2023)**, **(Silva, 2023)**, numérico **[1]**, sobrescrito **¹** e **Autor-Data (APA)** — com controle de alinhamento (**Esquerda** ou **Justificado**), espaçamento (**Simples ABNT**, **Compacto** ou **Duplo**), destaque de título (**Negrito**, **Itálico**, **Sublinhado** ou **Sem destaque**) e **Prévia Instantânea**.
 
 ---
 
@@ -114,7 +113,8 @@ O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notio
 - **Artigo IEEE Conference:** Formato internacional de conferências de engenharia e tecnologia em 2 colunas (`ieee.typ`).
 - **Pôster Acadêmico A0:** Painel científico diagramado em alta resolução para impressão de congressos (`poster.typ`).
 - **Typst Universe Dinâmico:** Resolução e injeção automática de templates do repositório oficial da comunidade Typst (`@preview/...`) com fallback offline.
-- **Aba Lateral Adaptativa (Matriz de Capacidades):** A barra lateral adapta cabeçalho, badges de norma (ex.: `NBR 14724`, `ABNT Modificado`, `SBC`, `IEEE`, `Typst Universe`), campos de metadados, Linter ABNT e Guia de Normas ao template ativo, preservando em gaveta segura eventuais dados ocultos preenchidos em outro modelo.
+- **Aba Lateral Adaptativa & Configurável (`fieldRegistry.ts` + `templateCapabilities.ts`):** Adapta cabeçalho, badges (`NBR 14724`, `ABNT Modificado`, `SBC`, `IEEE`, `Pôster A0/A1`, `Typst Universe`), campos e formulários ao template ativo. Pelo botão **"Personalizar Campos"**, o usuário pode incluir ou ocultar qualquer campo mantendo zero perda de dados na gaveta *"Campos preservados"* e sincronizando a exibição no PDF em modelos flexíveis.
+- **Verificadores Plurais (Strategy / OCP) & Guias Contextuais:** Pipeline desacoplado (`src/core/transpiler/linters/`) com estratégias específicas para **ABNT**, **IEEE**, **SBC**, **Pôster** e **Verificador de Integridade** (para modos *Modificado*, APA e Livre), acompanhado por documentação contextual por modelo em `WelcomeModal`.
 
 ---
 
@@ -198,7 +198,7 @@ redija-app/
 ├── src/
 │   ├── components/              # Componentes de interface do usuário (React 18)
 │   │   ├── landing/             # Seções modulares da Landing Page de entrada
-│   │   ├── sidebar/             # Subcomponentes modulares (Linter adaptativo e Campos preservados)
+│   │   ├── sidebar/             # Subcomponentes modulares (Linter plural, Campos preservados, Personalizar Campos)
 │   │   ├── AccountSettingsModal.tsx  # Configurações de conta, armazenamento e privacidade
 │   │   ├── BackupNoticeBanner.tsx    # Alerta sutil de incentivo a backup para convidados
 │   │   ├── BugReportModal.tsx   # Modal de reporte de problemas com dados do ambiente
@@ -218,9 +218,9 @@ redija-app/
 │   │   ├── auth/                # Google Identity Services (OAuth2 Client)
 │   │   ├── collaboration/       # Motor P2P WebRTC (PeerJS) e BroadcastChannel
 │   │   ├── storage/             # Dexie.js (IndexedDB), Google Drive, Auto-Merge e Importer (.docx)
-│   │   ├── templates/           # Modelos Typst nativos e matriz de capacidades (templateCapabilities.ts)
-│   │   ├── transpiler/          # Transpilador de blocos, cache LRU de imagens e Linter ABNT
-│   │   ├── typst/               # Web Worker com Typst Compiler + Typst Renderer WASM isolados
+│   │   ├── templates/           # Modelos Typst nativos, catálogo de campos (fieldRegistry.ts) e capacidades
+│   │   ├── transpiler/          # Transpilador de blocos, cache LRU de imagens e verificadores plurais (linters/)
+│   │   ├── typst/               # Web Worker WASM + carregador de fontes sob demanda via CDN (fontCatalog.ts)
 │   │   └── universe/            # Resolução e injeção de pacotes do Typst Universe (@preview/...)
 │   ├── types/                   # Tipagens TypeScript (Documento, Metadados, Blocos, Presets)
 │   ├── App.tsx                  # Orquestrador principal da aplicação

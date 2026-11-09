@@ -87,9 +87,34 @@ export type NormPresetId =
   | 'universe_custom'
   | 'custom';
 
+export type FontFamilyId =
+  | 'serif'
+  | 'sans'
+  | 'libertinus'
+  | 'new_cm'
+  | 'lora'
+  | 'eb_garamond'
+  | 'inter'
+  | 'roboto'
+  | 'fira_sans'
+  | 'jetbrains_mono'
+  | 'custom';
+
+export type CitationFormat =
+  | 'abnt_upper'
+  | 'abnt_titlecase'
+  | 'ieee_numeric'
+  | 'superscript'
+  | 'author_date';
+
+export type ReferenceHighlight = 'bold' | 'italic' | 'underline' | 'none';
+export type ReferenceAlignment = 'left' | 'justify';
+export type ReferenceSpacing = 'single_blank' | 'compact' | 'double';
+
 export interface TemplateConfig {
   preset: NormPresetId;
-  fontFamily: 'serif' | 'sans';
+  fontFamily: FontFamilyId;
+  customFontFamily?: string;
   fontSizePt: 10 | 11 | 12;
   lineSpacing: '1.5' | '1.0' | '2.0';
   paragraphIndentCm: number;
@@ -102,7 +127,10 @@ export interface TemplateConfig {
   includeTitlePage: boolean;
   includeToc: boolean;
   citationStyle: 'uppercase' | 'titlecase';
-  referenceHighlight: 'bold' | 'italic';
+  citationFormat?: CitationFormat;
+  referenceHighlight: ReferenceHighlight;
+  referenceAlignment?: ReferenceAlignment;
+  referenceSpacing?: ReferenceSpacing;
 
   // Configurações Específicas de Pôster Acadêmico A0/A1
   posterDimensions?: 'a0' | 'a1' | 'a2';
@@ -130,7 +158,10 @@ export const DEFAULT_TEMPLATE_CONFIG: TemplateConfig = {
   includeTitlePage: true,
   includeToc: true,
   citationStyle: 'uppercase',
+  citationFormat: 'abnt_upper',
   referenceHighlight: 'bold',
+  referenceAlignment: 'left',
+  referenceSpacing: 'single_blank',
 };
 
 export type ReferenceType = 'book' | 'article' | 'thesis' | 'website' | 'legislation';
@@ -170,6 +201,7 @@ export type ProjectTemplateType =
 
 export interface SidebarConfig {
   isCustomized?: boolean;
+  enabledFieldIds?: string[];
   hiddenFieldIds?: string[];
 }
 

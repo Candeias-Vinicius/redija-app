@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useEditor, EditorContent, Extension } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -17,14 +17,19 @@ import {
   X,
 } from 'lucide-react';
 import { stripHtmlTags } from '@/core/transpiler/escape';
-import { AcademicReference } from '@/types/document';
-import { formatShortCitation } from '@/core/transpiler/abntLinter';
+import { AcademicReference, CitationFormat } from '@/types/document';
+import {
+  formatShortCitation,
+  getReferenceIndexMap,
+  resolveCitationFormat,
+} from '@/core/transpiler/abntLinter';
 
 interface RichTextInputProps {
   value: string;
   onChange: (html: string) => void;
   references?: AcademicReference[];
   citationStyle?: 'uppercase' | 'titlecase';
+  citationFormat?: CitationFormat;
   placeholder?: string;
   className?: string;
   autoFocus?: boolean;
@@ -40,6 +45,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
   onChange,
   references = [],
   citationStyle = 'uppercase',
+  citationFormat,
   placeholder = 'Digite seu texto, "/" para comandos ou "@" para citar referência...',
   className = '',
   autoFocus = false,
@@ -49,6 +55,8 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
   onBackspaceEmpty,
   onSlashCommand,
 }) => {
+  const effectiveFormat = resolveCitationFormat({ citationFormat, citationStyle });
+  const refIndexMap = useMemo(() => getReferenceIndexMap(references), [references]);
   const [hasSelection, setHasSelection] = useState(false);
   const [showCitationPicker, setShowCitationPicker] = useState(false);
   const [citationSearch, setCitationSearch] = useState('');
@@ -173,8 +181,23 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
 
   if (!editor) return null;
 
-  const insertReferenceText = (textToInsert: string) => {
-    editor.chain().focus().insertContent(` ${textToInsert} `).run();
+  const insertReferenceCitation = (ref: AcademicReference) => {
+    const refNumber = refIndexMap.get(ref.id) ?? 1;
+    if (effectiveFormat === 'superscript') {
+      editor
+        .chain()
+        .focus()
+        .insertContent(`<sup>${refNumber}</sup>`)
+        .unsetSuperscript()
+        .insertContent(' ')
+        .run();
+    } else {
+      const textToInsert = formatShortCitation(ref, {
+        format: effectiveFormat,
+        refNumber,
+      });
+      editor.chain().focus().insertContent(` ${textToInsert} `).run();
+    }
     setShowCitationPicker(false);
     setCitationSearch('');
   };
@@ -350,14 +373,17 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                   </div>
                 ) : (
                   filteredReferences.map((ref) => {
-                    const formattedCall = formatShortCitation(ref, citationStyle);
+                    const formattedCall = formatShortCitation(ref, {
+                      format: effectiveFormat,
+                      refNumber: refIndexMap.get(ref.id),
+                    });
                     return (
                       <button
                         key={ref.id}
                         type="button"
                         onMouseDown={(e) => {
                           e.preventDefault();
-                          insertReferenceText(formattedCall);
+                          insertReferenceCitation(ref);
                         }}
                         className="w-full px-3 py-2 text-left hover:bg-emerald-50/70 transition-colors flex flex-col gap-0.5 group"
                       >
