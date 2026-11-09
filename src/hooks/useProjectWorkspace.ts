@@ -7,7 +7,6 @@ import {
   ProjectTemplateType,
   SidebarConfig,
   TemplateConfig,
-  DEFAULT_TEMPLATE_CONFIG,
 } from '@/types/document';
 import { type TemplateCustomizerApplyPayload } from '@/components/TemplateCustomizerModal';
 import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
@@ -176,8 +175,6 @@ export function useProjectWorkspace({
   const [trashedProjects, setTrashedProjects] = useState<DocumentProject[]>([]);
   const [isStorageReady, setIsStorageReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
-  const [pendingImportProject, setPendingImportProject] = useState<DocumentProject | null>(null);
-  const [importFileName, setImportFileName] = useState<string>('');
 
   const skipNextAutoSaveRef = useRef(true);
 
@@ -554,76 +551,25 @@ export function useProjectWorkspace({
     triggerBlobDownload(blob, `${targetProject.name.toLowerCase().replace(/\s+/g, '_')}.redija`);
   }, []);
 
-  const finalizeImport = useCallback(
-    async (importedToSave: DocumentProject) => {
-      importedToSave.ownerEmail = activeOwner;
-      await saveProject(importedToSave, false);
-      const all = await listProjects(activeOwner);
-      setProjects(all);
-      skipNextAutoSaveRef.current = true;
-      clearHistory();
-      setProject(importedToSave);
-      setActiveProjectId(importedToSave.id, activeOwner);
-      setPendingImportProject(null);
-      setImportFileName('');
-      onProjectImported();
-    },
-    [activeOwner, clearHistory, setProject, onProjectImported],
-  );
-
   const handleImportBackup = useCallback(
     async (file: File) => {
       try {
         const imported = await importDocumentFile(file);
-        // Arquivos .redija são backups nativos do RedijaApp e já têm configuração exata
-        if (file.name.toLowerCase().endsWith('.redija')) {
-          await finalizeImport(imported);
-          return;
-        }
-
-        // Formatos externos (.docx, .zip, .typ, .tex) solicitam confirmação de modelo ao usuário
-        setPendingImportProject(imported);
-        setImportFileName(file.name);
+        imported.ownerEmail = activeOwner;
+        await saveProject(imported, false);
+        const all = await listProjects(activeOwner);
+        setProjects(all);
+        skipNextAutoSaveRef.current = true;
+        clearHistory();
+        setProject(imported);
+        setActiveProjectId(imported.id, activeOwner);
+        onProjectImported();
       } catch (err) {
         alert(err instanceof Error ? err.message : 'Erro ao importar documento.');
       }
     },
-    [finalizeImport],
+    [activeOwner, clearHistory, setProject, onProjectImported],
   );
-
-  const handleConfirmImport = useCallback(
-    async (choice: ProjectTemplateType | 'custom') => {
-      if (!pendingImportProject) return;
-
-      const projectToFinalize: DocumentProject = {
-        ...pendingImportProject,
-      };
-
-      if (choice === 'custom') {
-        projectToFinalize.templateType = 'em_branco';
-        projectToFinalize.templateConfig = {
-          ...DEFAULT_TEMPLATE_CONFIG,
-          preset: 'custom',
-          includeCoverPage: false,
-          includeTitlePage: false,
-          includeToc: false,
-        };
-        projectToFinalize.sidebarConfig = { isCustomized: true };
-      } else if (choice !== pendingImportProject.templateType) {
-        projectToFinalize.templateType = choice;
-        const newBase = createProjectFromTemplate(choice, projectToFinalize.name);
-        projectToFinalize.templateConfig = newBase.templateConfig;
-      }
-
-      await finalizeImport(projectToFinalize);
-    },
-    [pendingImportProject, finalizeImport],
-  );
-
-  const handleCancelImport = useCallback(() => {
-    setPendingImportProject(null);
-    setImportFileName('');
-  }, []);
 
   return {
     projects,
@@ -631,10 +577,6 @@ export function useProjectWorkspace({
     trashedProjects,
     isStorageReady,
     saveStatus,
-    pendingImportProject,
-    importFileName,
-    handleConfirmImport,
-    handleCancelImport,
     resetWorkspaceState,
     handleMetadataChange,
     handleChangeSidebarConfig,

@@ -313,13 +313,41 @@ export function parseBackup(jsonString: string): DocumentProject {
     );
   }
 
-  const rawProject = {
-    ...candidate,
+  const projectToImport: DocumentProject = {
     id: crypto.randomUUID(),
+    name: candidate.name,
+    templateType: candidate.templateType ?? 'tcc',
+    metadata: {
+      title: candidate.metadata.title ?? '',
+      subtitle: candidate.metadata.subtitle ?? '',
+      author: candidate.metadata.author ?? '',
+      advisor: candidate.metadata.advisor ?? '',
+      nature: candidate.metadata.nature ?? '',
+      institution: candidate.metadata.institution ?? '',
+      course: candidate.metadata.course ?? '',
+      location: candidate.metadata.location ?? '',
+      year: candidate.metadata.year ?? String(new Date().getFullYear()),
+      abstract: candidate.metadata.abstract ?? '',
+      keywords: Array.isArray(candidate.metadata.keywords) ? candidate.metadata.keywords : [],
+      coadvisor: candidate.metadata.coadvisor,
+      includeApprovalPage: candidate.metadata.includeApprovalPage,
+      approvalDate: candidate.metadata.approvalDate,
+      committeeMembers: candidate.metadata.committeeMembers,
+      includeFiguresList: candidate.metadata.includeFiguresList,
+      includeBoxesList: candidate.metadata.includeBoxesList,
+      includeTablesList: candidate.metadata.includeTablesList,
+      institutionLogoDataUrl: candidate.metadata.institutionLogoDataUrl,
+      abbreviations: candidate.metadata.abbreviations,
+      symbols: candidate.metadata.symbols,
+      glossary: candidate.metadata.glossary,
+      appendices: candidate.metadata.appendices,
+      annexes: candidate.metadata.annexes,
+    },
+    templateConfig: candidate.templateConfig,
+    blocks: candidate.blocks,
+    references: candidate.references,
     updatedAt: new Date().toISOString(),
   };
-
-  const projectToImport = normalizeProject(rawProject);
 
   const quotaCheck = validateProjectQuota(projectToImport);
   if (!quotaCheck.valid) {

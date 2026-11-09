@@ -120,18 +120,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {capabilities.effectiveType === 'em_branco' && (
-          <div className="mx-3 my-2.5 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-950 text-xs space-y-1">
-            <div className="flex items-center gap-1.5 font-semibold text-[11px] text-amber-900">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-              <span>Modelo Personalizado (Livre)</span>
-            </div>
-            <p className="text-[11px] leading-relaxed text-amber-800">
-              Este documento foi configurado no formato livre, sem imposição de capa ou pré-textuais rígidos. Se desejar aplicar normas como ABNT, SBC ou IEEE, utilize o botão <strong>Personalizar Modelo</strong>.
-            </p>
-          </div>
-        )}
-
         <div className="divide-y divide-neutral-100 flex-1 pb-12">
           <SidebarIdentificationSection
             metadata={metadata}

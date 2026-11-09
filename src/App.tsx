@@ -12,7 +12,6 @@ import { BugReportModal } from '@/components/BugReportModal';
 import { BetaNoticeModal } from '@/components/BetaNoticeModal';
 import { ShareModal } from '@/components/ShareModal';
 import { AccountSettingsModal } from '@/components/AccountSettingsModal';
-import { ImportTemplateConfirmModal } from '@/components/ImportTemplateConfirmModal';
 import { BackupNoticeBanner } from '@/components/BackupNoticeBanner';
 import { LoginScreen } from '@/components/LoginScreen';
 import { DocsPage } from '@/components/docs/DocsPage';
@@ -139,10 +138,6 @@ export const App: React.FC = () => {
     handlePermanentDelete,
     handleExportBackup,
     handleImportBackup,
-    pendingImportProject,
-    importFileName,
-    handleConfirmImport,
-    handleCancelImport,
   } = useProjectWorkspace({
     project,
     setProject,
@@ -487,14 +482,6 @@ export const App: React.FC = () => {
         isAuthenticated={isAuthenticated}
         onSyncFromDrive={() => handleSyncFromDrive(true)}
         isSyncingDrive={isSyncingDrive}
-      />
-
-      <ImportTemplateConfirmModal
-        isOpen={Boolean(pendingImportProject)}
-        importedProject={pendingImportProject}
-        fileName={importFileName}
-        onConfirm={handleConfirmImport}
-        onCancel={handleCancelImport}
       />
 
       <ShareModal

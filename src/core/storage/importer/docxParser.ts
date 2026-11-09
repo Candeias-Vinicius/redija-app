@@ -5,8 +5,9 @@ import {
   DocumentProject,
   ProjectTemplateType,
 } from '@/types/document';
+import { createProjectFromTemplate } from '../projectTemplates';
 import { stripHtmlTags } from '../../transpiler/escape';
-import { createProjectBaseForImport, cleanInlineFormatting } from './shared';
+import { cleanInlineFormatting } from './shared';
 
 /**
  * Converte um arquivo Microsoft Word (.docx) em DocumentProject usando Mammoth.
@@ -70,12 +71,7 @@ export function detectDocxTemplate(html: string): ProjectTemplateType {
   return 'artigo';
 }
 
-function parseHtmlTable(
-  tableHtml: string,
-  inheritedCaption?: string,
-  inheritedSource?: string,
-  isBox?: boolean,
-): Block | null {
+function parseHtmlTable(tableHtml: string): Block | null {
   const rowRegex = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
   const rowsData: string[][] = [];
 
@@ -86,45 +82,27 @@ function parseHtmlTable(
     const cells: string[] = [];
     let cellMatch: RegExpExecArray | null;
     while ((cellMatch = cellRegex.exec(rowContent)) !== null) {
-      const cellText = stripHtmlTags(cellMatch[1].replace(/<\/p>\s*<p>/gi, ' ')).trim();
-      cells.push(cellText);
+      cells.push(stripHtmlTags(cellMatch[1]).trim());
     }
-    if (cells.length > 0 && cells.some((c) => c !== '')) {
+    if (cells.length > 0) {
       rowsData.push(cells);
     }
   }
 
   if (rowsData.length === 0) return null;
 
-  const maxCols = Math.max(...rowsData.map((r) => r.length), 1);
-  const normalizedRows = rowsData.map((r) => {
-    if (r.length < maxCols) {
-      return [...r, ...Array(maxCols - r.length).fill('')];
-    }
-    return r;
-  });
-
-  const headers = normalizedRows[0];
-  const bodyRows = normalizedRows.length > 1 ? normalizedRows.slice(1) : [];
-
-  const captionMatch = tableHtml.match(/<caption\b[^>]*>([\s\S]*?)<\/caption>/i);
-  const internalCaption = captionMatch ? stripHtmlTags(captionMatch[1]).trim() : '';
-
-  const caption =
-    inheritedCaption ||
-    internalCaption ||
-    (isBox ? 'Quadro comparativo' : 'Tabela de dados');
-  const source = inheritedSource || 'do autor';
+  const headers = rowsData[0];
+  const bodyRows = rowsData.slice(1);
 
   return {
     id: crypto.randomUUID(),
-    type: isBox ? 'box' : 'table',
+    type: 'table',
     content: '',
     meta: {
-      headers,
-      rows: bodyRows.length > 0 ? bodyRows : [Array(headers.length).fill('')],
-      caption,
-      source,
+      headers: headers.length > 0 ? headers : ['Coluna 1', 'Coluna 2'],
+      rows: bodyRows.length > 0 ? bodyRows : [['', '']],
+      caption: 'Tabela importada do documento Word',
+      source: 'Arquivo importado',
     },
   };
 }
@@ -161,7 +139,7 @@ function parseReferenceParagraph(text: string): AcademicReference | null {
  */
 export function parseDocxHtmlToProject(html: string, projectName: string): DocumentProject {
   const detectedTemplate = detectDocxTemplate(html);
-  const base = createProjectBaseForImport(detectedTemplate, projectName);
+  const base = createProjectFromTemplate(detectedTemplate, projectName);
   const blocks: Block[] = [];
   const references: AcademicReference[] = [];
 
@@ -247,8 +225,8 @@ export function parseDocxHtmlToProject(html: string, projectName: string): Docum
       continue;
     }
 
-    // Field matching de cabeçalhos pré-textuais explícitos (antes da introdução ou nos primeiros blocos)
-    if (tag === 'p' && (blocks.length <= 6 || !seenFirstHeading)) {
+    // Field matching de cabeçalhos pré-textuais explícitos
+    if (tag === 'p' && !seenFirstHeading) {
       const subtitleMetaMatch = plainText.match(/^(?:subt[íi]tulo|subtitle):\s*(.+)$/i);
       if (subtitleMetaMatch) {
         base.metadata.subtitle = subtitleMetaMatch[1].trim();
@@ -291,16 +269,6 @@ export function parseDocxHtmlToProject(html: string, projectName: string): Docum
     }
 
     if (tag === 'p') {
-      const srcMatch = plainText.match(/^(?:fonte|source):\s*(.+)$/i);
-      const lastBlock = blocks[blocks.length - 1];
-      if (srcMatch && lastBlock && (lastBlock.type === 'table' || lastBlock.type === 'box')) {
-        lastBlock.meta = {
-          ...lastBlock.meta,
-          source: srcMatch[1].trim(),
-        };
-        continue;
-      }
-
       const kwStandalone = plainText.match(/^palavras[- ]chave:\s*(.+)$/i);
       if (kwStandalone && blocks.length <= 3) {
         extractedPtKeywords = kwStandalone[1]
@@ -313,24 +281,7 @@ export function parseDocxHtmlToProject(html: string, projectName: string): Docum
 
     // 3. Tabela
     if (tag === 'table') {
-      let candidateCaption = '';
-      const candidateSource = '';
-      let isBox = false;
-
-      const lastBlock = blocks[blocks.length - 1];
-      if (lastBlock && lastBlock.type === 'paragraph') {
-        const textOnly = stripHtmlTags(lastBlock.content).trim();
-        if (
-          /^(?:tabela|quadro|table)\s*[\d.:\-–—]/i.test(textOnly) ||
-          /^(?:tabela|quadro|table)\b/i.test(textOnly)
-        ) {
-          candidateCaption = textOnly;
-          isBox = /^quadro\b/i.test(textOnly);
-          blocks.pop();
-        }
-      }
-
-      const tableBlock = parseHtmlTable(innerHtml, candidateCaption, candidateSource, isBox);
+      const tableBlock = parseHtmlTable(innerHtml);
       if (tableBlock) {
         blocks.push(tableBlock);
       }
