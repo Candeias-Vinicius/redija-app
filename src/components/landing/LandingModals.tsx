@@ -12,6 +12,12 @@ import {
   Sparkles,
   MessageSquare,
 } from 'lucide-react';
+import {
+  COMPANY_SUPPORT_EMAIL,
+  submitFeedbackWithMailtoFallback,
+} from '@/core/feedback/feedbackService';
+import type { FeedbackPayload } from '@/core/feedback/types';
+import { ABNT_STANDARDS_DOCS } from './abntStandardsDocs';
 
 export type LandingModalType = 'docs' | 'about' | 'contact' | 'privacy' | 'terms' | null;
 
@@ -22,112 +28,6 @@ interface LandingModalsProps {
   isDark: boolean;
 }
 
-interface AbntStandardDoc {
-  code: string;
-  title: string;
-  summary: string;
-  rulesApplied: string[];
-}
-
-const ABNT_STANDARDS_DOCS: AbntStandardDoc[] = [
-  {
-    code: 'ABNT NBR 14724',
-    title: 'Trabalhos Acadêmicos: Apresentação (TCC, Monografias, Dissertações e Teses)',
-    summary:
-      'Define toda a estrutura física do trabalho (elementos pré-textuais, textuais e pós-textuais), margens, paginação e ilustrações.',
-    rulesApplied: [
-      'Formato A4 com margens padrão: 3 cm (superior e esquerda) e 2 cm (inferior e direita).',
-      'Fonte tamanho 12 pt para o texto geral e 10 pt para citações longas, notas de rodapé, legendas e fontes de figuras/tabelas.',
-      'Espaçamento 1,5 entre linhas no corpo do texto e espaçamento simples (1,0) em resumos, citações longas, notas e referências.',
-      'Contagem de páginas iniciada na Folha de Rosto, mas com numeração impressa no canto superior direito somente a partir da primeira folha textual (Introdução).',
-      'Estrutura completa: Capa, Folha de Rosto (com natureza recuada), Folha de Aprovação (Banca Examinadora), Dedicatória, Agradecimentos, Epígrafe, Listas automáticas (Ilustrações, Quadros, Tabelas, Siglas, Símbolos), Glossário, Apêndices e Anexos.',
-    ],
-  },
-  {
-    code: 'ABNT NBR 10520 (2002 e atualização 2023)',
-    title: 'Citações em Documentos',
-    summary:
-      'Regulamenta as chamadas de autores no texto e a diagramação de citações diretas curtas, longas e indiretas.',
-    rulesApplied: [
-      'Citação direta longa (mais de 3 linhas) com recuo esquerdo obrigatório de 4 cm, fonte 10 pt, espaçamento simples e sem aspas.',
-      'Suporte tanto ao padrão tradicional em maiúsculas (SILVA, 2023) quanto à atualização NBR 10520:2023 em caixa mista entre parênteses (Silva, 2023).',
-      'Formatação automática de múltiplos autores (até 3 separados por ponto e vírgula, e 4 ou mais abreviados com et al. em itálico).',
-      'Inserção rápida de chamadas pelo atalho "@" ou pelo comando "/" direto no parágrafo.',
-    ],
-  },
-  {
-    code: 'ABNT NBR 6023',
-    title: 'Referências: Elaboração',
-    summary:
-      'Estabelece a ordem dos elementos e a formatação da lista final de referências bibliográficas.',
-    rulesApplied: [
-      'Referências alinhadas exclusivamente à esquerda (sem justificar), em espaçamento simples e separadas entre si por um espaço simples em branco.',
-      'Ordenação alfabética automática pelo sobrenome do primeiro autor e abreviação normativa com et al. em itálico para obras com 4 ou mais autores.',
-      'Formatação específica para Livros, Artigos de Periódicos, Teses/Dissertações/TCCs, Sites e Legislação, com importação automática por DOI, ISBN e BibTeX (.bib).',
-    ],
-  },
-  {
-    code: 'ABNT NBR 6024',
-    title: 'Numeração Progressiva das Seções de um Documento',
-    summary:
-      'Padroniza a hierarquia e o destaque tipográfico dos títulos de capítulos e subseções.',
-    rulesApplied: [
-      'Numeração automática em 5 níveis (1, 1.1, 1.1.1, 1.1.1.1 e 1.1.1.1.1) sem ponto final após o número.',
-      'Diferenciação tipográfica: Seção 1 em MAIÚSCULAS e negrito, Seção 1.1 em negrito, Seção 1.1.1 em itálico, Seção 1.1.1.1 sublinhada e Seção 1.1.1.1.1 regular.',
-      'Suporte a títulos sem indicação numérica centralizados (Agradecimentos, Resumo, Referências, Glossário, Apêndices e Anexos).',
-    ],
-  },
-  {
-    code: 'ABNT NBR 6027',
-    title: 'Sumário',
-    summary:
-      'Regras para geração do sumário refletindo fielmente a hierarquia e paginação das seções do trabalho.',
-    rulesApplied: [
-      'Geração 100% automática do Sumário espelhando os números, títulos e páginas exatas de todas as seções.',
-    ],
-  },
-  {
-    code: 'ABNT NBR 6028',
-    title: 'Resumo, Resumo Crítico e Resumo Indicativo',
-    summary:
-      'Determina a apresentação do Resumo em língua vernácula e em língua estrangeira (Abstract).',
-    rulesApplied: [
-      'Diagramação em parágrafo único, espaçamento simples, seguido das Palavras-chave separadas por ponto.',
-      'Contador de palavras em tempo real com verificação da faixa recomendada (150 a 500 palavras para trabalhos acadêmicos).',
-    ],
-  },
-  {
-    code: 'ABNT NBR 6022 & IBGE',
-    title: 'Artigos em Publicações Periódicas e Apresentação Tabular (IBGE)',
-    summary:
-      'Diretrizes para artigos científicos (1 ou 2 colunas) e diferenciação entre Tabelas estatísticas e Quadros textuais.',
-    rulesApplied: [
-      'Tabelas estatísticas abertas nas laterais esquerda e direita (norma IBGE) com título no topo e fonte na base.',
-      'Quadros textuais fechados nos 4 lados com listagem própria separada da Lista de Tabelas.',
-    ],
-  },
-  {
-    code: 'ABNT NBR 15287',
-    title: 'Projeto de Pesquisa: Apresentação',
-    summary:
-      'Estrutura padronizada para submissão de projetos de TCC, mestrado, doutorado e iniciação científica.',
-    rulesApplied: [
-      'Atendido pela estrutura pré-textual e seções para Tema, Problema, Hipótese, Objetivos, Justificativa, Metodologia e Cronograma (em Quadros ABNT).',
-    ],
-  },
-  {
-    code: 'ABNT NBR 10719',
-    title: 'Relatório Técnico e/ou Científico: Apresentação',
-    summary:
-      'Diretrizes para relatórios de estágio supervisionado, iniciação científica (PIBIC) e relatórios técnicos.',
-    rulesApplied: [
-      'Predefinição dedicada com estrutura formal de capa, folha de rosto, resumo, listas técnicas, desenvolvimento e anexos.',
-    ],
-  },
-];
-
-const COMPANY_CONTACT_EMAIL = 'contato.redija@gmail.com';
-
 export const LandingModals: React.FC<LandingModalsProps> = ({
   modalType,
   selectedStandard,
@@ -136,7 +36,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
 }) => {
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [activeDocCode, setActiveDocCode] = useState<string>(
-    selectedStandard || 'ABNT NBR 14724'
+    selectedStandard || 'ABNT NBR 14724',
   );
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
   const [feedbackSent, setFeedbackSent] = useState(false);
@@ -146,7 +46,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
   if (!modalType) return null;
 
   const handleCopyEmail = () => {
-    navigator.clipboard.writeText(COMPANY_CONTACT_EMAIL);
+    navigator.clipboard.writeText(COMPANY_SUPPORT_EMAIL);
     setCopiedEmail(true);
     setTimeout(() => setCopiedEmail(false), 2000);
   };
@@ -156,39 +56,23 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
     if (!feedbackText.trim()) return;
 
     setIsSendingFeedback(true);
+    const payload: FeedbackPayload = {
+      tipo: 'contato',
+      email: userEmail.trim(),
+      assunto: 'Contato via Landing Page',
+      mensagem: feedbackText.trim(),
+      diagnostico: {
+        origem: 'Landing Page (Modal de Contato)',
+        navegador: navigator.userAgent,
+        horario: new Date().toISOString(),
+      },
+    };
+
     try {
-      const payload = {
-        tipo: 'contato',
-        email: userEmail.trim(),
-        assunto: 'Contato via Landing Page',
-        mensagem: feedbackText.trim(),
-        diagnostico: {
-          origem: 'Landing Page (Modal de Contato)',
-          navegador: navigator.userAgent,
-          horario: new Date().toISOString(),
-        },
-      };
-
-      const response = await fetch('/api/feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(payload),
+      await submitFeedbackWithMailtoFallback(payload, {
+        subject: '[RedijaApp] Contato via Landing Page',
+        body: `Remetente: ${userEmail || 'Não informado'}\n\nMensagem:\n${feedbackText}`,
       });
-
-      const result = await response.json().catch(() => null);
-
-      if (!response.ok || !result?.success) {
-        throw new Error(result?.error || `HTTP ${response.status}`);
-      }
-    } catch {
-      const mailtoSubject = encodeURIComponent('[RedijaApp] Contato via Landing Page');
-      const mailtoBody = encodeURIComponent(
-        `Remetente: ${userEmail || 'Não informado'}\n\nMensagem:\n${feedbackText}`,
-      );
-      window.open(`mailto:${COMPANY_CONTACT_EMAIL}?subject=${mailtoSubject}&body=${mailtoBody}`, '_blank');
     } finally {
       setIsSendingFeedback(false);
       setFeedbackSent(true);
@@ -352,14 +236,18 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
               </div>
 
               <div className="space-y-2 text-xs sm:text-sm">
-                <h5 className="font-bold text-slate-900 dark:text-white">Por que escolhemos o Typst?</h5>
+                <h5 className="font-bold text-slate-900 dark:text-white">
+                  Por que escolhemos o Typst?
+                </h5>
                 <p>
                   O Typst é o avanço mais significativo em diagramação acadêmica das últimas três décadas. Ele combina a legibilidade do Markdown com a precisão do LaTeX e a velocidade inacreditável do Rust. Ao embutirmos o Typst em WebAssembly diretamente no navegador, eliminamos qualquer custo com servidores externos e oferecemos um ambiente 100% gratuito e livre para a comunidade brasileira.
                 </p>
               </div>
 
               <div className="space-y-2 text-xs sm:text-sm">
-                <h5 className="font-bold text-slate-900 dark:text-white">Bring Your Own Storage (BYOS)</h5>
+                <h5 className="font-bold text-slate-900 dark:text-white">
+                  Bring Your Own Storage (BYOS)
+                </h5>
                 <p>
                   Nós não queremos e não precisamos hospedar seus arquivos de pesquisa. O RedijaApp integra diretamente com o seu próprio Google Drive e utiliza IndexedDB no seu computador, garantindo soberania total, privacidade inegociável e independência para você.
                 </p>
@@ -387,9 +275,11 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                     <Mail className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase">E-mail Oficial</span>
+                    <span className="text-[11px] font-semibold text-slate-400 uppercase">
+                      E-mail Oficial
+                    </span>
                     <p className="font-mono font-bold text-sm text-slate-900 dark:text-white">
-                      {COMPANY_CONTACT_EMAIL}
+                      {COMPANY_SUPPORT_EMAIL}
                     </p>
                   </div>
                 </div>
@@ -404,7 +294,11 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                         : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
                   }`}
                 >
-                  {copiedEmail ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedEmail ? (
+                    <Check className="w-3.5 h-3.5" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
                   <span>{copiedEmail ? 'Copiado!' : 'Copiar E-mail'}</span>
                 </button>
               </div>
@@ -482,21 +376,27 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
               </div>
 
               <div className="space-y-2">
-                <h5 className="font-bold text-slate-900 dark:text-white">1. Armazenamento Google Drive (BYOS)</h5>
+                <h5 className="font-bold text-slate-900 dark:text-white">
+                  1. Armazenamento Google Drive (BYOS)
+                </h5>
                 <p>
                   Quando você conecta sua conta Google, o RedijaApp solicita apenas a permissão restrita de acessar os arquivos criados pelo próprio aplicativo (<code className="font-mono">drive.file</code>). Nós não temos acesso aos seus outros arquivos do Google Drive. Seus trabalhos são salvos na sua própria conta, sob seu domínio e responsabilidade.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <h5 className="font-bold text-slate-900 dark:text-white">2. Processamento Local em WebAssembly</h5>
+                <h5 className="font-bold text-slate-900 dark:text-white">
+                  2. Processamento Local em WebAssembly
+                </h5>
                 <p>
                   Toda a compilação do seu documento Typst para PDF ocorre no seu próprio computador via WebAssembly. Os textos da sua pesquisa nunca são enviados a servidores externos para renderização.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <h5 className="font-bold text-slate-900 dark:text-white">3. Conformidade com a LGPD</h5>
+                <h5 className="font-bold text-slate-900 dark:text-white">
+                  3. Conformidade com a LGPD
+                </h5>
                 <p>
                   Em total harmonia com a Lei Geral de Proteção de Dados (Lei 13.709/2018), você pode revogar o acesso do aplicativo à sua conta Google ou apagar todos os dados armazenados no cache local a qualquer momento nas Configurações de Conta.
                 </p>
@@ -510,21 +410,27 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
           {modalType === 'terms' && (
             <div className="space-y-4 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
               <div className="space-y-2">
-                <h5 className="font-bold text-slate-900 dark:text-white">1. Natureza Gratuita e Aberta</h5>
+                <h5 className="font-bold text-slate-900 dark:text-white">
+                  1. Natureza Gratuita e Aberta
+                </h5>
                 <p>
                   O RedijaApp é disponibilizado gratuitamente sob licença de código aberto, com o objetivo de apoiar estudantes, pesquisadores e a educação pública e privada brasileira.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <h5 className="font-bold text-slate-900 dark:text-white">2. Propriedade Intelectual</h5>
+                <h5 className="font-bold text-slate-900 dark:text-white">
+                  2. Propriedade Intelectual
+                </h5>
                 <p>
                   Todo o conteúdo textual, ilustrações, dados científicos e ideias geradas nos trabalhos pertencem 100% aos respectivos autores. O RedijaApp não reivindica qualquer direito autoral ou participação sobre os trabalhos produzidos na plataforma.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <h5 className="font-bold text-slate-900 dark:text-white">3. Isenção de Responsabilidade Normativa</h5>
+                <h5 className="font-bold text-slate-900 dark:text-white">
+                  3. Isenção de Responsabilidade Normativa
+                </h5>
                 <p>
                   Embora o RedijaApp aplique rigorosamente as normas ABNT vigentes, a aprovação final de formatação é prerrogativa soberana das bancas examinadoras e das diretrizes específicas de cada instituição de ensino superior.
                 </p>
