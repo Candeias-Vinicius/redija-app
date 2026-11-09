@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  getCustomizerScope,
   getTemplateCapabilities,
   getPreservedHiddenFields,
   resolveEffectiveTemplateType,
@@ -217,6 +218,81 @@ describe('templateCapabilities: Matriz de Capacidades e Preservação de Metadad
       expect(hiddenIds).toContain('abstract');
       expect(hiddenIds).toContain('keywords');
       expect(hiddenIds).toContain('glossary');
+    });
+  });
+
+  describe('getCustomizerScope (Guardrails Contextuais)', () => {
+    it('bloqueia colunas e margens para TCC (NBR 14724), liberando capa e sumário', () => {
+      const scope = getCustomizerScope('tcc');
+      expect(scope.isFullyUnrestricted).toBe(false);
+      expect(scope.allowColumnChange).toBe(false);
+      expect(scope.fixedColumns).toBe(1);
+      expect(scope.columnLockedReason).toContain('NBR 14724');
+      expect(scope.allowMarginChange).toBe(false);
+      expect(scope.allowCoverToggle).toBe(true);
+      expect(scope.allowTocToggle).toBe(true);
+      expect(scope.allowedCitationFormats).toContain('abnt_titlecase');
+      expect(scope.allowedCitationFormats).not.toContain('ieee_numeric');
+    });
+
+    it('bloqueia capa e sumário para Artigo (NBR 6022), mas permite alternar 1 ou 2 colunas', () => {
+      const scope = getCustomizerScope('artigo');
+      expect(scope.isFullyUnrestricted).toBe(false);
+      expect(scope.allowColumnChange).toBe(true);
+      expect(scope.allowCoverToggle).toBe(false);
+      expect(scope.allowTitlePageToggle).toBe(false);
+      expect(scope.allowTocToggle).toBe(false);
+      expect(scope.structureLockedReason).toContain('NBR 6022');
+      expect(scope.allowH1PageBreakToggle).toBe(false);
+    });
+
+    it('trava colunas em 1 e margens oficiais para Artigo SBC', () => {
+      const scope = getCustomizerScope('sbc');
+      expect(scope.allowColumnChange).toBe(false);
+      expect(scope.fixedColumns).toBe(1);
+      expect(scope.allowMarginChange).toBe(false);
+      expect(scope.marginLockedReason).toContain('SBC');
+      expect(scope.allowCoverToggle).toBe(false);
+      expect(scope.allowedPresetIds).toEqual(['sbc']);
+    });
+
+    it('trava colunas em 2, margens compactas e citação exclusivamente em ieee_numeric para IEEE', () => {
+      const scope = getCustomizerScope('ieee');
+      expect(scope.allowColumnChange).toBe(false);
+      expect(scope.fixedColumns).toBe(2);
+      expect(scope.allowMarginChange).toBe(false);
+      expect(scope.allowCoverToggle).toBe(false);
+      expect(scope.allowedCitationFormats).toEqual(['ieee_numeric']);
+      expect(scope.citationLockedReason).toContain('IEEE');
+      expect(scope.allowedPresetIds).toEqual(['ieee']);
+    });
+
+    it('libera todas as opções para documento em branco (em_branco)', () => {
+      const scope = getCustomizerScope('em_branco');
+      expect(scope.isFullyUnrestricted).toBe(true);
+      expect(scope.allowColumnChange).toBe(true);
+      expect(scope.allowMarginChange).toBe(true);
+      expect(scope.allowCoverToggle).toBe(true);
+      expect(scope.allowTocToggle).toBe(true);
+      expect(scope.allowedCitationFormats).toHaveLength(4);
+    });
+
+    it('libera todas as opções para Typst Universe comunitário (universe_custom)', () => {
+      const scope = getCustomizerScope('universe_custom');
+      expect(scope.isFullyUnrestricted).toBe(true);
+      expect(scope.allowColumnChange).toBe(true);
+      expect(scope.allowMarginChange).toBe(true);
+    });
+
+    it('libera opções restritas quando destravado manualmente pelo autor (escape hatch)', () => {
+      const lockedScope = getCustomizerScope('tcc', undefined, false);
+      expect(lockedScope.allowColumnChange).toBe(false);
+
+      const unlockedScope = getCustomizerScope('tcc', undefined, true);
+      expect(unlockedScope.isFullyUnrestricted).toBe(true);
+      expect(unlockedScope.isManuallyUnlocked).toBe(true);
+      expect(unlockedScope.allowColumnChange).toBe(true);
+      expect(unlockedScope.allowMarginChange).toBe(true);
     });
   });
 });

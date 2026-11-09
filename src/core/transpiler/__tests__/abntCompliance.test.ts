@@ -271,8 +271,8 @@ describe('Conformidade ABNT NBR 10520 (Citações)', () => {
     const proj = createAbntMonographProject();
     const main = generateMain(proj);
 
-    // Deve transpolar o bloco quote_long usando a macro #citacao(...)
-    expect(main).toContain('#citacao(referencia: [SILVA; SOUZA, 2023, p. 45\\-47])');
+    // Deve transpolar o bloco quote_long usando a macro #citacao(...) conforme NBR 10520:2023 (caixa mista)
+    expect(main).toContain('#citacao(referencia: [Silva; Souza, 2023, p. 45\\-47])');
 
     // Valida que o abnt.typ define citação com inset de 4cm e fonte proporcional (0.85em)
     const files = generateTypstFiles(proj);

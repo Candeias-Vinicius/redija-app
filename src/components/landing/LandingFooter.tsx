@@ -188,7 +188,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => onOpenModal('docs', 'ABNT NBR 10520 (2002 e atualização 2023)')}
+                  onClick={() => onOpenModal('docs', 'ABNT NBR 10520:2023')}
                   className="hover:text-emerald-500 transition-colors text-left"
                 >
                   NBR 10520:2023 (Citações)

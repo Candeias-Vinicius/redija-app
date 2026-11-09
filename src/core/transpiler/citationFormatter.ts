@@ -40,8 +40,8 @@ export function toUnicodeSuperscript(num: number): string {
  */
 export function resolveCitationFormat(config?: Partial<TemplateConfig>): CitationFormat {
   if (config?.citationFormat) return config.citationFormat;
-  if (config?.citationStyle === 'titlecase') return 'abnt_titlecase';
-  return 'abnt_upper';
+  if (config?.citationStyle === 'uppercase') return 'abnt_upper';
+  return 'abnt_titlecase';
 }
 
 /**

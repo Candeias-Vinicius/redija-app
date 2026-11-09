@@ -232,7 +232,7 @@ export function richTextToTypst(input: string, ctx?: RichTextTypstContext): stri
       }
 
       const display = resolveCitationDisplay(ref, {
-        format: ctx?.citationFormat ?? 'abnt_upper',
+        format: ctx?.citationFormat ?? 'abnt_titlecase',
         mode,
         page,
         refNumber: ctx?.refIndexMap?.get(ref.id) ?? 1,

@@ -10,5 +10,5 @@ export interface CitationRenderContextValue {
 export const CitationRenderContext = createContext<CitationRenderContextValue>({
   references: [],
   refIndexMap: new Map(),
-  citationFormat: 'abnt_upper',
+  citationFormat: 'abnt_titlecase',
 });
