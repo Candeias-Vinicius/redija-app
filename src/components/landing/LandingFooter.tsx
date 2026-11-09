@@ -3,18 +3,22 @@ import {
   Heart,
 } from 'lucide-react';
 import { Logo } from '../Logo';
+import { GitHubIcon } from '../GitHubIcon';
 import { LandingModalType } from './LandingModals';
 import { APP_VERSION } from '@/core/version';
+import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from '@/core/links';
 
 interface LandingFooterProps {
   isDark: boolean;
   onOpenModal: (type: LandingModalType, standardCode?: string) => void;
+  onOpenFullDocs?: (sectionId?: string) => void;
   onScrollToTop: () => void;
 }
 
 export const LandingFooter: React.FC<LandingFooterProps> = ({
   isDark,
   onOpenModal,
+  onOpenFullDocs,
   onScrollToTop,
 }) => {
   return (
@@ -47,6 +51,34 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                 WebRTC P2P
               </span>
+            </div>
+
+            <div className="pt-2 flex flex-wrap items-center gap-3 text-xs">
+              <a
+                href={GITHUB_REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-semibold transition-colors ${
+                  isDark
+                    ? 'border-slate-800 bg-slate-900 text-slate-200 hover:border-slate-700 hover:text-white'
+                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <GitHubIcon className="w-3.5 h-3.5" />
+                <span>GitHub (MIT)</span>
+              </a>
+              <a
+                href="/docs"
+                onClick={(e) => {
+                  if (onOpenFullDocs && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                    e.preventDefault();
+                    onOpenFullDocs();
+                  }
+                }}
+                className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+              >
+                Documentação (/docs) &rarr;
+              </a>
             </div>
           </div>
 
@@ -143,6 +175,20 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
                   Ver todas as 9 normas &rarr;
                 </button>
               </li>
+              <li>
+                <a
+                  href="/docs"
+                  onClick={(e) => {
+                    if (onOpenFullDocs && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                      e.preventDefault();
+                      onOpenFullDocs();
+                    }
+                  }}
+                  className="hover:text-emerald-500 transition-colors font-medium"
+                >
+                  Documentação Completa
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -183,6 +229,26 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
                 >
                   Reportar um Problema
                 </button>
+              </li>
+              <li>
+                <a
+                  href={GITHUB_REPO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-emerald-500 transition-colors"
+                >
+                  Repositório no GitHub
+                </a>
+              </li>
+              <li>
+                <a
+                  href={GITHUB_ISSUES_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-emerald-500 transition-colors"
+                >
+                  Issues & Sugestões
+                </a>
               </li>
             </ul>
           </div>
@@ -237,7 +303,27 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
             <span>para a comunidade acadêmica brasileira.</span>
           </p>
 
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-6">
+            <a
+              href="/docs"
+              onClick={(e) => {
+                if (onOpenFullDocs && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                  e.preventDefault();
+                  onOpenFullDocs();
+                }
+              }}
+              className="hover:text-emerald-500 transition-colors"
+            >
+              Documentação
+            </a>
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-emerald-500 transition-colors"
+            >
+              GitHub
+            </a>
             <button
               onClick={() => onOpenModal('privacy')}
               className="hover:text-emerald-500 transition-colors"

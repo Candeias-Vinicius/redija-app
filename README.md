@@ -1,330 +1,159 @@
-# ✍️ RedijaApp
+<p align="center">
+  <a href="https://app.redija.com.br">
+    <img src="public/logo.png" alt="RedijaApp Logo" width="110" />
+  </a>
+</p>
 
-> **Editor acadêmico visual multi-normas, colaborativo e automatizado com motor tipográfico Typst WASM (ABNT, SBC, IEEE, APA 7ª, Pôsteres e Typst Universe).**
+<h1 align="center">RedijaApp</h1>
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue.svg)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://reactjs.org/)
-[![Typst](https://img.shields.io/badge/Engine-Typst_WASM-239dad.svg)](https://typst.app/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<p align="center">
+  <strong>Editor acadêmico visual estilo Notion com compilação científica em tempo real no navegador via Typst WebAssembly.</strong>
+</p>
 
----
+<p align="center">
+  <a href="https://app.redija.com.br"><strong>Acessar Aplicação</strong></a> •
+  <a href="https://app.redija.com.br/docs"><strong>Documentação</strong></a> •
+  <a href="CONTRIBUTING.md"><strong>Contribuir</strong></a> •
+  <a href="https://github.com/Candeias-Vinicius/redija-app/issues"><strong>Issues</strong></a>
+</p>
 
-## 💡 A Proposta
-
-Escrever trabalhos acadêmicos no Brasil (TCCs, dissertações, teses e artigos) costuma ser um processo exaustivo e burocrático:
-
-- **No Word:** Alunos perdem dias lutando com margens (3-3-2-2 cm), numeração romana/arábica de páginas, sumários desajustados e formatação manual de referências.
-- **No Overleaf / LaTeX:** A alta complexidade sintática e mensagens de erro de compilação afastam a grande maioria dos pesquisadores e estudantes.
-
-O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notion**, orientada a blocos com formatação rica e arrastar-e-soltar, impulsionada pelo motor **Typst compilado em WebAssembly (WASM)** rodando diretamente no navegador do usuário. Você apenas escreve o conteúdo; o RedijaApp cuida de 100% da diagramação normativa em tempo real, sem custos de servidores de compilação.
-
----
-
-## ✨ Funcionalidades do Sistema
-
-### 1. Nova Identidade Visual & Tela de Entrada Informativa
-
-- **Logotipo Vetorial Transparente:** Ícone tipográfico estilizado com gradiente esmeralda e ciano, totalmente desacoplado da tipografia para excelente legibilidade em fundos claros e escuros.
-- **Layout Split-Screen Moderno:** Tela de boas-vindas dividida com carrossel interativo apresentando as principais propostas de valor do aplicativo:
-  - Normatização ABNT 100% automática em tempo real.
-  - Nuvem Pessoal no Google Drive (arquivos sob o controle do usuário).
-  - Colaboração ao vivo no estilo Google Docs sem servidores intermediários.
-  - Importação inteligente de arquivos Word (.docx) com conversão de imagens e estilos.
-- **Alternador de Tema Claro e Escuro:** Suporte a modo escuro profundo (Dark Mode) e modo claro elegante com alternância instantânea na tela de login e no cabeçalho do editor.
-- **Entrada com Perfil Local:** Opção clara para utilizar o aplicativo offline e localmente sem necessidade de conta ou login imediato.
+<p align="center">
+  <img src="https://img.shields.io/badge/version-0.2.0--beta-059669?style=flat-square" alt="Versão 0.2.0-beta" />
+  <a href="https://github.com/Candeias-Vinicius/redija-app/actions/workflows/ci.yml"><img src="https://github.com/Candeias-Vinicius/redija-app/actions/workflows/ci.yml/badge.svg?branch=develop" alt="CI & Guardrails" /></a>
+  <img src="https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react&logoColor=white" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-6.0-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript 6.0" />
+  <img src="https://img.shields.io/badge/Engine-Typst_WASM-239dad?style=flat-square" alt="Typst WASM" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-eab308?style=flat-square" alt="Licença MIT" /></a>
+</p>
 
 ---
 
-### 2. Editor Visual Modular em Blocos (Estilo Notion)
+## Sobre o Projeto
 
-- **Estrutura por Blocos:** Crie e organize o conteúdo através de blocos modulares sem ver ou editar código-fonte.
-- **Títulos Hierárquicos ABNT:** Suporte completo a seções primárias (H1 numerado), secundárias (H2), terciárias (H3), quaternárias (H4), quinárias (H5) e títulos não numerados (ex.: Resumo, Introdução, Referências).
-- **Formatação Rica (TipTap):** Negrito, itálico, sublinhado, sobrescrito e subscrito com atalhos de teclado.
-- **Citação Direta Curta (NBR 10520):** Diálogo integrado para inserir citações no corpo do texto conectadas às referências cadastradas, com indicação de página e ano.
-- **Citação Direta Longa (+ de 3 linhas):** Bloco dedicado com recuo automático de 4 cm da margem esquerda, fonte tamanho 10 pt e espaçamento entrelinhas simples.
-- **Equações Matemáticas:** Renderização de fórmulas matemáticas com notação Typst e opção de numeração sequencial à direita.
-- **Blocos de Código:** Apresentação de código com destaque de sintaxe (_syntax highlighting_) configurável por linguagem.
-- **Figuras e Imagens:** Upload com pré-visualização, controle de largura (50%, 75% ou 100%), legenda superior e fonte inferior conforme exigido pela ABNT. Quota de até 150 MB de imagens por trabalho.
-- **Tabelas Acadêmicas:** Tabelas padronizadas (normas do IBGE / ABNT), com linhas horizontais abertas nas laterais, cabeçalho e fonte.
-- **Quadros:** Estruturas fechadas com grade completa para dados qualitativos, com legenda e fonte.
-- **Notas de Rodapé & Quebras de Página:** Adicione notas numeradas e force quebras de página explícitas quando necessário.
-- **Reorganização Dinâmica:** Arraste e solte (_drag and drop_) blocos para reposicionar seções instantaneamente.
-- **Histórico Completo de Edição:** Desfazer e refazer (Undo / Redo) acessíveis por botões na barra de ferramentas ou atalhos (`Ctrl+Z` / `Ctrl+Y`).
+O **RedijaApp** combina uma interface visual em blocos (estilo Notion, baseada em TipTap) com o motor tipográfico **Typst compilado em WebAssembly** executando integralmente no navegador — eliminando a formatação manual frágil do Word e a curva de configuração de servidores LaTeX.
+
+> 📖 **Documentação de Uso e Normas:** Consulte **[app.redija.com.br/docs](https://app.redija.com.br/docs)** para guias detalhados sobre normas ABNT (9 NBRs), SBC, IEEE, APA 7ª Edição, Pôsteres A0/A1, Typst Universe, atalhos `/` e `@`, importadores (`.docx`, `.tex`, `.typ`, `.redija`), Google Drive BYOS e colaboração P2P.
 
 ---
 
-### 3. Importação Inteligente de Documentos (.docx, Overleaf/LaTeX, Typst e Backups)
+## Capturas de Tela
 
-- **Detecção Heurística & Field Matching:** Identifica automaticamente o modelo acadêmico compatível (TCC, Artigo Científico NBR 6022, Relatório Técnico, IEEE, SBC, Pôster ou Typst Universe) e preenche metadados semânticos (título, autores, orientador, instituição, resumo, abstract e palavras-chave).
-- **Importador Word (.docx):** Converte títulos hierárquicos, parágrafos, listas, tabelas e imagens embutidas com sanitização contra HTML/SVG malicioso.
-- **Projetos LaTeX / Overleaf (.tex / .zip) & Typst (.typ / .zip):** Extrai seções, equações, figuras, pacotes `@preview/...` e referências `.bib` preservando ativos em subpastas.
-- **Backups Portáteis (.redija):** Importação e exportação de projetos completos em JSON padronizado com preservação integral de referências, imagens e configurações normativas.
+### Editor Visual em Blocos + Compilação Typst WASM em Tempo Real
+![Editor visual do RedijaApp com painel lateral normativo e PDF compilado ao lado](docs/screenshots/editor-preview.png)
 
----
+<details>
+<summary>Ver mais telas (Landing Page & Central de Documentação integrada)</summary>
 
-### 4. Tipografia Sob Demanda & Personalização Normativa
+#### Página Inicial (Dark Mode)
+![Landing page oficial do RedijaApp](docs/screenshots/landing-hero.png)
 
-- **Margens & Layouts Configuráveis:** Configuração estrita de 3/3/2/2 cm na ABNT ou personalização livre de margens, colunas (1 ou 2), espaçamento e capa/folha de rosto/sumário.
-- **Catálogo de Fontes & Fontes CDN Sob Demanda (`fontCatalog.ts`):** Fontes nativas 100% offline (_Tinos / Times New Roman_ e _Arimo / Arial_) somadas a carregamento dinâmico via `cdn.jsdelivr.net` (_Libertinus Serif_, _New Computer Modern_, _Lora_, _EB Garamond_, _Inter_, _Roboto_, _Fira Sans_, _JetBrains Mono_) ou qualquer família do **Google Fonts / Fontsource**, com cache no Web Worker e fallback silencioso offline.
-- **Predefinições Normativas (Presets):**
-  - _ABNT Clássica_ (Monografias e Teses NBR 14724 + 10520:2002).
-  - _ABNT 2023_ (Atualizações da NBR 10520:2023 com citações em caixa mista).
-  - _Artigo em 2 Colunas_ (Formato acadêmico para periódicos e conferências).
-  - _APA 7ª Edição_ (Padrão internacional com margens de 2,54 cm e espaçamento duplo).
-  - _SBC / IEEE / Pôster A0_ & _Configuração Customizada_.
-- **Modelos Prontos para Uso:** Crie projetos a partir de templates estruturados para **TCC / Monografia**, **Artigo Científico**, **Relatório Técnico**, **Projeto de Pesquisa**, **SBC**, **IEEE Conference**, **Pôster A0**, **Typst Universe** ou **Documento em Branco**.
+#### Central de Documentação (`/docs`)
+![Documentação integrada no RedijaApp](docs/screenshots/docs-page.png)
+
+</details>
 
 ---
 
-### 5. Elementos Pré-Textuais e Pós-Textuais (NBR 14724)
+## Arquitetura & Stack
 
-- **Capa Personalizada:** Diagramação institucional automática com inclusão opcional de brasão ou logotipo.
-- **Folha de Rosto:** Formatação com autor, título, subtítulo, nota de apresentação (natureza do trabalho), instituição, orientador e coorientador.
-- **Folha de Aprovação:** Geração de página formal de avaliação com data de aprovação e lista de membros da banca examinadora com linhas de assinatura.
-- **Páginas Especiais:** Seções dedicadas para Dedicatória, Agradecimentos e Epígrafe com autoria.
-- **Resumo e Abstract:** Resumo vernáculo com lista de palavras-chave e versão em língua estrangeira (_Abstract_) com _keywords_.
-- **Sumário e Listas Automáticas:** Sumário geral gerado dinamicamente pelo Typst, além de Listas de Figuras, Listas de Tabelas e Listas de Quadros.
-- **Seções Pós-Textuais:** Campos dedicados para Lista de Abreviaturas e Siglas, Símbolos, Glossário, Apêndices e Anexos.
+O projeto adota processamento *local-first* e separação clara entre thread de interface, motor WASM e regras de domínio:
 
----
+- **Worker WASM Dedicado (`src/core/typst/typst.worker.ts`):** compilador e renderizador Typst operam fora da *main thread*, rasterizando páginas em `OffscreenCanvas` e transferindo `ImageBitmap` *zero-copy* para o preview.
+- **Transpilador & Verificadores Plurais (`src/core/transpiler/`):** gera código `.typ` multi-normas e valida regras via estratégias desacopladas (`linters/`).
+- **Persistência & Importadores (`src/core/storage/`):** IndexedDB (Dexie.js) com lixeira de 30 dias, sincronização BYOS via Google Drive v3 API, *Auto-Merge* não destrutivo e parsers para `.docx`, `.tex`/`.zip`, `.typ` e `.redija`.
+- **Colaboração P2P (`src/core/collaboration/`):** troca de diffs e presença em blocos via WebRTC (PeerJS) e BroadcastChannel, sem banco de dados central.
+- **Feedback Serverless (`api/feedback.ts`):** endpoint Vercel compatível com Resend estruturado via injeção de dependência (`EmailProvider`).
 
-### 6. Central Universal de Citações e Gerenciador Bibliográfico
+| Camada | Tecnologias |
+| :--- | :--- |
+| **Interface & Editor** | React 19, Tailwind CSS v4, TipTap 3, Lucide Icons |
+| **Motor Tipográfico** | Typst WASM (`typst-ts ^0.7.0`: `typst-ts-web-compiler` + `typst-ts-renderer`) |
+| **Linguagem & Build** | TypeScript 6.0, Vite 8 |
+| **Armazenamento & P2P** | Dexie 4 (IndexedDB), Google Identity Services / Drive API, PeerJS, JSZip, Mammoth |
+| **Qualidade & Testes** | ESLint 10 (`--max-warnings 0`), Prettier 3, Vitest 5, Playwright Chromium |
 
-- **Cadastro Estruturado por Tipo:** Suporte a Livros, Artigos de Periódicos, Teses/Dissertações, Páginas da Web e Documentos Legislativos.
-- **Busca e Autopreenchimento por DOI & BibTeX:** Integração com a API pública da CrossRef e importação/exportação `.bib`.
-- **Central de Citações e Layout das Referências:** Suporte sincronizado entre Editor (`@`), Sidebar e PDF a 5 formatos de chamada — **(SILVA, 2023)**, **(Silva, 2023)**, numérico **[1]**, sobrescrito **¹** e **Autor-Data (APA)** — com controle de alinhamento (**Esquerda** ou **Justificado**), espaçamento (**Simples ABNT**, **Compacto** ou **Duplo**), destaque de título (**Negrito**, **Itálico**, **Sublinhado** ou **Sem destaque**) e **Prévia Instantânea**.
+### Estrutura de Diretórios
 
----
-
-### 7. Engine Typst WASM 100% Isolada em Web Worker (Zero Bloqueio de UI)
-
-- **Isolamento Completo (Compiler + Renderer em Worker):** Tanto o compilador (`typst-ts-web-compiler`) quanto o renderizador tipográfico (`typst-ts-renderer`) operam exclusivamente dentro de um Web Worker dedicado (`src/core/typst/typst.worker.ts`), sem carregar nem instanciar módulos WASM na thread principal do navegador.
-- **Rasterização via OffscreenCanvas & ImageBitmap:** O Worker rasteriza as páginas vetoriais em `OffscreenCanvas` e transfere os quadros gerados como `ImageBitmap` (Transferable Objects de zero-copy) para o DOM principal, garantindo digitação e animações fluidas a 60 fps constantes.
-- **Cancelamento Inteligente de Renderizações Obsoletas:** Request IDs descartam automaticamente frames de compilações intermediárias quando o usuário digita em ritmo acelerado.
-- **Pré-visualização Interativa do PDF:** Visualizador do documento renderizado lado a lado com controle de zoom (70% a 145%), modo de folha clara/noturna, navegação de páginas e ajuste dinâmico de layout (painel dividido ou tela cheia).
-- **Painel de Diagnósticos em Tempo Real:** Detecção e tradução amigável de alertas e erros de sintaxe tipográfica em português sem travar a interface.
-
----
-
-### 8. Suporte Amplo a Modelos Acadêmicos e Typst Universe
-
-- **Normas ABNT NBR 14724 / 6023 / 10520:** TCCs, Monografias, Dissertações e Artigos em 1 ou 2 colunas.
-- **Artigo SBC:** Modelo oficial da Sociedade Brasileira de Computação (`sbc.typ`) para simpósios e periódicos de TI.
-- **Artigo IEEE Conference:** Formato internacional de conferências de engenharia e tecnologia em 2 colunas (`ieee.typ`).
-- **Pôster Acadêmico A0:** Painel científico diagramado em alta resolução para impressão de congressos (`poster.typ`).
-- **Typst Universe Dinâmico:** Resolução e injeção automática de templates do repositório oficial da comunidade Typst (`@preview/...`) com fallback offline.
-- **Aba Lateral Adaptativa & Configurável (`fieldRegistry.ts` + `templateCapabilities.ts`):** Adapta cabeçalho, badges (`NBR 14724`, `ABNT Modificado`, `SBC`, `IEEE`, `Pôster A0/A1`, `Typst Universe`), campos e formulários ao template ativo. Pelo botão **"Personalizar Campos"**, o usuário pode incluir ou ocultar qualquer campo mantendo zero perda de dados na gaveta *"Campos preservados"* e sincronizando a exibição no PDF em modelos flexíveis.
-- **Verificadores Plurais (Strategy / OCP) & Guias Contextuais:** Pipeline desacoplado (`src/core/transpiler/linters/`) com estratégias específicas para **ABNT**, **IEEE**, **SBC**, **Pôster** e **Verificador de Integridade** (para modos *Modificado*, APA e Livre), acompanhado por documentação contextual por modelo em `WelcomeModal`.
-
----
-
-### 9. Arquitetura Multi-Perfil & Nuvem Pessoal (Google Drive BYOS)
-
-- **Persistência Local (IndexedDB):** Todos os rascunhos e imagens são mantidos localmente via Dexie.js, garantindo funcionamento ininterrupto mesmo sem conexão com a internet.
-- **Isolamento Estrito entre Perfil Local e Contas Google:**
-  - O Perfil Local opera isoladamente no navegador com opção explícita de "Sair do Perfil Local".
-  - Se um colega sentar na mesma máquina e logar com a conta Google dele, os arquivos locais do proprietário permanecem protegidos e isolados: o sincronizador nunca herda nem envia trabalhos locais para a conta Google de terceiros.
-- **Bring Your Own Storage (BYOS):** Seus dados pertencem a você. O RedijaApp integra-se à conta pessoal do Google Drive do usuário via Google Identity Services (OAuth2).
-- **Gestão de Sessão Segura:** Tokens OAuth2 mantidos em memória RAM (protegidos contra ataques XSS), consentimento persistido sem caixas de diálogo repetidas em logins subsequentes e opção de logout seguro.
-
----
-
-### 10. Colaboração em Tempo Real & Concorrência Inteligente
-
-- **Colaboração em Tempo Real P2P (WebRTC + BroadcastChannel):** Comunicação peer-to-peer direta entre navegadores de colaboradores via canais de dados WebRTC (PeerJS) e BroadcastChannel (para abas no mesmo computador), sem latência e sem custo de servidores intermediários.
-- **Indicadores Visuais de Presença:**
-  - Indicador pulsante no cabeçalho com contagem de usuários ativos (`● 2 online`) e avatares com fotos de perfil.
-  - Contorno luminoso e etiquetas flutuantes `"[Nome] está aqui"` no bloco exato que outro colaborador estiver visualizando ou editando.
-- **Mesclagem Automática por Blocos (Auto-Merge):** Resolução inteligente de concorrência com base em marcas temporais (`updatedAt`) por bloco. Se dois autores editarem o documento em horários ou conexões diferentes, as alterações são mescladas de maneira não destrutiva, sem perda de parágrafos nem duplicatas de referências.
-- **Compartilhamento Nativo via Google Drive:** Compartilhe projetos diretamente com orientadores e colegas através do modal integrado, definindo permissões de Leitor ou Editor via Google Drive Permissions API.
-
----
-
-### 11. Gestão de Trabalhos & Lixeira com Retenção de 30 Dias
-
-- **Gerenciador de Trabalhos:** Alterne facilmente entre diferentes projetos acadêmicos salvos no perfil ativo.
-- **Lixeira com Retenção de 30 Dias:** Exclusão suave com contagem regressiva de retenção e expurgo automático de itens antigos. Restauração de projetos com um clique.
-- **Permissão de Exclusão Total:** Liberdade para apagar qualquer trabalho, mesmo quando for o último existente, exibindo um estado inicial vazio (_Empty State_) acolhedor para recomeçar do zero.
-- **Exportação Versátil:**
-  - **PDF ABNT (.pdf):** Documento final pronto para impressão ou submissão à banca.
-  - **Código-Fonte Typst (.typ):** Arquivo-fonte puro para uso e compilação externa no CLI do Typst.
-  - **Backup Redija (.redija):** Arquivo JSON portátil contendo todos os blocos, metadados, imagens e configurações do projeto.
-- **Métricas do Documento:** Painel com contagem em tempo real de caracteres, palavras, estimativa de páginas A4 e tamanho total de imagens embutidas.
-- **Configurações de Conta e Privacidade:** Indicador de projetos locais vs. projetos na nuvem, opção para revogação explícita de permissões do Google e funcionalidade de exclusão total de dados do Drive com confirmação por texto de segurança.
-
----
-
-## 🏗️ Arquitetura do Sistema
-
-```
-                      ┌─────────────────────────────────────────────────────────────────┐
-                      │                 Thread Principal da Interface (DOM)             │
-                      │  • React 19 + TipTap (Editor em blocos com histórico Undo/Redo) │
-                      │  • Sidebar com Linter ABNT memoizado                            │
-                      │  • PdfPreview com geração Typst sob demanda                     │
-                      │  • Viewport de Canvases (exibe ImageBitmaps via GPU Blitting)   │
-                      └───────────────────────────────┬─────────────────────────────────┘
-                                                      │
-                       ┌──────────────────────────────┼──────────────────────────────┐
-                       ▼                              ▼                              ▼
-            ┌─────────────────────┐        ┌─────────────────────┐        ┌─────────────────────┐
-            │  IndexedDB (Dexie)  │        │ Transpilador Typst  │        │ Colaboração P2P     │
-            │ Cache Local-First   │        │ • Cache LRU Imagens │        │ WebRTC + Broadcast  │
-            └──────────┬──────────┘        │ • Geração main.typ  │        └──────────┬──────────┘
-                       │                   └──────────┬──────────┘                   │
-                       ▼                              │                              ▼
-            ┌─────────────────────┐                   ▼ postMessage(files, [buffers])┌─────────────────────┐
-            │ Google Drive v3 API │        ┌────────────────────────────────────┐    │ Presença e Cursors  │
-            │ Armazenamento BYOS  │        │        Web Worker Dedicado         │    │  Sincronia ao Vivo  │
-            └─────────────────────┘        │  • Typst Compiler WASM             │    └─────────────────────┘
-                                           │  • Typst Renderer WASM             │
-                                           │  • OffscreenCanvas Rasterizer      │
-                                           └──────────────────┬─────────────────┘
-                                                              │
-                                                              ▼ Zero-Copy Transferable
-                                                   [Transferable ImageBitmaps]
-                                                              │
-                                                              ▼
-                                                   [Canvas DOM: drawImage()]
-```
-
----
-
-## 📁 Estrutura do Repositório
-
-```
+```text
 redija-app/
-├── public/                      # Assets estáticos, fontes TrueType (Tinos, Arimo) e scripts
+├── api/                    # Serverless Function Vercel (/api/feedback)
+├── docs/                   # Capturas de tela e ativos de documentação do repositório
+├── e2e/                    # Testes End-to-End com Playwright
+├── public/                 # Logo, favicon, fontes locais (Tinos, Arimo) e CNAME
 ├── src/
-│   ├── components/              # Componentes de interface do usuário (React 19)
-│   │   ├── landing/             # Seções modulares da Landing Page de entrada
-│   │   ├── sidebar/             # Subcomponentes modulares (Linter plural, Campos preservados, Personalizar Campos)
-│   │   ├── AccountSettingsModal.tsx  # Configurações de conta, armazenamento e privacidade
-│   │   ├── BackupNoticeBanner.tsx    # Alerta sutil de incentivo a backup para convidados
-│   │   ├── BugReportModal.tsx   # Modal de reporte de problemas com dados do ambiente
-│   │   ├── Editor.tsx           # Editor visual em blocos estilo Notion e presença P2P
-│   │   ├── Header.tsx           # Barra superior com status, ações e ferramentas
-│   │   ├── LoginScreen.tsx      # Tela de autenticação com split-screen e carrossel
-│   │   ├── Logo.tsx             # Logotipo oficial com transparência alfa e gradiente
-│   │   ├── PdfPreview.tsx       # Visualizador de PDF via Web Worker e código Typst
-│   │   ├── ProjectsModal.tsx    # Gerenciamento de trabalhos e lixeira de 30 dias
-│   │   ├── ReferenceModal.tsx   # Cadastro de referências ABNT e busca por DOI
-│   │   ├── RichTextInput.tsx    # Editor de texto rico TipTap (tags semânticas)
-│   │   ├── ShareModal.tsx       # Compartilhamento via Google Drive API
-│   │   ├── Sidebar.tsx          # Aba lateral adaptativa por template, metadados, linter e referências
-│   │   ├── TemplateCustomizerModal.tsx # Personalização de normas, margens e fontes
-│   │   └── WelcomeModal.tsx     # Guia interativo inicial de recursos
-│   ├── core/
-│   │   ├── auth/                # Google Identity Services (OAuth2 Client)
-│   │   ├── collaboration/       # Motor P2P WebRTC (PeerJS) e BroadcastChannel
-│   │   ├── storage/             # Dexie.js (IndexedDB), Google Drive, Auto-Merge e Importer (.docx)
-│   │   ├── templates/           # Modelos Typst nativos, catálogo de campos (fieldRegistry.ts) e capacidades
-│   │   ├── transpiler/          # Transpilador de blocos, cache LRU de imagens e verificadores plurais (linters/)
-│   │   ├── typst/               # Web Worker WASM + carregador de fontes sob demanda via CDN (fontCatalog.ts)
-│   │   └── universe/            # Resolução e injeção de pacotes do Typst Universe (@preview/...)
-│   ├── types/                   # Tipagens TypeScript (Documento, Metadados, Blocos, Presets)
-│   ├── App.tsx                  # Orquestrador principal da aplicação
-│   ├── index.css                # Estilos globais e tema Tailwind CSS v4
-│   └── main.tsx                 # Ponto de entrada React 19
-├── e2e/                         # Testes End-to-End automatizados com Playwright
-├── package.json
-├── tsconfig.json
-└── vite.config.ts
+│   ├── components/         # UI React (editor/, sidebar/, customizer/, landing/, docs/)
+│   ├── core/               # Lógica de domínio (auth, collaboration, docs, feedback, storage, templates, transpiler, typst, universe)
+│   ├── hooks/              # Hooks de estado e orquestração (workspace, undo/redo, drive sync, collab, rota)
+│   ├── types/              # Contratos TypeScript de documentos, metadados e normas
+│   └── App.tsx             # Orquestrador principal e roteamento
+├── .github/workflows/      # CI & Guardrails (ci.yml)
+├── vercel.json             # Headers CSP/WASM e rewrite SPA
+└── vite.config.ts          # Configuração Vite 8 + worker ES
 ```
 
 ---
 
-## 🚀 Como Executar Localmente
+## Executando Localmente
 
 ### Pré-requisitos
 
-- **Node.js** (versão 20.19+, 22.12+ ou 24 LTS)
-- **npm** (ou **pnpm** / **yarn**)
+- **Node.js** `20.19+`, `22.12+` ou `24 LTS`
+- **npm**
 
 ### Instalação e Execução
 
-1. **Clone o repositório:**
+```bash
+git clone https://github.com/Candeias-Vinicius/redija-app.git
+cd redija-app
+npm install
+cp .env.example .env
+npm run dev
+```
 
-   ```bash
-   git clone https://github.com/Candeias-Vinicius/redija-app.git
-   cd redija-app
-   ```
+Acesse **`http://localhost:3000`** no navegador.
 
-2. **Instale as dependências:**
+> **Nota:** Não é necessário configurar credenciais OAuth do Google para desenvolver localmente — na tela inicial, utilize **"Experimentar como Convidado"** ou **"Entrar em Modo Demonstração (Dev)"**.
 
-   ```bash
-   npm install
-   ```
+### Variáveis de Ambiente
 
-3. **Configure as Variáveis de Ambiente (Opcional para Google Drive):**
-   Crie um arquivo `.env` na raiz do projeto baseado no `.env.example`:
+| Variável | Obrigatória? | Finalidade |
+| :--- | :---: | :--- |
+| `VITE_GOOGLE_CLIENT_ID` | Opcional | Client ID OAuth 2.0 (Google Cloud Console) para habilitar login e sync real com Google Drive. |
+| `RESEND_API_KEY` | Opcional *(prod)* | Chave do Resend usada pela Vercel Serverless Function em `/api/feedback`. |
+| `RESEND_FROM_EMAIL` | Opcional *(prod)* | Remetente configurado no serviço Resend. |
+| `RESEND_TO_EMAIL` | Opcional *(prod)* | Caixa de destino para relatos de bug/contato (padrão: `contato.redija@gmail.com`). |
 
-   ```bash
-   cp .env.example .env
-   ```
+### Scripts Disponíveis
 
-   Adicione o seu Google Client ID gerado no Google Cloud Console:
-
-   ```env
-   VITE_GOOGLE_CLIENT_ID=seu_client_id.apps.googleusercontent.com
-   ```
-
-   > **Nota de Desenvolvimento:** Se preferir testar sem credenciais do Google, inicie normalmente e selecione **"Entrar em Modo Demonstração (Dev)"** ou **"Continuar como Convidado"** na tela inicial.
-
-4. **Inicie o servidor de desenvolvimento:**
-
-   ```bash
-   npm run dev
-   ```
-
-5. Acesse a aplicação no seu navegador:
-   ```
-   http://localhost:3000
-   ```
+| Comando | Descrição |
+| :--- | :--- |
+| `npm run dev` | Inicia o servidor de desenvolvimento Vite na porta `3000`. |
+| `npm run typecheck` | Executa verificação estrita de tipos (`tsc --noEmit`). |
+| `npm run lint` | Roda ESLint exigindo zero warnings (`--max-warnings 0`). |
+| `npm test` | Executa todos os testes unitários e compilação WASM via Vitest. |
+| `npm run test:e2e` | Executa a suíte End-to-End no Chromium via Playwright. |
+| `npm run build` | Valida tipos e gera o bundle de produção em `dist/`. |
+| `npm run format` | Formata o código com Prettier. |
 
 ---
 
-## 🧪 Testes e Validação de Código
+## CI & Infraestrutura
 
-Para executar os testes unitários e de integração:
-
-```bash
-npm run test
-```
-
-Para validar a tipagem estática do TypeScript:
-
-```bash
-npm run typecheck
-```
-
-Para verificar regras de formatação e linting:
-
-```bash
-npm run lint
-```
-
-Para gerar o bundle de produção otimizado:
-
-```bash
-npm run build
-```
+- **Hospedagem (`https://app.redija.com.br`):** configurada para **Vercel** via [`vercel.json`](vercel.json) (com suporte a rewrites SPA para `/docs`, cabeçalhos CSP/WASM e função serverless `/api/feedback`) e compatível com **Netlify** via [`netlify.toml`](netlify.toml).
+- **Pipeline Contínua ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):** executa `lint`, `typecheck`, `vitest`, `playwright` e `build` em pushes e PRs para `develop` e `main`, além de conter uma trava de segurança que bloqueia Pull Requests para `main` fora da branch `develop`.
 
 ---
 
-## 🚀 Deploy e Hospedagem Contínua (GitHub Pages)
+## Contribuindo
 
-O RedijaApp é hospedado como aplicação estática de custo zero via **GitHub Pages**, com deploy automatizado pelo **GitHub Actions** a cada alteração aprovada na branch `main`.
+Contribuições são muito bem-vindas! Antes de abrir um Pull Request:
 
-- **Domínio oficial:** `https://app.redija.com.br`
-- **Workflow:** `.github/workflows/deploy.yml`
-- **Configuração de DNS (CNAME):** O subdomínio `app` aponta via registro CNAME para `candeias-vinicius.github.io`.
-- **Certificado SSL / HTTPS:** Gerado e renovado automaticamente de forma gratuita pelo GitHub Pages (Let's Encrypt).
-- **Segredos necessários no GitHub Actions:**
-  - `VITE_GOOGLE_CLIENT_ID`: ID do cliente OAuth 2.0 cadastrado no Google Cloud Console com o domínio `https://app.redija.com.br` liberado em Origens JavaScript autorizadas.
+1. Leia o guia completo em **[`CONTRIBUTING.md`](CONTRIBUTING.md)**.
+2. Crie sua branch a partir de **`develop`** (PRs diretos para `main` são restritos).
+3. Rode `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e` e `npm run build` antes de submeter.
 
 ---
 
-## 📄 Licença
+## Licença
 
-Distribuído sob a licença **MIT**. Consulte o arquivo [LICENSE](file:///c:/Users/vinic/.gemini/antigravity/scratch/redija-app/LICENSE) para obter mais informações.
+Distribuído sob a licença **MIT**. Veja [`LICENSE`](LICENSE) para mais detalhes.

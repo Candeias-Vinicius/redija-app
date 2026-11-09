@@ -14,6 +14,14 @@ import {
   Compass,
 } from 'lucide-react';
 import type { ContextualGuideMode } from '@/core/templates/templateCapabilities';
+import {
+  ABNT_STANDARDS_DOCS,
+  GENERAL_GUIDELINES_DOCS,
+  IEEE_GUIDELINES_DOCS,
+  POSTER_GUIDELINES_DOCS,
+  SBC_GUIDELINES_DOCS,
+  type StandardDocSection,
+} from '@/core/docs/documentationCatalog';
 
 export type WelcomeModalTab = 'overview' | ContextualGuideMode;
 
@@ -21,211 +29,14 @@ interface WelcomeModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialTab?: WelcomeModalTab;
+  onOpenFullDocs?: () => void;
 }
-
-interface StandardDocSection {
-  code: string;
-  title: string;
-  summary: string;
-  rulesApplied: string[];
-}
-
-const ABNT_STANDARDS_DOCS: StandardDocSection[] = [
-  {
-    code: 'ABNT NBR 14724',
-    title: 'Trabalhos Acadêmicos: Apresentação (TCC, Monografias, Dissertações e Teses)',
-    summary:
-      'Define toda a estrutura física do trabalho (elementos pré-textuais, textuais e pós-textuais), margens, paginação e ilustrações.',
-    rulesApplied: [
-      'Formato A4 com margens padrão: 3 cm (superior e esquerda) e 2 cm (inferior e direita).',
-      'Fonte tamanho 12 pt para o texto geral e 10 pt para citações longas, notas de rodapé, legendas e fontes de figuras/tabelas.',
-      'Espaçamento 1,5 entre linhas no corpo do texto e espaçamento simples (1,0) em resumos, citações longas, notas e referências.',
-      'Contagem de páginas iniciada na Folha de Rosto, mas com numeração impressa no canto superior direito somente a partir da primeira folha textual.',
-      'Estrutura completa: Capa, Folha de Rosto (com natureza recuada), Folha de Aprovação (Banca Examinadora), Dedicatória, Agradecimentos, Epígrafe, Listas automáticas (Ilustrações, Quadros, Tabelas, Siglas, Símbolos), Glossário, Apêndices e Anexos.',
-    ],
-  },
-  {
-    code: 'ABNT NBR 10520 (2002 e atualização 2023)',
-    title: 'Citações em Documentos',
-    summary:
-      'Regulamenta as chamadas de autores no texto e a diagramação de citações diretas curtas, longas e indiretas.',
-    rulesApplied: [
-      'Citação direta longa (mais de 3 linhas) com recuo esquerdo de 4 cm, fonte 10 pt, espaçamento simples e sem aspas.',
-      'Suporte tanto ao padrão tradicional em maiúsculas (SILVA, 2023) quanto à atualização NBR 10520:2023 em caixa mista entre parênteses (Silva, 2023).',
-      'Formatação automática de múltiplos autores (até 3 separados por ponto e vírgula, e 4 ou mais abreviados com et al.) e destaque automático em itálico para expressões latinas como et al. e apud.',
-      'Inserção rápida de chamadas pelo atalho "@" ou pelo comando "/" direto no parágrafo.',
-    ],
-  },
-  {
-    code: 'ABNT NBR 6023',
-    title: 'Referências: Elaboração',
-    summary:
-      'Estabelece a ordem dos elementos e a formatação da lista final de referências bibliográficas.',
-    rulesApplied: [
-      'Referências alinhadas exclusivamente à esquerda (sem justificar), em espaçamento simples e separadas entre si por um espaço simples em branco.',
-      'Ordenação alfabética automática pelo sobrenome do primeiro autor e abreviação normativa com et al. em itálico para obras com 4 ou mais autores.',
-      'Formatação específica para Livros, Artigos de Periódicos, Teses/Dissertações/TCCs, Sites e Legislação, com importação automática por DOI, ISBN e arquivos BibTeX (.bib).',
-    ],
-  },
-  {
-    code: 'ABNT NBR 6024',
-    title: 'Numeração Progressiva das Seções de um Documento',
-    summary:
-      'Padroniza a hierarquia e o destaque tipográfico dos títulos de capítulos e subseções (da seção primária à quinária).',
-    rulesApplied: [
-      'Numeração automática em 5 níveis (1, 1.1, 1.1.1, 1.1.1.1 e 1.1.1.1.1) sem ponto final após o número.',
-      'Diferenciação tipográfica graduada: Seção 1 em MAIÚSCULAS e negrito (iniciando em nova página nos TCCs), Seção 1.1 em negrito, Seção 1.1.1 em itálico, Seção 1.1.1.1 sublinhada e Seção 1.1.1.1.1 regular.',
-      'Suporte a títulos sem indicação numérica centralizados (Errata, Agradecimentos, Resumo, Referências, Glossário, Apêndices e Anexos).',
-    ],
-  },
-  {
-    code: 'ABNT NBR 6027',
-    title: 'Sumário',
-    summary:
-      'Regras para geração do sumário refletindo fielmente a hierarquia e paginação das seções do trabalho.',
-    rulesApplied: [
-      'Geração 100% automática do Sumário espelhando os números, títulos e páginas exatas de todas as seções.',
-    ],
-  },
-  {
-    code: 'ABNT NBR 6028',
-    title: 'Resumo, Resumo Crítico e Resumo Indicativo',
-    summary:
-      'Determina a apresentação do Resumo em língua vernácula e em língua estrangeira (Abstract).',
-    rulesApplied: [
-      'Diagramação em parágrafo único, espaçamento simples, seguido das Palavras-chave separadas por ponto.',
-      'Contador de palavras em tempo real com verificação da faixa recomendada (150 a 500 palavras para trabalhos acadêmicos).',
-    ],
-  },
-  {
-    code: 'ABNT NBR 6022 e Normas IBGE de Tabulação',
-    title: 'Artigos em Publicações Periódicas e Apresentação Tabular (IBGE)',
-    summary:
-      'Diretrizes para artigos científicos (1 ou 2 colunas) e diferenciação entre Tabelas estatísticas e Quadros textuais.',
-    rulesApplied: [
-      'Tabelas estatísticas abertas nas laterais esquerda e direita (norma IBGE) com título no topo e fonte na base.',
-      'Quadros textuais fechados nos 4 lados com listagem própria separada da Lista de Tabelas.',
-    ],
-  },
-  {
-    code: 'ABNT NBR 15287',
-    title: 'Projeto de Pesquisa: Apresentação',
-    summary:
-      'Estrutura padronizada para submissão de projetos de TCC, mestrado, doutorado e iniciação científica.',
-    rulesApplied: [
-      'Atendido pela estrutura pré-textual (Capa, Folha de Rosto, Sumário) e seções numeradas para Tema, Problema, Hipótese, Objetivos, Justificativa, Referencial Teórico, Metodologia, Recursos e Cronograma (em Quadros ABNT).',
-    ],
-  },
-  {
-    code: 'ABNT NBR 10719',
-    title: 'Relatório Técnico e/ou Científico: Apresentação',
-    summary:
-      'Diretrizes para relatórios de estágio supervisionado, iniciação científica (PIBIC) e relatórios técnicos.',
-    rulesApplied: [
-      'Predefinição dedicada em "Norma & Layout" com estrutura formal de capa, folha de rosto, resumo, listas técnicas, desenvolvimento e anexos.',
-    ],
-  },
-];
-
-const IEEE_GUIDELINES_DOCS: StandardDocSection[] = [
-  {
-    code: 'IEEE • Estrutura & Colunas',
-    title: 'Diagramação de Artigos para Conferências IEEE (Two-Column)',
-    summary:
-      'Padrão internacional adotado em conferências de engenharia elétrica, eletrônica, telecomunicações e ciência da computação.',
-    rulesApplied: [
-      'Corpo do texto em 2 colunas (10 pt, fonte serifada), com título centralizado em destaque no topo da primeira página.',
-      'Margens compactas oficiais: 1,9 cm superior, 2,54 cm inferior e 1,57 cm nas laterais.',
-      'Seções principais em algarismos romanos (I. INTRODUCTION) e subseções alfabéticas em itálico.',
-    ],
-  },
-  {
-    code: 'IEEE • Abstract & Index Terms',
-    title: 'Resumo Técnico e Descritores em Inglês',
-    summary:
-      'Conferências internacionais exigem Abstract objetivo entre 100 e 250 palavras em bloco contínuo seguido de Index Terms.',
-    rulesApplied: [
-      'Preencha os campos Abstract e Index Terms na aba lateral (sem necessidade de capa, folha de rosto ou sumário).',
-      'Evite equações complexas, siglas não definidas e citações dentro do Abstract.',
-    ],
-  },
-  {
-    code: 'IEEE • Citações Numéricas [1]',
-    title: 'Sistema Numérico de Referências e Chamadas',
-    summary:
-      'Diferente do autor-data tradicional brasileiro, o estilo IEEE referencia trabalhos por colchetes numerados.',
-    rulesApplied: [
-      'Configure o modo Numérico [1] na Central de Citações (já ativo por padrão ao criar artigos IEEE).',
-      'Use o atalho "@" no editor para inserir chamadas [1], [2] sincronizadas com a ordem bibliográfica.',
-    ],
-  },
-];
-
-const SBC_GUIDELINES_DOCS: StandardDocSection[] = [
-  {
-    code: 'SBC • Formato Oficial de Simpósios',
-    title: 'Sociedade Brasileira de Computação (Artigos Completos e Resumidos)',
-    summary:
-      'Padrão oficial brasileiro utilizado no CSBC, SBES, SBRC, SBSI e workshops da SBC.',
-    rulesApplied: [
-      'Margens oficiais SBC: superior 3,5 cm, laterais 3,0 cm e inferior 2,5 cm em coluna única (12 pt, entrelinha simples).',
-      'Cabeçalho direto na página 1 com título, autores, afiliação institucional e blocos bilíngues (Resumo e Abstract).',
-      'Recomenda-se manter Resumo e Abstract concisos (tipicamente entre 50 e 200 palavras).',
-    ],
-  },
-  {
-    code: 'SBC • Seções & Referências',
-    title: 'Organização Textual e Bibliografia',
-    summary:
-      'Alinhamento com recomendações clássicas da computação no Brasil.',
-    rulesApplied: [
-      'Seções numeradas objetivas (1. Introdução, 2. Trabalhos Relacionados, 3. Metodologia, 4. Resultados, 5. Conclusão).',
-      'Referências justificadas ou à esquerda configuráveis em "Layout das Referências e Citações".',
-    ],
-  },
-];
-
-const POSTER_GUIDELINES_DOCS: StandardDocSection[] = [
-  {
-    code: 'Pôster Científico • Dimensões A0 / A1',
-    title: 'Apresentação Visual em Congressos e Feiras de Iniciação Científica',
-    summary:
-      'Projetado para leitura rápida a 1–2 metros de distância, priorizando síntese visual, gráficos e resultados.',
-    rulesApplied: [
-      'Configure dimensão (A0, A1 ou A2), orientação (retrato/paisagem), 2 ou 3 colunas e paleta institucional em "Norma & Layout".',
-      'Mantenha parágrafos curtos (idealmente < 120 palavras por seção) e priorize figuras, tabelas e equações-chave.',
-      'Título, autores, afiliação e palavras-chave ficam destacados no banner superior do pôster.',
-    ],
-  },
-];
-
-const GENERAL_GUIDELINES_DOCS: StandardDocSection[] = [
-  {
-    code: 'APA 7ª Edição & Documentos Livres',
-    title: 'Norma Internacional Autor-Data e Personalização Avançada',
-    summary:
-      'Ideal para periódicos de psicologia, ciências sociais, relatórios executivos ou templates livres.',
-    rulesApplied: [
-      'Estilo APA 7ª Edição pré-configurado com margens de 2,54 cm, entrelinha dupla (2,0), citações (Autor, Ano) e destaque de títulos em itálico.',
-      'Suporte a múltiplos formatos de chamada: Maiúsculas (SILVA, 2023), Caixa Mista (Silva, 2023), Numérico [1], Sobrescrito ¹ e APA (Silva, 2023).',
-      'Personalização completa dos campos visíveis na barra lateral ("Personalizar Campos") e fontes baixadas sob demanda via CDN (Google Fonts / Fontsource).',
-    ],
-  },
-  {
-    code: 'Typst Universe',
-    title: 'Templates Comunitários Externos (@preview/...)',
-    summary:
-      'Conecte qualquer pacote público do Typst Universe informando identificador e entrypoint na barra lateral.',
-    rulesApplied: [
-      'Se o compilador estiver offline, o RedijaApp utiliza automaticamente um layout fallback seguro para não perder seu rascunho.',
-    ],
-  },
-];
 
 const WelcomeModalContent: React.FC<{
   onClose: () => void;
   initialTab: WelcomeModalTab;
-}> = ({ onClose, initialTab }) => {
+  onOpenFullDocs?: () => void;
+}> = ({ onClose, initialTab, onOpenFullDocs }) => {
   const [activeTab, setActiveTab] = useState<WelcomeModalTab>(initialTab);
 
   const renderDocsList = (intro: string, items: StandardDocSection[]) => (
@@ -468,7 +279,21 @@ const WelcomeModalContent: React.FC<{
         </div>
 
         {/* Rodapé */}
-        <div className="px-6 py-3.5 border-t border-neutral-200 bg-neutral-50 flex items-center justify-end shrink-0">
+        <div className="px-6 py-3.5 border-t border-neutral-200 bg-neutral-50 flex items-center justify-between gap-3 shrink-0">
+          <a
+            href="/docs"
+            onClick={(e) => {
+              if (onOpenFullDocs) {
+                e.preventDefault();
+                onClose();
+                onOpenFullDocs();
+              }
+            }}
+            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+          >
+            Abrir Documentação Completa (/docs) &rarr;
+          </a>
+
           <button
             onClick={onClose}
             className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-colors"
@@ -486,7 +311,14 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
   isOpen,
   onClose,
   initialTab = 'overview',
+  onOpenFullDocs,
 }) => {
   if (!isOpen) return null;
-  return <WelcomeModalContent onClose={onClose} initialTab={initialTab} />;
+  return (
+    <WelcomeModalContent
+      onClose={onClose}
+      initialTab={initialTab}
+      onOpenFullDocs={onOpenFullDocs}
+    />
+  );
 };
