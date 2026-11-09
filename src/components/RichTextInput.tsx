@@ -19,6 +19,7 @@ import {
   Plus,
   Search,
   X,
+  MessageSquare,
 } from 'lucide-react';
 import {
   hasRichHtmlMarkup,
@@ -26,6 +27,7 @@ import {
   stripHtmlTags,
 } from '@/core/transpiler/escape';
 import { AcademicReference, CitationFormat } from '@/types/document';
+import { ProjectRole } from '@/types/members';
 import {
   getReferenceIndexMap,
   resolveCitationDisplay,
@@ -33,7 +35,7 @@ import {
   type CitationCallMode,
 } from '@/core/transpiler/abntLinter';
 import { CitationRenderContext } from './editor/citationRenderContext';
-import { CitationNode, InlineMathNode } from './editor/tiptapNodes';
+import { CitationNode, InlineMathNode, CommentMark } from './editor/tiptapNodes';
 
 interface RichTextInputProps {
   value: string;
@@ -50,6 +52,10 @@ interface RichTextInputProps {
   onEnter?: () => void;
   onBackspaceEmpty?: () => void;
   onSlashCommand?: () => void;
+  currentUserRole?: ProjectRole;
+  canComment?: boolean;
+  onAddComment?: (commentId: string, highlightedText: string) => void;
+  onOpenComment?: (commentId: string) => void;
 }
 
 export const RichTextInput: React.FC<RichTextInputProps> = ({
@@ -67,6 +73,10 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
   onEnter,
   onBackspaceEmpty,
   onSlashCommand,
+  currentUserRole = 'owner',
+  canComment = true,
+  onAddComment,
+  onOpenComment,
 }) => {
   const effectiveFormat = resolveCitationFormat({ citationFormat, citationStyle });
   const internalRefIndexMap = useMemo(() => getReferenceIndexMap(references), [references]);
@@ -131,11 +141,28 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
           }
           return false;
         },
+        'Mod-Alt-m': ({ editor: ed }) => {
+          if (canComment && onAddComment) {
+            const { from, to } = ed.state.selection;
+            if (to > from) {
+              const selectedText = ed.state.doc.textBetween(from, to, ' ');
+              const commentId = `cmt_${crypto.randomUUID().slice(0, 8)}`;
+              ed.chain().focus().setMark('comment', { commentId }).run();
+              onAddComment(commentId, selectedText);
+              return true;
+            }
+          }
+          return false;
+        },
       };
     },
   });
 
+  const isReader = currentUserRole === 'reader';
+  const isCommenter = currentUserRole === 'commenter';
+
   const editor = useEditor({
+    editable: !isReader,
     extensions: [
       StarterKit.configure({
         heading: false,
@@ -157,24 +184,63 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
       Subscript,
       CitationNode,
       InlineMathNode,
+      CommentMark,
       Placeholder.configure({
-        placeholder,
+        placeholder: isReader ? '' : placeholder,
       }),
       KeyboardShortcuts,
     ],
     content: value,
-    autofocus: autoFocus ? 'end' : false,
+    autofocus: autoFocus && !isReader ? 'end' : false,
     editorProps: {
       attributes: {
         class: `focus:outline-none min-h-[1.5rem] ${className}`,
       },
+      handleClick: (_view, _pos, event) => {
+        const target = event.target as HTMLElement | null;
+        const markEl = target?.closest('[data-comment-id]');
+        if (markEl) {
+          const commentId = markEl.getAttribute('data-comment-id');
+          if (commentId && onOpenComment) {
+            onOpenComment(commentId);
+            return true;
+          }
+        }
+        return false;
+      },
       handleTextInput: (view, _from, _to, text) => {
+        if (isCommenter) {
+          return true; // Protege o texto contra alterações diretas do orientador/comentador
+        }
         if (text === '/' && view.state.doc.textContent.trim() === '' && onSlashCommand) {
           onSlashCommand();
           return true;
         }
         if (text === '@') {
           setShowCitationPicker(true);
+          return true;
+        }
+        return false;
+      },
+      handleKeyDown: (_view, event) => {
+        if (isCommenter) {
+          const allowedNav = [
+            'ArrowLeft',
+            'ArrowRight',
+            'ArrowUp',
+            'ArrowDown',
+            'Home',
+            'End',
+            'PageUp',
+            'PageDown',
+            'Escape',
+            'Tab',
+          ];
+          if (allowedNav.includes(event.key)) return false;
+          if ((event.ctrlKey || event.metaKey) && ['c', 'a', 'm'].includes(event.key.toLowerCase())) {
+            return false;
+          }
+          // Bloqueia qualquer modificação de texto direta pelo comentador
           return true;
         }
         return false;
@@ -328,110 +394,156 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
     <CitationRenderContext.Provider value={contextValue}>
       <div className="relative w-full">
         {/* Barra Flutuante de Formatação Inline (aparece ao selecionar texto) */}
-        {hasSelection && (
+        {hasSelection && !isReader && (
           <div
             onMouseDown={(e) => e.preventDefault()}
             className="absolute -top-9 left-0 z-30 flex items-center gap-0.5 bg-neutral-900 text-white rounded-lg shadow-lg px-1.5 py-1 text-xs animate-in fade-in duration-100"
           >
-            <button
-              type="button"
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('bold') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
-              }`}
-              title="Negrito (Ctrl+B)"
-            >
-              <Bold className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('italic') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
-              }`}
-              title="Itálico (Ctrl+I)"
-            >
-              <Italic className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => editor.chain().focus().toggleUnderline().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('underline') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
-              }`}
-              title="Sublinhado (Ctrl+U)"
-            >
-              <UnderlineIcon className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => editor.chain().focus().toggleStrike().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('strike') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
-              }`}
-              title="Tachado"
-            >
-              <Strikethrough className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => editor.chain().focus().toggleCode().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('code') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
-              }`}
-              title="Código Inline"
-            >
-              <Code className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={openLinkPopover}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('link') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
-              }`}
-              title="Inserir ou editar Link (URL)"
-            >
-              <Link2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={openMathPopover}
-              className="p-1 rounded hover:bg-neutral-700 text-indigo-300"
-              title="Converter em fórmula matemática inline ($...$)"
-            >
-              <Sigma className="w-3.5 h-3.5" />
-            </button>
-            <div className="w-px h-3.5 bg-neutral-700 mx-0.5" />
-            <button
-              type="button"
-              onClick={() => editor.chain().focus().toggleSuperscript().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('superscript') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
-              }`}
-              title="Sobrescrito"
-            >
-              <SupIcon className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => editor.chain().focus().toggleSubscript().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('subscript') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
-              }`}
-              title="Subscrito"
-            >
-              <SubIcon className="w-3.5 h-3.5" />
-            </button>
-            <div className="w-px h-3.5 bg-neutral-700 mx-0.5" />
-            <button
-              type="button"
-              onClick={() => setShowCitationPicker(true)}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-neutral-700 text-emerald-300 font-medium"
-              title="Inserir chamada de referência"
-            >
-              <Bookmark className="w-3 h-3" />
-              <span>Citar (@)</span>
-            </button>
+            {isCommenter ? (
+              canComment && onAddComment && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const { from, to } = editor.state.selection;
+                    if (to > from) {
+                      const selectedText = editor.state.doc.textBetween(from, to, ' ');
+                      const commentId = `cmt_${crypto.randomUUID().slice(0, 8)}`;
+                      editor.chain().focus().setMark('comment', { commentId }).run();
+                      onAddComment(commentId, selectedText);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-500 hover:bg-amber-600 text-white font-semibold"
+                  title="Adicionar Comentário no trecho selecionado (Ctrl+Alt+M)"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Adicionar Apontamento / Comentário</span>
+                </button>
+              )
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleBold().run()}
+                  className={`p-1 rounded hover:bg-neutral-700 ${
+                    editor.isActive('bold') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+                  }`}
+                  title="Negrito (Ctrl+B)"
+                >
+                  <Bold className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleItalic().run()}
+                  className={`p-1 rounded hover:bg-neutral-700 ${
+                    editor.isActive('italic') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+                  }`}
+                  title="Itálico (Ctrl+I)"
+                >
+                  <Italic className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleUnderline().run()}
+                  className={`p-1 rounded hover:bg-neutral-700 ${
+                    editor.isActive('underline') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+                  }`}
+                  title="Sublinhado (Ctrl+U)"
+                >
+                  <UnderlineIcon className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleStrike().run()}
+                  className={`p-1 rounded hover:bg-neutral-700 ${
+                    editor.isActive('strike') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+                  }`}
+                  title="Tachado"
+                >
+                  <Strikethrough className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleCode().run()}
+                  className={`p-1 rounded hover:bg-neutral-700 ${
+                    editor.isActive('code') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+                  }`}
+                  title="Código Inline"
+                >
+                  <Code className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={openLinkPopover}
+                  className={`p-1 rounded hover:bg-neutral-700 ${
+                    editor.isActive('link') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+                  }`}
+                  title="Inserir ou editar Link (URL)"
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={openMathPopover}
+                  className="p-1 rounded hover:bg-neutral-700 text-indigo-300"
+                  title="Converter em fórmula matemática inline ($...$)"
+                >
+                  <Sigma className="w-3.5 h-3.5" />
+                </button>
+                <div className="w-px h-3.5 bg-neutral-700 mx-0.5" />
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleSuperscript().run()}
+                  className={`p-1 rounded hover:bg-neutral-700 ${
+                    editor.isActive('superscript') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+                  }`}
+                  title="Sobrescrito"
+                >
+                  <SupIcon className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleSubscript().run()}
+                  className={`p-1 rounded hover:bg-neutral-700 ${
+                    editor.isActive('subscript') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+                  }`}
+                  title="Subscrito"
+                >
+                  <SubIcon className="w-3.5 h-3.5" />
+                </button>
+                <div className="w-px h-3.5 bg-neutral-700 mx-0.5" />
+                <button
+                  type="button"
+                  onClick={() => setShowCitationPicker(true)}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-neutral-700 text-emerald-300 font-medium"
+                  title="Inserir chamada de referência"
+                >
+                  <Bookmark className="w-3 h-3" />
+                  <span>Citar (@)</span>
+                </button>
+                {canComment && onAddComment && (
+                  <>
+                    <div className="w-px h-3.5 bg-neutral-700 mx-0.5" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const { from, to } = editor.state.selection;
+                        if (to > from) {
+                          const selectedText = editor.state.doc.textBetween(from, to, ' ');
+                          const commentId = `cmt_${crypto.randomUUID().slice(0, 8)}`;
+                          editor.chain().focus().setMark('comment', { commentId }).run();
+                          onAddComment(commentId, selectedText);
+                        }
+                      }}
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-neutral-700 text-amber-300 font-medium"
+                      title="Adicionar Comentário no trecho selecionado (Ctrl+Alt+M)"
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      <span>Comentar</span>
+                    </button>
+                  </>
+                )}
+              </>
+            )}
           </div>
         )}
 

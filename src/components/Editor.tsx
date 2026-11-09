@@ -7,13 +7,14 @@ import {
   DocumentMetadata,
   ReferenceOrdering,
 } from '@/types/document';
+import { ProjectRole } from '@/types/members';
 import { getReferenceIndexMap } from '@/core/transpiler/abntLinter';
 import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
 import {
   calculateProjectImageBytes,
   validateImageUploadForProject,
 } from '@/core/storage/imageQuota';
-import { Minimize2, Plus } from 'lucide-react';
+import { Eye, GraduationCap, Minimize2, Plus } from 'lucide-react';
 import {
   SlashCommandType,
   computeSectionNumbers,
@@ -38,10 +39,13 @@ interface EditorProps {
   referenceOrdering?: ReferenceOrdering;
   isFullWidth?: boolean;
   activeCollaborators?: CollaboratorPresence[];
+  currentUserRole?: ProjectRole;
   onOpenReferenceModal?: () => void;
   onChangeBlocks: (blocks: Block[]) => void;
   onFocusBlock?: (blockId: string) => void;
   onMinimize?: () => void;
+  onAddComment?: (blockId: string, commentId: string, highlightedText: string) => void;
+  onOpenComment?: (commentId: string) => void;
 }
 
 export const Editor: React.FC<EditorProps> = ({
@@ -53,11 +57,17 @@ export const Editor: React.FC<EditorProps> = ({
   referenceOrdering = 'alphabetical',
   isFullWidth = false,
   activeCollaborators = [],
+  currentUserRole = 'owner',
   onOpenReferenceModal,
   onChangeBlocks,
   onFocusBlock,
   onMinimize,
+  onAddComment,
+  onOpenComment,
 }) => {
+  const isReader = currentUserRole === 'reader';
+  const isCommenter = currentUserRole === 'commenter';
+  const isReadOnly = isReader || isCommenter;
   const [activeMenuBlockId, setActiveMenuBlockId] = useState<string | null>(null);
   const [menuSearch, setMenuSearch] = useState('');
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
@@ -234,6 +244,10 @@ export const Editor: React.FC<EditorProps> = ({
             setActiveMenuBlockId(id);
             setMenuSearch('');
           }}
+          currentUserRole={currentUserRole}
+          canComment={!isReader}
+          onAddComment={(commentId, text) => onAddComment?.(block.id, commentId, text)}
+          onOpenComment={onOpenComment}
         />
       );
     }
@@ -273,14 +287,39 @@ export const Editor: React.FC<EditorProps> = ({
           isFullWidth ? 'max-w-5xl' : 'max-w-2xl'
         } space-y-3 pb-28 transition-all duration-200`}
       >
+        {/* Banner Informativo de Papel (Leitor / Comentador) */}
+        {isReader && (
+          <div className="mb-4 p-3 rounded-xl bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-xs text-neutral-700 dark:text-neutral-300 flex items-center gap-2.5 shadow-xs">
+            <Eye className="w-4 h-4 text-neutral-500 shrink-0" />
+            <span>
+              <strong>Modo Somente Leitura:</strong> Você está visualizando este documento como <strong>Leitor</strong>. A edição e criação de comentários estão desativadas.
+            </span>
+          </div>
+        )}
+
+        {isCommenter && (
+          <div className="mb-4 p-3 rounded-xl bg-indigo-50/90 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-900 dark:text-indigo-200 flex items-center gap-2.5 shadow-xs">
+            <GraduationCap className="w-4 h-4 text-indigo-600 shrink-0" />
+            <span>
+              <strong>Modo Orientador / Comentador:</strong> Selecione qualquer trecho de texto para adicionar apontamentos e comentários. O texto original do trabalho está protegido contra digitação acidental.
+            </span>
+          </div>
+        )}
+
         {/* Dica rápida no topo do editor */}
         <div className="mb-6 pb-3 border-b border-neutral-100 flex items-center justify-between gap-2 text-xs text-neutral-400">
           <span>
-            Dica: digite{' '}
-            <kbd className="px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded border border-neutral-200 font-mono">
-              /
-            </kbd>{' '}
-            em um bloco vazio para abrir os blocos ABNT ou selecione texto para formatar.
+            {isReadOnly ? (
+              <span>Visualizando {blocks.length} blocos formatados</span>
+            ) : (
+              <>
+                Dica: digite{' '}
+                <kbd className="px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded border border-neutral-200 font-mono">
+                  /
+                </kbd>{' '}
+                em um bloco vazio para abrir os blocos ABNT ou selecione texto para formatar.
+              </>
+            )}
           </span>
           <div className="flex items-center gap-2 shrink-0">
             <span>{blocks.length} blocos</span>
@@ -307,7 +346,7 @@ export const Editor: React.FC<EditorProps> = ({
                 onFocusBlock?.(block.id);
               }}
               onDragOver={(e) => {
-                if (!draggedBlockId || draggedBlockId === block.id) return;
+                if (isReadOnly || !draggedBlockId || draggedBlockId === block.id) return;
                 e.preventDefault();
                 setDragOverBlockId(block.id);
               }}
@@ -315,7 +354,7 @@ export const Editor: React.FC<EditorProps> = ({
                 if (dragOverBlockId === block.id) setDragOverBlockId(null);
               }}
               onDrop={(e) => {
-                if (!draggedBlockId) return;
+                if (isReadOnly || !draggedBlockId) return;
                 e.preventDefault();
                 onChangeBlocks(reorderBlocks(blocks, draggedBlockId, block.id));
                 setDraggedBlockId(null);
@@ -340,24 +379,26 @@ export const Editor: React.FC<EditorProps> = ({
                 </div>
               )}
 
-              <BlockControlsGutter
-                blockId={block.id}
-                isMenuOpen={activeMenuBlockId === block.id}
-                canDelete={blocks.length > 1}
-                onAddBelow={(id) => addBlock(id)}
-                onToggleMenu={(id) => {
-                  setActiveMenuBlockId(activeMenuBlockId === id ? null : id);
-                  setMenuSearch('');
-                }}
-                onRemove={removeBlock}
-                onDragStart={(id) => setDraggedBlockId(id)}
-                onDragEnd={() => {
-                  setDraggedBlockId(null);
-                  setDragOverBlockId(null);
-                }}
-              />
+              {!isReadOnly && (
+                <BlockControlsGutter
+                  blockId={block.id}
+                  isMenuOpen={activeMenuBlockId === block.id}
+                  canDelete={blocks.length > 1}
+                  onAddBelow={(id) => addBlock(id)}
+                  onToggleMenu={(id) => {
+                    setActiveMenuBlockId(activeMenuBlockId === id ? null : id);
+                    setMenuSearch('');
+                  }}
+                  onRemove={removeBlock}
+                  onDragStart={(id) => setDraggedBlockId(id)}
+                  onDragEnd={() => {
+                    setDraggedBlockId(null);
+                    setDragOverBlockId(null);
+                  }}
+                />
+              )}
 
-              {activeMenuBlockId === block.id && (
+              {!isReadOnly && activeMenuBlockId === block.id && (
                 <SlashCommandMenu
                   blockId={block.id}
                   searchQuery={menuSearch}
@@ -374,14 +415,16 @@ export const Editor: React.FC<EditorProps> = ({
         })}
 
         {/* Botão para adicionar bloco no final */}
-        <button
-          type="button"
-          onClick={() => addBlock(blocks[blocks.length - 1]?.id ?? '', 'paragraph')}
-          className="mt-4 flex items-center gap-1.5 text-xs text-neutral-400 hover:text-emerald-600 py-2 px-3 rounded-md hover:bg-neutral-50 transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Adicionar parágrafo</span>
-        </button>
+        {!isReadOnly && (
+          <button
+            type="button"
+            onClick={() => addBlock(blocks[blocks.length - 1]?.id ?? '', 'paragraph')}
+            className="mt-4 flex items-center gap-1.5 text-xs text-neutral-400 hover:text-emerald-600 py-2 px-3 rounded-md hover:bg-neutral-50 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Adicionar parágrafo</span>
+          </button>
+        )}
       </div>
     </div>
   );

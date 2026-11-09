@@ -176,6 +176,18 @@ describe('escape helpers', () => {
     );
   });
 
+  it('silently ignores anchored comment marks (<mark data-comment-id>) leaving clean Typst', () => {
+    const html =
+      '<p>A metodologia adotada foi <mark data-comment-id="cmt_123" class="redija-comment-highlight">quantitativa com 50 participantes</mark> e análise descritiva.</p>';
+    const typst = richTextToTypst(html);
+    expect(typst).toBe(
+      'A metodologia adotada foi quantitativa com 50 participantes e análise descritiva.',
+    );
+    expect(stripHtmlTags(html)).toBe(
+      'A metodologia adotada foi quantitativa com 50 participantes e análise descritiva.',
+    );
+  });
+
   it('extracts binary image assets from Data URLs', () => {
     const pngBase64 =
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';

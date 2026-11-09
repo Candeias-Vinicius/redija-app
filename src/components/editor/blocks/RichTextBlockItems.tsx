@@ -1,6 +1,7 @@
 import React from 'react';
 import { MessageSquareQuote, Quote } from 'lucide-react';
 import { AcademicReference, Block, BlockType, CitationFormat } from '@/types/document';
+import { ProjectRole } from '@/types/members';
 import { RichTextInput } from '../../RichTextInput';
 
 interface RichTextBlockItemsProps {
@@ -18,6 +19,10 @@ interface RichTextBlockItemsProps {
   onRemoveBlock: (id: string) => void;
   onChangeBlockType: (id: string, type: BlockType) => void;
   onOpenSlashMenu: (id: string) => void;
+  currentUserRole?: ProjectRole;
+  canComment?: boolean;
+  onAddComment?: (commentId: string, highlightedText: string) => void;
+  onOpenComment?: (commentId: string) => void;
 }
 
 export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
@@ -35,6 +40,10 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
   onRemoveBlock,
   onChangeBlockType,
   onOpenSlashMenu,
+  currentUserRole = 'owner',
+  canComment = true,
+  onAddComment,
+  onOpenComment,
 }) => {
   if (block.type === 'paragraph') {
     return (
@@ -51,6 +60,10 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
         onEnter={() => onAddBlock(block.id, 'paragraph')}
         onBackspaceEmpty={() => onRemoveBlock(block.id)}
         onSlashCommand={() => onOpenSlashMenu(block.id)}
+        currentUserRole={currentUserRole}
+        canComment={canComment}
+        onAddComment={onAddComment}
+        onOpenComment={onOpenComment}
         placeholder='Digite seu parágrafo, "/" para comandos ou "@" para citar referência...'
         className="text-sm leading-relaxed text-neutral-800"
       />
@@ -72,6 +85,10 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           onChange={(html) => onUpdateContent(block.id, html)}
           onEnter={() => onAddBlock(block.id, 'bullet')}
           onBackspaceEmpty={() => onChangeBlockType(block.id, 'paragraph')}
+          currentUserRole={currentUserRole}
+          canComment={canComment}
+          onAddComment={onAddComment}
+          onOpenComment={onOpenComment}
           placeholder="Item de lista..."
           className="text-sm leading-relaxed text-neutral-800"
         />
@@ -94,6 +111,10 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           onChange={(html) => onUpdateContent(block.id, html)}
           onEnter={() => onAddBlock(block.id, 'numbered')}
           onBackspaceEmpty={() => onChangeBlockType(block.id, 'paragraph')}
+          currentUserRole={currentUserRole}
+          canComment={canComment}
+          onAddComment={onAddComment}
+          onOpenComment={onOpenComment}
           placeholder="Item numerado..."
           className="text-sm leading-relaxed text-neutral-800"
         />
@@ -120,6 +141,10 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           onOpenNewReferenceModal={onOpenNewReferenceModal}
           onChange={(html) => onUpdateContent(block.id, html)}
           onEnter={() => onAddBlock(block.id, 'paragraph')}
+          currentUserRole={currentUserRole}
+          canComment={canComment}
+          onAddComment={onAddComment}
+          onOpenComment={onOpenComment}
           placeholder="Digite ou cole o trecho de mais de 3 linhas (sem aspas)..."
           className="text-xs leading-normal text-neutral-700"
         />
@@ -127,23 +152,26 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           <input
             type="text"
             value={block.meta?.author || ''}
+            disabled={currentUserRole === 'reader' || currentUserRole === 'commenter'}
             onChange={(e) => onUpdateMeta(block.id, { author: e.target.value })}
             placeholder="Autor (ex: SILVA)"
-            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-emerald-600 disabled:opacity-60"
           />
           <input
             type="text"
             value={block.meta?.year || ''}
+            disabled={currentUserRole === 'reader' || currentUserRole === 'commenter'}
             onChange={(e) => onUpdateMeta(block.id, { year: e.target.value })}
             placeholder="Ano (ex: 2024)"
-            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-emerald-600 disabled:opacity-60"
           />
           <input
             type="text"
             value={block.meta?.page || ''}
+            disabled={currentUserRole === 'reader' || currentUserRole === 'commenter'}
             onChange={(e) => onUpdateMeta(block.id, { page: e.target.value })}
             placeholder="Página (ex: 42)"
-            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-emerald-600 disabled:opacity-60"
           />
         </div>
       </div>
@@ -165,6 +193,10 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           citationFormat={citationFormat}
           autoFocus={autoFocus}
           onOpenNewReferenceModal={onOpenNewReferenceModal}
+          currentUserRole={currentUserRole}
+          canComment={canComment}
+          onAddComment={onAddComment}
+          onOpenComment={onOpenComment}
           onChange={(html) => onUpdateContent(block.id, html)}
           onEnter={() => onAddBlock(block.id, 'paragraph')}
           placeholder="Texto explicativo que aparecerá no rodapé da página..."

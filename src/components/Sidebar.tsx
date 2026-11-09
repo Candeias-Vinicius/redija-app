@@ -35,6 +35,7 @@ interface SidebarProps {
   onOpenGuide?: (mode: ContextualGuideMode) => void;
   onRemoveReference: (id: string) => void;
   onMinimize?: () => void;
+  isReadOnly?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -51,6 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenGuide,
   onRemoveReference,
   onMinimize,
+  isReadOnly = false,
 }) => {
   const [isFieldCustomizerOpen, setIsFieldCustomizerOpen] = useState(false);
 
@@ -58,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     field: K,
     value: DocumentMetadata[K],
   ) => {
+    if (isReadOnly) return;
     onChangeMetadata({ ...metadata, [field]: value });
   };
 

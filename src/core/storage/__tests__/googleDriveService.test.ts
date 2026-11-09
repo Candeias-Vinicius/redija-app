@@ -7,6 +7,7 @@ import {
   loadProjectFromDrive,
   listDriveProjects,
   inviteCollaborator,
+  updateCollaboratorRole,
   listCollaborators,
 } from '../googleDriveService';
 import { createProjectFromTemplate } from '../projectTemplates';
@@ -309,6 +310,37 @@ describe('Google Drive Service (BYOS, Pastas Estruturadas & Colaboração)', () 
     const parsedBody = JSON.parse(options?.body as string);
     expect(parsedBody.role).toBe('writer');
     expect(parsedBody.emailAddress).toBe('orientador@universidade.edu.br');
+  });
+
+  it('convida colaborador com role específica commenter', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'new_permission_id' }),
+    } as Response);
+
+    await inviteCollaborator('file_xyz', 'orientador@universidade.edu.br', 'commenter', 'token_123');
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchSpy.mock.calls[0];
+    expect(url).toContain('https://www.googleapis.com/drive/v3/files/file_xyz/permissions');
+    const parsedBody = JSON.parse(options?.body as string);
+    expect(parsedBody.role).toBe('commenter');
+  });
+
+  it('atualiza o papel de um colaborador existente via PATCH', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'perm_collab', role: 'writer' }),
+    } as Response);
+
+    await updateCollaboratorRole('file_xyz', 'perm_collab', 'writer', 'token_123');
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchSpy.mock.calls[0];
+    expect(url).toContain('https://www.googleapis.com/drive/v3/files/file_xyz/permissions/perm_collab');
+    expect(options?.method).toBe('PATCH');
+    const parsedBody = JSON.parse(options?.body as string);
+    expect(parsedBody.role).toBe('writer');
   });
 
   it('lista colaboradores existentes no arquivo do Google Drive', async () => {

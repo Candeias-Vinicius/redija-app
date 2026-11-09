@@ -12,7 +12,6 @@ import {
   Eye,
   CloudCheck,
   Cloud,
-  Share2,
   LogIn,
   LogOut,
   Settings,
@@ -20,9 +19,12 @@ import {
   HardDrive,
   Loader2,
   BookOpen,
+  MessageSquare,
+  Users,
 } from 'lucide-react';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
+import { ProjectRole } from '@/types/members';
 import { GITHUB_REPO_URL } from '@/core/links';
 import { Logo } from './Logo';
 import { GitHubIcon } from './GitHubIcon';
@@ -68,6 +70,10 @@ interface HeaderProps {
   onOpenAccountSettings: () => void;
   isGuestMode?: boolean;
   onExitGuestMode?: () => void;
+  onOpenCommentsDrawer?: () => void;
+  commentsCount?: number;
+  pendingCommentsCount?: number;
+  currentUserRole?: ProjectRole;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -101,6 +107,10 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAccountSettings,
   isGuestMode = false,
   onExitGuestMode,
+  onOpenCommentsDrawer,
+  commentsCount = 0,
+  pendingCommentsCount = 0,
+  currentUserRole = 'owner',
 }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
@@ -133,6 +143,16 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <FolderOpen className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
           <span className="truncate">{projectName}</span>
+          {currentUserRole === 'commenter' && (
+            <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 px-1.5 py-0.2 rounded shrink-0">
+              Orientador
+            </span>
+          )}
+          {currentUserRole === 'reader' && (
+            <span className="text-[10px] font-semibold bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400 px-1.5 py-0.2 rounded shrink-0">
+              Leitor
+            </span>
+          )}
           <span className="text-[10px] bg-neutral-200/80 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-1 rounded-full shrink-0">
             {projectsCount}
           </span>
@@ -280,14 +300,36 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
-        {/* Botão Compartilhar */}
+        {/* Botão Comentários Ancorados */}
+        {onOpenCommentsDrawer && (
+          <button
+            type="button"
+            onClick={onOpenCommentsDrawer}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+              pendingCommentsCount > 0
+                ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300'
+                : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800'
+            }`}
+            title={`Abrir painel de comentários ancorados (${commentsCount} no total, ${pendingCommentsCount} pendentes)`}
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            <span className="hidden sm:inline">Comentários</span>
+            {pendingCommentsCount > 0 && (
+              <span className="ml-0.5 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-amber-500 text-white">
+                {pendingCommentsCount}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Botão Membros do Projeto & Compartilhamento */}
         <button
           onClick={onOpenShareModal}
           className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-          title="Compartilhar projeto via e-mail do Google"
+          title="Gerenciar membros e permissões do projeto via Google Drive"
         >
-          <Share2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
-          <span className="hidden sm:inline">Compartilhar</span>
+          <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
+          <span className="hidden sm:inline">Membros</span>
         </button>
 
         {/* Botão Relatar Problema (Direto) */}
