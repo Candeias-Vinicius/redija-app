@@ -70,7 +70,7 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
   const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplateType>('tcc');
-  const [universePackageInput, setUniversePackageInput] = useState('@preview/charged-ieee:0.1.1');
+  const [universePackageInput, setUniversePackageInput] = useState('@preview/charged-ieee:0.1.4');
   const [newProjectName, setNewProjectName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -539,7 +539,7 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                       type="text"
                       value={universePackageInput}
                       onChange={(e) => setUniversePackageInput(e.target.value)}
-                      placeholder="Ex: @preview/charged-ieee:0.1.1"
+                      placeholder="Ex: @preview/charged-ieee:0.1.4"
                       className="w-full text-xs px-2.5 py-1.5 bg-neutral-50 border border-neutral-300 rounded focus:outline-none focus:border-emerald-600 font-mono"
                     />
                     <div className="space-y-1">

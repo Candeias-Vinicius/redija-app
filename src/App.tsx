@@ -7,7 +7,10 @@ import { PdfPreview } from '@/components/PdfPreview';
 import { ReferenceModal } from '@/components/ReferenceModal';
 import { ProjectsModal } from '@/components/ProjectsModal';
 import { WelcomeModal } from '@/components/WelcomeModal';
-import { TemplateCustomizerModal } from '@/components/TemplateCustomizerModal';
+import {
+  TemplateCustomizerModal,
+  type TemplateCustomizerApplyPayload,
+} from '@/components/TemplateCustomizerModal';
 import { BugReportModal } from '@/components/BugReportModal';
 import { BetaNoticeModal } from '@/components/BetaNoticeModal';
 import { ShareModal } from '@/components/ShareModal';
@@ -34,13 +37,20 @@ import {
   TemplateConfig,
   DEFAULT_TEMPLATE_CONFIG,
 } from '@/types/document';
-import type { ContextualGuideMode } from '@/core/templates/templateCapabilities';
+import {
+  getTemplateCapabilities,
+  type ContextualGuideMode,
+} from '@/core/templates/templateCapabilities';
 import {
   generateStandaloneTypst,
   generateTypstFiles,
   extractBinaryAssets,
 } from '@/core/transpiler/typstGenerator';
 import { compileToPdf } from '@/core/typst/typstClient';
+import {
+  POPULAR_UNIVERSE_TEMPLATES,
+  resolveProjectUniverseAssets,
+} from '@/core/universe/universeResolver';
 import {
   exportTypstProjectZip,
   getCleanProjectSlug,
@@ -523,12 +533,24 @@ export const App: React.FC = () => {
         // Atualiza em segundo plano uma cópia do PDF compilado no Drive (backup legível para o usuário)
         (async () => {
           try {
-            const files = generateTypstFiles(projectToSync);
+            const caps = getTemplateCapabilities(projectToSync);
+            const pkgAssets =
+              caps.effectiveType === 'universe_custom'
+                ? await resolveProjectUniverseAssets(
+                    projectToSync.templateConfig?.universePackage || '@preview/charged-ieee:0.1.4',
+                  )
+                : {};
+            const files = generateTypstFiles(projectToSync, pkgAssets.extraFiles);
             const binaryFiles = extractBinaryAssets(projectToSync);
-            const pdfResult = await compileToPdf(files, binaryFiles, {
-              fontFamily: projectToSync.templateConfig?.fontFamily ?? 'serif',
-              customFontFamily: projectToSync.templateConfig?.customFontFamily,
-            });
+            const pdfResult = await compileToPdf(
+              files,
+              binaryFiles,
+              {
+                fontFamily: projectToSync.templateConfig?.fontFamily ?? 'serif',
+                customFontFamily: projectToSync.templateConfig?.customFontFamily,
+              },
+              pkgAssets.packageArchives,
+            );
             if (pdfResult.pdf) {
               await saveProjectPdfToDrive(projectToSync, new Uint8Array(pdfResult.pdf), token);
             }
@@ -594,12 +616,24 @@ export const App: React.FC = () => {
       // Sincroniza cópia do PDF compilado em segundo plano
       (async () => {
         try {
-          const files = generateTypstFiles(projectToSync);
+          const caps = getTemplateCapabilities(projectToSync);
+          const pkgAssets =
+            caps.effectiveType === 'universe_custom'
+              ? await resolveProjectUniverseAssets(
+                  projectToSync.templateConfig?.universePackage || '@preview/charged-ieee:0.1.4',
+                )
+              : {};
+          const files = generateTypstFiles(projectToSync, pkgAssets.extraFiles);
           const binaryFiles = extractBinaryAssets(projectToSync);
-          const pdfResult = await compileToPdf(files, binaryFiles, {
-            fontFamily: projectToSync.templateConfig?.fontFamily ?? 'serif',
-            customFontFamily: projectToSync.templateConfig?.customFontFamily,
-          });
+          const pdfResult = await compileToPdf(
+            files,
+            binaryFiles,
+            {
+              fontFamily: projectToSync.templateConfig?.fontFamily ?? 'serif',
+              customFontFamily: projectToSync.templateConfig?.customFontFamily,
+            },
+            pkgAssets.packageArchives,
+          );
           if (pdfResult.pdf) {
             await saveProjectPdfToDrive(projectToSync, new Uint8Array(pdfResult.pdf), token);
           }
@@ -900,12 +934,14 @@ export const App: React.FC = () => {
     });
   };
 
-  const handleTemplateConfigChange = (templateConfig: TemplateConfig) => {
+  const handleApplyTemplateCustomizer = ({
+    config: templateConfig,
+    metadata: nextMetadata,
+    selectedTemplateType,
+  }: TemplateCustomizerApplyPayload) => {
     setProject((prev) => {
-      if (JSON.stringify(prev.templateConfig) === JSON.stringify(templateConfig)) {
-        return prev;
-      }
-      recordHistorySnapshot(prev, true);
+      const configChanged = JSON.stringify(prev.templateConfig) !== JSON.stringify(templateConfig);
+      const metadataChanged = JSON.stringify(prev.metadata) !== JSON.stringify(nextMetadata);
 
       let nextTemplateType = prev.templateType;
       const p = templateConfig.preset;
@@ -927,9 +963,22 @@ export const App: React.FC = () => {
           prev.templateType === 'universe_custom')
       ) {
         nextTemplateType = 'artigo';
+      } else if (selectedTemplateType) {
+        nextTemplateType = selectedTemplateType;
       }
 
-      return { ...prev, templateType: nextTemplateType, templateConfig };
+      const typeChanged = prev.templateType !== nextTemplateType;
+      if (!configChanged && !metadataChanged && !typeChanged) {
+        return prev;
+      }
+
+      recordHistorySnapshot(prev, true);
+      return {
+        ...prev,
+        templateType: nextTemplateType,
+        templateConfig,
+        metadata: nextMetadata,
+      };
     });
   };
 
@@ -1088,7 +1137,14 @@ export const App: React.FC = () => {
 
     const newProj = createProjectFromTemplate(templateType, finalName);
     if (universePackage && newProj.templateConfig) {
-      newProj.templateConfig.universePackage = universePackage;
+      const trimmedPkg = universePackage.trim();
+      const knownPkg = POPULAR_UNIVERSE_TEMPLATES.find(
+        (t) => t.id.toLowerCase() === trimmedPkg.toLowerCase(),
+      );
+      const pkgMatch = trimmedPkg.match(/^@?[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+):[0-9.]+$/);
+      newProj.templateConfig.universePackage = trimmedPkg;
+      newProj.templateConfig.universeEntrypoint =
+        knownPkg?.entrypoint || pkgMatch?.[1] || newProj.templateConfig.universeEntrypoint;
     }
     newProj.ownerEmail = activeOwner;
     await saveProject(newProj, false);
@@ -1220,12 +1276,24 @@ export const App: React.FC = () => {
   const handleDownloadPdf = async () => {
     setIsExportingPdf(true);
     try {
-      const files = generateTypstFiles(project);
+      const caps = getTemplateCapabilities(project);
+      const pkgAssets =
+        caps.effectiveType === 'universe_custom'
+          ? await resolveProjectUniverseAssets(
+              project.templateConfig?.universePackage || '@preview/charged-ieee:0.1.4',
+            )
+          : {};
+      const files = generateTypstFiles(project, pkgAssets.extraFiles);
       const binaryFiles = extractBinaryAssets(project);
-      const result = await compileToPdf(files, binaryFiles, {
-        fontFamily: project.templateConfig?.fontFamily ?? 'serif',
-        customFontFamily: project.templateConfig?.customFontFamily,
-      });
+      const result = await compileToPdf(
+        files,
+        binaryFiles,
+        {
+          fontFamily: project.templateConfig?.fontFamily ?? 'serif',
+          customFontFamily: project.templateConfig?.customFontFamily,
+        },
+        pkgAssets.packageArchives,
+      );
       if (result.error || !result.pdf) {
         const msg =
           result.error ||
@@ -1585,8 +1653,7 @@ export const App: React.FC = () => {
         metadata={project.metadata}
         templateType={project.templateType}
         blocks={project.blocks}
-        onChangeConfig={handleTemplateConfigChange}
-        onChangeMetadata={handleMetadataChange}
+        onApply={handleApplyTemplateCustomizer}
       />
 
       <BugReportModal

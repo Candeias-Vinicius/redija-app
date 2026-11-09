@@ -282,7 +282,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span>Pacote Conectado</span>
                   </div>
                   <div className="text-[11px] font-mono text-neutral-800 truncate">
-                    {project.templateConfig?.universePackage || '@preview/charged-ieee:0.1.1'}
+                    {project.templateConfig?.universePackage || '@preview/charged-ieee:0.1.4'}
                   </div>
                   {onOpenTemplateCustomizer && (
                     <button

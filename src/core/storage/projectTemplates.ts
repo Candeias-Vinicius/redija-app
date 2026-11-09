@@ -57,7 +57,7 @@ export const PROJECT_TEMPLATES: ProjectTemplateInfo[] = [
   {
     type: 'universe_custom',
     label: 'Typst Universe (Template Comunitário)',
-    description: 'Conecte qualquer modelo da loja oficial do Typst Universe colando o identificador do pacote (ex: @preview/charged-ieee:0.1.1).',
+    description: 'Conecte qualquer modelo da loja oficial do Typst Universe colando o identificador do pacote (ex: @preview/charged-ieee:0.1.4).',
     badge: 'UNIVERSE',
   },
   {
@@ -579,7 +579,7 @@ export function createProjectFromTemplate(
       templateConfig: {
         ...DEFAULT_TEMPLATE_CONFIG,
         preset: 'universe_custom',
-        universePackage: '@preview/charged-ieee:0.1.1',
+        universePackage: '@preview/charged-ieee:0.1.4',
         universeEntrypoint: 'ieee',
         includeCoverPage: false,
         includeTitlePage: false,
