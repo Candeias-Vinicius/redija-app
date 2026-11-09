@@ -1,50 +1,25 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  DocumentMetadata,
   AcademicReference,
+  DocumentMetadata,
   DocumentProject,
   SidebarConfig,
 } from '@/types/document';
-import {
-  countWords,
-  formatShortCitation,
-  exportToBibtex,
-  getOrderedReferences,
-  getReferenceIndexMap,
-  resolveCitationFormat,
-} from '@/core/transpiler/abntLinter';
 import { runDocumentLinter } from '@/core/transpiler/linters';
 import {
-  getTemplateCapabilities,
-  getPreservedHiddenFields,
-  IdentificacaoFieldId,
-  PreTextualFieldId,
-  PosTextualFieldId,
   ContextualGuideMode,
+  getPreservedHiddenFields,
+  getTemplateCapabilities,
 } from '@/core/templates/templateCapabilities';
 import { SidebarLinterSection } from './sidebar/SidebarLinterSection';
 import { SidebarPreservedFieldsSection } from './sidebar/SidebarPreservedFieldsSection';
 import { SidebarFieldCustomizerModal } from './sidebar/SidebarFieldCustomizerModal';
-import {
-  BookOpen,
-  Building,
-  Plus,
-  Trash2,
-  ChevronDown,
-  ChevronRight,
-  Bookmark,
-  Layers,
-  Copy,
-  Check,
-  Search,
-  Download,
-  Sliders,
-  SlidersHorizontal,
-  Pencil,
-  PanelLeftClose,
-  Palette,
-  Globe,
-} from 'lucide-react';
+import { SidebarIdentificationSection } from './sidebar/SidebarIdentificationSection';
+import { SidebarPreTextualsSection } from './sidebar/SidebarPreTextualsSection';
+import { SidebarAbstractSection } from './sidebar/SidebarAbstractSection';
+import { SidebarReferencesSection } from './sidebar/SidebarReferencesSection';
+import { SidebarPostTextualsSection } from './sidebar/SidebarPostTextualsSection';
+import { PanelLeftClose, SlidersHorizontal } from 'lucide-react';
 
 interface SidebarProps {
   widthPx?: number;
@@ -77,14 +52,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onRemoveReference,
   onMinimize,
 }) => {
-  const [openCapa, setOpenCapa] = useState(true);
-  const [openPreTextual, setOpenPreTextual] = useState(false);
-  const [openResumo, setOpenResumo] = useState(false);
-  const [openPosTextual, setOpenPosTextual] = useState(false);
-  const [openRefs, setOpenRefs] = useState(true);
-  const [copiedRefId, setCopiedRefId] = useState<string | null>(null);
-  const [refSearchQuery, setRefSearchQuery] = useState('');
-  const [refTypeFilter, setRefTypeFilter] = useState<string>('all');
   const [isFieldCustomizerOpen, setIsFieldCustomizerOpen] = useState(false);
 
   const updateField = <K extends keyof DocumentMetadata>(
@@ -99,91 +66,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     () => getPreservedHiddenFields(project, capabilities),
     [project, capabilities],
   );
-  const hasIdentField = (fieldId: IdentificacaoFieldId) =>
-    capabilities.identificacaoFields.includes(fieldId);
-  const hasPreField = (fieldId: PreTextualFieldId) =>
-    capabilities.preTextualFields.includes(fieldId);
-  const hasPosField = (fieldId: PosTextualFieldId) =>
-    capabilities.posTextualFields.includes(fieldId);
-
-  const abstractWordCount = useMemo(() => countWords(metadata.abstract), [metadata.abstract]);
-  const abstractMin =
-    capabilities.effectiveType === 'sbc'
-      ? 50
-      : capabilities.effectiveType === 'artigo' || capabilities.effectiveType === 'ieee'
-        ? 100
-        : 150;
-  const abstractMax =
-    capabilities.effectiveType === 'sbc'
-      ? 200
-      : capabilities.effectiveType === 'artigo' || capabilities.effectiveType === 'ieee'
-        ? 250
-        : 500;
-  const isAbstractCountIdeal = abstractWordCount >= abstractMin && abstractWordCount <= abstractMax;
-
-  const citationFormat = resolveCitationFormat(project.templateConfig);
-  const referenceOrdering = project.templateConfig?.referenceOrdering ?? 'alphabetical';
-  const refIndexMap = useMemo(
-    () => getReferenceIndexMap(references, referenceOrdering, project.blocks),
-    [references, referenceOrdering, project.blocks],
-  );
-
   const lintReport = useMemo(
     () => runDocumentLinter(project, capabilities),
     [project, capabilities],
   );
-
-  const handleCopyCitation = (ref: AcademicReference) => {
-    const citation = formatShortCitation(ref, {
-      format: citationFormat,
-      refNumber: refIndexMap.get(ref.id),
-    });
-    navigator.clipboard.writeText(citation);
-    setCopiedRefId(ref.id);
-    setTimeout(() => setCopiedRefId(null), 1800);
-  };
-
-  const handleExportBibtex = () => {
-    const ordered = getOrderedReferences(references, referenceOrdering, project.blocks);
-    const bib = exportToBibtex(ordered);
-    const blob = new Blob([bib], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${project.name.toLowerCase().replace(/\s+/g, '_')}.bib`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const filteredReferences = references.filter((ref) => {
-    if (refTypeFilter !== 'all' && (ref.type || 'book') !== refTypeFilter) {
-      return false;
-    }
-    const q = refSearchQuery.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      ref.authors.toLowerCase().includes(q) ||
-      ref.title.toLowerCase().includes(q) ||
-      (ref.year || '').toLowerCase().includes(q) ||
-      (ref.journal || '').toLowerCase().includes(q) ||
-      (ref.publisher || '').toLowerCase().includes(q)
-    );
-  });
-
-  const typeBadgeLabel = (t?: AcademicReference['type']) => {
-    switch (t) {
-      case 'article':
-        return 'Artigo';
-      case 'thesis':
-        return 'Tese/TCC';
-      case 'website':
-        return 'Site';
-      case 'legislation':
-        return 'Norma/Lei';
-      default:
-        return 'Livro';
-    }
-  };
 
   return (
     <>
@@ -209,9 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {capabilities.badgeLabel}
               </span>
             </div>
-            <p className="text-[11px] text-neutral-500 mt-0.5">
-              {capabilities.headerSubtitle}
-            </p>
+            <p className="text-[11px] text-neutral-500 mt-0.5">{capabilities.headerSubtitle}</p>
             {onChangeSidebarConfig && (
               <button
                 type="button"
@@ -236,801 +120,55 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-      <div className="divide-y divide-neutral-100 flex-1 pb-12">
-        {/* Seção de Identificação / Capa e Folha de Rosto */}
-        <div className="p-3">
-          <button
-            onClick={() => setOpenCapa(!openCapa)}
-            className="w-full flex items-center justify-between text-left text-xs font-semibold text-neutral-700 py-1.5 hover:text-neutral-900"
-          >
-            <span className="flex items-center gap-2">
-              <Building className="w-3.5 h-3.5 text-neutral-400" />
-              {capabilities.identificacaoTitle}
-            </span>
-            {openCapa ? (
-              <ChevronDown className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronRight className="w-3.5 h-3.5" />
-            )}
-          </button>
+        <div className="divide-y divide-neutral-100 flex-1 pb-12">
+          <SidebarIdentificationSection
+            metadata={metadata}
+            templateConfig={project.templateConfig}
+            capabilities={capabilities}
+            onUpdateField={updateField}
+            onOpenTemplateCustomizer={onOpenTemplateCustomizer}
+          />
 
-          {openCapa && (
-            <div className="space-y-2.5 mt-2.5 pl-2">
-              {capabilities.effectiveType === 'poster' && onOpenTemplateCustomizer && (
-                <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-200 space-y-1.5">
-                  <div className="text-[11px] font-medium text-emerald-900 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Palette className="w-3.5 h-3.5 text-emerald-600" />
-                      Banner {(project.templateConfig?.posterDimensions || 'a0').toUpperCase()} •{' '}
-                      {project.templateConfig?.posterColumns || 3} Colunas
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={onOpenTemplateCustomizer}
-                    className="w-full py-1 px-2 rounded bg-white border border-emerald-200 hover:bg-emerald-50 text-[11px] font-medium text-emerald-700 transition-colors"
-                  >
-                    Configurar Dimensões, Tema e Colunas
-                  </button>
-                </div>
-              )}
+          <SidebarPreTextualsSection
+            metadata={metadata}
+            capabilities={capabilities}
+            onUpdateField={updateField}
+          />
 
-              {capabilities.effectiveType === 'universe_custom' && (
-                <div className="p-2.5 rounded-lg bg-neutral-50 border border-neutral-200 space-y-1.5">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500 flex items-center gap-1.5">
-                    <Globe className="w-3 h-3 text-emerald-600" />
-                    <span>Pacote Conectado</span>
-                  </div>
-                  <div className="text-[11px] font-mono text-neutral-800 truncate">
-                    {project.templateConfig?.universePackage || '@preview/charged-ieee:0.1.4'}
-                  </div>
-                  {onOpenTemplateCustomizer && (
-                    <button
-                      type="button"
-                      onClick={onOpenTemplateCustomizer}
-                      className="w-full py-1 px-2 rounded bg-white border border-neutral-200 hover:bg-neutral-100 text-[11px] font-medium text-neutral-700 transition-colors"
-                    >
-                      Alterar Pacote / Entrypoint Universe
-                    </button>
-                  )}
-                </div>
-              )}
+          <SidebarAbstractSection
+            metadata={metadata}
+            capabilities={capabilities}
+            onUpdateField={updateField}
+          />
 
-              {hasIdentField('title') && (
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Título do Trabalho
-                  </label>
-                  <input
-                    type="text"
-                    value={metadata.title}
-                    onChange={(e) => updateField('title', e.target.value)}
-                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    placeholder="Ex: Análise da Eficiência Energética..."
-                  />
-                </div>
-              )}
+          <SidebarReferencesSection
+            project={project}
+            references={references}
+            onOpenReferenceModal={onOpenReferenceModal}
+            onEditReference={onEditReference}
+            onOpenTemplateCustomizer={onOpenTemplateCustomizer}
+            onRemoveReference={onRemoveReference}
+          />
 
-              {hasIdentField('subtitle') && (
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Subtítulo (Opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={metadata.subtitle || ''}
-                    onChange={(e) => updateField('subtitle', e.target.value)}
-                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    placeholder="Ex: Um estudo de caso regional"
-                  />
-                </div>
-              )}
+          <SidebarPostTextualsSection
+            metadata={metadata}
+            capabilities={capabilities}
+            onUpdateField={updateField}
+          />
 
-              {hasIdentField('author') && (
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Nome do Autor
-                  </label>
-                  <input
-                    type="text"
-                    value={metadata.author}
-                    onChange={(e) => updateField('author', e.target.value)}
-                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    placeholder="Ex: Vinícius Candeias"
-                  />
-                </div>
-              )}
+          <SidebarPreservedFieldsSection
+            fields={preservedHiddenFields}
+            templateBadgeLabel={capabilities.badgeLabel}
+          />
 
-              {hasIdentField('advisor') && (
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Orientador(a) (Opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={metadata.advisor || ''}
-                    onChange={(e) => updateField('advisor', e.target.value)}
-                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    placeholder="Ex: Prof. Dr. Nome do Orientador"
-                  />
-                </div>
-              )}
-
-              {hasIdentField('coadvisor') && (
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Coorientador(a) (Opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={metadata.coadvisor || ''}
-                    onChange={(e) => updateField('coadvisor', e.target.value)}
-                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    placeholder="Ex: Profa. Dra. Nome da Coorientadora"
-                  />
-                </div>
-              )}
-
-              {hasIdentField('nature') && (
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Natureza do Trabalho (Folha de Rosto)
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={metadata.nature || ''}
-                    onChange={(e) => updateField('nature', e.target.value)}
-                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    placeholder="Ex: Trabalho de Conclusão de Curso apresentado ao..."
-                  />
-                </div>
-              )}
-
-              {hasIdentField('institution') && (
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Instituição
-                  </label>
-                  <input
-                    type="text"
-                    value={metadata.institution}
-                    onChange={(e) => updateField('institution', e.target.value)}
-                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    placeholder="Ex: Universidade Federal..."
-                  />
-                </div>
-              )}
-
-              {hasIdentField('course') && (
-                <div>
-                  <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                    Curso / Departamento
-                  </label>
-                  <input
-                    type="text"
-                    value={metadata.course}
-                    onChange={(e) => updateField('course', e.target.value)}
-                    className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    placeholder="Ex: Bacharelado em Engenharia de Software"
-                  />
-                </div>
-              )}
-
-              {(hasIdentField('location') || hasIdentField('year')) && (
-                <div className="grid grid-cols-2 gap-2">
-                  {hasIdentField('location') && (
-                    <div>
-                      <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                        Cidade
-                      </label>
-                      <input
-                        type="text"
-                        value={metadata.location}
-                        onChange={(e) => updateField('location', e.target.value)}
-                        className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                        placeholder="São Paulo"
-                      />
-                    </div>
-                  )}
-                  {hasIdentField('year') && (
-                    <div>
-                      <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                        Ano
-                      </label>
-                      <input
-                        type="text"
-                        value={metadata.year}
-                        onChange={(e) => updateField('year', e.target.value)}
-                        className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                        placeholder="2026"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          <SidebarLinterSection
+            capabilities={capabilities}
+            lintReport={lintReport}
+            onOpenGuide={
+              onOpenGuide ?? (onOpenAbntGuide ? () => onOpenAbntGuide() : undefined)
+            }
+          />
         </div>
-
-        {/* Seção Elementos Pré-Textuais Opcionais (Apenas monografias ABNT) */}
-        {capabilities.showPreTextuals && (
-          <div className="p-3">
-            <button
-              onClick={() => setOpenPreTextual(!openPreTextual)}
-              className="w-full flex items-center justify-between text-left text-xs font-semibold text-neutral-700 py-1.5 hover:text-neutral-900"
-            >
-              <span className="flex items-center gap-2">
-                <Layers className="w-3.5 h-3.5 text-neutral-400" />
-                Pré-Textuais & Listas
-              </span>
-              {openPreTextual ? (
-                <ChevronDown className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5" />
-              )}
-            </button>
-
-            {openPreTextual && (
-              <div className="space-y-3 mt-2.5 pl-2 text-xs">
-                {(hasPreField('includeApprovalPage') ||
-                  hasPreField('includeFiguresList') ||
-                  hasPreField('includeBoxesList') ||
-                  hasPreField('includeTablesList')) && (
-                  <div className="space-y-1.5">
-                    {hasPreField('includeApprovalPage') && (
-                      <>
-                        <label className="flex items-center gap-2 cursor-pointer text-neutral-700 font-medium">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(metadata.includeApprovalPage)}
-                            onChange={(e) => updateField('includeApprovalPage', e.target.checked)}
-                            className="rounded text-emerald-600 focus:ring-emerald-500"
-                          />
-                          <span>Incluir Folha de Aprovação (Banca Examinadora)</span>
-                        </label>
-
-                        {metadata.includeApprovalPage && (
-                          <div className="p-2.5 rounded-lg bg-neutral-50 border border-neutral-200 space-y-2 my-1">
-                            <div>
-                              <label className="text-[10px] font-medium text-neutral-500 block mb-0.5">
-                                Data de Aprovação (deixe em branco p/ linha de preenchimento)
-                              </label>
-                              <input
-                                type="text"
-                                value={metadata.approvalDate || ''}
-                                onChange={(e) => updateField('approvalDate', e.target.value)}
-                                placeholder="Ex: 10 de dezembro de 2026"
-                                className="w-full text-xs px-2 py-1 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[10px] font-medium text-neutral-500 block mb-0.5">
-                                Membros da Banca Examinadora (1 por linha)
-                              </label>
-                              <textarea
-                                rows={3}
-                                value={(metadata.committeeMembers ?? []).join('\n')}
-                                onChange={(e) =>
-                                  updateField('committeeMembers', e.target.value.split('\n'))
-                                }
-                                placeholder={'Prof. Dr. Carlos Eduardo (Convidado)\nProfa. Dra. Ana Beatriz (Avaliadora)'}
-                                className="w-full text-xs p-2 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {hasPreField('includeFiguresList') && (
-                      <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(metadata.includeFiguresList)}
-                          onChange={(e) => updateField('includeFiguresList', e.target.checked)}
-                          className="rounded text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <span>Gerar Lista de Ilustrações automática</span>
-                      </label>
-                    )}
-
-                    {hasPreField('includeBoxesList') && (
-                      <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(metadata.includeBoxesList)}
-                          onChange={(e) => updateField('includeBoxesList', e.target.checked)}
-                          className="rounded text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <span>Gerar Lista de Quadros automática</span>
-                      </label>
-                    )}
-
-                    {hasPreField('includeTablesList') && (
-                      <label className="flex items-center gap-2 cursor-pointer text-neutral-700">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(metadata.includeTablesList)}
-                          onChange={(e) => updateField('includeTablesList', e.target.checked)}
-                          className="rounded text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <span>Gerar Lista de Tabelas automática</span>
-                      </label>
-                    )}
-                  </div>
-                )}
-
-                {hasPreField('dedicatory') && (
-                  <div>
-                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                      Dedicatória (Opcional)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={metadata.dedicatory || ''}
-                      onChange={(e) => updateField('dedicatory', e.target.value)}
-                      placeholder="Ex: Dedico este trabalho aos meus pais..."
-                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-                )}
-
-                {hasPreField('acknowledgments') && (
-                  <div>
-                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                      Agradecimentos (Opcional)
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={metadata.acknowledgments || ''}
-                      onChange={(e) => updateField('acknowledgments', e.target.value)}
-                      placeholder="Texto de agradecimentos..."
-                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-                )}
-
-                {hasPreField('epigraph') && (
-                  <div>
-                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                      Epígrafe (Opcional)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={metadata.epigraph || ''}
-                      onChange={(e) => updateField('epigraph', e.target.value)}
-                      placeholder="Citação filosófica ou epígrafe..."
-                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600 mb-1"
-                    />
-                    <input
-                      type="text"
-                      value={metadata.epigraphAuthor || ''}
-                      onChange={(e) => updateField('epigraphAuthor', e.target.value)}
-                      placeholder="Autor da epígrafe (ex: Carl Sagan)"
-                      className="w-full text-xs px-2 py-1 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-                )}
-
-                {hasPreField('abbreviations') && (
-                  <div>
-                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                      Lista de Abreviaturas e Siglas (Opcional)
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={metadata.abbreviations || ''}
-                      onChange={(e) => updateField('abbreviations', e.target.value)}
-                      placeholder="Ex: ABNT: Associação Brasileira de Normas Técnicas&#10;IBGE: Instituto Brasileiro de Geografia e Estatística"
-                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-                )}
-
-                {hasPreField('symbols') && (
-                  <div>
-                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                      Lista de Símbolos (Opcional)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={metadata.symbols || ''}
-                      onChange={(e) => updateField('symbols', e.target.value)}
-                      placeholder="Ex: Ω: Ohm (Resistência elétrica)&#10;λ: Comprimento de onda"
-                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Seção Resumo + Abstract */}
-        {capabilities.showResumoSection && (
-          <div className="p-3">
-            <button
-              onClick={() => setOpenResumo(!openResumo)}
-              className="w-full flex items-center justify-between text-left text-xs font-semibold text-neutral-700 py-1.5 hover:text-neutral-900"
-            >
-              <span className="flex items-center gap-2">
-                <BookOpen className="w-3.5 h-3.5 text-neutral-400" />
-                {capabilities.isAbntFamily
-                  ? 'Resumo & Abstract (NBR 6028)'
-                  : capabilities.effectiveType === 'ieee'
-                    ? 'Abstract & Index Terms'
-                    : 'Resumo & Palavras-chave'}
-              </span>
-              {openResumo ? (
-                <ChevronDown className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5" />
-              )}
-            </button>
-
-            {openResumo && (
-              <div className="space-y-2.5 mt-2 pl-2">
-                {capabilities.resumoFields.resumo && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-medium text-neutral-500">
-                        {capabilities.effectiveType === 'ieee' ? 'Abstract' : 'Resumo em Português'}
-                      </label>
-                      {capabilities.isAbntFamily ||
-                      capabilities.effectiveType === 'sbc' ||
-                      capabilities.effectiveType === 'ieee' ? (
-                        <span
-                          className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                            isAbstractCountIdeal
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : 'bg-amber-50 text-amber-700'
-                          }`}
-                          title={`Recomendação do modelo: entre ${abstractMin} e ${abstractMax} palavras`}
-                        >
-                          {abstractWordCount} / {abstractMin}–{abstractMax} palavras
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600">
-                          {abstractWordCount} palavras
-                        </span>
-                      )}
-                    </div>
-                    <textarea
-                      rows={4}
-                      value={metadata.abstract}
-                      onChange={(e) => updateField('abstract', e.target.value)}
-                      placeholder={
-                        capabilities.effectiveType === 'ieee'
-                          ? 'Concise English abstract summarizing objectives, methodology and main findings...'
-                          : `Texto do resumo em parágrafo único (${abstractMin} a ${abstractMax} palavras conforme NBR 6028)...`
-                      }
-                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-                )}
-
-                {capabilities.resumoFields.keywords && (
-                  <div>
-                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                      {capabilities.effectiveType === 'ieee'
-                        ? 'Index Terms / Palavras-chave (vírgula)'
-                        : 'Palavras-chave (separadas por vírgula)'}
-                    </label>
-                    <input
-                      type="text"
-                      value={metadata.keywords.join(', ')}
-                      onChange={(e) =>
-                        updateField(
-                          'keywords',
-                          e.target.value.split(',').map((k) => k.trim()),
-                        )
-                      }
-                      placeholder={
-                        capabilities.effectiveType === 'ieee'
-                          ? 'Ex: Edge Computing, IoT, Performance'
-                          : 'Ex: ABNT, Typst, Editor Acadêmico'
-                      }
-                      className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-                )}
-
-                {capabilities.resumoFields.foreignAbstract && (
-                  <div className="pt-2 border-t border-neutral-100">
-                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                      Abstract (Língua Estrangeira, Opcional)
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={metadata.foreignAbstract || ''}
-                      onChange={(e) => updateField('foreignAbstract', e.target.value)}
-                      placeholder="English abstract..."
-                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600 mb-1.5"
-                    />
-                    <input
-                      type="text"
-                      value={(metadata.foreignKeywords ?? []).join(', ')}
-                      onChange={(e) =>
-                        updateField(
-                          'foreignKeywords',
-                          e.target.value.split(',').map((k) => k.trim()),
-                        )
-                      }
-                      placeholder="Keywords separated by comma"
-                      className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Seção Referências */}
-        <div className="p-3">
-          <div className="flex items-center justify-between py-1.5">
-            <button
-              onClick={() => setOpenRefs(!openRefs)}
-              className="flex items-center gap-2 text-xs font-semibold text-neutral-700 hover:text-neutral-900"
-            >
-              <Bookmark className="w-3.5 h-3.5 text-neutral-400" />
-              <span>Referências ({references.length})</span>
-            </button>
-            <div className="flex items-center gap-1">
-              {references.length > 0 && (
-                <button
-                  onClick={handleExportBibtex}
-                  className="p-1 hover:bg-neutral-100 rounded text-neutral-500 hover:text-neutral-800"
-                  title="Exportar todas as referências em formato BibTeX (.bib)"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                </button>
-              )}
-              {onOpenTemplateCustomizer && (
-                <button
-                  onClick={onOpenTemplateCustomizer}
-                  className="p-1 hover:bg-neutral-100 rounded text-neutral-500 hover:text-emerald-700"
-                  title="Configurar formatação e layout das referências e citações (Norma & Layout)"
-                >
-                  <Sliders className="w-3.5 h-3.5" />
-                </button>
-              )}
-              <button
-                onClick={onOpenReferenceModal}
-                className="flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-semibold transition-colors"
-                title="Adicionar Referência (DOI, ISBN, .bib ou Manual)"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Nova</span>
-              </button>
-            </div>
-          </div>
-
-          {openRefs && (
-            <div className="mt-2 space-y-2 pl-1">
-              {/* Barra de Pesquisa e Filtro de Referências */}
-              {references.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-2" />
-                    <input
-                      type="text"
-                      value={refSearchQuery}
-                      onChange={(e) => setRefSearchQuery(e.target.value)}
-                      placeholder="Buscar por autor, título, ano..."
-                      className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
-                    {[
-                      { id: 'all', label: 'Todas' },
-                      { id: 'book', label: 'Livros' },
-                      { id: 'article', label: 'Artigos' },
-                      { id: 'thesis', label: 'Teses' },
-                      { id: 'website', label: 'Sites' },
-                    ].map((tab) => (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setRefTypeFilter(tab.id)}
-                        className={`px-2 py-0.5 rounded text-[10px] font-medium shrink-0 transition-colors ${
-                          refTypeFilter === tab.id
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {references.length === 0 ? (
-                <div className="text-[11px] text-neutral-400 py-4 px-2 text-center border border-dashed border-neutral-200 rounded-lg">
-                  Nenhuma referência cadastrada.
-                  <button
-                    onClick={onOpenReferenceModal}
-                    className="block mx-auto text-emerald-600 font-semibold hover:underline mt-1"
-                  >
-                    + Adicionar por DOI, ISBN ou arquivo .bib
-                  </button>
-                </div>
-              ) : filteredReferences.length === 0 ? (
-                <div className="text-[11px] text-neutral-400 py-3 text-center">
-                  Nenhuma referência encontrada para &ldquo;{refSearchQuery}&rdquo;.
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-80 overflow-y-auto pr-0.5">
-                  {filteredReferences.map((ref) => {
-                    const shortCite = formatShortCitation(ref, {
-                      format: citationFormat,
-                      refNumber: refIndexMap.get(ref.id),
-                    });
-                    return (
-                      <div
-                        key={ref.id}
-                        className="group p-2.5 rounded-lg bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-xs space-y-1 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-1.5">
-                          <div className="flex flex-wrap items-center gap-1 min-w-0 flex-1">
-                            <span
-                              className="px-1.5 py-0.5 rounded bg-emerald-100/80 border border-emerald-200 text-emerald-800 font-bold text-[10px] truncate max-w-[185px]"
-                              title={shortCite}
-                            >
-                              {shortCite}
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded bg-neutral-200/70 text-neutral-600 font-medium text-[10px] shrink-0">
-                              {typeBadgeLabel(ref.type)}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-0.5 shrink-0">
-                            <button
-                              onClick={() => handleCopyCitation(ref)}
-                              className="p-1 text-neutral-400 hover:text-emerald-600 rounded"
-                              title={`Copiar chamada ${shortCite}`}
-                            >
-                              {copiedRefId === ref.id ? (
-                                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                            {onEditReference && (
-                              <button
-                                onClick={() => onEditReference(ref)}
-                                className="p-1 text-neutral-400 hover:text-blue-600 rounded"
-                                title="Editar esta referência"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => onRemoveReference(ref.id)}
-                              className="p-1 text-neutral-400 hover:text-red-500 rounded"
-                              title="Remover referência"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="font-semibold text-neutral-900 leading-snug">
-                          {ref.title}
-                          {ref.subtitle ? `: ${ref.subtitle}` : ''}
-                        </div>
-
-                        <div className="text-[11px] text-neutral-500 truncate">
-                          {ref.authors}
-                        </div>
-
-                        <div className="text-[10px] text-neutral-400 truncate">
-                          {ref.journal || ref.publisher} • {ref.city} • {ref.year}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {onOpenTemplateCustomizer && (
-                <button
-                  type="button"
-                  onClick={onOpenTemplateCustomizer}
-                  className="w-full mt-1 py-1.5 px-2.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-[11px] text-neutral-600 flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <Sliders className="w-3 h-3 text-emerald-600" />
-                  <span>Layout das Referências e Citações (Norma & Layout)</span>
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Seção Pós-Textuais Opcionais (Apêndices e Anexos) */}
-        {capabilities.showPostTextuals && (
-          <div className="p-3">
-            <button
-              onClick={() => setOpenPosTextual(!openPosTextual)}
-              className="w-full flex items-center justify-between text-left text-xs font-semibold text-neutral-700 py-1.5 hover:text-neutral-900"
-            >
-              <span className="flex items-center gap-2">
-                <Layers className="w-3.5 h-3.5 text-neutral-400" />
-                Apêndices & Anexos (Pós-Textual)
-              </span>
-              {openPosTextual ? (
-                <ChevronDown className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5" />
-              )}
-            </button>
-
-            {openPosTextual && (
-              <div className="space-y-3 mt-2.5 pl-2 text-xs">
-                {hasPosField('glossary') && (
-                  <div>
-                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                      Glossário (Definição de termos técnicos, Opcional)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={metadata.glossary || ''}
-                      onChange={(e) => updateField('glossary', e.target.value)}
-                      placeholder="Ex: WebAssembly: Formato de instrução binária para execução na web..."
-                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-                )}
-
-                {hasPosField('appendices') && (
-                  <div>
-                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                      Apêndices (Elaborados pelo autor, Opcional)
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={metadata.appendices || ''}
-                      onChange={(e) => updateField('appendices', e.target.value)}
-                      placeholder="Ex: APÊNDICE A - Questionário aplicado aos participantes..."
-                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-                )}
-
-                {hasPosField('annexes') && (
-                  <div>
-                    <label className="text-[11px] font-medium text-neutral-500 block mb-1">
-                      Anexos (Documentos de terceiros, Opcional)
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={metadata.annexes || ''}
-                      onChange={(e) => updateField('annexes', e.target.value)}
-                      placeholder="Ex: ANEXO A - Parecer do Comitê de Ética..."
-                      className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Campos preenchidos mas ocultos pelo modelo atual (Zero Perda de Dados) */}
-        <SidebarPreservedFieldsSection
-          fields={preservedHiddenFields}
-          templateBadgeLabel={capabilities.badgeLabel}
-        />
-
-        {/* Verificador Normativo Plural & Guia Contextual */}
-        <SidebarLinterSection
-          capabilities={capabilities}
-          lintReport={lintReport}
-          onOpenGuide={
-            onOpenGuide ?? (onOpenAbntGuide ? () => onOpenAbntGuide() : undefined)
-          }
-        />
-      </div>
       </aside>
 
       {onChangeSidebarConfig && (
