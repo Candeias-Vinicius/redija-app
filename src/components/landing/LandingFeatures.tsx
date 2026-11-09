@@ -38,13 +38,13 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
         </div>
 
         {/* ======================================================== */}
-        {/* PILAR 1: ABNT AUTOMÁTICA NATIVA                          */}
+        {/* PILAR 1: MULTI-NORMAS AUTOMÁTICAS & CUSTOMIZAÇÃO TOTAL   */}
         {/* ======================================================== */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           <div className="lg:col-span-6 space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Conformidade Normativa Total</span>
+              <span>Conformidade Multi-Normas &amp; Customizer</span>
             </div>
 
             <h3
@@ -52,11 +52,11 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                 isDark ? 'text-white' : 'text-slate-900'
               }`}
             >
-              100% das normas ABNT aplicadas sem você mover uma régua
+              ABNT, SBC, IEEE, APA 7ª e Pôsteres aplicados sem você mover uma régua
             </h3>
 
             <p className={`text-sm sm:text-base leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-              Diga adeus à insegurança de ser reprovado na banca por detalhes formais. O Redija gerencia automaticamente margens de 3-3-2-2 cm, numeração de páginas (NBR 14724), citações longas com recuo de 4 cm (NBR 10520) e referências bibliográficas com busca por DOI (NBR 6023).
+              Seja em uma monografia ABNT (margens 3-3-2-2 cm, NBR 14724), artigo SBC, paper IEEE em duas colunas, norma APA 7ª Edição ou banner A0/A1, o Redija automatiza diagramação, chamadas de citação e verificação normativa em tempo real.
             </p>
 
             <div className="space-y-3 pt-2">
@@ -64,10 +64,10 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                    Pré-textuais completos automáticos
+                    Layouts &amp; Linters específicos por padrão
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Capa, folha de rosto, folha de aprovação (banca examinadora), resumo com palavras-chave e sumário dinâmico.
+                    Ao mudar o modelo ou ajustar regras no Template Customizer (5 abas), a barra lateral e os verificadores adaptam-se automaticamente.
                   </p>
                 </div>
               </div>
@@ -76,10 +76,10 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                    Busca de Referências por DOI
+                    Busca de Referências por DOI, ISBN e BibTeX (.bib)
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Basta colar o código DOI do artigo ou ISBN do livro para o Redija preencher todos os campos da NBR 6023 em 1 clique.
+                    Preencha automaticamente os campos bibliográficos via DOI ou ISBN e importe lotes .bib em 1 clique.
                   </p>
                 </div>
               </div>
@@ -88,10 +88,10 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                    Suporte às regras NBR 10520:2023
+                    5 estilos reativos de chamada no texto (@)
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Alterne facilmente entre o padrão tradicional em maiúsculas (SILVA, 2024) ou o atualizado em caixa mista (Silva, 2024).
+                    Alterne retroativamente entre (SILVA, 2024), (Silva, 2024) da NBR 10520:2023, numérico IEEE [1], sobrescrito ¹ e APA 7ª (Silva, 2024).
                   </p>
                 </div>
               </div>
@@ -102,12 +102,12 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                 onClick={() => onOpenDoc()}
                 className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
               >
-                <span>Explorar as 9 normas ABNT suportadas no Guia Técnico &rarr;</span>
+                <span>Explorar normas e padrões no Guia Técnico &rarr;</span>
               </button>
             </div>
           </div>
 
-          {/* Visual Card Demonstrativo */}
+          {/* Visual Card Demonstrativo Multi-Padrões */}
           <div className="lg:col-span-6">
             <div
               className={`p-6 sm:p-8 rounded-3xl border shadow-xl transition-colors space-y-4 ${
@@ -116,30 +116,30 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                 <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                  ABNT NBR 10520 &amp; 6023
+                  ABNT • SBC • IEEE • APA 7ª
                 </span>
                 <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold">
-                  Validado
+                  Conversão Reativa
                 </span>
               </div>
 
-              {/* Exemplo Interativo de Citação */}
+              {/* Exemplos comparativos reais */}
               <div className="space-y-3 font-sans">
                 <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-xs">
                   <span className="text-[10px] font-semibold uppercase text-slate-400 block mb-1">
-                    Citação Direta Curta (incorporada ao texto com aspas)
+                    Chamadas Reativas por Padrão
                   </span>
-                  <p className="italic text-slate-700 dark:text-slate-300">
-                    Segundo Silva (2024, p. 12), &ldquo;a automação normativa devolve ao autor o tempo que seria desperdiçado em ajustes mecânicos de layout&rdquo;.
+                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                    Autor-Data ABNT <strong className="text-emerald-600 dark:text-emerald-400">(Silva, 2024)</strong> • Numérico IEEE <strong className="text-indigo-600 dark:text-indigo-400">[1]</strong> • APA 7ª <strong className="text-violet-600 dark:text-violet-400">(Silva &amp; Pereira, 2024)</strong>
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-500/30 text-xs pl-6 border-l-4 border-l-emerald-500">
                   <span className="text-[10px] font-semibold uppercase text-emerald-700 dark:text-emerald-400 block mb-1">
-                    Citação Direta Longa (mais de 3 linhas: recuo 4 cm, fonte 10, simples)
+                    Citação Direta Longa (recuo 4 cm, fonte 10 pt, espaçamento simples)
                   </span>
                   <p className="text-slate-700 dark:text-slate-300 italic text-[11.5px] leading-snug">
-                    O editor acadêmico moderno deve ser capaz de interpretar os blocos textuais e renderizar fielmente as especificações da NBR 14724 sem exigir que o pesquisador domine marcações tipográficas complexas.
+                    O editor adapta automaticamente recuo, fonte e formato da chamada quando o pesquisador troca o trabalho de TCC ABNT para artigo SBC, IEEE Conference ou periódicos APA.
                   </p>
                   <p className="text-[10px] text-right font-medium text-slate-500 dark:text-slate-400 mt-1">
                     (SANTOS; OLIVEIRA, 2024, p. 89)
@@ -148,7 +148,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
 
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-[11px]">
                   <span className="text-[10px] font-semibold uppercase text-slate-400 block mb-1">
-                    Referência NBR 6023 (Alinhada à esquerda, destaque no título)
+                    Referência Formatada pelo Estilo Ativo (NBR 6023 / IEEE / APA)
                   </span>
                   <p className="text-slate-800 dark:text-slate-200">
                     SILVA, João; PEREIRA, Carlos. <strong className="font-bold">Engenharia de Software e Tipografia Digital</strong>. 2. ed. São Paulo: Editora Acadêmica, 2024. DOI: 10.1016/j.redija.2024.
@@ -340,7 +340,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                     </p>
                     <p className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
                       <span>📕</span>
-                      <span>Monografia_Final_2026.pdf (Cópia legível ABNT)</span>
+                      <span>Monografia_Final_2026.pdf (Cópia pronta em PDF)</span>
                     </p>
                   </div>
                 </div>
@@ -449,11 +449,11 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                 isDark ? 'text-white' : 'text-slate-900'
               }`}
             >
-              Importe do Word e exporte projetos Typst completos em ZIP
+              Importe Word, LaTeX ou Typst e exporte pacotes ZIP completos
             </h3>
 
             <p className={`text-sm sm:text-base leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-              Você não fica preso a uma plataforma fechada. Traga rascunhos feitos no Microsoft Word (.docx) ou pacotes do Overleaf (.zip). A qualquer momento, exporte o pacote Typst original com os arquivos <code className="font-mono text-emerald-500">main.typ</code>, <code className="font-mono text-emerald-500">abnt.typ</code>, imagens e <code className="font-mono text-emerald-500">referencias.bib</code>.
+              Você não fica preso a uma plataforma fechada. Traga trabalhos do Microsoft Word (.docx), pacotes do Overleaf (.tex / .zip) ou projetos Typst (.typ / Universe). A qualquer momento, exporte os arquivos puros com <code className="font-mono text-emerald-500">main.typ</code>, módulo do padrão ativo (<code className="font-mono text-emerald-500">abnt.typ</code> / <code className="font-mono text-emerald-500">sbc.typ</code> / <code className="font-mono text-emerald-500">ieee.typ</code>), figuras e <code className="font-mono text-emerald-500">referencias.bib</code>.
             </p>
 
             <div className="grid grid-cols-2 gap-3 pt-2 text-xs">
@@ -462,7 +462,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                   <span className="text-blue-500">📥</span> Importe
                 </span>
                 <p className="text-slate-500 dark:text-slate-400 text-[11px]">
-                  Documentos Word (.docx), projetos Redija ou arquivos ZIP do Overleaf.
+                  Word (.docx), LaTeX/Overleaf (.tex/.zip), Typst (.typ), Universe (@preview) e .redija.
                 </p>
               </div>
 
@@ -471,7 +471,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                   <span className="text-emerald-500">📤</span> Exporte
                 </span>
                 <p className="text-slate-500 dark:text-slate-400 text-[11px]">
-                  PDF de alta resolução pronto para impressão e pacote ZIP do código Typst.
+                  PDF vetorial pronto para publicação e pacote ZIP completo do código Typst.
                 </p>
               </div>
             </div>
@@ -501,9 +501,9 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                 </div>
                 <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-950/60 flex items-center justify-between">
                   <span className="text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                    <span className="text-emerald-500">typ</span> abnt.typ
+                    <span className="text-emerald-500">typ</span> abnt.typ / sbc.typ / ieee.typ
                   </span>
-                  <span className="text-[10px] text-slate-400">Regras e macros NBR</span>
+                  <span className="text-[10px] text-slate-400">Regras do padrão selecionado</span>
                 </div>
                 <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-950/60 flex items-center justify-between">
                   <span className="text-slate-800 dark:text-slate-200 flex items-center gap-2">

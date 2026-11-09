@@ -49,19 +49,15 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
           {/* Tagline / Eyebrow Badge */}
           <button
             onClick={onOpenDoc}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md border transition-all animate-fade-in shadow-xs cursor-pointer hover:opacity-90"
-            title="Clique para ver o Guia das 9 Normas ABNT Atendidas"
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md border transition-all animate-fade-in shadow-xs cursor-pointer hover:opacity-90 ${
+              isDark
+                ? 'text-emerald-300 border-emerald-500/30 bg-emerald-950/40'
+                : 'text-emerald-800 border-emerald-200 bg-emerald-50'
+            }`}
+            title="Clique para explorar normas e padrões suportados"
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span
-              className={
-                isDark
-                  ? 'text-emerald-300 border-emerald-500/30 bg-emerald-950/40'
-                  : 'text-emerald-800 border-emerald-200 bg-emerald-50'
-              }
-            >
-              Novo Padrão Científico Brasileiro • Motor Typst WebAssembly
-            </span>
+            <span>ABNT • SBC • IEEE • APA 7ª • Pôsteres • Typst Universe</span>
           </button>
 
           {/* Título Principal de Alto Impacto */}
@@ -72,7 +68,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
           >
             Foque nas suas ideias.{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400">
-              O Redija cuida de toda a ABNT.
+              O Redija cuida das normas por você.
             </span>
           </h1>
 
@@ -82,7 +78,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
               isDark ? 'text-slate-300' : 'text-slate-600'
             }`}
           >
-            O editor acadêmico visual que combina a facilidade em blocos do Notion com a perfeição e velocidade instantânea do Typst. Sem margens desconfiguradas, sem compilações lentas de LaTeX e com seus arquivos protegidos no seu próprio Google Drive.
+            O editor acadêmico visual que combina a facilidade em blocos do Notion com a velocidade instantânea do Typst em WebAssembly. Produza TCCs, artigos (ABNT, SBC, IEEE e APA 7ª), pôsteres A0/A1 e pacotes do Typst Universe com linters em tempo real e backup no seu Google Drive.
           </p>
 
           {/* ======================================================== */}

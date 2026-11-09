@@ -35,9 +35,19 @@ export const LandingFaq: React.FC<LandingFaqProps> = ({ isDark }) => {
         'Sim! A arquitetura do Redija é Local-First. Todo o motor de compilação Typst e o banco de dados funcionam 100% no cliente. Você pode escrever no avião ou sem sinal de rede; assim que sua conexão voltar, o app sincroniza as alterações com seu Google Drive.',
     },
     {
+      question: 'O Redija atende apenas à ABNT ou suporta outros padrões como SBC, IEEE e APA?',
+      answer:
+        'Embora tenha nascido focado na ABNT (9 NBRs integradas), o RedijaApp hoje suporta nativamente Artigos SBC, IEEE Conference (duas colunas e citações numéricas [1]), APA 7ª Edição, Pôsteres Científicos A0/A1, Documentos Livres e pacotes externos da loja oficial Typst Universe (@preview/...). Ao trocar de modelo, a barra lateral e os Linters mudam automaticamente para validar as regras exatas daquele padrão.',
+    },
+    {
+      question: 'O que acontece com o Linter se eu alterar margens ou ocultar campos da barra lateral?',
+      answer:
+        'Para evitar falsos positivos quando sua universidade adota regras próprias, o Redija muda o selo de conformidade para "ABNT Modificado" (ou equivalente) e pausa as cobranças estritas daquela norma, mantendo ativo o Verificador de Integridade (Sanity Linter) para proteger citações, legendas e metadados. Nenhum conteúdo digitado é perdido ao ocultar campos.',
+    },
+    {
       question: 'O Redija já atende à atualização recente da NBR 10520:2023 de citações?',
       answer:
-        'Sim! O Redija permite escolher nas configurações entre o estilo tradicional em letras maiúsculas (SILVA, 2024) ou a recomendação atualizada da ABNT NBR 10520:2023 em caixa mista (Silva, 2024). Além disso, o recuo de 4 cm para citações com mais de 3 linhas é aplicado automaticamente.',
+        'Sim! O Redija oferece 5 estilos reativos no texto (@): caixa alta tradicional (SILVA, 2024), caixa mista da NBR 10520:2023 (Silva, 2024), numérico IEEE [1], sobrescrito ¹ e APA 7ª. Ao alternar no Template Customizer, todas as chamadas já inseridas no texto são atualizadas automaticamente.',
     },
     {
       question: 'Meu orientador ou colega precisa instalar algo para colaborar?',
@@ -45,9 +55,9 @@ export const LandingFaq: React.FC<LandingFaqProps> = ({ isDark }) => {
         'Nada precisa ser instalado. A colaboração acontece diretamente pelo navegador via WebRTC P2P (Peer-to-Peer). Além disso, como o Redija gera automaticamente uma cópia em PDF legível no seu Google Drive, você pode enviar o link do PDF diretamente para orientadores que preferem ler em dispositivos móveis.',
     },
     {
-      question: 'Se eu quiser compilar no meu terminal ou no Overleaf, eu posso?',
+      question: 'Se eu quiser compilar no meu terminal ou no Overleaf/Typst CLI, eu posso?',
       answer:
-        'Com certeza! O Redija oferece exportação em 1 clique do pacote ZIP completo do projeto contendo main.typ, abnt.typ, figuras e arquivo de referências BibTeX (.bib). Você é o dono absoluto do seu código.',
+        'Com certeza! O Redija oferece exportação em 1 clique do pacote ZIP completo contendo main.typ, o módulo normativo (abnt.typ, sbc.typ, ieee.typ ou poster.typ), figuras e arquivo de referências BibTeX (.bib). Você é o dono absoluto do seu código.',
     },
   ];
 
@@ -70,7 +80,7 @@ export const LandingFaq: React.FC<LandingFaqProps> = ({ isDark }) => {
             Tire suas dúvidas sobre o Redija
           </h2>
           <p className={`text-base sm:text-lg ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            Tudo o que você precisa saber sobre privacidade, ABNT, Typst e uso diário.
+            Tudo o que você precisa saber sobre privacidade, normas acadêmicas (ABNT, SBC, IEEE, APA), Typst Universe e uso diário.
           </p>
         </div>
 

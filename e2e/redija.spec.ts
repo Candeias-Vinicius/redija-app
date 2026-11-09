@@ -14,7 +14,7 @@ test.describe('RedijaApp: Fluxo Principal E2E', () => {
     await page.goto('/');
 
     // Verifica que a Landing Page carregou
-    await expect(page.getByText(/O Redija cuida de toda a ABNT/i)).toBeVisible();
+    await expect(page.getByText(/O Redija cuida das normas por você/i)).toBeVisible();
 
     // Clica para continuar como Convidado (Modo Local Offline)
     await page.getByRole('button', { name: /Experimentar como Convidado/i }).first().click();

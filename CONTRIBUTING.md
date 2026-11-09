@@ -83,6 +83,8 @@ npm run build       # Build final de produção
 
 ---
 
-## Licença
+## Licença & Marca
 
-Ao contribuir com código ou documentação para este repositório, você concorda que suas contribuições sejam licenciadas sob os termos da licença **MIT** ([`LICENSE`](LICENSE)).
+Ao contribuir com código ou documentação para este repositório, você concorda que suas contribuições sejam licenciadas sob os termos da licença **GNU Affero General Public License v3.0 (`AGPL-3.0`)** ([`LICENSE`](LICENSE)).
+
+Caso uma contribuição adicione novas dependências ou fontes externas, atualize também o inventário em [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). A marca **RedijaApp** e o logotipo oficial ([`public/logo.png`](public/logo.png)) permanecem reservados à identificação do projeto oficial.

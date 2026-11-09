@@ -25,6 +25,7 @@ import {
   GITHUB_ISSUES_URL,
   GITHUB_LICENSE_URL,
   GITHUB_REPO_URL,
+  GITHUB_THIRD_PARTY_NOTICES_URL,
 } from '@/core/links';
 import { APP_VERSION } from '@/core/version';
 import { DOCS_SECTIONS, filterDocsSections } from '@/core/docs/documentationCatalog';
@@ -275,7 +276,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                 <span>Projeto Open Source</span>
               </div>
               <p className={isDark ? 'text-slate-400 leading-relaxed' : 'text-slate-600 leading-relaxed'}>
-                Código aberto sob licença MIT. Explore a arquitetura, execute localmente ou envie sugestões.
+                Código aberto sob licença AGPL-3.0. Explore a arquitetura, execute localmente ou envie sugestões.
               </p>
               <ul className="space-y-1.5 font-medium">
                 <li>
@@ -308,6 +309,17 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                     className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:underline"
                   >
                     <span>Reportar Problema (Issues)</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href={GITHUB_THIRD_PARTY_NOTICES_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:underline"
+                  >
+                    <span>Créditos &amp; Typst (Apache-2.0)</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </li>
@@ -569,7 +581,15 @@ export const DocsPage: React.FC<DocsPageProps> = ({
               rel="noopener noreferrer"
               className="hover:text-emerald-500 transition-colors"
             >
-              Licença MIT
+              Licença AGPL-3.0
+            </a>
+            <a
+              href={GITHUB_THIRD_PARTY_NOTICES_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-emerald-500 transition-colors"
+            >
+              Créditos &amp; Typst
             </a>
           </div>
         </div>

@@ -19,7 +19,12 @@ import {
 import type { FeedbackPayload } from '@/core/feedback/types';
 import { ABNT_STANDARDS_DOCS } from './abntStandardsDocs';
 import { GitHubIcon } from '../GitHubIcon';
-import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from '@/core/links';
+import {
+  GITHUB_ISSUES_URL,
+  GITHUB_LICENSE_URL,
+  GITHUB_REPO_URL,
+  GITHUB_THIRD_PARTY_NOTICES_URL,
+} from '@/core/links';
 
 export type LandingModalType = 'docs' | 'about' | 'contact' | 'privacy' | 'terms' | null;
 
@@ -118,7 +123,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
             {modalType === 'terms' && <FileText className="w-5 h-5 text-amber-500" />}
 
             <h3 className="font-bold text-base sm:text-lg">
-              {modalType === 'docs' && 'Documentação das Normas ABNT Atendidas'}
+              {modalType === 'docs' && 'Guia Técnico de Normas & Modelos'}
               {modalType === 'about' && 'Sobre o RedijaApp'}
               {modalType === 'contact' && 'Fale Conosco & Comunidade'}
               {modalType === 'privacy' && 'Política de Privacidade & Dados'}
@@ -148,7 +153,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
           {modalType === 'docs' && (
             <div className="space-y-6">
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
-                O RedijaApp foi projetado a partir das normas oficiais vigentes da Associação Brasileira de Normas Técnicas (ABNT). Abaixo estão listadas as 9 normas implementadas no compilador Typst:
+                O RedijaApp implementa nativamente as 9 normas oficiais da ABNT listadas abaixo, além de suporte completo a Artigos SBC, IEEE Conference, APA 7ª Edição, Pôsteres Científicos A0/A1 e pacotes da loja Typst Universe (detalhados em /docs).
               </p>
 
               {/* Seletor Rápido de Normas */}
@@ -235,7 +240,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                   Nossa Filosofia
                 </span>
                 <p>
-                  Acreditamos que a formatação não deveria ser uma barreira para a produção do conhecimento científico. O rigor formal da ABNT deve ser garantido pelo software, de forma invisível, elegante e automática.
+                  Acreditamos que a formatação não deveria ser uma barreira para a produção do conhecimento científico. O rigor formal de normas como ABNT, SBC, IEEE e APA deve ser garantido pelo software, de forma invisível, elegante e automática.
                 </p>
               </div>
 
@@ -264,7 +269,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
               >
                 <div className="flex items-center gap-2.5">
                   <GitHubIcon className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Projeto de código aberto sob licença MIT no GitHub.</span>
+                  <span>Projeto de código aberto sob licença AGPL-3.0 no GitHub.</span>
                 </div>
                 <div className="flex items-center gap-3 font-semibold">
                   <a
@@ -294,7 +299,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
           {modalType === 'contact' && (
             <div className="space-y-6">
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
-                Tem dúvidas, sugestões de melhoria para alguma norma ABNT ou encontrou um bug? Estamos sempre à disposição para ouvir você.
+                Tem dúvidas, sugestões de melhoria para algum modelo (ABNT, SBC, IEEE, APA, Pôsteres) ou encontrou um bug? Estamos sempre à disposição para ouvir você.
               </p>
 
               {/* Cartão de E-mail Direto */}
@@ -444,10 +449,22 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
             <div className="space-y-4 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
               <div className="space-y-2">
                 <h5 className="font-bold text-slate-900 dark:text-white">
-                  1. Natureza Gratuita e Aberta
+                  1. Natureza Gratuita e Aberta (GNU AGPL-3.0)
                 </h5>
                 <p>
-                  O RedijaApp é disponibilizado gratuitamente sob licença de código aberto, com o objetivo de apoiar estudantes, pesquisadores e a educação pública e privada brasileira.
+                  O RedijaApp é software livre disponibilizado gratuitamente sob a licença{' '}
+                  <a
+                    href={GITHUB_LICENSE_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                  >
+                    GNU Affero General Public License v3.0 (AGPL-3.0)
+                  </a>
+                  . Modificações distribuídas ou hospedadas em rede (SaaS) devem preservar os
+                  créditos originais e manter o código-fonte acessível sob a mesma licença. A
+                  licença do código não autoriza o uso do nome ou logotipo oficial RedijaApp em
+                  serviços de terceiros.
                 </p>
               </div>
 
@@ -465,7 +482,28 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                   3. Isenção de Responsabilidade Normativa
                 </h5>
                 <p>
-                  Embora o RedijaApp aplique rigorosamente as normas ABNT vigentes, a aprovação final de formatação é prerrogativa soberana das bancas examinadoras e das diretrizes específicas de cada instituição de ensino superior.
+                  Embora o RedijaApp aplique rigorosamente as regras de diagramação configuradas (ABNT, SBC, IEEE, APA e Pôsteres), a aprovação final de formatação é prerrogativa soberana das bancas examinadoras, eventos e editais de cada instituição.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h5 className="font-bold text-slate-900 dark:text-white">
+                  4. Créditos ao Motor Typst &amp; Licenças de Terceiros
+                </h5>
+                <p>
+                  A compilação e renderização científica no navegador utiliza o motor{' '}
+                  <strong>Typst</strong> e os bindings WebAssembly <strong>typst.ts</strong>{' '}
+                  (ambos sob licença <strong>Apache-2.0</strong>), além das fontes locais Tinos e
+                  Arimo (<strong>Apache-2.0</strong>). Consulte o inventário completo em{' '}
+                  <a
+                    href={GITHUB_THIRD_PARTY_NOTICES_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                  >
+                    THIRD_PARTY_NOTICES.md
+                  </a>
+                  .
                 </p>
               </div>
             </div>

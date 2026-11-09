@@ -64,7 +64,7 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
                 isDark ? 'text-slate-400' : 'text-slate-600'
               }`}
             >
-              RedijaApp Workspace • Typst WASM &amp; ABNT
+              RedijaApp Workspace • Typst WASM &amp; Multi-Normas
             </span>
           </div>
 
@@ -612,10 +612,10 @@ emergiram como alternativas essenciais para garantir elasticidade e resiliência
           }`}
         >
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-              <span>NBR 14724, 6023 &amp; 10520</span>
-            </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span>ABNT, SBC, IEEE, APA 7ª &amp; Typst Universe</span>
+              </span>
             <span className="hidden sm:flex items-center gap-1.5">
               <Cloud className="w-3.5 h-3.5 text-teal-500" />
               <span>Google Drive Pessoal (BYOS)</span>

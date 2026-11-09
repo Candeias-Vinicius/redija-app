@@ -43,6 +43,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
     { label: 'Recursos', href: '#recursos' },
     { label: 'Demonstração', href: '#demonstracao' },
     { label: 'Modelos', href: '#modelos' },
+    { label: 'Linters', href: '#linters' },
     { label: 'Dúvidas', href: '#faq' },
   ];
 
@@ -87,7 +88,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
               </a>
             ))}
 
-            {/* Link para o Guia ABNT com Modal Técnico */}
+            {/* Link para o Guia Técnico de Normas com Modal */}
             <button
               onClick={() => onOpenDoc()}
               className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-colors ${
@@ -96,7 +97,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
                   : 'text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50'
               }`}
             >
-              Normas ABNT
+              Normas &amp; Guias
             </button>
 
             <a
@@ -213,7 +214,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
             className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 text-xs font-semibold"
           >
             <FileCheck2 className="w-3.5 h-3.5" />
-            <span>Documentação das 9 Normas ABNT</span>
+            <span>Guia de Normas (ABNT, SBC, IEEE, APA)</span>
           </button>
 
           <div className="grid grid-cols-2 gap-2">

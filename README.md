@@ -23,7 +23,7 @@
   <img src="https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react&logoColor=white" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript 6.0" />
   <img src="https://img.shields.io/badge/Engine-Typst_WASM-239dad?style=flat-square" alt="Typst WASM" />
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-eab308?style=flat-square" alt="Licença MIT" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-eab308?style=flat-square" alt="Licença AGPL-3.0" /></a>
 </p>
 
 ---
@@ -154,6 +154,8 @@ Contribuições são muito bem-vindas! Antes de abrir um Pull Request:
 
 ---
 
-## Licença
+## Licença & Créditos
 
-Distribuído sob a licença **MIT**. Veja [`LICENSE`](LICENSE) para mais detalhes.
+- **Licença do Projeto:** distribuído sob a **GNU Affero General Public License v3.0 (`AGPL-3.0`)** — veja [`LICENSE`](LICENSE). Qualquer versão modificada executada em rede (SaaS) deve manter o código-fonte acessível sob os mesmos termos.
+- **Marca e Identidade Visual:** a licença `AGPL-3.0` aplica-se exclusivamente ao código-fonte e não autoriza o uso do nome **RedijaApp** nem do logotipo oficial ([`public/logo.png`](public/logo.png)) em instâncias hospedadas por terceiros.
+- **Créditos de Terceiros ([`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)):** a compilação científica no navegador utiliza o motor [**Typst**](https://github.com/typst/typst) e os bindings WebAssembly [**`typst.ts`**](https://github.com/Myriad-Dreamin/typst.ts) (ambos sob licença **`Apache-2.0`**), além das fontes tipográficas e bibliotecas open source listadas nos avisos de terceiros.

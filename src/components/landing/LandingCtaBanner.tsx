@@ -37,7 +37,7 @@ export const LandingCtaBanner: React.FC<LandingCtaBannerProps> = ({
             </h2>
 
             <p className="text-sm sm:text-base text-slate-200/90 leading-relaxed">
-              Junte-se a estudantes e pesquisadores que já produzem seus TCCs, artigos e dissertações sem o estresse da ABNT.
+              Junte-se a estudantes e pesquisadores que já produzem TCCs, dissertações, artigos (ABNT, SBC, IEEE, APA 7ª) e pôsteres sem perder tempo com formatação manual.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
