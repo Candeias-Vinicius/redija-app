@@ -19,7 +19,7 @@ test.describe('RedijaApp: Jornada Completa do Estudante', () => {
     page,
   }) => {
     // 1. Verifica landing page e entra como convidado
-    await expect(page.getByText(/O Redija cuida de toda a ABNT/i)).toBeVisible();
+    await expect(page.getByText(/O Redija cuida das normas por você/i)).toBeVisible();
     await page.getByRole('button', { name: /Experimentar como Convidado/i }).first().click();
 
     // 2. Confirma que o cabeçalho carregou

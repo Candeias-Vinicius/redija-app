@@ -32,4 +32,14 @@ describe('documentationCatalog', () => {
     expect(abntMatch.some((s) => s.id === 'normas-abnt')).toBe(true);
     expect(filterDocsSections('termo-inexistente-xyz-999')).toEqual([]);
   });
+
+  it('descreve corretamente a persistência de sessão OAuth2 em localStorage + useRef com expiração', () => {
+    const cloudSection = DOCS_SECTIONS.find((s) => s.id === 'nuvem-colaboracao');
+    expect(cloudSection).toBeDefined();
+    const driveArticle = cloudSection?.articles.find((a) => a.id === 'drive-byos');
+    expect(driveArticle).toBeDefined();
+    const joinedBullets = driveArticle?.bullets.join(' ') ?? '';
+    expect(joinedBullets).toContain('localStorage');
+    expect(joinedBullets).not.toContain('apenas na memória da aba (RAM)');
+  });
 });

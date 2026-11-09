@@ -40,7 +40,7 @@ export const LandingComparison: React.FC<LandingComparisonProps> = ({ isDark }) 
                 <h3>Word e Google Docs</h3>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Criados para cartas comerciais, exigem dezenas de horas de formatação manual para ABNT.
+                Criados para cartas comerciais, exigem horas de formatação manual para ABNT, SBC, IEEE ou APA.
               </p>
 
               <ul className="space-y-2.5 text-xs">
@@ -147,7 +147,7 @@ export const LandingComparison: React.FC<LandingComparisonProps> = ({ isDark }) 
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                   <span className="text-slate-900 dark:text-white">
-                    100% ABNT automática (NBR 14724, 6023, 10520, etc.)
+                    ABNT (9 NBRs), SBC, IEEE, APA 7ª, Pôsteres e Typst Universe com linters
                   </span>
                 </li>
                 <li className="flex items-start gap-2">

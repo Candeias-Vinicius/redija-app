@@ -352,7 +352,7 @@ export const DOCS_SECTIONS: DocTrackSection[] = [
         summary:
           'Sincronização segura usando sua conta pessoal e retenção contra exclusões acidentais.',
         bullets: [
-          'Tokens OAuth2 permanecem apenas na memória da aba (RAM), reduzindo exposição em armazenamento persistente.',
+          'Tokens OAuth2 de acesso (escopo restrito drive.file) têm expiração curta (~1 hora) e são mantidos em sincronia entre memória (useRef) e localStorage — permitindo recarregar a página (F5) sem perder a sessão ativa nem abrir popups repetidos — sendo removidos imediatamente ao sair ou revogar o acesso.',
           'Lixeira segura com contagem regressiva de 30 dias para restaurar projetos antes da remoção definitiva.',
           'Nas Configurações de Conta você pode revogar o acesso do aplicativo ou remover os arquivos da pasta no Drive.',
         ],

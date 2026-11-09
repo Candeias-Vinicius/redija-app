@@ -4,6 +4,7 @@ import { LandingHero } from './landing/LandingHero';
 import { LandingComparison } from './landing/LandingComparison';
 import { LandingFeatures } from './landing/LandingFeatures';
 import { LandingTemplates } from './landing/LandingTemplates';
+import { LandingLinters } from './landing/LandingLinters';
 import { LandingWorkflow } from './landing/LandingWorkflow';
 import { LandingFaq } from './landing/LandingFaq';
 import { LandingCtaBanner } from './landing/LandingCtaBanner';
@@ -119,10 +120,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       {/* 4. Deep-Dive dos 5 Pilares Principais (ABNT, WASM, Drive BYOS, P2P, Formatos) */}
       <LandingFeatures isDark={isDark} onOpenDoc={handleOpenDoc} />
 
-      {/* 5. Galeria Interativa de Modelos Acadêmicos Prontos */}
+      {/* 5. Galeria Interativa de Modelos Acadêmicos Prontos & Typst Universe */}
       <LandingTemplates
         isDark={isDark}
         onSelectTemplate={handleScrollToAuth}
+        onOpenFullDocs={onOpenFullDocs}
+      />
+
+      {/* 5.5. Linters Contextuais por Modelo com Imagens Reais */}
+      <LandingLinters
+        isDark={isDark}
+        onSelectTemplate={handleScrollToAuth}
+        onOpenFullDocs={onOpenFullDocs}
       />
 
       {/* 6. Como Funciona em 3 Passos Simples */}

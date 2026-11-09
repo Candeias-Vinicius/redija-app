@@ -9,27 +9,27 @@ export const LandingWorkflow: React.FC<LandingWorkflowProps> = ({ isDark }) => {
   const steps = [
     {
       number: '01',
-      title: 'Inicie ou Importe seu Rascunho',
+      title: 'Escolha um Padrão ou Importe',
       description:
-        'Escolha um modelo acadêmico (TCC, Artigo, Tese) ou simplesmente arraste seu arquivo Word (.docx) ou pacote ZIP do Overleaf. Todos os parágrafos e tabelas são convertidos automaticamente.',
+        'Crie com 1 clique em ABNT, SBC, IEEE, APA 7ª, Pôster A0/A1 ou pacotes @preview/... do Typst Universe — ou importe rascunhos do Word (.docx), LaTeX/Overleaf (.tex/.zip) e Typst (.typ).',
       icon: <MousePointerClick className="w-6 h-6 text-emerald-500" />,
       detail: 'Zero configuração inicial necessária',
     },
     {
       number: '02',
-      title: 'Escreva com a Liberdade do Notion',
+      title: 'Escreva com Blocos e Linters',
       description:
-        'Concentre-se nas ideias e na metodologia. Use o atalho "/" para inserir citações longas, tabelas conforme o IBGE ou equações matemáticas. O motor cuida de margens, recuos e numerações.',
+        'Use "/" para inserir citações longas, tabelas IBGE e equações, e "@" para chamadas dinâmicas. O verificador (linter) da barra lateral audita as regras exatas do modelo escolhido em tempo real.',
       icon: <Edit3 className="w-6 h-6 text-teal-500" />,
-      detail: 'Citações e referências automáticas por DOI',
+      detail: 'Citações e referências automáticas por DOI e ISBN',
     },
     {
       number: '03',
-      title: 'Baixe o PDF Perfeito e Aprovado',
+      title: 'Exporte PDF Vetorial ou Código',
       description:
-        'Veja o PDF compilado em tempo real direto na tela via WebAssembly. Baixe o PDF vetorial pronto para depósito na biblioteca ou sincronize tudo com o seu próprio Google Drive pessoal.',
+        'Veja o PDF compilado em milissegundos via WebAssembly. Baixe o PDF final pronto para publicação ou leve o pacote completo (.zip com fontes .typ e .bib) sem qualquer bloqueio.',
       icon: <CheckCircle2 className="w-6 h-6 text-blue-500" />,
-      detail: '100% de conformidade com as bancas',
+      detail: 'Conformidade e soberania no Google Drive (BYOS)',
     },
   ];
 

@@ -123,7 +123,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
             {modalType === 'terms' && <FileText className="w-5 h-5 text-amber-500" />}
 
             <h3 className="font-bold text-base sm:text-lg">
-              {modalType === 'docs' && 'Documentação das Normas ABNT Atendidas'}
+              {modalType === 'docs' && 'Guia Técnico de Normas & Modelos'}
               {modalType === 'about' && 'Sobre o RedijaApp'}
               {modalType === 'contact' && 'Fale Conosco & Comunidade'}
               {modalType === 'privacy' && 'Política de Privacidade & Dados'}
@@ -153,7 +153,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
           {modalType === 'docs' && (
             <div className="space-y-6">
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
-                O RedijaApp foi projetado a partir das normas oficiais vigentes da Associação Brasileira de Normas Técnicas (ABNT). Abaixo estão listadas as 9 normas implementadas no compilador Typst:
+                O RedijaApp implementa nativamente as 9 normas oficiais da ABNT listadas abaixo, além de suporte completo a Artigos SBC, IEEE Conference, APA 7ª Edição, Pôsteres Científicos A0/A1 e pacotes da loja Typst Universe (detalhados em /docs).
               </p>
 
               {/* Seletor Rápido de Normas */}
@@ -240,7 +240,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                   Nossa Filosofia
                 </span>
                 <p>
-                  Acreditamos que a formatação não deveria ser uma barreira para a produção do conhecimento científico. O rigor formal da ABNT deve ser garantido pelo software, de forma invisível, elegante e automática.
+                  Acreditamos que a formatação não deveria ser uma barreira para a produção do conhecimento científico. O rigor formal de normas como ABNT, SBC, IEEE e APA deve ser garantido pelo software, de forma invisível, elegante e automática.
                 </p>
               </div>
 
@@ -299,7 +299,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
           {modalType === 'contact' && (
             <div className="space-y-6">
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
-                Tem dúvidas, sugestões de melhoria para alguma norma ABNT ou encontrou um bug? Estamos sempre à disposição para ouvir você.
+                Tem dúvidas, sugestões de melhoria para algum modelo (ABNT, SBC, IEEE, APA, Pôsteres) ou encontrou um bug? Estamos sempre à disposição para ouvir você.
               </p>
 
               {/* Cartão de E-mail Direto */}
@@ -482,7 +482,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                   3. Isenção de Responsabilidade Normativa
                 </h5>
                 <p>
-                  Embora o RedijaApp aplique rigorosamente as normas ABNT vigentes, a aprovação final de formatação é prerrogativa soberana das bancas examinadoras e das diretrizes específicas de cada instituição de ensino superior.
+                  Embora o RedijaApp aplique rigorosamente as regras de diagramação configuradas (ABNT, SBC, IEEE, APA e Pôsteres), a aprovação final de formatação é prerrogativa soberana das bancas examinadoras, eventos e editais de cada instituição.
                 </p>
               </div>
 
