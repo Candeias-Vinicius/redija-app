@@ -78,7 +78,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
               isDark ? 'text-slate-300' : 'text-slate-600'
             }`}
           >
-            O editor acadêmico visual que combina a facilidade em blocos do Notion com a velocidade instantânea do Typst em WebAssembly. Produza TCCs, artigos (ABNT, SBC, IEEE e APA 7ª), pôsteres A0/A1 e pacotes do Typst Universe com linters em tempo real e backup no seu Google Drive.
+            O editor acadêmico em blocos que automatiza a formatação e gera o PDF em tempo real no navegador. Escreva TCCs, artigos, relatórios e pôsteres dentro das normas exigidas, com revisão automática de erros e salvamento seguro no seu Google Drive.
           </p>
 
           {/* ======================================================== */}

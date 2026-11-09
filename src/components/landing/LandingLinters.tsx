@@ -24,7 +24,8 @@ interface LinterShowcaseItem {
   strategyTitle: string;
   guideLabel: string;
   summary: string;
-  imageSrc: string;
+  imageLightSrc: string;
+  imageDarkSrc: string;
   imageAlt: string;
   caption: string;
   icon: React.ReactNode;
@@ -40,10 +41,11 @@ const LINTER_ITEMS: LinterShowcaseItem[] = [
     guideLabel: 'Guia de Normas ABNT',
     summary:
       'Audita em tempo real os requisitos das 9 normas ABNT suportadas, diferenciando automaticamente faixas de TCC/Monografia e de Artigo NBR 6022.',
-    imageSrc: '/images/linters/linter-abnt.png',
+    imageLightSrc: '/images/linters/linter-abnt-light.png',
+    imageDarkSrc: '/images/linters/linter-abnt-dark.png',
     imageAlt:
-      'Captura real do RedijaApp exibindo o Verificador ABNT em um TCC (NBR 14724) ao lado da prévia PDF gerada pelo Typst WASM',
-    caption: 'Verificador ABNT monitorando resumo NBR 6028 e referências ao lado da capa em PDF real',
+      'Recorte real do painel Verificador ABNT mostrando selo NBR 14724, diagnóstico de resumo e botão do Guia de Normas ABNT',
+    caption: 'Recorte do painel lateral com selo NBR 14724 e diagnóstico do Verificador ABNT',
     icon: <GraduationCap className="w-4 h-4" />,
     checks: [
       'Faixa recomendada do Resumo (150–500 palavras para TCC/Tese; 100–250 para artigos)',
@@ -60,10 +62,11 @@ const LINTER_ITEMS: LinterShowcaseItem[] = [
     guideLabel: 'Manual de Submissão SBC',
     summary:
       'Adapta a barra lateral para o formato oficial de simpósios da SBC: oculta pré-textuais de TCC e verifica exatamente o que o evento exige.',
-    imageSrc: '/images/linters/linter-sbc.png',
+    imageLightSrc: '/images/linters/linter-sbc-light.png',
+    imageDarkSrc: '/images/linters/linter-sbc-dark.png',
     imageAlt:
-      'Captura real do RedijaApp exibindo o Verificador SBC ativo para artigo da Sociedade Brasileira de Computação e seu PDF compilado',
-    caption: 'Artigo SBC com cabeçalho institucional, resumo bilíngue e Verificador SBC adaptado',
+      'Recorte real do painel Verificador SBC mostrando selo SBC, alerta de citação ausente e acesso ao Manual de Submissão SBC',
+    caption: 'Verificador SBC monitorando referências citadas e disponibilizando o Manual da SBC',
     icon: <Cpu className="w-4 h-4" />,
     checks: [
       'Verifica Resumo conciso em português (até 150–200 palavras) e Abstract em inglês',
@@ -80,10 +83,11 @@ const LINTER_ITEMS: LinterShowcaseItem[] = [
     guideLabel: 'Diretrizes de Publicação IEEE',
     summary:
       'Substitui checagens brasileiras por regras internacionais da IEEE: Abstract em inglês, Index Terms, citações numéricas [1] e legendas Fig./TABLE.',
-    imageSrc: '/images/linters/linter-ieee.png',
+    imageLightSrc: '/images/linters/linter-ieee-light.png',
+    imageDarkSrc: '/images/linters/linter-ieee-dark.png',
     imageAlt:
-      'Captura real do RedijaApp exibindo o Verificador IEEE alertando tamanho de Abstract e referência não citada ao lado do PDF em duas colunas',
-    caption: 'Verificador IEEE auditando Abstract (100–250 palavras) e References [n] no PDF em 2 colunas',
+      'Recorte real do painel Verificador IEEE mostrando selo IEEE, alertas de Abstract e References [n] e botão de Diretrizes IEEE',
+    caption: 'Verificador IEEE auditando tamanho do Abstract e referências numéricas [n]',
     icon: <FileText className="w-4 h-4" />,
     checks: [
       'Audita o Abstract técnico na faixa recomendada de 100 a 250 palavras',
@@ -100,10 +104,11 @@ const LINTER_ITEMS: LinterShowcaseItem[] = [
     guideLabel: 'Boas Práticas de Pôster Científico',
     summary:
       'Em vez de exigir dezenas de páginas de texto, valida síntese visual e legibilidade para apresentação em congressos e mostras científicas.',
-    imageSrc: '/images/linters/linter-poster.png',
+    imageLightSrc: '/images/linters/linter-poster-light.png',
+    imageDarkSrc: '/images/linters/linter-poster-dark.png',
     imageAlt:
-      'Captura real do RedijaApp exibindo o Verificador Pôster aprovado em verde ao lado do banner científico A0 em 3 colunas',
-    caption: 'Pôster científico A0 com verificação aprovada em tempo real e layout em 3 colunas',
+      'Recorte real do painel Verificador Pôster com aprovação em verde e selo Pôster A0/A1',
+    caption: 'Verificador Pôster exibindo aprovação em verde e guia de boas práticas visuais',
     icon: <Presentation className="w-4 h-4" />,
     checks: [
       'Confirma título, autoria e afiliação completos para destaque no banner superior',
@@ -120,10 +125,11 @@ const LINTER_ITEMS: LinterShowcaseItem[] = [
     guideLabel: 'Guia de Normas ABNT',
     summary:
       'Alterou margens, ocultou capa ou personalizou campos da barra lateral? O linter pausa a cobrança estrita sem inundar você de avisos falsos.',
-    imageSrc: '/images/linters/linter-abnt-modified.png',
+    imageLightSrc: '/images/linters/linter-abnt-modified-light.png',
+    imageDarkSrc: '/images/linters/linter-abnt-modified-dark.png',
     imageAlt:
-      'Captura real do RedijaApp mostrando o selo ABNT Modificado com o Verificador ABNT Pausado e checagens de integridade ativas',
-    caption: 'Estado ABNT Modificado detectado automaticamente após remover a capa padrão no Customizer',
+      'Recorte real do painel lateral exibindo o selo âmbar ABNT Modificado e o card Verificador ABNT (Pausado)',
+    caption: 'Selo ABNT Modificado e Verificador ABNT (Pausado) após personalizar a estrutura padrão',
     icon: <PauseCircle className="w-4 h-4" />,
     checks: [
       'Muda automaticamente o selo da barra lateral para "ABNT Modificado"',
@@ -140,10 +146,11 @@ const LINTER_ITEMS: LinterShowcaseItem[] = [
     guideLabel: 'Dicas de Diagramação e Boas Práticas',
     summary:
       'Mesmo ao importar pacotes externos da loja oficial Typst Universe ou usar documentos APA 7ª / Livres, um verificador universal protege a integridade do PDF.',
-    imageSrc: '/images/linters/linter-universe.png',
+    imageLightSrc: '/images/linters/linter-universe-light.png',
+    imageDarkSrc: '/images/linters/linter-universe-dark.png',
     imageAlt:
-      'Captura real do RedijaApp executando o pacote externo @preview/charged-ieee do Typst Universe com Verificador de Integridade ativo',
-    caption: 'Pacote comunitário @preview/charged-ieee:0.1.4 conectado e compilado via Typst WASM',
+      'Recorte real do Verificador de Integridade ativo para pacotes do Typst Universe com selo aprovado em verde',
+    caption: 'Verificador de Integridade universal validando documento baseado em pacote externo',
     icon: <Globe className="w-4 h-4" />,
     checks: [
       'Garante presença de título, autoria e corpo de conteúdo antes da exportação',
@@ -222,9 +229,9 @@ export const LandingLinters: React.FC<LandingLintersProps> = ({
             isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 p-6 sm:p-8 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 p-6 sm:p-8 items-center">
             {/* Esquerda: O que este linter verifica */}
-            <div className="lg:col-span-5 space-y-5">
+            <div className="lg:col-span-6 space-y-5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                   <ShieldCheck className="w-3.5 h-3.5" />
@@ -302,13 +309,13 @@ export const LandingLinters: React.FC<LandingLintersProps> = ({
               </div>
             </div>
 
-            {/* Direita: Screenshot Real em Frame da Aplicação */}
-            <div className="lg:col-span-7">
+            {/* Direita: Recorte Focado Real da Barra do Verificador */}
+            <div className="lg:col-span-6 flex justify-center">
               <div
-                className={`rounded-2xl border overflow-hidden shadow-lg ${
+                className={`w-full max-w-[430px] rounded-2xl border overflow-hidden shadow-lg ${
                   isDark
-                    ? 'border-slate-800 bg-slate-950 shadow-black/70'
-                    : 'border-slate-200 bg-slate-100 shadow-slate-200/80'
+                    ? 'border-slate-800 bg-[#0f172a] shadow-black/70'
+                    : 'border-slate-200 bg-white shadow-slate-200/80'
                 }`}
               >
                 <div
@@ -318,24 +325,24 @@ export const LandingLinters: React.FC<LandingLintersProps> = ({
                       : 'bg-slate-50 border-slate-200 text-slate-600'
                   }`}
                 >
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-400/80" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400/80" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/80" />
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-400/80 shrink-0" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400/80 shrink-0" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/80 shrink-0" />
                     <span className="ml-2 font-mono font-medium truncate">
-                      Captura real • {current.badge}
+                      Painel Lateral • {current.badge}
                     </span>
                   </div>
-                  <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold text-[10px]">
-                    Interface ao Vivo + PDF WASM
+                  <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold text-[10px] shrink-0">
+                    Tempo Real
                   </span>
                 </div>
 
-                <div className="bg-white">
+                <div className={isDark ? 'bg-[#1e293b]' : 'bg-white'}>
                   <img
-                    src={current.imageSrc}
+                    src={isDark ? current.imageDarkSrc : current.imageLightSrc}
                     alt={current.imageAlt}
-                    className="w-full h-auto block object-cover object-top"
+                    className="w-full h-auto block"
                   />
                 </div>
 
