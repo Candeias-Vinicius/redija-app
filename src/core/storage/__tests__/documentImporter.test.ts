@@ -9,6 +9,7 @@ import {
   detectDocxTemplate,
   detectTypstTemplate,
   parseTypstToProject,
+  IMPORTER_STRATEGIES,
 } from '../documentImporter';
 import { serializeBackup } from '../db';
 import { createProjectFromTemplate } from '../projectTemplates';
@@ -469,6 +470,18 @@ describe('Document Importer (DOCX, ZIP Redija, ZIP Overleaf / LaTeX, .redija)', 
 
       const parsedStandalone = parseTypstToProject('= Só título\n\nParágrafo simples.', 'Avulso', new Map());
       expect(parsedStandalone.templateType).toBe('artigo');
+    });
+  });
+
+  describe('Registry Strategy de Importadores (IMPORTER_STRATEGIES)', () => {
+    it('expõe estratégias registradas para todos os formatos suportados sem duplicação de mapeamento', () => {
+      const ids = IMPORTER_STRATEGIES.map((s) => s.id);
+      expect(ids).toEqual(['redija', 'docx', 'zip', 'typst', 'latex']);
+      expect(IMPORTER_STRATEGIES.find((s) => s.matches('tcc.redija'))?.id).toBe('redija');
+      expect(IMPORTER_STRATEGIES.find((s) => s.matches('artigo.docx'))?.id).toBe('docx');
+      expect(IMPORTER_STRATEGIES.find((s) => s.matches('overleaf.zip'))?.id).toBe('zip');
+      expect(IMPORTER_STRATEGIES.find((s) => s.matches('main.typ'))?.id).toBe('typst');
+      expect(IMPORTER_STRATEGIES.find((s) => s.matches('main.tex'))?.id).toBe('latex');
     });
   });
 });
