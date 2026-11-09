@@ -76,4 +76,28 @@ describe('useProjectWorkspace helpers', () => {
       modifiedBlock: edited[0],
     });
   });
+
+  it('valida conversão e metadados de importação como modelo livre/personalizado', () => {
+    const importedSbc = createProjectFromTemplate('sbc', 'Artigo SBC');
+    expect(importedSbc.templateType).toBe('sbc');
+
+    // Ao optar por Modelo Personalizado (Livre)
+    const customProject = {
+      ...importedSbc,
+      templateType: 'em_branco' as const,
+      templateConfig: {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        preset: 'custom' as const,
+        includeCoverPage: false,
+        includeTitlePage: false,
+        includeToc: false,
+      },
+      sidebarConfig: { isCustomized: true },
+    };
+
+    expect(customProject.templateType).toBe('em_branco');
+    expect(customProject.templateConfig.preset).toBe('custom');
+    expect(customProject.templateConfig.includeCoverPage).toBe(false);
+    expect(customProject.sidebarConfig.isCustomized).toBe(true);
+  });
 });
