@@ -32,8 +32,12 @@ export const CustomizerPresetsTab: React.FC<CustomizerPresetsTabProps> = ({
   onUniversePackageInput,
   onSelectUniverseChip,
 }) => {
-  const visiblePresets = PRESETS;
-  const allowUniverse = true;
+  const isUnrestricted = !scope || scope.isFullyUnrestricted;
+  const visiblePresets = isUnrestricted
+    ? PRESETS
+    : PRESETS.filter((preset) => scope.allowedPresetIds.includes(preset.id));
+  const allowUniverse =
+    isUnrestricted || (scope ? scope.allowedPresetIds.includes('universe_custom') : true);
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">

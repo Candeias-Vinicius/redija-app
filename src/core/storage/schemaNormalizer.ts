@@ -81,10 +81,19 @@ export function normalizeProject(raw: unknown): DocumentProject {
     unknown
   >;
 
+  const DEMO_TCC_TITLE =
+    'Desenvolvimento de uma Plataforma Automatizada para Redação Científica em Conformidade com as Normas da ABNT';
+  const rawTitle = typeof rawMeta.title === 'string' ? rawMeta.title : name;
+  const rawAuthor = typeof rawMeta.author === 'string' ? rawMeta.author : 'Nome do Autor';
+  // Migra o nome do autor do documento de exemplo legado (antes usava o nome do mantenedor).
+  const isLegacyDemoAuthor =
+    rawTitle === DEMO_TCC_TITLE &&
+    /^vin[ií]cius\s+candeias$/i.test(rawAuthor.trim());
+
   const metadata: DocumentMetadata = {
-    title: typeof rawMeta.title === 'string' ? rawMeta.title : name,
+    title: rawTitle,
     subtitle: typeof rawMeta.subtitle === 'string' ? rawMeta.subtitle : '',
-    author: typeof rawMeta.author === 'string' ? rawMeta.author : 'Nome do Autor',
+    author: isLegacyDemoAuthor ? 'Nome do Autor' : rawAuthor,
     advisor: typeof rawMeta.advisor === 'string' ? rawMeta.advisor : '',
     coadvisor: typeof rawMeta.coadvisor === 'string' ? rawMeta.coadvisor : undefined,
     nature: typeof rawMeta.nature === 'string' ? rawMeta.nature : '',

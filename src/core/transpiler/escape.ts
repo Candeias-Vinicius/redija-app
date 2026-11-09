@@ -1,5 +1,9 @@
 import type { AcademicReference, BibliographyEngine, CitationFormat } from '@/types/document';
-import { resolveCitationDisplay } from './citationFormatter';
+import {
+  isGroupableParentheticalFormat,
+  resolveCitationDisplay,
+  resolveGroupedParentheticalDisplay,
+} from './citationFormatter';
 
 /**
  * Funções de escape para gerar código Typst seguro a partir de texto do usuário.
@@ -203,43 +207,155 @@ export function richTextToTypst(input: string, ctx?: RichTextTypstContext): stri
     return `\uE000REDIJAATOM${idx}\uE001`;
   };
 
-  // 1. Extrai tokens estruturados de citação (<cite data-cite-id="..."> ou <span data-cite-id="...">)
-  let withAtoms = sanitized.replace(
-    /<cite\b([^>]*)>([\s\S]*?)<\/cite>|<span\b([^>]*data-cite-id=[^>]*)>([\s\S]*?)<\/span>/gi,
-    (_full, citeAttrs, citeInner, spanAttrs, spanInner) => {
-      const attrs = (citeAttrs ?? spanAttrs ?? '') as string;
-      const inner = (citeInner ?? spanInner ?? '') as string;
-      const citeId = extractHtmlAttribute(attrs, 'data-cite-id')?.trim();
-      const page = extractHtmlAttribute(attrs, 'data-cite-page')?.trim();
-      const rawMode = extractHtmlAttribute(attrs, 'data-cite-mode')?.trim();
-      const mode = rawMode === 'narrative' ? 'narrative' : 'parenthetical';
-      const fallbackText = stripHtmlTags(inner);
+  // 1. Extrai tokens estruturados de citação (<cite data-cite-id="..."> ou <span data-cite-id="...">).
+  // Parentéticas autor-data consecutivas (só whitespace entre elas) são agrupadas no padrão
+  // NBR 10520 §6.1.8: (AutorA, anoA; AutorB, anoB).
+  const citeTagRe =
+    /<cite\b([^>]*)>([\s\S]*?)<\/cite>|<span\b([^>]*data-cite-id=[^>]*)>([\s\S]*?)<\/span>/gi;
 
-      const ref = citeId && ctx?.references ? ctx.references.find((r) => r.id === citeId) : undefined;
-      if (!ref) {
-        return pushAtom(escapeMarkup(fallbackText));
+  type ParsedCiteTag = {
+    index: number;
+    length: number;
+    attrs: string;
+    inner: string;
+  };
+
+  type ResolvedCiteAtom = {
+    groupable: boolean;
+    typst: string;
+    /** Dados para merge NBR 10520 / CSL multi-key. */
+    groupRef?: AcademicReference;
+    groupPage?: string;
+    groupRefNumber?: number;
+    cslKey?: string;
+  };
+
+  const citeMatches: ParsedCiteTag[] = [];
+  let citeMatch: RegExpExecArray | null;
+  while ((citeMatch = citeTagRe.exec(sanitized)) !== null) {
+    citeMatches.push({
+      index: citeMatch.index,
+      length: citeMatch[0].length,
+      attrs: (citeMatch[1] ?? citeMatch[3] ?? '') as string,
+      inner: (citeMatch[2] ?? citeMatch[4] ?? '') as string,
+    });
+  }
+
+  const resolveOneCite = (parsed: ParsedCiteTag): ResolvedCiteAtom => {
+    const citeId = extractHtmlAttribute(parsed.attrs, 'data-cite-id')?.trim();
+    const page = extractHtmlAttribute(parsed.attrs, 'data-cite-page')?.trim() || undefined;
+    const rawMode = extractHtmlAttribute(parsed.attrs, 'data-cite-mode')?.trim();
+    const mode = rawMode === 'narrative' ? 'narrative' : 'parenthetical';
+    const fallbackText = stripHtmlTags(parsed.inner);
+    const format = ctx?.citationFormat ?? 'abnt_titlecase';
+
+    const ref = citeId && ctx?.references ? ctx.references.find((r) => r.id === citeId) : undefined;
+    if (!ref) {
+      return { groupable: false, typst: escapeMarkup(fallbackText) };
+    }
+
+    if (ctx?.bibliographyEngine === 'typst_csl') {
+      const bibKey = ctx.bibKeyMap?.get(ref.id);
+      if (bibKey) {
+        const safeKey = bibKey.replace(/[^a-zA-Z0-9_-]/g, '');
+        const args = [`<${safeKey}>`];
+        if (mode === 'narrative') args.push('form: "prose"');
+        if (page) args.push(`supplement: [p. ${escapeMarkup(page)}]`);
+        const canGroup =
+          mode === 'parenthetical' &&
+          !page &&
+          isGroupableParentheticalFormat(format);
+        return {
+          groupable: canGroup,
+          typst: `#cite(${args.join(', ')})`,
+          cslKey: canGroup ? safeKey : undefined,
+        };
       }
+    }
 
-      if (ctx?.bibliographyEngine === 'typst_csl') {
-        const bibKey = ctx.bibKeyMap?.get(ref.id);
-        if (bibKey) {
-          const safeKey = bibKey.replace(/[^a-zA-Z0-9_-]/g, '');
-          const args = [`<${safeKey}>`];
-          if (mode === 'narrative') args.push('form: "prose"');
-          if (page) args.push(`supplement: [p. ${escapeMarkup(page)}]`);
-          return pushAtom(`#cite(${args.join(', ')})`);
+    const display = resolveCitationDisplay(ref, {
+      format,
+      mode,
+      page,
+      refNumber: ctx?.refIndexMap?.get(ref.id) ?? 1,
+    });
+    const canGroup =
+      mode === 'parenthetical' && isGroupableParentheticalFormat(format);
+
+    return {
+      groupable: canGroup,
+      typst: display.typst,
+      groupRef: canGroup ? ref : undefined,
+      groupPage: canGroup ? page : undefined,
+      groupRefNumber: canGroup ? (ctx?.refIndexMap?.get(ref.id) ?? 1) : undefined,
+    };
+  };
+
+  const flushGroupableBuffer = (buffer: ResolvedCiteAtom[]): string => {
+    if (buffer.length === 0) return '';
+    if (buffer.length === 1) return pushAtom(buffer[0].typst);
+
+    // CSL nativo: #cite(<a>, <b>)
+    if (buffer.every((b) => b.cslKey)) {
+      const keys = buffer.map((b) => `<${b.cslKey}>`).join(', ');
+      return pushAtom(`#cite(${keys})`);
+    }
+
+    // Autor-data manual (ABNT / APA-like)
+    if (buffer.every((b) => b.groupRef)) {
+      const grouped = resolveGroupedParentheticalDisplay(
+        buffer.map((b) => ({
+          ref: b.groupRef!,
+          page: b.groupPage,
+          refNumber: b.groupRefNumber,
+        })),
+        ctx?.citationFormat ?? 'abnt_titlecase',
+      );
+      return pushAtom(grouped.typst);
+    }
+
+    return buffer.map((b) => pushAtom(b.typst)).join(' ');
+  };
+
+  let withAtoms = '';
+  let cursor = 0;
+  let matchIdx = 0;
+  while (matchIdx < citeMatches.length) {
+    const run: ParsedCiteTag[] = [citeMatches[matchIdx]];
+    while (matchIdx + run.length < citeMatches.length) {
+      const prev = run[run.length - 1];
+      const next = citeMatches[matchIdx + run.length];
+      const between = sanitized.slice(prev.index + prev.length, next.index);
+      if (!/^\s*$/.test(between)) break;
+      run.push(next);
+    }
+
+    withAtoms += sanitized.slice(cursor, run[0].index);
+
+    const resolved = run.map(resolveOneCite);
+    const emitted: string[] = [];
+    let buffer: ResolvedCiteAtom[] = [];
+    for (const item of resolved) {
+      if (item.groupable) {
+        buffer.push(item);
+      } else {
+        if (buffer.length > 0) {
+          emitted.push(flushGroupableBuffer(buffer));
+          buffer = [];
         }
+        emitted.push(pushAtom(item.typst));
       }
+    }
+    if (buffer.length > 0) {
+      emitted.push(flushGroupableBuffer(buffer));
+    }
+    withAtoms += emitted.join(' ');
 
-      const display = resolveCitationDisplay(ref, {
-        format: ctx?.citationFormat ?? 'abnt_titlecase',
-        mode,
-        page,
-        refNumber: ctx?.refIndexMap?.get(ref.id) ?? 1,
-      });
-      return pushAtom(display.typst);
-    },
-  );
+    const last = run[run.length - 1];
+    cursor = last.index + last.length;
+    matchIdx += run.length;
+  }
+  withAtoms += sanitized.slice(cursor);
 
   // 2. Extrai nós de matemática inline (<span data-inline-math="true" data-math="...">)
   withAtoms = withAtoms.replace(

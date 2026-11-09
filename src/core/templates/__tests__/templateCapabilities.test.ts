@@ -232,7 +232,7 @@ describe('templateCapabilities: Matriz de Capacidades e Preservação de Metadad
       expect(scope.allowCoverToggle).toBe(true);
       expect(scope.allowTocToggle).toBe(true);
       expect(scope.allowedCitationFormats).toContain('abnt_titlecase');
-      expect(scope.allowedCitationFormats).not.toContain('ieee_numeric');
+      expect(scope.allowedCitationFormats).toContain('ieee_numeric');
     });
 
     it('bloqueia capa e sumário para Artigo (NBR 6022), mas permite alternar 1 ou 2 colunas', () => {
