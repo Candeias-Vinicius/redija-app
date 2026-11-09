@@ -912,7 +912,7 @@ export const App: React.FC = () => {
       if (p === 'sbc' || p === 'ieee' || p === 'poster' || p === 'universe_custom') {
         nextTemplateType = p;
       } else if (
-        (p === 'abnt_classic' || p === 'abnt_2023') &&
+        (p === 'abnt_classic' || p === 'abnt_2023' || p === 'apa_7') &&
         (prev.templateType === 'sbc' ||
           prev.templateType === 'ieee' ||
           prev.templateType === 'poster' ||
@@ -1583,6 +1583,7 @@ export const App: React.FC = () => {
         onClose={() => setIsCustomizerOpen(false)}
         config={project.templateConfig ?? DEFAULT_TEMPLATE_CONFIG}
         metadata={project.metadata}
+        templateType={project.templateType}
         blocks={project.blocks}
         onChangeConfig={handleTemplateConfigChange}
         onChangeMetadata={handleMetadataChange}

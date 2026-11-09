@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   TemplateConfig,
   NormPresetId,
   DEFAULT_TEMPLATE_CONFIG,
   DocumentMetadata,
+  ProjectTemplateType,
   Block,
   CitationFormat,
   FontFamilyId,
@@ -68,7 +69,7 @@ const MODAL_TABS: Array<{ id: CustomizerTabId; label: string }> = [
   { id: 'typography', label: 'Tipografia & Texto' },
   { id: 'page', label: 'Página & Cabeçalhos' },
   { id: 'citations', label: 'Citações & Referências' },
-  { id: 'structure', label: 'Capa, Pôster & Universe' },
+  { id: 'structure', label: 'Capa & Pôster' },
 ];
 
 interface TemplateCustomizerModalProps {
@@ -76,6 +77,7 @@ interface TemplateCustomizerModalProps {
   onClose: () => void;
   config: TemplateConfig;
   metadata: DocumentMetadata;
+  templateType?: ProjectTemplateType;
   blocks?: Block[];
   onChangeConfig: (config: TemplateConfig) => void;
   onChangeMetadata: (metadata: DocumentMetadata) => void;
@@ -367,13 +369,22 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
   onClose,
   config,
   metadata,
+  templateType,
   blocks = [],
   onChangeConfig,
   onChangeMetadata,
 }) => {
   const [activeTab, setActiveTab] = useState<CustomizerTabId>('presets');
+  const universeConnectorRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
+
+  const isUniverseActive =
+    config.preset === 'universe_custom' ||
+    (config.preset === 'custom' && templateType === 'universe_custom');
+  const isPosterActive =
+    config.preset === 'poster' ||
+    (config.preset === 'custom' && templateType === 'poster');
 
   const updateField = <K extends keyof TemplateConfig>(key: K, value: TemplateConfig[K]) => {
     onChangeConfig({
@@ -436,6 +447,42 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
     });
   };
 
+  const applyUniversePreset = () => {
+    const pkg = config.universePackage?.trim() || '@preview/charged-ieee:0.1.1';
+    const known = POPULAR_UNIVERSE_TEMPLATES.find(
+      (t) => t.id.toLowerCase() === pkg.toLowerCase(),
+    );
+    const pkgMatch = pkg.match(/^@?[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+):[0-9.]+$/);
+    const entry =
+      known?.entrypoint || pkgMatch?.[1] || config.universeEntrypoint?.trim() || 'ieee';
+    onChangeConfig({
+      ...config,
+      preset: 'universe_custom',
+      universePackage: pkg,
+      universeEntrypoint: entry,
+    });
+    requestAnimationFrame(() => {
+      universeConnectorRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+    });
+  };
+
+  const handleUniversePackageInput = (nextPkg: string) => {
+    const trimmed = nextPkg.trim();
+    const known = POPULAR_UNIVERSE_TEMPLATES.find(
+      (t) => t.id.toLowerCase() === trimmed.toLowerCase(),
+    );
+    const pkgMatch = trimmed.match(/^@?[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+):[0-9.]+$/);
+    const nextEntrypoint = known
+      ? known.entrypoint
+      : (pkgMatch?.[1] ?? config.universeEntrypoint);
+    onChangeConfig({
+      ...config,
+      universePackage: nextPkg,
+      universeEntrypoint: nextEntrypoint,
+      preset: 'universe_custom',
+    });
+  };
+
   const handleLogoUpload = (file: File) => {
     const projectBytesWithoutLogo = calculateProjectImageBytes(blocks, {
       ...metadata,
@@ -470,7 +517,7 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl border border-neutral-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl border border-neutral-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Cabeçalho */}
         <div className="p-4 border-b border-neutral-200 flex items-center justify-between bg-neutral-50">
           <div className="flex items-center gap-2.5">
@@ -482,7 +529,7 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                 Personalizar Norma, Template e Layout da Faculdade
               </h3>
               <p className="text-xs text-neutral-500">
-                Escolha uma norma pronta ou configure tipografia, página, cabeçalhos e bibliografia
+                Escolha um modelo base e personalize tipografia, página, cabeçalhos e bibliografia
               </p>
             </div>
           </div>
@@ -499,7 +546,7 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
         <div
           role="tablist"
           aria-label="Seções de configuração do template"
-          className="px-4 pt-2 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-1 overflow-x-auto shrink-0"
+          className="px-4 pt-2 border-b border-neutral-200 bg-neutral-50/70 flex flex-wrap md:flex-nowrap items-center gap-1 shrink-0"
         >
           {MODAL_TABS.map((tab) => {
             const selected = activeTab === tab.id;
@@ -510,10 +557,10 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                 role="tab"
                 aria-selected={selected}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap -mb-px ${
+                className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap rounded-t-lg ${
                   selected
-                    ? 'border-emerald-600 text-emerald-700 bg-white rounded-t-lg'
-                    : 'border-transparent text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100/80 rounded-t-lg'
+                    ? 'border-emerald-600 text-emerald-700 bg-white'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100/80'
                 }`}
               >
                 {tab.label}
@@ -529,9 +576,9 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-2">
                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500">
-                  Escolha um Padrão de Norma (ou personalize nas abas)
+                  Escolha um Padrão de Norma
                 </label>
-                {config.preset === 'poster' && (
+                {isPosterActive && (
                   <button
                     type="button"
                     onClick={() => setActiveTab('structure')}
@@ -575,7 +622,111 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                     </button>
                   );
                 })}
+
+                {/* 8º Card: Conector Typst Universe */}
+                <button
+                  type="button"
+                  onClick={applyUniversePreset}
+                  className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                    isUniverseActive
+                      ? 'border-emerald-600 bg-emerald-50/60 ring-1 ring-emerald-600'
+                      : 'border-neutral-200 hover:border-emerald-400 hover:bg-neutral-50'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="font-bold text-xs text-neutral-900 flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        Explorar no Typst Universe
+                      </span>
+                      {isUniverseActive && (
+                        <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                          <Check className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+                    </div>
+                    <span className="inline-block text-[10px] font-semibold bg-neutral-200/80 text-neutral-700 px-1.5 py-0.5 rounded mb-1.5">
+                      Comunidade • typst.app/universe
+                    </span>
+                    <p className="text-[11px] text-neutral-600 leading-relaxed">
+                      Conecte modelos oficiais e da comunidade do Typst Universe importando pelo identificador do pacote (ex: @preview/charged-ieee:0.1.1).
+                    </p>
+                  </div>
+                </button>
               </div>
+
+              {isUniverseActive && (
+                <div
+                  ref={universeConnectorRef}
+                  className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label
+                      htmlFor="template-universe-package"
+                      className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-neutral-700"
+                    >
+                      <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                      Conector Typst Universe
+                    </label>
+                    <a
+                      href="https://typst.app/universe"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+                      title="Abrir loja oficial de pacotes e templates em nova aba"
+                    >
+                      <span>Explorar typst.app/universe</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="template-universe-package"
+                      className="block text-[10px] font-semibold text-neutral-600 uppercase mb-1"
+                    >
+                      Identificador do Pacote Typst
+                    </label>
+                    <input
+                      id="template-universe-package"
+                      type="text"
+                      value={config.universePackage || ''}
+                      placeholder="Ex: @preview/charged-ieee:0.1.1 ou @preview/modern-sbc:0.1.0"
+                      onChange={(e) => handleUniversePackageInput(e.target.value)}
+                      className="w-full text-xs px-3 py-2 bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-emerald-600 font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wide block">
+                      Modelos Populares do Universe:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {POPULAR_UNIVERSE_TEMPLATES.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            onChangeConfig({
+                              ...config,
+                              universePackage: t.id,
+                              universeEntrypoint: t.entrypoint,
+                              preset: 'universe_custom',
+                            });
+                          }}
+                          className={`text-[10px] px-2 py-1 rounded-md border font-mono transition-colors ${
+                            config.universePackage === t.id
+                              ? 'border-emerald-600 bg-emerald-100 text-emerald-900 font-bold ring-1 ring-emerald-600'
+                              : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400'
+                          }`}
+                        >
+                          {t.id}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1272,7 +1423,7 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
             </div>
           )}
 
-          {/* ABA 5: CAPA, PÔSTER & UNIVERSE */}
+          {/* ABA 5: CAPA & PÔSTER */}
           {activeTab === 'structure' && (
             <div className="space-y-5">
               {/* Estrutura & Brasão */}
@@ -1444,75 +1595,6 @@ export const TemplateCustomizerModal: React.FC<TemplateCustomizerModalProps> = (
                       <option value="classic_dark">Dark Minimalista</option>
                       <option value="clean">Clean / Fundo Claro</option>
                     </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Conector Typst Universe */}
-              <div className="border-t border-neutral-200 pt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-neutral-500">
-                    <Globe className="w-3.5 h-3.5 text-emerald-600" />
-                    Conector Typst Universe (Modelos Comunitários)
-                  </label>
-                  <a
-                    href="https://typst.app/universe"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
-                    title="Abrir loja oficial de pacotes e templates em nova aba"
-                  >
-                    <span>Explorar typst.app/universe</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <div className="space-y-3 bg-neutral-50 p-3.5 rounded-xl border border-neutral-200">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-neutral-600 uppercase mb-1">
-                      Identificador do Pacote Typst
-                    </label>
-                    <input
-                      type="text"
-                      value={config.universePackage || ''}
-                      placeholder="Ex: @preview/charged-ieee:0.1.1 ou @preview/modern-sbc:0.1.0"
-                      onChange={(e) => {
-                        onChangeConfig({
-                          ...config,
-                          universePackage: e.target.value,
-                          preset: 'universe_custom',
-                        });
-                      }}
-                      className="w-full text-xs px-3 py-2 bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-emerald-600 font-mono"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wide block">
-                      Modelos Populares do Universe:
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {POPULAR_UNIVERSE_TEMPLATES.map((t) => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => {
-                            onChangeConfig({
-                              ...config,
-                              universePackage: t.id,
-                              universeEntrypoint: t.entrypoint,
-                              preset: 'universe_custom',
-                            });
-                          }}
-                          className={`text-[10px] px-2 py-1 rounded-md border font-mono transition-colors ${
-                            config.universePackage === t.id
-                              ? 'border-emerald-600 bg-emerald-50 text-emerald-800 font-bold ring-1 ring-emerald-600'
-                              : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400'
-                          }`}
-                        >
-                          {t.id}
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 </div>
               </div>
