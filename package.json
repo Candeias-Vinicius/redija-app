@@ -1,7 +1,7 @@
 {
   "name": "redija-app",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.0-beta",
   "type": "module",
   "description": "RedijaApp - Editor acadêmico visual moderno, intuitivo e automatizado com foco em ABNT e Typst",
   "scripts": {
@@ -34,6 +34,7 @@
     "peerjs": "^1.5.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "resend": "^6.37.0",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {

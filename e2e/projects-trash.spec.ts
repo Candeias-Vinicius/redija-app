@@ -2,7 +2,11 @@ import { test, expect } from '@playwright/test';
 
 test.describe('RedijaApp: Gestão de Projetos e Lixeira de Segurança', () => {
   test.beforeEach(async ({ page }) => {
-    // Aceita diálogos nativos automaticamente
+    // Aceita diálogos nativos automaticamente e silencia modal de boas-vindas do beta durante automação
+    await page.addInitScript(() => {
+      localStorage.setItem('redija:beta_notice_dismissed', 'true');
+    });
+
     page.on('dialog', async (dialog) => {
       await dialog.accept();
     });

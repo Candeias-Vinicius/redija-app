@@ -2,11 +2,28 @@ name: CI & Guardrails
 
 on:
   push:
-    branches: [ main, develop, 'feat/**', 'fix/**', 'feature/**', 'infra/**' ]
+    branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  guardrail-main-source:
+    name: Trava de Seguranca (Origem da Main)
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar se a origem do PR e estritamente develop
+        if: github.head_ref != 'develop'
+        run: |
+          echo "::error::❌ Bloqueio de Seguranca: Pull Requests para a branch 'main' sao restritos e so podem vir da branch 'develop'!"
+          echo "Branch de origem tentada: '${{ github.head_ref }}'"
+          echo "Por favor, altere o branch base do seu PR para 'develop'."
+          exit 1
+
   verify:
     name: Lint, Typecheck, Unit & E2E Tests
     runs-on: ubuntu-latest

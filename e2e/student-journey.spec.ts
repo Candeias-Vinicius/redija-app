@@ -2,7 +2,11 @@ import { test, expect } from '@playwright/test';
 
 test.describe('RedijaApp: Jornada Completa do Estudante', () => {
   test.beforeEach(async ({ page }) => {
-    // Aceita automaticamente qualquer alerta nativo
+    // Aceita automaticamente qualquer alerta nativo e silencia modal de boas-vindas do beta durante testes E2E
+    await page.addInitScript(() => {
+      localStorage.setItem('redija:beta_notice_dismissed', 'true');
+    });
+
     page.on('dialog', async (dialog) => {
       await dialog.accept();
     });

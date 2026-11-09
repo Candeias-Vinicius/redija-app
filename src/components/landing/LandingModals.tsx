@@ -158,15 +158,18 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
     setIsSendingFeedback(true);
     try {
       const payload = {
-        _subject: `[RedijaApp] Mensagem da Landing Page: ${userEmail.trim() || 'Usuário Anônimo'}`,
-        _template: 'table',
-        _captcha: 'false',
-        remetente: userEmail.trim() || 'anonimo@app.redija.com.br',
+        tipo: 'contato',
+        email: userEmail.trim(),
+        assunto: 'Contato via Landing Page',
         mensagem: feedbackText.trim(),
-        horario: new Date().toISOString(),
+        diagnostico: {
+          origem: 'Landing Page (Modal de Contato)',
+          navegador: navigator.userAgent,
+          horario: new Date().toISOString(),
+        },
       };
 
-      const response = await fetch(`https://formsubmit.co/ajax/${COMPANY_CONTACT_EMAIL}`, {
+      const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -175,8 +178,10 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || `HTTP ${response.status}`);
       }
     } catch {
       const mailtoSubject = encodeURIComponent('[RedijaApp] Contato via Landing Page');
