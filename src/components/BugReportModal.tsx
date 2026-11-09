@@ -17,6 +17,12 @@ import {
   MAX_BUG_REPORT_SINGLE_IMAGE_BYTES,
   MAX_BUG_REPORT_TOTAL_IMAGE_BYTES,
 } from '@/core/storage/imageQuota';
+import {
+  COMPANY_SUPPORT_EMAIL,
+  generateSupportProtocol,
+  submitFeedbackWithMailtoFallback,
+} from '@/core/feedback/feedbackService';
+import type { FeedbackPayload } from '@/core/feedback/types';
 
 interface BugReportModalProps {
   isOpen: boolean;
@@ -36,7 +42,6 @@ type ReportCategory = 'bug' | 'abnt_pdf' | 'suggestion' | 'other';
 const MAX_SUBJECT_LENGTH = 120;
 const MAX_DESCRIPTION_LENGTH = 2000;
 const MIN_DESCRIPTION_LENGTH = 15;
-const COMPANY_SUPPORT_EMAIL = 'contato.redija@gmail.com';
 
 export const BugReportModal: React.FC<BugReportModalProps> = ({
   isOpen,
@@ -86,9 +91,7 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
       }
 
       if (runningTotalBytes + file.size > MAX_BUG_REPORT_TOTAL_IMAGE_BYTES) {
-        setErrorMsg(
-          `O tamanho total dos prints excede o limite de 15 MB por envio de e-mail.`,
-        );
+        setErrorMsg(`O tamanho total dos prints excede o limite de 15 MB por envio de e-mail.`);
         return;
       }
 
@@ -145,52 +148,33 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
 
     setIsSending(true);
 
-    const randomSuffix = crypto.randomUUID().slice(0, 6).toUpperCase();
-    const protocol = `RDJ-${new Date().getFullYear()}-${randomSuffix}`;
+    const protocol = generateSupportProtocol();
+    const payload: FeedbackPayload = {
+      tipo: category === 'suggestion' ? 'sugestao' : 'bug',
+      protocolo: protocol,
+      categoria: category,
+      remetente: userEmail.trim() || 'anonimo@usuario.redija.com.br',
+      assunto: subject.trim(),
+      descricao: description.trim(),
+      projetoAtivo: projectName || 'Nenhum',
+      quantidadePrints: screenshots.length,
+    };
+
+    if (includeDiagnostics) {
+      payload.diagnostico = {
+        projeto: projectName || 'Sem título',
+        navegador: navigator.userAgent,
+        temaEscuro: document.documentElement.classList.contains('dark'),
+        resolucao: `${window.innerWidth}x${window.innerHeight}`,
+        horario: new Date().toISOString(),
+      };
+    }
 
     try {
-      const payload: Record<string, unknown> = {
-        tipo: category === 'suggestion' ? 'sugestao' : 'bug',
-        protocolo: protocol,
-        categoria: category,
-        remetente: userEmail.trim() || 'anonimo@usuario.redija.com.br',
-        assunto: subject.trim(),
-        descricao: description.trim(),
-        projetoAtivo: projectName || 'Nenhum',
-        quantidadePrints: screenshots.length,
-      };
-
-      if (includeDiagnostics) {
-        payload.diagnostico = {
-          projeto: projectName || 'Sem título',
-          navegador: navigator.userAgent,
-          temaEscuro: document.documentElement.classList.contains('dark'),
-          resolucao: `${window.innerWidth}x${window.innerHeight}`,
-          horario: new Date().toISOString(),
-        };
-      }
-
-      const response = await fetch('/api/feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(payload),
+      await submitFeedbackWithMailtoFallback(payload, {
+        subject: `[RedijaApp] Relato ${protocol}: ${subject.trim()}`,
+        body: `Protocolo: ${protocol}\nCategoria: ${category}\nRemetente: ${userEmail}\nProjeto: ${projectName}\n\nDescrição:\n${description}\n\nNavegador: ${navigator.userAgent}`,
       });
-
-      const result = await response.json().catch(() => null);
-
-      if (!response.ok || !result?.success) {
-        throw new Error(result?.error || `Serviço de e-mail retornou status HTTP ${response.status}`);
-      }
-    } catch (err) {
-      console.warn('Envio via API indisponível, acionando fallback mailto:', err);
-      const mailtoSubject = encodeURIComponent(`[RedijaApp] Relato ${protocol}: ${subject.trim()}`);
-      const mailtoBody = encodeURIComponent(
-        `Protocolo: ${protocol}\nCategoria: ${category}\nRemetente: ${userEmail}\nProjeto: ${projectName}\n\nDescrição:\n${description}\n\nNavegador: ${navigator.userAgent}`,
-      );
-      window.open(`mailto:${COMPANY_SUPPORT_EMAIL}?subject=${mailtoSubject}&body=${mailtoBody}`, '_blank');
     } finally {
       setIsSending(false);
       setSubmittedProtocol(protocol);

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import handler from '../../../../api/feedback';
+import handler, { createFeedbackHandler } from '../../../../api/feedback';
+import type { EmailProvider } from '../types';
 
 interface MockResponseData {
   success?: boolean;
@@ -217,5 +218,32 @@ describe('Vercel Serverless Function: /api/feedback', () => {
     expect(statusCode).toBe(500);
     expect(responseData?.success).toBe(false);
     expect(responseData?.error).toBe('Erro simulado no Resend');
+  });
+
+  it('permite injeção de EmailProvider customizado (DIP via createFeedbackHandler)', async () => {
+    const customProvider: EmailProvider = {
+      send: vi.fn().mockResolvedValue({ id: 'custom-provider-999' }),
+    };
+
+    const customHandler = createFeedbackHandler(() => customProvider);
+    const req = {
+      method: 'POST',
+      json: async () => ({
+        tipo: 'sugestao' as const,
+        protocolo: 'RDJ-2026-DIP001',
+        assunto: 'Sugestão DIP',
+        mensagem: 'Desacoplamento via interface.',
+      }),
+    };
+
+    const response = (await customHandler(req)) as Response;
+    expect(response.status).toBe(200);
+    const json = (await response.json()) as MockResponseData;
+    expect(json).toEqual({
+      success: true,
+      id: 'custom-provider-999',
+      protocolo: 'RDJ-2026-DIP001',
+    });
+    expect(customProvider.send).toHaveBeenCalledTimes(1);
   });
 });
