@@ -132,11 +132,21 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     // Valida abertura do modal
     await expect(page.getByText('Personalizar Norma, Template e Layout da Faculdade')).toBeVisible();
 
+    // Valida que a barra de abas não tem scrollbars horizontal nem vertical
+    const tablist = page.getByRole('tablist', { name: /Seções de configuração do template/i });
+    await expect(tablist).toBeVisible();
+    const tabOverflow = await tablist.evaluate((el) => ({
+      horizontal: el.scrollWidth > el.clientWidth,
+      vertical: el.scrollHeight > el.clientHeight,
+    }));
+    expect(tabOverflow).toEqual({ horizontal: false, vertical: false });
+
     // Seleciona o preset Pôster Acadêmico A0
     await page.getByRole('button', { name: /Pôster Acadêmico A0 \(Banner\)/i }).click();
 
-    // Vai para a aba Capa, Pôster & Universe para validar as opções de Pôster
-    await page.getByRole('tab', { name: /Capa, Pôster/i }).click();
+    // Vai para a aba Capa & Pôster para validar as opções de Pôster (sem conector Universe)
+    await page.getByRole('tab', { name: /^Capa & Pôster$/i }).click();
+    await expect(page.getByText(/Conector Typst Universe/i)).not.toBeVisible();
 
     // Valida que as opções de Pôster estão visíveis
     await expect(page.getByText(/Configurações de Pôster Acadêmico/i)).toBeVisible();
@@ -185,7 +195,7 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
         exact: true,
       })
       .click();
-    await page.getByRole('tab', { name: /Capa, Pôster/i }).click();
+    await page.getByRole('tab', { name: /^Capa & Pôster$/i }).click();
     await page.getByLabel(/Gerar Capa \(NBR 14724\)/i).uncheck();
     await page.getByRole('button', { name: /Aplicar e Atualizar PDF/i }).click();
 
@@ -307,5 +317,44 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     await page.getByRole('button', { name: /Ver Typst/i }).click();
     const codeViewer = page.locator('pre');
     await expect(codeViewer).toContainText('\\[1\\]');
+  });
+
+  test('seleciona Explorar no Typst Universe na aba Normas & Presets sem texto ou personalize nas abas', async ({
+    page,
+  }) => {
+    const modalHeading = await ensureProjectsModal(page);
+    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Universe Aba1 ${Date.now()}`);
+    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await expect(modalHeading).not.toBeVisible();
+
+    await page
+      .getByRole('button', {
+        name: 'Layout das Referências e Citações (Norma & Layout)',
+        exact: true,
+      })
+      .click();
+
+    // Título da aba Normas & Presets sem "(ou personalize nas abas)"
+    await expect(page.getByText('Escolha um Padrão de Norma', { exact: true })).toBeVisible();
+    await expect(page.getByText(/personalize nas abas/i)).not.toBeVisible();
+
+    // Conector fica oculto até clicar em Explorar no Typst Universe
+    await expect(page.locator('#template-universe-package')).not.toBeVisible();
+    await page.getByRole('button', { name: /Explorar no Typst Universe/i }).click();
+
+    // Revela URL oficial e campo de identificador + chips populares
+    const universeLink = page.getByRole('link', { name: /Explorar typst\.app\/universe/i });
+    await expect(universeLink).toBeVisible();
+    await expect(universeLink).toHaveAttribute('href', 'https://typst.app/universe');
+    await expect(page.locator('#template-universe-package')).toBeVisible();
+
+    // Seleciona pacote popular modern-sbc e aplica
+    await page.getByRole('button', { name: '@preview/modern-sbc:0.1.0', exact: true }).click();
+    await page.getByRole('button', { name: /Aplicar e Atualizar PDF/i }).click();
+
+    await page.getByRole('button', { name: /Ver Typst/i }).click();
+    const codeViewer = page.locator('pre');
+    await expect(codeViewer).toContainText('#import "@preview/modern-sbc:0.1.0": *');
+    await expect(codeViewer).toContainText('#show: sbc-article.with');
   });
 });
