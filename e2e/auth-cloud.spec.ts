@@ -2,6 +2,11 @@ import { test, expect } from '@playwright/test';
 
 test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
   test.beforeEach(async ({ page }) => {
+    // Silencia modal de boas-vindas do beta antes da navegação para evitar interceptação de cliques
+    await page.addInitScript(() => {
+      localStorage.setItem('redija:beta_notice_dismissed', 'true');
+    });
+
     // Aceita diálogos nativos automaticamente
     page.on('dialog', async (dialog) => {
       await dialog.accept();

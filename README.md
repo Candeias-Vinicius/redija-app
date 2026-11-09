@@ -2,8 +2,8 @@
 
 > **Editor acadêmico visual multi-normas, colaborativo e automatizado com motor tipográfico Typst WASM (ABNT, SBC, IEEE, APA 7ª, Pôsteres e Typst Universe).**
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue.svg)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://reactjs.org/)
 [![Typst](https://img.shields.io/badge/Engine-Typst_WASM-239dad.svg)](https://typst.app/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -159,7 +159,7 @@ O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notio
 ```
                       ┌─────────────────────────────────────────────────────────────────┐
                       │                 Thread Principal da Interface (DOM)             │
-                      │  • React 18 + TipTap (Editor em blocos com histórico Undo/Redo) │
+                      │  • React 19 + TipTap (Editor em blocos com histórico Undo/Redo) │
                       │  • Sidebar com Linter ABNT memoizado                            │
                       │  • PdfPreview com geração Typst sob demanda                     │
                       │  • Viewport de Canvases (exibe ImageBitmaps via GPU Blitting)   │
@@ -196,7 +196,7 @@ O **RedijaApp** elimina essa barreira: uma **interface visual limpa estilo Notio
 redija-app/
 ├── public/                      # Assets estáticos, fontes TrueType (Tinos, Arimo) e scripts
 ├── src/
-│   ├── components/              # Componentes de interface do usuário (React 18)
+│   ├── components/              # Componentes de interface do usuário (React 19)
 │   │   ├── landing/             # Seções modulares da Landing Page de entrada
 │   │   ├── sidebar/             # Subcomponentes modulares (Linter plural, Campos preservados, Personalizar Campos)
 │   │   ├── AccountSettingsModal.tsx  # Configurações de conta, armazenamento e privacidade
@@ -224,11 +224,11 @@ redija-app/
 │   │   └── universe/            # Resolução e injeção de pacotes do Typst Universe (@preview/...)
 │   ├── types/                   # Tipagens TypeScript (Documento, Metadados, Blocos, Presets)
 │   ├── App.tsx                  # Orquestrador principal da aplicação
-│   └── main.tsx                 # Ponto de entrada React 18
+│   ├── index.css                # Estilos globais e tema Tailwind CSS v4
+│   └── main.tsx                 # Ponto de entrada React 19
 ├── e2e/                         # Testes End-to-End automatizados com Playwright
 ├── package.json
 ├── tsconfig.json
-├── tailwind.config.js
 └── vite.config.ts
 ```
 
@@ -238,7 +238,7 @@ redija-app/
 
 ### Pré-requisitos
 
-- **Node.js** (versão 18 ou superior)
+- **Node.js** (versão 20.19+, 22.12+ ou 24 LTS)
 - **npm** (ou **pnpm** / **yarn**)
 
 ### Instalação e Execução

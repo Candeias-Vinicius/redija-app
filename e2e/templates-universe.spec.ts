@@ -13,6 +13,11 @@ async function ensureProjectsModal(page: Page) {
 
 test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E', () => {
   test.beforeEach(async ({ page }) => {
+    // Silencia modal de boas-vindas do beta antes da navegação para evitar race condition com o timer do App
+    await page.addInitScript(() => {
+      localStorage.setItem('redija:beta_notice_dismissed', 'true');
+    });
+
     // Aceita diálogos nativos automaticamente
     page.on('dialog', async (dialog) => {
       await dialog.accept();
@@ -144,9 +149,6 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
   test('adapta aba lateral ao template SBC (oculta Pré-Textuais e Guia ABNT) e entra em modo ABNT Modificado ao customizar TCC', async ({
     page,
   }) => {
-    await page.evaluate(() => {
-      localStorage.setItem('redija:beta_notice_dismissed', 'true');
-    });
     const modalHeading = await ensureProjectsModal(page);
 
     // 1. Cria artigo SBC e verifica adaptação imediata da aba lateral
@@ -191,9 +193,6 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
   test('personaliza campos da barra lateral e restaura padrão do modelo com zero perda de dados', async ({
     page,
   }) => {
-    await page.evaluate(() => {
-      localStorage.setItem('redija:beta_notice_dismissed', 'true');
-    });
     const modalHeading = await ensureProjectsModal(page);
     await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`TCC Campos ${Date.now()}`);
     await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
@@ -224,9 +223,6 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
   test('configura Central Universal de Citações/Referências e fonte CDN no Typst gerado', async ({
     page,
   }) => {
-    await page.evaluate(() => {
-      localStorage.setItem('redija:beta_notice_dismissed', 'true');
-    });
     const modalHeading = await ensureProjectsModal(page);
     await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Artigo Central ${Date.now()}`);
     await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
