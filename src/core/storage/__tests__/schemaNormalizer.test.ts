@@ -253,4 +253,29 @@ describe('schemaNormalizer: Regressão e Integridade de Dados', () => {
     expect(low.templateConfig?.paperSize).toBeUndefined();
     expect(low.templateConfig?.cslStyle).toBe('harvard-cite-them-right');
   });
+
+  it('migra o autor do documento de exemplo legado de Vinícius Candeias para Nome do Autor', () => {
+    const demoTitle =
+      'Desenvolvimento de uma Plataforma Automatizada para Redação Científica em Conformidade com as Normas da ABNT';
+
+    const migrated = normalizeProject({
+      name: 'Meu Trabalho Acadêmico ABNT',
+      metadata: {
+        title: demoTitle,
+        author: 'Vinícius Candeias',
+      },
+      blocks: [],
+    });
+    expect(migrated.metadata.author).toBe('Nome do Autor');
+
+    const preserved = normalizeProject({
+      name: 'TCC Pessoal',
+      metadata: {
+        title: 'Outro Título Qualquer',
+        author: 'Vinícius Candeias',
+      },
+      blocks: [],
+    });
+    expect(preserved.metadata.author).toBe('Vinícius Candeias');
+  });
 });
