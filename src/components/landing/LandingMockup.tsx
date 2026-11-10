@@ -57,13 +57,13 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
 
           {/* Abas de Demonstração da Tela */}
           <div
-            className={`flex items-center p-0.5 rounded-xl text-xs font-medium ${
+            className={`flex items-center p-0.5 rounded-xl text-xs font-medium max-w-full overflow-x-auto ${
               isDark ? 'bg-slate-800/90' : 'bg-slate-200/70'
             }`}
           >
             <button
               onClick={() => setActiveTab('realApp')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg transition-all shrink-0 ${
                 activeTab === 'realApp'
                   ? isDark
                     ? 'bg-emerald-500 text-slate-950 font-bold shadow-xs'
@@ -74,12 +74,13 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
               }`}
             >
               <Columns3 className="w-3.5 h-3.5" />
-              <span>Workspace Real (3 Painéis)</span>
+              <span className="sm:hidden">Workspace</span>
+              <span className="hidden sm:inline">Workspace Real (3 Painéis)</span>
             </button>
 
             <button
               onClick={() => setActiveTab('split')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg transition-all shrink-0 ${
                 activeTab === 'split'
                   ? isDark
                     ? 'bg-emerald-500 text-slate-950 font-bold shadow-xs'
@@ -90,12 +91,13 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
               }`}
             >
               <Columns2 className="w-3.5 h-3.5" />
-              <span>Editor &amp; PDF</span>
+              <span className="sm:hidden">Editor</span>
+              <span className="hidden sm:inline">Editor &amp; PDF</span>
             </button>
 
             <button
               onClick={() => setActiveTab('typst')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg transition-all shrink-0 ${
                 activeTab === 'typst'
                   ? isDark
                     ? 'bg-emerald-500 text-slate-950 font-bold shadow-xs'
@@ -106,7 +108,7 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
               }`}
             >
               <Code2 className="w-3.5 h-3.5" />
-              <span>Typst (.typ)</span>
+              <span>Typst</span>
             </button>
           </div>
 
@@ -133,8 +135,8 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
                 ? 'bg-[#0f172a]'
                 : 'bg-[#ffffff]'
               : isDark
-                ? 'bg-[#0b1220] text-slate-100 min-h-[480px] lg:min-h-[540px] flex flex-col justify-start transition-colors'
-                : 'bg-slate-100/70 text-slate-900 min-h-[480px] lg:min-h-[540px] flex flex-col justify-start transition-colors'
+                ? 'bg-[#0b1220] text-slate-100 min-h-[320px] sm:min-h-[420px] lg:min-h-[540px] flex flex-col justify-start transition-colors'
+                : 'bg-slate-100/70 text-slate-900 min-h-[320px] sm:min-h-[420px] lg:min-h-[540px] flex flex-col justify-start transition-colors'
           }
         >
           {/* ------------------------------------------------------- */}

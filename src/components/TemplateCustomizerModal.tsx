@@ -340,28 +340,28 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
         </div>
 
         {/* Rodapé */}
-        <div className="p-4 border-t border-neutral-200 bg-neutral-50 flex flex-wrap items-center justify-between gap-2">
+        <div className="p-3 sm:p-4 border-t border-neutral-200 bg-neutral-50 flex flex-col-reverse sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2 shrink-0">
           <button
             type="button"
             onClick={handleRestoreDefaults}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60 rounded-lg transition-colors"
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60 rounded-lg transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Restaurar Padrão ABNT
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/70 transition-colors"
+              className="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/70 transition-colors"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={handleApply}
-              className="px-5 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors"
+              className="flex-1 sm:flex-none px-5 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors"
             >
               Aplicar e Atualizar PDF
             </button>

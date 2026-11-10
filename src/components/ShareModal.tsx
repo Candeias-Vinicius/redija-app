@@ -139,32 +139,32 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150 overflow-y-auto">
       <div
-        className="relative w-full max-w-lg rounded-xl bg-white shadow-2xl border border-neutral-200 overflow-hidden"
+        className="relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-xl bg-white shadow-2xl border border-neutral-200 overflow-hidden my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho */}
-        <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4 bg-neutral-50/50">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+        <div className="flex items-center justify-between border-b border-neutral-100 px-4 sm:px-6 py-4 bg-neutral-50/50 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
               <Share2 className="w-5 h-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h2 className="text-base font-semibold text-neutral-900">Compartilhar Trabalho</h2>
-              <p className="text-xs text-neutral-500 truncate max-w-xs">{projectName}</p>
+              <p className="text-xs text-neutral-500 truncate max-w-[14rem] sm:max-w-xs">{projectName}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
+            className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition-colors shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Conteúdo */}
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
           {/* Mensagens de Sucesso / Erro */}
           {error && (
             <div className="flex items-center gap-2 p-3 text-xs rounded-lg bg-red-50 text-red-700 border border-red-200">
@@ -185,8 +185,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             <label className="block text-xs font-semibold text-neutral-700">
               Adicionar colega ou orientador (E-mail Google)
             </label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1 min-w-0">
                 <Mail className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
@@ -200,7 +200,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               <button
                 type="submit"
                 disabled={isInviting || !emailInput.trim()}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white transition-colors"
+                className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white transition-colors w-full sm:w-auto shrink-0"
               >
                 {isInviting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

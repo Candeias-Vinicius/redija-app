@@ -20,10 +20,12 @@ import {
   HardDrive,
   Loader2,
   BookOpen,
+  PanelLeft,
 } from 'lucide-react';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
 import { GITHUB_REPO_URL } from '@/core/links';
+import type { PaneId } from '@/hooks/usePaneLayout';
 import { Logo } from './Logo';
 import { GitHubIcon } from './GitHubIcon';
 
@@ -38,9 +40,11 @@ interface HeaderProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  isCompact?: boolean;
   showSidebar: boolean;
   showEditor: boolean;
   showPreview: boolean;
+  onSelectPane?: (pane: PaneId) => void;
   onToggleSidebar: () => void;
   onToggleEditor: () => void;
   onTogglePreview: () => void;
@@ -81,9 +85,11 @@ export const Header: React.FC<HeaderProps> = ({
   canRedo,
   onUndo,
   onRedo,
+  isCompact = false,
   showSidebar,
   showEditor,
   showPreview,
+  onSelectPane,
   onToggleSidebar,
   onToggleEditor,
   onTogglePreview,
@@ -117,30 +123,103 @@ export const Header: React.FC<HeaderProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const paneSwitcher = (
+    <div
+      className={`flex items-center gap-0.5 sm:gap-1 ${
+        isCompact
+          ? 'w-full bg-neutral-100 dark:bg-neutral-800/80 rounded-lg p-0.5'
+          : 'pl-1.5 border-l border-neutral-200 dark:border-neutral-800'
+      }`}
+      role={isCompact ? 'tablist' : undefined}
+      aria-label="Painéis do workspace"
+    >
+      <button
+        type="button"
+        role={isCompact ? 'tab' : undefined}
+        aria-selected={isCompact ? showSidebar : undefined}
+        onClick={() => (isCompact && onSelectPane ? onSelectPane('sidebar') : onToggleSidebar())}
+        className={`flex flex-1 sm:flex-none items-center justify-center gap-1 px-2 py-1.5 sm:py-0.5 rounded text-[11px] font-medium border transition-colors ${
+          showSidebar
+            ? isCompact
+              ? 'bg-white dark:bg-neutral-900 border-transparent shadow-xs text-emerald-800 dark:text-emerald-300'
+              : 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+            : isCompact
+              ? 'bg-transparent border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
+              : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
+        }`}
+        title="Painel Estrutura"
+      >
+        <PanelLeft className="w-3.5 h-3.5" />
+        <span>Estrutura</span>
+      </button>
+
+      <button
+        type="button"
+        role={isCompact ? 'tab' : undefined}
+        aria-selected={isCompact ? showEditor : undefined}
+        onClick={() => (isCompact && onSelectPane ? onSelectPane('editor') : onToggleEditor())}
+        className={`flex flex-1 sm:flex-none items-center justify-center gap-1 px-2 py-1.5 sm:py-0.5 rounded text-[11px] font-medium border transition-colors ${
+          showEditor
+            ? isCompact
+              ? 'bg-white dark:bg-neutral-900 border-transparent shadow-xs text-emerald-800 dark:text-emerald-300'
+              : 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+            : isCompact
+              ? 'bg-transparent border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
+              : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
+        }`}
+        title="Painel Texto"
+      >
+        <FileEdit className="w-3.5 h-3.5" />
+        <span>Texto</span>
+      </button>
+
+      <button
+        type="button"
+        role={isCompact ? 'tab' : undefined}
+        aria-selected={isCompact ? showPreview : undefined}
+        onClick={() => (isCompact && onSelectPane ? onSelectPane('preview') : onTogglePreview())}
+        className={`flex flex-1 sm:flex-none items-center justify-center gap-1 px-2 py-1.5 sm:py-0.5 rounded text-[11px] font-medium border transition-colors ${
+          showPreview
+            ? isCompact
+              ? 'bg-white dark:bg-neutral-900 border-transparent shadow-xs text-emerald-800 dark:text-emerald-300'
+              : 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+            : isCompact
+              ? 'bg-transparent border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
+              : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
+        }`}
+        title="Painel PDF"
+      >
+        <Eye className="w-3.5 h-3.5" />
+        <span>PDF</span>
+      </button>
+    </div>
+  );
+
   return (
-    <header className="h-14 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3 flex items-center justify-between sticky top-0 z-30 transition-colors">
+    <header className="border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 sticky top-0 z-30 transition-colors">
+      <div className="h-12 sm:h-14 px-2 sm:px-3 flex items-center justify-between gap-2">
       {/* Lado Esquerdo: Marca, Projeto e Navegação de Abas */}
-      <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex items-center gap-1 sm:gap-2.5 min-w-0 flex-1 overflow-hidden">
         <Logo size="sm" onBetaClick={onOpenBetaNoticeModal} />
 
-        <span className="text-neutral-300 dark:text-neutral-700 hidden sm:inline">/</span>
+        <span className="text-neutral-300 dark:text-neutral-700 hidden md:inline">/</span>
 
         {/* Seletor de Projetos */}
         <button
           onClick={onOpenProjectsModal}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs font-medium text-neutral-800 dark:text-neutral-200 transition-colors min-w-0 max-w-[200px] lg:max-w-xs"
+          className="flex items-center gap-1.5 px-1.5 sm:px-2 py-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs font-medium text-neutral-800 dark:text-neutral-200 transition-colors min-w-0 max-w-[140px] sm:max-w-[160px] lg:max-w-xs"
           title="Alternar ou criar trabalho acadêmico"
         >
           <FolderOpen className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          <span className="truncate">{projectName}</span>
-          <span className="text-[10px] bg-neutral-200/80 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-1 rounded-full shrink-0">
+          <span className="truncate hidden md:inline">{projectName}</span>
+          <span className="text-[10px] bg-neutral-200/80 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-1 rounded-full shrink-0 hidden md:inline">
             {projectsCount}
           </span>
           <ChevronDown className="w-3 h-3 text-neutral-400 shrink-0" />
         </button>
 
-        {/* Botões Desfazer / Refazer (Ctrl+Z / Ctrl+Y) */}
-        <div className="hidden md:flex items-center gap-0.5 pl-1.5 border-l border-neutral-200 dark:border-neutral-800">
+        {/* Botões Desfazer / Refazer */}
+        <div className="flex items-center gap-0.5 pl-1 border-l border-neutral-200 dark:border-neutral-800">
           <button
             type="button"
             onClick={onUndo}
@@ -161,49 +240,8 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Alternadores de Abas Visíveis */}
-        <div className="hidden xl:flex items-center gap-1 pl-1.5 border-l border-neutral-200 dark:border-neutral-800">
-          <button
-            type="button"
-            onClick={onToggleSidebar}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
-              showSidebar
-                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-                : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
-            }`}
-            title="Alternar aba Estrutura"
-          >
-            <span>Estrutura</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onToggleEditor}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
-              showEditor
-                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-                : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
-            }`}
-            title="Alternar aba Texto"
-          >
-            <FileEdit className="w-3 h-3" />
-            <span>Texto</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onTogglePreview}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
-              showPreview
-                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-                : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
-            }`}
-            title="Alternar aba PDF"
-          >
-            <Eye className="w-3 h-3" />
-            <span>PDF</span>
-          </button>
-        </div>
+        {/* Alternadores de painéis — desktop inline */}
+        {!isCompact && paneSwitcher}
       </div>
 
       {/* Lado Direito: Ações Principais e Perfil */}
@@ -283,22 +321,22 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Botão Compartilhar */}
         <button
           onClick={onOpenShareModal}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+          className="flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
           title="Compartilhar projeto via e-mail do Google"
         >
           <Share2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
-          <span className="hidden sm:inline">Compartilhar</span>
+          <span className="hidden md:inline">Compartilhar</span>
         </button>
 
         {/* Botão Relatar Problema (Direto) */}
         <button
           type="button"
           onClick={onOpenBugReportModal}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-amber-700 dark:text-amber-400 hover:bg-amber-50/60 dark:hover:bg-amber-950/40 transition-colors"
+          className="flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-amber-700 dark:text-amber-400 hover:bg-amber-50/60 dark:hover:bg-amber-950/40 transition-colors"
           title="Relatar problema ou sugestão"
         >
           <Bug className="w-3.5 h-3.5 text-amber-600 dark:text-amber-500 shrink-0" />
-          <span className="hidden sm:inline">Relatar Problema</span>
+          <span className="hidden md:inline">Relatar Problema</span>
         </button>
 
         {/* Separador */}
@@ -424,7 +462,7 @@ export const Header: React.FC<HeaderProps> = ({
               ) : (
                 <LogIn className="w-3.5 h-3.5 text-emerald-600" />
               )}
-              <span className="hidden md:inline">Entrar com Google</span>
+              <span className="hidden sm:inline">Entrar</span>
             </button>
 
             {/* Menu Perfil Local */}
@@ -525,6 +563,12 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
       </div>
+      </div>
+
+      {/* Segunda linha no compacto: abas Estrutura | Texto | PDF em largura total */}
+      {isCompact && (
+        <div className="px-2 pb-2 pt-0">{paneSwitcher}</div>
+      )}
     </header>
   );
 };

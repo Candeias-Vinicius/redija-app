@@ -75,6 +75,7 @@ export const App: React.FC = () => {
 
   // Hooks de domínio & orquestração
   const {
+    isCompact,
     sidebarWidth,
     previewWidth,
     resizingPane,
@@ -82,6 +83,7 @@ export const App: React.FC = () => {
     showSidebar,
     showEditor,
     showPreview,
+    selectPane,
     toggleSidebar,
     toggleEditor,
     togglePreview,
@@ -267,9 +269,11 @@ export const App: React.FC = () => {
         canRedo={canRedo}
         onUndo={handleUndo}
         onRedo={handleRedo}
+        isCompact={isCompact}
         showSidebar={showSidebar}
         showEditor={showEditor}
         showPreview={showPreview}
+        onSelectPane={selectPane}
         onToggleSidebar={toggleSidebar}
         onToggleEditor={toggleEditor}
         onTogglePreview={togglePreview}
@@ -312,17 +316,17 @@ export const App: React.FC = () => {
           <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-sm mb-6 leading-relaxed">
             Comece escolhendo um modelo com estrutura ABNT pré-configurada ou importe um arquivo existente.
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full max-w-sm sm:max-w-none">
             <button
               onClick={openProjectsModal}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors"
             >
               <Plus className="w-4 h-4" />
               <span>Criar Primeiro Trabalho</span>
             </button>
             <button
               onClick={openProjectsModal}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700 text-xs font-semibold rounded-xl transition-colors"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700 text-xs font-semibold rounded-xl transition-colors"
             >
               <Upload className="w-4 h-4 text-emerald-600" />
               <span>Importar Trabalho</span>
@@ -361,21 +365,23 @@ export const App: React.FC = () => {
                   setWelcomeInitialTab(mode);
                   setIsWelcomeModalOpen(true);
                 }}
-                onMinimize={toggleSidebar}
-                widthPx={!showEditor && !showPreview ? window.innerWidth : sidebarWidth}
+                onMinimize={isCompact ? undefined : toggleSidebar}
+                isCompact={isCompact}
+                widthPx={isCompact || (!showEditor && !showPreview) ? undefined : sidebarWidth}
               />
             </ErrorBoundary>
           )}
 
           {/* Divisor Redimensionável: Sidebar <-> Editor */}
-          {showSidebar && (showEditor || showPreview) && (
+          {!isCompact && showSidebar && (showEditor || showPreview) && (
             <div
-              onMouseDown={(e) => {
+              onPointerDown={(e) => {
                 e.preventDefault();
+                (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
                 setResizingPane('sidebar');
               }}
               title="Arraste para redimensionar a barra lateral"
-              className={`w-1.5 cursor-col-resize shrink-0 flex items-center justify-center transition-colors group ${
+              className={`w-1.5 cursor-col-resize shrink-0 touch-none flex items-center justify-center transition-colors group ${
                 resizingPane === 'sidebar'
                   ? 'bg-emerald-500'
                   : 'bg-neutral-200/60 hover:bg-emerald-500/60'
@@ -398,7 +404,8 @@ export const App: React.FC = () => {
                 citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
                 citationFormat={project.templateConfig?.citationFormat}
                 referenceOrdering={project.templateConfig?.referenceOrdering}
-                isFullWidth={!showSidebar && !showPreview}
+                isFullWidth={isCompact || (!showSidebar && !showPreview)}
+                isCompact={isCompact}
                 activeCollaborators={activeCollaborators}
                 onOpenReferenceModal={() => {
                   setEditingReference(null);
@@ -406,20 +413,21 @@ export const App: React.FC = () => {
                 }}
                 onChangeBlocks={handleBlocksChange}
                 onFocusBlock={broadcastCursor}
-                onMinimize={toggleEditor}
+                onMinimize={isCompact ? undefined : toggleEditor}
               />
             </ErrorBoundary>
           )}
 
           {/* Divisor Redimensionável: Editor <-> Preview PDF */}
-          {showEditor && showPreview && (
+          {!isCompact && showEditor && showPreview && (
             <div
-              onMouseDown={(e) => {
+              onPointerDown={(e) => {
                 e.preventDefault();
+                (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
                 setResizingPane('preview');
               }}
               title="Arraste para redimensionar o painel do PDF e o editor"
-              className={`w-1.5 cursor-col-resize shrink-0 flex items-center justify-center transition-colors group ${
+              className={`w-1.5 cursor-col-resize shrink-0 touch-none flex items-center justify-center transition-colors group ${
                 resizingPane === 'preview'
                   ? 'bg-emerald-500'
                   : 'bg-neutral-200/60 hover:bg-emerald-500/60'
@@ -444,8 +452,9 @@ export const App: React.FC = () => {
                 onExportProjectZip={handleExportProjectZip}
                 isExportingProject={isExportingProject}
                 widthPx={previewWidth}
-                isFullWidth={!showEditor}
-                onMinimize={togglePreview}
+                isFullWidth={isCompact || !showEditor}
+                isCompact={isCompact}
+                onMinimize={isCompact ? undefined : togglePreview}
               />
             </ErrorBoundary>
           )}
