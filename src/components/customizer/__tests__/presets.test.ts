@@ -10,7 +10,7 @@ import {
 } from '../presets';
 
 describe('Customizer Presets & Helpers', () => {
-  it('expõe exatamente 5 abas e 7 presets normativos consistentes', () => {
+  it('expõe exatamente 5 abas e 8 presets normativos consistentes', () => {
     expect(MODAL_TABS.map((t) => t.id)).toEqual([
       'presets',
       'typography',
@@ -21,6 +21,7 @@ describe('Customizer Presets & Helpers', () => {
     expect(PRESETS.map((p) => p.id)).toEqual([
       'abnt_classic',
       'abnt_2023',
+      'article_1col',
       'article_2col',
       'apa_7',
       'sbc',

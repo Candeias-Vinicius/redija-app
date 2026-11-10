@@ -192,20 +192,20 @@ export function normalizeProject(raw: unknown): DocumentProject {
     typeof rawConfig.citationFormat === 'string' &&
     validCitationFormats.includes(rawConfig.citationFormat as CitationFormat)
       ? (rawConfig.citationFormat as CitationFormat)
-      : rawConfig.citationStyle === 'titlecase'
-        ? 'abnt_titlecase'
+      : rawConfig.citationStyle === 'uppercase'
+        ? 'abnt_upper'
         : sanitizedPreset === 'ieee'
           ? 'ieee_numeric'
-          : 'abnt_upper';
+          : DEFAULT_TEMPLATE_CONFIG.citationFormat ?? 'abnt_titlecase';
 
   const sanitizedCitationStyle: 'uppercase' | 'titlecase' =
-    rawConfig.citationStyle === 'titlecase'
-      ? 'titlecase'
-      : rawConfig.citationStyle === 'uppercase'
-        ? 'uppercase'
-        : sanitizedCitationFormat === 'abnt_titlecase' || sanitizedCitationFormat === 'author_date'
-          ? 'titlecase'
-          : 'uppercase';
+    rawConfig.citationStyle === 'uppercase'
+      ? 'uppercase'
+      : rawConfig.citationStyle === 'titlecase'
+        ? 'titlecase'
+        : sanitizedCitationFormat === 'abnt_upper'
+          ? 'uppercase'
+          : DEFAULT_TEMPLATE_CONFIG.citationStyle;
 
   const sanitizedHighlight: ReferenceHighlight =
     typeof rawConfig.referenceHighlight === 'string' &&

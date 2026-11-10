@@ -11,7 +11,7 @@ import {
   calculateProjectImageBytes,
   validateImageUploadForProject,
 } from '@/core/storage/imageQuota';
-import { RotateCcw, Sliders, X } from 'lucide-react';
+import { Lock, RotateCcw, Sliders, Unlock, X } from 'lucide-react';
 import {
   CustomizerTabId,
   MODAL_TABS,
@@ -20,6 +20,7 @@ import {
   parseUniverseEntrypoint,
   resolveDraftTemplateType,
 } from './customizer/presets';
+import { getCustomizerScope } from '@/core/templates/templateCapabilities';
 import { CustomizerPresetsTab } from './customizer/CustomizerPresetsTab';
 import { CustomizerTypographyTab } from './customizer/CustomizerTypographyTab';
 import { CustomizerPageTab } from './customizer/CustomizerPageTab';
@@ -63,6 +64,8 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
   const [draftTemplateType, setDraftTemplateType] = useState<ProjectTemplateType>(() =>
     resolveDraftTemplateType(initialConfig, initialTemplateType),
   );
+  const [isManuallyUnlocked, setIsManuallyUnlocked] = useState<boolean>(false);
+  const scope = getCustomizerScope(draftTemplateType, draftConfig, isManuallyUnlocked);
   const initialIsUniverse =
     initialConfig.preset === 'universe_custom' ||
     (initialConfig.preset === 'custom' && initialTemplateType === 'universe_custom');
@@ -268,31 +271,57 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
           </button>
         </div>
 
-        {/* Barra de 5 Abas */}
+        {/* Barra de 5 Abas + Indicador de Escopo */}
         <div
           role="tablist"
           aria-label="Seções de configuração do template"
-          className="px-4 pt-2 border-b border-neutral-200 bg-neutral-50/70 flex flex-wrap md:flex-nowrap items-center gap-1 shrink-0"
+          className="px-4 pt-2 border-b border-neutral-200 bg-neutral-50/70 flex flex-wrap items-center justify-between gap-2 shrink-0"
         >
-          {MODAL_TABS.map((tab) => {
-            const selected = activeTab === tab.id;
-            return (
+          <div className="flex flex-wrap items-center gap-1">
+            {MODAL_TABS.map((tab) => {
+              const selected = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap rounded-t-lg ${
+                    selected
+                      ? 'border-emerald-600 text-emerald-700 bg-white'
+                      : 'border-transparent text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100/80'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-2 pb-1.5 sm:pb-0">
+            {!scope.isFullyUnrestricted && !isManuallyUnlocked ? (
               <button
-                key={tab.id}
                 type="button"
-                role="tab"
-                aria-selected={selected}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap rounded-t-lg ${
-                  selected
-                    ? 'border-emerald-600 text-emerald-700 bg-white'
-                    : 'border-transparent text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100/80'
-                }`}
+                onClick={() => setIsManuallyUnlocked(true)}
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition-colors"
+                title="Permite editar livremente margens, colunas e capa fora da norma estrita"
               >
-                {tab.label}
+                <Unlock className="w-3 h-3 text-amber-600" />
+                <span>Destravar opções da norma</span>
               </button>
-            );
-          })}
+            ) : isManuallyUnlocked ? (
+              <button
+                type="button"
+                onClick={() => setIsManuallyUnlocked(false)}
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition-colors"
+                title="Restaurar as travas recomendadas pela norma"
+              >
+                <Lock className="w-3 h-3 text-emerald-600" />
+                <span>Reativar travas normativas</span>
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {/* Conteúdo da Aba Ativa */}
@@ -313,16 +342,25 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
           )}
 
           {activeTab === 'typography' && (
-            <CustomizerTypographyTab config={draftConfig} onUpdateField={updateField} />
+            <CustomizerTypographyTab
+              config={draftConfig}
+              scope={scope}
+              onUpdateField={updateField}
+            />
           )}
 
           {activeTab === 'page' && (
-            <CustomizerPageTab config={draftConfig} onUpdateField={updateField} />
+            <CustomizerPageTab
+              config={draftConfig}
+              scope={scope}
+              onUpdateField={updateField}
+            />
           )}
 
           {activeTab === 'citations' && (
             <CustomizerCitationsTab
               config={draftConfig}
+              scope={scope}
               onUpdateField={updateField}
               onCitationFormatChange={handleCitationFormatChange}
             />
@@ -332,6 +370,7 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
             <CustomizerStructureTab
               config={draftConfig}
               metadata={draftMetadata}
+              scope={scope}
               onUpdateField={updateField}
               onLogoUpload={handleLogoUpload}
               onRemoveLogo={handleRemoveLogo}

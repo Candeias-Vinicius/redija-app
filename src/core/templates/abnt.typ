@@ -573,7 +573,7 @@
     resumo
     if palavras-chave.len() > 0 {
       v(1em)
-      [*#lbl-palavras* #palavras-chave.join(". ").]
+      [*#lbl-palavras* #palavras-chave.join("; ").]
     }
   }
 
@@ -590,7 +590,7 @@
     abstract
     if keywords.len() > 0 {
       v(1em)
-      [*Keywords:* #keywords.join(". ").]
+      [*Keywords:* #keywords.join("; ").]
     }
   }
 

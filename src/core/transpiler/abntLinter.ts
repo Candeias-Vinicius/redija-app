@@ -13,6 +13,7 @@ import {
   getPrimarySurname,
   parseCitationAuthors,
   resolveCitationFormat,
+  toTitleCaseSurname,
   toUnicodeSuperscript,
 } from './citationFormatter';
 
@@ -29,6 +30,7 @@ export {
   resolveCitationFormat,
   resolveGroupedParentheticalDisplay,
   splitAuthorEntries,
+  toTitleCaseSurname,
   toUnicodeSuperscript,
   type CitationCallMode,
   type ParentheticalGroupRole,
@@ -619,6 +621,7 @@ export function auditCitationsAndReferences(
   );
   const reportedMissingCitations = new Set<string>();
   const reportedMissingNumbers = new Set<number>();
+  const reportedUppercaseCitations = new Set<string>();
 
   // Regex para capturar citações autor-data: (SOBRENOME, ANO), (Sobrenome, ANO) e (Sobrenome ANO)
   const inTextAbntRegex =
@@ -652,6 +655,24 @@ export function auditCitationsAndReferences(
       const rawAuthorPart = match[1].trim().replace(/\s*&\s*/g, '; ');
       const yearPart = match[2].trim();
       const { surnames } = parseCitationAuthors(rawAuthorPart);
+
+      // NBR 10520:2023 - detecta chamadas em caixa alta no texto
+      if (
+        citationFormat === 'abnt_titlecase' &&
+        /^[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ\s;.-]+$/.test(rawAuthorPart) &&
+        rawAuthorPart.replace(/[^A-Za-z]/g, '').length >= 2 &&
+        !reportedUppercaseCitations.has(rawAuthorPart)
+      ) {
+        reportedUppercaseCitations.add(rawAuthorPart);
+        const suggested = surnames.map(toTitleCaseSurname).join('; ');
+        warnings.push({
+          id: `citation-uppercase-nbr10520-${surnames[0]?.toLowerCase() || 'unknown'}`,
+          severity: 'info',
+          title: `Citação em caixa alta (${rawAuthorPart}, ${yearPart}) contraria NBR 10520:2023`,
+          description: `A ABNT cancelou a NBR 10520:2002. A norma vigente NBR 10520:2023 exige caixa mista entre parênteses: (${suggested}, ${yearPart}).`,
+        });
+      }
+
       for (const s of surnames) {
         if (s && !registeredSurnames.has(s) && !reportedMissingCitations.has(s)) {
           reportedMissingCitations.add(s);
@@ -833,6 +854,20 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
 
   // 5. Cruzamento de Citações e Referências (NBR 10520 / NBR 6023)
   warnings.push(...auditCitationsAndReferences(project));
+
+  // 6. Verificação de norma vigente de citações (NBR 10520:2023 vs NBR 10520:2002 revogada)
+  if (
+    project.templateConfig?.citationFormat === 'abnt_upper' ||
+    project.templateConfig?.citationStyle === 'uppercase'
+  ) {
+    warnings.push({
+      id: 'citation-deprecated-nbr10520',
+      severity: 'warning',
+      title: 'Citação em caixa alta (NBR 10520:2002 revogada)',
+      description:
+        'A ABNT cancelou a NBR 10520:2002 e a substituiu pela NBR 10520:2023. No padrão vigente, as chamadas entre parênteses devem ser em caixa mista: (Silva, 2023). Altere para NBR 10520:2023 no Customizador.',
+    });
+  }
 
   return warnings;
 }
