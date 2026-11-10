@@ -308,6 +308,54 @@ function latexMathToTypst(math: string): string {
 }
 
 /**
+ * Extrai mapeamentos dinâmicos de macros LaTeX a partir de arquivos de estilo (.sty, .cls) e preâmbulo.
+ * Permite reconhecer variáveis e macros customizadas de qualquer universidade sem fixar nomes no código.
+ */
+export function extractDynamicMacroAliases(texSources: string): Map<string, string> {
+  const aliases = new Map<string, string>();
+  const cmdRegex =
+    /\\(?:newcommand|renewcommand|DeclareRobustCommand)\s*\{\\([a-zA-Z0-9]+)\}(?:\[\d+\])?\{([\s\S]*?)\}|\\def\\([a-zA-Z0-9]+)\s*(?:\[[^\]]*\])?\{([\s\S]*?)\}/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = cmdRegex.exec(texSources)) !== null) {
+    const macroName = match[1] || match[3];
+    const body = match[2] || match[4] || '';
+
+    if (/\\(?:autor|author|imprimirautor)\b/.test(body)) {
+      aliases.set(macroName, 'author');
+    } else if (/\\(?:titulo|title|imprimirtitulo)\b/.test(body)) {
+      aliases.set(macroName, 'title');
+    } else if (/\\(?:orientador|advisor|imprimirorientador)\b/.test(body)) {
+      aliases.set(macroName, 'advisor');
+    } else if (/\\(?:coorientador|coadvisor)\b/.test(body)) {
+      aliases.set(macroName, 'coadvisor');
+    } else if (/\\(?:curso|imprimircurso)\b/.test(body)) {
+      aliases.set(macroName, 'course');
+    } else if (/\\(?:instituicao|institution|imprimirinstituicao)\b/.test(body)) {
+      aliases.set(macroName, 'institution');
+    } else if (/\\(?:resumo|resum)\b/.test(body) || /\\begin\{resumo\}/.test(body)) {
+      aliases.set(macroName, 'abstract');
+    } else if (/\\(?:abstract|abstrac)\b/.test(body) || /\\begin\{abstract\}/.test(body)) {
+      aliases.set(macroName, 'foreignAbstract');
+    } else if (/\\(?:dedicatoria|dedica)\b/.test(body)) {
+      aliases.set(macroName, 'dedicatory');
+    } else if (/\\(?:agradecimentos|agradece)\b/.test(body)) {
+      aliases.set(macroName, 'acknowledgments');
+    } else if (/\\(?:epigrafe|epigrafeb)\b/.test(body)) {
+      aliases.set(macroName, 'epigraph');
+    } else if (/\\(?:palavraschave|palavras-chave|chave)\b/.test(body)) {
+      aliases.set(macroName, 'keywords');
+    } else if (/\\(?:keywords|key)\b/.test(body)) {
+      aliases.set(macroName, 'foreignKeywords');
+    } else if (/\\(?:membro|examinador|banca|jury)\b/.test(body)) {
+      aliases.set(macroName, 'committee');
+    }
+  }
+
+  return aliases;
+}
+
+/**
  * Converte o conteúdo de um arquivo LaTeX em um DocumentProject do RedijaApp.
  */
 export function parseLatexToProject(
@@ -315,14 +363,33 @@ export function parseLatexToProject(
   projectName: string,
   imageMap: Map<string, string>,
   existingRefs: AcademicReference[] = [],
+  styleDefinitions: string = '',
 ): DocumentProject {
   const detectedTemplate = detectLatexTemplate(texContent);
   const base = createProjectBaseForImport(detectedTemplate, projectName);
 
+  // Mapeador dinâmico de macros a partir do preâmbulo e arquivos de estilo (.sty / .cls)
+  const dynamicAliases = extractDynamicMacroAliases(texContent + '\n' + styleDefinitions);
+
+  const getCmdNames = (concept: string, baseNames: string[]): string[] => {
+    const list = [...baseNames];
+    for (const [macro, mappedConcept] of dynamicAliases.entries()) {
+      if (mappedConcept === concept && !list.includes(macro)) {
+        list.push(macro);
+      }
+    }
+    return list;
+  };
+
+  const getCmdPattern = (concept: string, baseNames: string[]): RegExp => {
+    const names = getCmdNames(concept, baseNames);
+    return new RegExp(`\\\\(?:${names.join('|')})\\s*(?:\\[[^\\]]*\\])?\\s*(?=\\{)`, 'i');
+  };
+
   // 1. Extração de Metadados do Preâmbulo
   const rawTitle = extractLatexCommandArg(
     texContent,
-    /\\(?:titulo|title|titulotrabalho)\s*(?:\[[^\]]*\])?\s*(?=\{)/i,
+    getCmdPattern('title', ['titulo', 'title', 'titulotrabalho']),
   );
   const rawSubtitle = extractLatexCommandArg(
     texContent,
@@ -330,23 +397,29 @@ export function parseLatexToProject(
   );
   const rawAuthor = extractLatexCommandArg(
     texContent,
-    /\\(?:DEELautor|autor|author)\s*(?:\[[^\]]*\])?\s*(?=\{)/i,
+    getCmdPattern('author', ['autor', 'author', 'DEELautor']),
   );
   const rawInstitution = extractLatexCommandArg(
     texContent,
-    /\\(?:institution|instituicao|affiliation|universidade|faculdade)\s*(?=\{)/i,
+    getCmdPattern('institution', [
+      'institution',
+      'instituicao',
+      'affiliation',
+      'universidade',
+      'faculdade',
+    ]),
   );
   const rawCourse = extractLatexCommandArg(
     texContent,
-    /\\(?:curso|course|programa|departamento)\s*(?=\{)/i,
+    getCmdPattern('course', ['curso', 'course', 'programa', 'departamento']),
   );
   const rawAdvisor = extractLatexCommandArg(
     texContent,
-    /\\(?:orientador|advisor|orientadora)\s*(?:\[[^\]]*\])?\s*(?=\{)/i,
+    getCmdPattern('advisor', ['orientador', 'advisor', 'orientadora']),
   );
   const rawCoAdvisor = extractLatexCommandArg(
     texContent,
-    /\\(?:coorientador|coadvisor|co-orientador)\s*(?:\[[^\]]*\])?\s*(?=\{)/i,
+    getCmdPattern('coadvisor', ['coorientador', 'coadvisor', 'co-orientador']),
   );
   const rawLocation = extractLatexCommandArg(texContent, /\\local\s*(?=\{)/i);
   const rawDate = extractLatexCommandArg(texContent, /\\(?:data|date|ano)\s*(?=\{)/i);
@@ -393,9 +466,18 @@ export function parseLatexToProject(
 
   // Membros de banca (NBR 14724)
   const committeeMembers: string[] = [];
-  const memberMatches = texContent.matchAll(
-    /\\(?:membro[a-z]?|examinador[a-z]?|banca)\s*(?:\[[^\]]*\])?\{([^}]+)\}/gi,
+  const committeeNames = getCmdNames('committee', [
+    'membro',
+    'membrob',
+    'membroc',
+    'examinador',
+    'banca',
+  ]);
+  const committeeRegex = new RegExp(
+    `\\\\(?:${committeeNames.join('|')})\\s*(?:\\[[^\\]]*\\])?\\{([^}]+)\\}`,
+    'gi',
   );
+  const memberMatches = texContent.matchAll(committeeRegex);
   for (const m of memberMatches) {
     const member = cleanLatexText(m[1]).trim();
     if (member && !committeeMembers.includes(member)) {
@@ -409,22 +491,28 @@ export function parseLatexToProject(
 
   // 2. Extração de elementos pré-textuais
   const rawDedicatory =
-    extractLatexCommandArg(texContent, /\\(?:DEELdedicatoria|dedicatoria)\s*(?=\{)/i) ||
-    extractLatexEnvironment(texContent, 'dedicatoria');
+    extractLatexCommandArg(
+      texContent,
+      getCmdPattern('dedicatory', ['dedicatoria', 'DEELdedicatoria']),
+    ) || extractLatexEnvironment(texContent, 'dedicatoria');
   if (rawDedicatory) {
     base.metadata.dedicatory = cleanLatexText(rawDedicatory.replace(/\\\\/g, '\n'));
   }
 
   const rawAgradecimentos =
-    extractLatexCommandArg(texContent, /\\(?:DEELagradecimentos|agradecimentos)\s*(?=\{)/i) ||
-    extractLatexEnvironment(texContent, 'agradecimentos');
+    extractLatexCommandArg(
+      texContent,
+      getCmdPattern('acknowledgments', ['agradecimentos', 'DEELagradecimentos']),
+    ) || extractLatexEnvironment(texContent, 'agradecimentos');
   if (rawAgradecimentos) {
     base.metadata.acknowledgments = cleanLatexText(rawAgradecimentos.replace(/\\\\/g, '\n'));
   }
 
   const rawEpigrafe =
-    extractLatexCommandArg(texContent, /\\(?:DEELepigrafe|epigrafe)\s*(?=\{)/i) ||
-    extractLatexEnvironment(texContent, 'epigrafe');
+    extractLatexCommandArg(
+      texContent,
+      getCmdPattern('epigraph', ['epigrafe', 'DEELepigrafe']),
+    ) || extractLatexEnvironment(texContent, 'epigrafe');
   if (rawEpigrafe) {
     let cleanEpig = cleanLatexText(rawEpigrafe.replace(/\\\\/g, ' '));
     const authorMatch = cleanEpig.match(/\(([^)]+)\)\s*$/);
@@ -439,12 +527,14 @@ export function parseLatexToProject(
   }
 
   const rawResumo =
-    extractLatexCommandArg(texContent, /\\(?:DEELresumo|resumo)\s*(?=\{)/i) ||
+    extractLatexCommandArg(texContent, getCmdPattern('abstract', ['resumo', 'DEELresumo'])) ||
     extractLatexEnvironment(texContent, 'resumo');
 
   const rawAbstract =
-    extractLatexCommandArg(texContent, /\\(?:DEELabstract|abstract)\s*(?=\{)/i) ||
-    extractLatexEnvironment(texContent, 'abstract');
+    extractLatexCommandArg(
+      texContent,
+      getCmdPattern('foreignAbstract', ['abstract', 'DEELabstract']),
+    ) || extractLatexEnvironment(texContent, 'abstract');
 
   if (rawResumo && rawAbstract) {
     base.metadata.abstract = cleanLatexText(rawResumo);
@@ -460,7 +550,7 @@ export function parseLatexToProject(
   );
   const rawKeywords = extractLatexCommandArg(
     texContent,
-    /\\(?:palavraschave|palavras-chave|palavras_chave)\s*(?=\{)/i,
+    getCmdPattern('keywords', ['palavraschave', 'palavras-chave', 'palavras_chave']),
   );
   if (ieeeKeywordsMatch) {
     base.metadata.keywords = parseKeywordsList(ieeeKeywordsMatch[1]);
@@ -468,7 +558,10 @@ export function parseLatexToProject(
     base.metadata.keywords = parseKeywordsList(rawKeywords);
   }
 
-  const rawForeignKeywords = extractLatexCommandArg(texContent, /\\keywords\s*(?=\{)/i);
+  const rawForeignKeywords = extractLatexCommandArg(
+    texContent,
+    getCmdPattern('foreignKeywords', ['keywords']),
+  );
   if (rawForeignKeywords) {
     const parsedFk = parseKeywordsList(rawForeignKeywords);
     if (base.metadata.keywords.length === 0) {
@@ -503,23 +596,33 @@ export function parseLatexToProject(
     body = body.slice(0, endDoc);
   }
 
-  // Remove comandos pré-textuais e macros já mapeadas para que não vazem como parágrafos
-  body = removeLatexCommandAndArg(body, /\\(?:DEELdedicatoria|dedicatoria)\s*(?=\{)/i);
-  body = removeLatexCommandAndArg(body, /\\(?:DEELagradecimentos|agradecimentos)\s*(?=\{)/i);
-  body = removeLatexCommandAndArg(body, /\\(?:DEELepigrafe|epigrafe)\s*(?=\{)/i);
-  body = removeLatexCommandAndArg(body, /\\(?:DEELresumo|resumo)\s*(?=\{)/i);
-  body = removeLatexCommandAndArg(body, /\\(?:DEELabstract|abstract)\s*(?=\{)/i);
-  body = removeLatexCommandAndArg(body, /\\(?:DEELautor|autor|author)\s*(?:\[[^\]]*\])?\s*(?=\{)/i);
-  body = removeLatexCommandAndArg(
-    body,
-    /\\(?:titulo|title|titulotrabalho|tituloingles|titulouk)\s*(?:\[[^\]]*\])?\s*(?=\{)/i,
+  // Remove dinamicamente comandos pré-textuais e macros já mapeadas para que não vazem como parágrafos
+  const allDynamicCommandsToStrip = Array.from(
+    new Set([
+      ...getCmdNames('dedicatory', ['dedicatoria']),
+      ...getCmdNames('acknowledgments', ['agradecimentos']),
+      ...getCmdNames('epigraph', ['epigrafe']),
+      ...getCmdNames('abstract', ['resumo']),
+      ...getCmdNames('foreignAbstract', ['abstract']),
+      ...getCmdNames('author', ['autor', 'author']),
+      ...getCmdNames('title', ['titulo', 'title', 'titulotrabalho', 'tituloingles', 'titulouk']),
+      ...getCmdNames('keywords', ['palavraschave', 'palavras-chave', 'palavras_chave']),
+      ...getCmdNames('foreignKeywords', ['keywords']),
+      ...getCmdNames('course', ['curso']),
+      ...getCmdNames('advisor', ['orientador']),
+      ...getCmdNames('committee', ['membrob', 'membroc', 'membro']),
+      'local',
+      'data',
+      'preambulo',
+      'pretextualchapter',
+    ]),
   );
-  body = removeLatexCommandAndArg(body, /\\(?:palavraschave|keywords)\s*(?=\{)/i);
-  body = removeLatexCommandAndArg(
-    body,
-    /\\(?:curso|orientador|membrob|membroc|local|data)\s*(?=\{)/i,
+
+  const stripRegex = new RegExp(
+    `\\\\(?:${allDynamicCommandsToStrip.join('|')})\\s*(?:\\[[^\\]]*\\])?\\s*(?=\\{)`,
+    'i',
   );
-  body = removeLatexCommandAndArg(body, /\\(?:preambulo|pretextualchapter)\s*(?=\{)/i);
+  body = removeLatexCommandAndArg(body, stripRegex);
 
   body = body
     .replace(/\\begin\{resumo\}[\s\S]*?\\end\{resumo\}/gi, '')

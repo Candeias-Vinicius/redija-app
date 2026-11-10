@@ -229,9 +229,21 @@ async function importFromOverleafZip(
     }
   }
 
+  const styleContents: string[] = [];
+  const styleFiles = fileNames.filter((n) => /\.(sty|cls)$/i.test(n));
+  for (const sf of styleFiles) {
+    try {
+      const content = await zip.files[sf].async('string');
+      styleContents.push(content);
+    } catch {
+      // ignore
+    }
+  }
+  const styleDefinitions = styleContents.join('\n');
+
   const { references, imageMap } = await extractReferencesAndImagesFromZip(zip, fileNames);
   const cleanProjectName = zipFileName.replace(/\.zip$/i, '').trim() || 'Projeto Overleaf';
-  return parseLatexToProject(texContent, cleanProjectName, imageMap, references);
+  return parseLatexToProject(texContent, cleanProjectName, imageMap, references, styleDefinitions);
 }
 
 /**

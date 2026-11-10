@@ -250,6 +250,45 @@ describe('Document Importer (DOCX, ZIP Redija, ZIP Overleaf / LaTeX, .redija)', 
       expect(imported.blocks.some((b) => b.content.includes('\\include'))).toBe(false);
     });
 
+    it('aprende macros customizadas dinamicamente a partir de arquivos .sty de qualquer universidade', async () => {
+      const customSty = `
+        \\ProvidesPackage{customuniv}[2024]
+        \\newcommand{\\MinhaFaculdadeTitulo}[1]{\\titulo{#1}}
+        \\newcommand{\\MinhaFaculdadeAutor}[1]{\\autor{#1}}
+        \\newcommand{\\MinhaFaculdadeOrientador}[1]{\\orientador{#1}}
+        \\newcommand{\\MinhaFaculdadeResumo}[1]{\\resumo{#1}}
+        \\newcommand{\\MinhaFaculdadeDedicat}[1]{\\dedicatoria{#1}}
+      `;
+
+      const mainTex = `
+        \\documentclass{abntex2}
+        \\usepackage{customuniv}
+        \\MinhaFaculdadeTitulo{Computação Quântica na Amazônia}
+        \\MinhaFaculdadeAutor{Carlos Silva\\\\Mariana Souza}
+        \\MinhaFaculdadeOrientador{Prof. Dra. Roberta Lima}
+        \\MinhaFaculdadeResumo{Resumo dinâmico totalmente mapeado.}
+        \\MinhaFaculdadeDedicat{Dedico este trabalho aos pioneiros.}
+        \\begin{document}
+        \\chapter{Introdução}
+        Texto introdutório.
+        \\end{document}
+      `;
+
+      const zip = new JSZip();
+      zip.file('customuniv.sty', customSty);
+      zip.file('Main.tex', mainTex);
+
+      const zipBuffer = await zip.generateAsync({ type: 'arraybuffer' });
+      const imported = await importFromZip(zipBuffer, 'universidade_custom.zip');
+
+      expect(imported.metadata.title).toBe('Computação Quântica na Amazônia');
+      expect(imported.metadata.author).toBe('Carlos Silva; Mariana Souza');
+      expect(imported.metadata.advisor).toBe('Prof. Dra. Roberta Lima');
+      expect(imported.metadata.abstract).toBe('Resumo dinâmico totalmente mapeado.');
+      expect(imported.metadata.dedicatory).toBe('Dedico este trabalho aos pioneiros.');
+      expect(imported.blocks.some((b) => b.content.includes('\\MinhaFaculdadeResumo'))).toBe(false);
+    });
+
     it('rejeita arquivo ZIP não reconhecido (sem .redija e sem .tex)', async () => {
       const zip = new JSZip();
       zip.file('random.txt', 'arquivo qualquer');
