@@ -139,11 +139,11 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Seletor de Projetos */}
         <button
           onClick={onOpenProjectsModal}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs font-medium text-neutral-800 dark:text-neutral-200 transition-colors min-w-0 max-w-[200px] lg:max-w-xs"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs font-medium text-neutral-800 dark:text-neutral-200 transition-colors shrink-0 max-w-[170px] sm:max-w-[220px] lg:max-w-xs"
           title="Alternar ou criar trabalho acadêmico"
         >
           <FolderOpen className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          <span className="truncate">{projectName}</span>
+          <span className="truncate min-w-[50px]">{projectName}</span>
           {currentUserRole === 'commenter' && (
             <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 px-1.5 py-0.2 rounded shrink-0">
               Orientador
@@ -326,7 +326,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Botão Compartilhar */}
         <button
           onClick={onOpenShareModal}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors shrink-0"
           title="Compartilhar trabalho e gerenciar membros via Google Drive"
         >
           <Share2 className="w-3.5 h-3.5" />
@@ -337,11 +337,11 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           type="button"
           onClick={onOpenBugReportModal}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-amber-700 dark:text-amber-400 hover:bg-amber-50/60 dark:hover:bg-amber-950/40 transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-amber-700 dark:text-amber-400 hover:bg-amber-50/60 dark:hover:bg-amber-950/40 transition-colors shrink-0"
           title="Relatar problema ou sugestão"
         >
           <Bug className="w-3.5 h-3.5 text-amber-600 dark:text-amber-500 shrink-0" />
-          <span className="hidden sm:inline">Relatar Problema</span>
+          <span className="hidden md:inline">Relatar Problema</span>
         </button>
 
         {/* Separador */}
