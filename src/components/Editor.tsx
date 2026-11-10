@@ -37,6 +37,7 @@ interface EditorProps {
   citationFormat?: CitationFormat;
   referenceOrdering?: ReferenceOrdering;
   isFullWidth?: boolean;
+  isCompact?: boolean;
   activeCollaborators?: CollaboratorPresence[];
   onOpenReferenceModal?: () => void;
   onChangeBlocks: (blocks: Block[]) => void;
@@ -52,6 +53,7 @@ export const Editor: React.FC<EditorProps> = ({
   citationFormat,
   referenceOrdering = 'alphabetical',
   isFullWidth = false,
+  isCompact = false,
   activeCollaborators = [],
   onOpenReferenceModal,
   onChangeBlocks,
@@ -267,20 +269,40 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   return (
-    <div className="flex-1 h-full overflow-y-auto bg-white py-8 pl-24 pr-8 sm:pl-28 sm:pr-14 flex justify-center">
+    <div
+      className={`flex-1 h-full overflow-y-auto bg-white dark:bg-neutral-950 flex justify-center min-w-0 ${
+        isCompact ? 'px-4 py-4' : 'py-8 pl-24 pr-8 sm:pl-28 sm:pr-14'
+      }`}
+    >
       <div
         className={`w-full ${
-          isFullWidth ? 'max-w-5xl' : 'max-w-2xl'
-        } space-y-3 pb-28 transition-all duration-200`}
+          isFullWidth || isCompact ? 'max-w-5xl' : 'max-w-2xl'
+        } space-y-2 sm:space-y-3 pb-28 transition-all duration-200`}
       >
         {/* Dica rápida no topo do editor */}
-        <div className="mb-6 pb-3 border-b border-neutral-100 flex items-center justify-between gap-2 text-xs text-neutral-400">
-          <span>
-            Dica: digite{' '}
-            <kbd className="px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded border border-neutral-200 font-mono">
-              /
-            </kbd>{' '}
-            em um bloco vazio para abrir os blocos ABNT ou selecione texto para formatar.
+        <div
+          className={`mb-4 sm:mb-6 pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-2 text-xs text-neutral-400 ${
+            isCompact ? 'flex-row' : 'items-start sm:items-center'
+          }`}
+        >
+          <span className={`leading-relaxed min-w-0 ${isCompact ? 'truncate' : ''}`}>
+            {isCompact ? (
+              <>
+                Digite{' '}
+                <kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 rounded border border-neutral-200 dark:border-neutral-700 font-mono">
+                  /
+                </kbd>{' '}
+                para blocos
+              </>
+            ) : (
+              <>
+                Dica: digite{' '}
+                <kbd className="px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded border border-neutral-200 font-mono">
+                  /
+                </kbd>{' '}
+                em um bloco vazio para abrir os blocos ABNT ou selecione texto para formatar.
+              </>
+            )}
           </span>
           <div className="flex items-center gap-2 shrink-0">
             <span>{blocks.length} blocos</span>
@@ -321,9 +343,11 @@ export const Editor: React.FC<EditorProps> = ({
                 setDraggedBlockId(null);
                 setDragOverBlockId(null);
               }}
-              className={`group relative flex items-start gap-2.5 -ml-24 pl-24 pr-3 py-1.5 rounded-lg transition-all hover:bg-neutral-50/80 ${
-                draggedBlockId === block.id ? 'opacity-40' : ''
-              } ${
+              className={`group relative rounded-lg transition-all hover:bg-neutral-50/80 dark:hover:bg-neutral-900/50 ${
+                isCompact
+                  ? 'flex flex-col px-1 py-1.5'
+                  : 'flex items-start gap-2.5 -ml-24 pl-24 pr-3 py-1.5'
+              } ${draggedBlockId === block.id ? 'opacity-40' : ''} ${
                 dragOverBlockId === block.id
                   ? 'border-t-2 border-emerald-500 bg-emerald-50/30'
                   : ''
@@ -343,6 +367,8 @@ export const Editor: React.FC<EditorProps> = ({
               <BlockControlsGutter
                 blockId={block.id}
                 isMenuOpen={activeMenuBlockId === block.id}
+                isCompact={isCompact}
+                isActive={focusedBlockId === block.id || activeMenuBlockId === block.id}
                 canDelete={blocks.length > 1}
                 onAddBelow={(id) => addBlock(id)}
                 onToggleMenu={(id) => {
@@ -368,7 +394,7 @@ export const Editor: React.FC<EditorProps> = ({
               )}
 
               {/* Conteúdo do bloco */}
-              <div className="flex-1 min-w-0">{renderBlockContent(block)}</div>
+              <div className="flex-1 min-w-0 w-full">{renderBlockContent(block)}</div>
             </div>
           );
         })}

@@ -195,11 +195,13 @@ export const DocsPage: React.FC<DocsPageProps> = ({
               {isSessionActive ? (
                 <>
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Voltar ao Editor</span>
+                  <span className="sm:hidden">Editor</span>
+                  <span className="hidden sm:inline">Voltar ao Editor</span>
                 </>
               ) : (
                 <>
-                  <span>Abrir RedijaApp</span>
+                  <span className="sm:hidden">Abrir</span>
+                  <span className="hidden sm:inline">Abrir RedijaApp</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </>
               )}

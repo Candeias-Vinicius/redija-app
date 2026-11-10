@@ -23,6 +23,7 @@ import { PanelLeftClose, SlidersHorizontal } from 'lucide-react';
 
 interface SidebarProps {
   widthPx?: number;
+  isCompact?: boolean;
   project: DocumentProject;
   metadata: DocumentMetadata;
   onChangeMetadata: (meta: DocumentMetadata) => void;
@@ -38,7 +39,8 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  widthPx = 320,
+  widthPx,
+  isCompact = false,
   project,
   metadata,
   onChangeMetadata,
@@ -52,6 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onRemoveReference,
   onMinimize,
 }) => {
+  const isFullBleed = isCompact || widthPx == null;
   const [isFieldCustomizerOpen, setIsFieldCustomizerOpen] = useState(false);
 
   const updateField = <K extends keyof DocumentMetadata>(
@@ -74,8 +77,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       <aside
-        style={{ width: `${widthPx}px` }}
-        className="shrink-0 border-r border-neutral-200 bg-white flex flex-col h-full overflow-y-auto"
+        style={isFullBleed ? undefined : { width: `${widthPx}px` }}
+        className={`border-r border-neutral-200 bg-white flex flex-col h-full overflow-y-auto min-w-0 ${
+          isFullBleed ? 'flex-1 w-full' : 'shrink-0'
+        }`}
       >
         <div className="p-3.5 border-b border-neutral-100 flex items-start justify-between gap-2 sticky top-0 bg-white z-10">
           <div className="min-w-0 flex-1">

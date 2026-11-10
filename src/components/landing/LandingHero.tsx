@@ -49,15 +49,16 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
           {/* Tagline / Eyebrow Badge */}
           <button
             onClick={onOpenDoc}
-            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md border transition-all animate-fade-in shadow-xs cursor-pointer hover:opacity-90 ${
+            className={`inline-flex items-center gap-2 px-3 py-1.5 sm:px-3.5 rounded-full text-[11px] sm:text-xs font-semibold backdrop-blur-md border transition-all animate-fade-in shadow-xs cursor-pointer hover:opacity-90 max-w-[calc(100vw-2rem)] ${
               isDark
                 ? 'text-emerald-300 border-emerald-500/30 bg-emerald-950/40'
                 : 'text-emerald-800 border-emerald-200 bg-emerald-50'
             }`}
             title="Clique para explorar normas e padrões suportados"
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>ABNT • SBC • IEEE • APA 7ª • Pôsteres • Typst Universe</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span className="sm:hidden truncate">ABNT • SBC • IEEE • APA • Typst</span>
+            <span className="hidden sm:inline">ABNT • SBC • IEEE • APA 7ª • Pôsteres • Typst Universe</span>
           </button>
 
           {/* Título Principal de Alto Impacto */}
@@ -139,8 +140,8 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                 disabled={isLoading}
                 className={`w-full py-3.5 px-4 rounded-xl border font-semibold text-sm transition-all shadow-sm hover:shadow-md disabled:opacity-50 flex items-center justify-center gap-3 active:scale-[0.99] ${
                   isDark
-                    ? 'border-slate-700 hover:border-slate-600 bg-slate-800 hover:bg-slate-750 text-white'
-                    : 'border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800'
+                    ? 'border-slate-600 hover:border-slate-500 bg-[#ffffff] hover:bg-slate-100 text-slate-950'
+                    : 'border-slate-300 hover:border-slate-400 bg-[#ffffff] hover:bg-slate-50 text-slate-800'
                 }`}
               >
                 {isLoading ? (
@@ -188,7 +189,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
               </div>
 
               {/* Garantias de Confiança */}
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 text-left">
                 <span className="flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                   <span>100% Gratuito e Aberto</span>

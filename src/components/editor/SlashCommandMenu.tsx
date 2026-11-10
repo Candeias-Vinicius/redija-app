@@ -68,7 +68,7 @@ export const SlashCommandMenu: React.FC<SlashCommandMenuProps> = ({
   const filteredOptions = filterSlashOptions(SLASH_OPTION_DEFS, searchQuery);
 
   return (
-    <div className="absolute left-24 top-9 z-30 w-72 bg-white border border-neutral-200 shadow-xl rounded-xl overflow-hidden text-xs">
+    <div className="absolute left-0 sm:left-24 top-10 sm:top-9 z-30 w-[min(18rem,calc(100vw-2rem))] max-w-full bg-white border border-neutral-200 shadow-xl rounded-xl overflow-hidden text-xs">
       <div className="p-2 border-b border-neutral-100 flex items-center gap-2 bg-neutral-50">
         <Search className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
         <input
