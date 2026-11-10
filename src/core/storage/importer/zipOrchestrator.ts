@@ -82,6 +82,15 @@ async function resolveLatexIncludes(
   let match: RegExpExecArray | null;
 
   while ((match = includeRegex.exec(content)) !== null) {
+    // Se a linha estiver comentada com '%' antes do comando, ignora a expansão
+    const lineStart = content.lastIndexOf('\n', match.index);
+    const linePrefix = content.slice(lineStart === -1 ? 0 : lineStart + 1, match.index);
+    if (linePrefix.includes('%')) {
+      resolved += content.slice(lastIndex, includeRegex.lastIndex);
+      lastIndex = includeRegex.lastIndex;
+      continue;
+    }
+
     resolved += content.slice(lastIndex, match.index);
     lastIndex = includeRegex.lastIndex;
 
@@ -182,33 +191,83 @@ async function importFromTypstZip(
   return parseTypstToProject(typContent, cleanProjectName, imageMap, references);
 }
 
+async function findRootLatexFile(zip: JSZip, texFiles: string[]): Promise<string> {
+  const preferredNames = [
+    'main.tex',
+    'documento.tex',
+    'document.tex',
+    'tcc.tex',
+    'artigo.tex',
+    'monografia.tex',
+    'tese.tex',
+    'dissertacao.tex',
+    'trabalho.tex',
+    'paper.tex',
+  ];
+
+  // 1. Procurar arquivos .tex que contenham \begin{document} não comentado
+  const documentCandidates: string[] = [];
+  for (const t of texFiles) {
+    try {
+      const content = await zip.files[t].async('string');
+      const lines = content.split(/\r?\n/);
+      const hasBeginDoc = lines.some((line) => {
+        const trimmed = line.trim();
+        return (
+          trimmed.startsWith('\\begin{document}') ||
+          (/^[^%]*\\begin\{document\}/.test(trimmed))
+        );
+      });
+      if (hasBeginDoc) {
+        documentCandidates.push(t);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (documentCandidates.length === 1) {
+    return documentCandidates[0];
+  }
+
+  if (documentCandidates.length > 1) {
+    const preferredMatch = documentCandidates.find((f) => {
+      const base = f.split('/').pop()?.toLowerCase();
+      return base && preferredNames.includes(base);
+    });
+    if (preferredMatch) return preferredMatch;
+
+    return [...documentCandidates].sort((a, b) => a.split('/').length - b.split('/').length)[0];
+  }
+
+  // 2. Fallback por nomes preferenciais
+  const preferredMatch = texFiles.find((n) => {
+    const base = n.split('/').pop()?.toLowerCase();
+    return base && preferredNames.includes(base);
+  });
+  if (preferredMatch) return preferredMatch;
+
+  // 3. Fallback para o maior arquivo .tex
+  let maxSize = -1;
+  let largestFile = texFiles[0];
+  for (const t of texFiles) {
+    const entry = zip.files[t] as ZipObjectWithInternalData;
+    const size = entry._data?.uncompressedSize ?? 0;
+    if (size > maxSize) {
+      maxSize = size;
+      largestFile = t;
+    }
+  }
+  return largestFile;
+}
+
 async function importFromOverleafZip(
   zip: JSZip,
   fileNames: string[],
   texFiles: string[],
   zipFileName: string,
 ): Promise<DocumentProject> {
-  const preferredNames = ['main.tex', 'tcc.tex', 'artigo.tex', 'document.tex', 'trabalho.tex'];
-  let mainTexFile = texFiles.find((n) => {
-    const base = n.split('/').pop()?.toLowerCase();
-    return base && preferredNames.includes(base);
-  });
-
-  if (!mainTexFile) {
-    let maxSize = -1;
-    for (const t of texFiles) {
-      const entry = zip.files[t] as ZipObjectWithInternalData;
-      const size = entry._data?.uncompressedSize ?? 0;
-      if (size > maxSize) {
-        maxSize = size;
-        mainTexFile = t;
-      }
-    }
-  }
-
-  if (!mainTexFile) {
-    mainTexFile = texFiles[0];
-  }
+  const mainTexFile = await findRootLatexFile(zip, texFiles);
 
   let texContent = await zip.files[mainTexFile].async('string');
   const visited = new Set<string>([mainTexFile.toLowerCase()]);

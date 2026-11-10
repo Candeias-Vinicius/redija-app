@@ -769,5 +769,201 @@ describe('Document Importer (DOCX, ZIP Redija, ZIP Overleaf / LaTeX, .redija)', 
       expect(plainParagraphs.some((p) => p.content.includes('Tabela 1'))).toBe(false);
       expect(plainParagraphs.some((p) => p.content.includes('Fonte: Adaptado'))).toBe(false);
     });
+
+    it('importa projeto complexo Overleaf com documento.tex, quadros, siglas, resumos embutidos e bancas', async () => {
+      const zip = new JSZip();
+
+      // documento.tex (master com \begin{document})
+      zip.file(
+        'documento.tex',
+        `
+        \\documentclass{abntex2}
+        \\input{estrutura/preambulo}
+        \\begin{document}
+        \\input{estrutura/pre-textual}
+        \\input{estrutura/textual}
+        \\end{document}
+      `,
+      );
+
+      // Preambulo e metadados
+      zip.file('estrutura/preambulo.tex', '\\input{configuracoes/metadados}');
+      zip.file(
+        'configuracoes/metadados.tex',
+        `
+        \\titulo{Sistema de Sociometria Aplicada}
+        \\autor{Giovane Dos Santos \\underline{Candeias}}
+        \\nomedocurso{Engenharia de Software}
+        \\orientador{Cap Ruy Liduário}
+        \\local{Resende}
+        \\data{2025}
+        \\tipotrabalho{Monografia}
+        \\membroum{Primeiro Avaliador}
+        \\membrodois{Prof. M\\textsuperscript{e}. Segundo Avaliador}
+        %\\membrotres{Comentado Nao Deve Entrar}
+      `,
+      );
+
+      // Pré-textual
+      zip.file(
+        'estrutura/pre-textual.tex',
+        `
+        \\input{pre-textual/resumo}
+        \\input{pre-textual/resumo-en}
+        \\input{pre-textual/siglas}
+        \\input{pre-textual/dedicatoria}
+        \\input{pre-textual/epigrafe}
+      `,
+      );
+
+      zip.file(
+        'pre-textual/resumo.tex',
+        `
+        \\begin{resumo}
+        \\begin{center}
+          \\textbf{TITULO DO RESUMO}
+        \\end{center}
+        Este trabalho analisa dados de testes sociométricos em equipes.
+        \\textbf{Palavras-chaves}: Sociometria; Python; Grafos.
+        \\end{resumo}
+      `,
+      );
+
+      zip.file(
+        'pre-textual/resumo-en.tex',
+        `
+        \\begin{resumo}[Abstract]
+        \\begin{otherlanguage*}{english}
+        This work analyzes sociometric test data in small teams.
+        \\textbf{Keywords}: Sociometry; Python; Graphs.
+        \\end{otherlanguage*}
+        \\end{resumo}
+      `,
+      );
+
+      zip.file(
+        'pre-textual/siglas.tex',
+        `
+        \\begin{siglas}
+          \\item[API] Application Programming Interface
+          \\item[SGBD] Sistema de Gerenciamento de Banco de Dados
+        \\end{siglas}
+      `,
+      );
+
+      zip.file(
+        'pre-textual/dedicatoria.tex',
+        `
+        \\begin{dedicatoria}
+        %% Comentario a ignorar
+        Dedico esta pesquisa à minha família.
+        \\end{dedicatoria}
+      `,
+      );
+
+      zip.file(
+        'pre-textual/epigrafe.tex',
+        `
+        \\begin{epigrafe}
+        \\emph{"A simplicidade é o último grau de sofisticação."
+        \\\\ Leonardo da Vinci}
+        \\end{epigrafe}
+      `,
+      );
+
+      // Textual com quadros e tabelas
+      zip.file(
+        'estrutura/textual.tex',
+        `
+        \\input{capitulos/cap1}
+        %\\input{capitulos/rascunho-ignorado}
+      `,
+      );
+
+      // Arquivo maior que documento.tex (para testar que NÃO escolhe por tamanho cegamente)
+      zip.file(
+        'capitulos/cap1.tex',
+        `
+        \\chapter{Fundamentação Teórica}
+        Texto introdutório sobre redes sociais.
+
+        \\section{Modelagem Matemática}
+        Detalhamento da modelagem.
+
+        \\begin{quadro}[H]
+        \\caption{Bibliotecas utilizadas}
+        \\begin{longtable}{|p{4cm}|p{8cm}|}
+        \\hline
+        \\textbf{Biblioteca} & \\textbf{Finalidade} \\\\
+        \\hline
+        NetworkX & Manipulação de grafos \\\\
+        Pandas & Análise de dados \\\\
+        \\hline
+        \\end{longtable}
+        \\fonte{Elaborado pelo autor (2025)}
+        \\end{quadro}
+      `,
+      );
+
+      // Arquivo comentado que NÃO deve ser importado
+      zip.file(
+        'capitulos/rascunho-ignorado.tex',
+        `
+        \\chapter{Rascunho que deve sumir}
+        Texto proibido.
+      `,
+      );
+
+      const zipBuf = await zip.generateAsync({ type: 'arraybuffer' });
+      const imported = await importFromZip(zipBuf, 'sociometria_completa.zip');
+
+      expect(imported.metadata.title).toBe('Sistema de Sociometria Aplicada');
+      expect(imported.metadata.author).toBe('Giovane Dos Santos Candeias');
+      expect(imported.metadata.course).toBe('Engenharia de Software');
+      expect(imported.metadata.advisor).toBe('Cap Ruy Liduário');
+      expect(imported.metadata.year).toBe('2025');
+      expect(imported.metadata.dedicatory).toBe('Dedico esta pesquisa à minha família.');
+      expect(imported.metadata.epigraphAuthor).toBe('Leonardo da Vinci');
+      expect(imported.metadata.epigraph).toBe('A simplicidade é o último grau de sofisticação.');
+
+      expect(imported.metadata.committeeMembers).toEqual([
+        'Primeiro Avaliador',
+        'Prof. Me. Segundo Avaliador',
+      ]);
+
+      expect(imported.metadata.abstract).toBe(
+        'Este trabalho analisa dados de testes sociométricos em equipes.',
+      );
+      expect(imported.metadata.keywords).toEqual(['Sociometria', 'Python', 'Grafos']);
+
+      expect(imported.metadata.foreignAbstract).toBe(
+        'This work analyzes sociometric test data in small teams.',
+      );
+      expect(imported.metadata.foreignKeywords).toEqual(['Sociometry', 'Python', 'Graphs']);
+
+      expect(imported.metadata.abbreviations).toContain(
+        'API - Application Programming Interface',
+      );
+      expect(imported.metadata.abbreviations).toContain(
+        'SGBD - Sistema de Gerenciamento de Banco de Dados',
+      );
+
+      expect(imported.metadata.includeBoxesList).toBe(true);
+
+      const boxBlock = imported.blocks.find((b) => b.type === 'box');
+      expect(boxBlock).toBeDefined();
+      expect(boxBlock?.meta?.caption).toBe('Bibliotecas utilizadas');
+      expect(boxBlock?.meta?.source).toBe('Elaborado pelo autor (2025)');
+      expect(boxBlock?.meta?.headers).toEqual(['Biblioteca', 'Finalidade']);
+      expect(boxBlock?.meta?.rows).toEqual([
+        ['NetworkX', 'Manipulação de grafos'],
+        ['Pandas', 'Análise de dados'],
+      ]);
+
+      // Garante que o arquivo comentado não foi lido
+      expect(imported.blocks.some((b) => b.content.includes('Rascunho que deve sumir'))).toBe(
+        false,
+      );
+    });
   });
 });

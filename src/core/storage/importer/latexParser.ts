@@ -126,27 +126,41 @@ function extractLatexEnvironment(content: string, envName: string): string | und
 }
 
 function cleanLatexText(str: string): string {
-  return stripHtmlTags(
-    str
-      .replace(/\\textbf\{([^}]+)\}/g, '$1')
-      .replace(/\\textit\{([^}]+)\}/g, '$1')
-      .replace(/\\emph\{([^}]+)\}/g, '$1')
-      .replace(/\\textsc\{([^}]+)\}/g, '$1')
-      .replace(/\\underline\{([^}]+)\}/g, '$1')
-      .replace(/\\blindtext\b/g, '')
-      .replace(/\\lipsum\b/g, '')
-      .replace(/\\&/g, '&')
-      .replace(/\\%/g, '%')
-      .replace(/\\#/g, '#')
-      .replace(/\\_/g, '_')
-      .replace(/\\~/g, '~')
-      .replace(/\\label\{[^}]+\}/g, '')
-      .replace(/[{}]/g, ''),
-  ).trim();
+  const cleaned = str
+    // Remove linhas ou trechos comentados (% ...) mas preserva \%
+    .replace(/(^|[^\\])%.*$/gm, '$1')
+    .replace(/\\multicolumn\s*\{[^}]*\}\{[^}]*\}\{((?:[^{}]|\{[^{}]*\})*)\}/g, '$1')
+    .replace(/\\multirow\s*\{[^}]*\}\{[^}]*\}\{((?:[^{}]|\{[^{}]*\})*)\}/g, '$1')
+    .replace(/\\textsuperscript\{([^}]+)\}/g, '$1')
+    .replace(/\\textbf\{([^}]+)\}/g, '$1')
+    .replace(/\\textit\{([^}]+)\}/g, '$1')
+    .replace(/\\emph\{([^}]+)\}/g, '$1')
+    .replace(/\\textsc\{([^}]+)\}/g, '$1')
+    .replace(/\\underline\{([^}]+)\}/g, '$1')
+    .replace(/\\ABNTEXfontereduzida\b/g, '')
+    .replace(/\\centering\b/g, '')
+    .replace(/\\center\b/g, '')
+    .replace(/\\begin\{(?:flushleft|flushright|center)\}/gi, '')
+    .replace(/\\end\{(?:flushleft|flushright|center)\}/gi, '')
+    .replace(/\\vspace\*?\{[^}]*\}/gi, '')
+    .replace(/\\hspace\*?\{[^}]*\}/gi, '')
+    .replace(/\\noindent\b/gi, '')
+    .replace(/\\blindtext\b/g, '')
+    .replace(/\\lipsum\b/g, '')
+    .replace(/\\&/g, '&')
+    .replace(/\\%/g, '%')
+    .replace(/\\#/g, '#')
+    .replace(/\\_/g, '_')
+    .replace(/\\~/g, '~')
+    .replace(/\\label\{[^}]+\}/g, '')
+    .replace(/\\cline\{[^}]+\}/g, '')
+    .replace(/[{}]/g, '');
+
+  return stripHtmlTags(cleaned).trim();
 }
 
 function parseKeywordsList(raw: string): string[] {
-  const clean = cleanLatexText(raw);
+  const clean = cleanLatexText(raw).replace(/^:\s*/, '');
   return clean
     .split(/\r?\n|[;,]|\band\b|(?:\s*\d+\.\s+)/i)
     .map((k) => k.replace(/^\d+\.\s*/, '').replace(/\.+$/, '').trim())
@@ -154,38 +168,84 @@ function parseKeywordsList(raw: string): string[] {
 }
 
 function extractLatexAbbreviations(texContent: string): string | undefined {
-  const tabbingMatch = texContent.match(/\\begin\{tabbing\}([\s\S]*?)\\end\{tabbing\}/i);
-  if (!tabbingMatch) return undefined;
-  const lines = tabbingMatch[1].split(/\\\\|\r?\n/);
   const pairs: string[] = [];
-  for (const l of lines) {
-    const trimmed = l.trim();
-    if (!trimmed || trimmed.includes('\\kill')) continue;
-    if (trimmed.includes('\\>')) {
-      const parts = trimmed.split('\\>');
-      const sigla = cleanLatexText(parts[0]).trim();
-      const desc = cleanLatexText(parts.slice(1).join(' ')).trim();
+
+  // Formato 1: \begin{siglas} ... \item[SIGLA] Descricao ... \end{siglas}
+  const siglasMatch = texContent.match(/\\begin\{siglas\}([\s\S]*?)\\end\{siglas\}/i);
+  if (siglasMatch) {
+    const itemRegex = /\\item\s*\[([^\]]+)\]\s*([^\n\\]+)/g;
+    let iMatch: RegExpExecArray | null;
+    while ((iMatch = itemRegex.exec(siglasMatch[1])) !== null) {
+      const sigla = cleanLatexText(iMatch[1]).trim();
+      const desc = cleanLatexText(iMatch[2]).trim();
       if (sigla && desc) {
         pairs.push(`${sigla} - ${desc}`);
       }
     }
   }
+
+  // Formato 2: \begin{tabbing} ... \end{tabbing}
+  const tabbingMatch = texContent.match(/\\begin\{tabbing\}([\s\S]*?)\\end\{tabbing\}/i);
+  if (tabbingMatch && pairs.length === 0) {
+    const lines = tabbingMatch[1].split(/\\\\|\r?\n/);
+    for (const l of lines) {
+      const trimmed = l.trim();
+      if (!trimmed || trimmed.includes('\\kill')) continue;
+      if (trimmed.includes('\\>')) {
+        const parts = trimmed.split('\\>');
+        const sigla = cleanLatexText(parts[0]).trim();
+        const desc = cleanLatexText(parts.slice(1).join(' ')).trim();
+        if (sigla && desc) {
+          pairs.push(`${sigla} - ${desc}`);
+        }
+      }
+    }
+  }
+
   return pairs.length > 0 ? pairs.join('\n') : undefined;
 }
 
 function extractLatexTableBlock(snippet: string): Block | null {
-  const capMatch = snippet.match(/\\caption\{([^}]+)\}/);
-  const caption = capMatch ? cleanLatexText(capMatch[1]) : 'Tabela de dados';
+  const isBox =
+    /\\begin\{quadro\*?\}/i.test(snippet) ||
+    /\\caption\s*(?:\[[^\]]*\])?\s*\{quadro/i.test(snippet);
+  const capMatch = snippet.match(/\\caption(?:\\[[^\\]]*\\])?\{([^}]+)\}/);
+  const caption = capMatch
+    ? cleanLatexText(capMatch[1])
+    : isBox
+      ? 'Quadro explicativo'
+      : 'Tabela de dados';
 
   const srcMatch =
     snippet.match(/\\(?:fonte|source)\{([^}]+)\}/i) ||
     snippet.match(/(?:fonte|source):\s*([^\n\\]+)/i);
   const source = srcMatch ? cleanLatexText(srcMatch[1]) : 'do autor';
 
-  const tabularMatch = snippet.match(
-    /\\begin\{tabular\*?\}(?:\{[^}]*\})?([\s\S]*?)\\end\{tabular\*?\}/i,
-  );
-  const tabularBody = tabularMatch ? tabularMatch[1] : snippet;
+  let tabularBody = snippet;
+  const beginMatch = snippet.match(/\\begin\{(?:tabular\*?|longtable\*?)\}/i);
+  if (beginMatch && beginMatch.index !== undefined) {
+    let idx = beginMatch.index + beginMatch[0].length;
+    // Pula argumentos opcionais [...]
+    while (idx < snippet.length && (snippet[idx] === ' ' || snippet[idx] === '\t' || snippet[idx] === '\n')) idx++;
+    if (snippet[idx] === '[') {
+      while (idx < snippet.length && snippet[idx] !== ']') idx++;
+      if (snippet[idx] === ']') idx++;
+    }
+    // Pula o argumento de especificação de colunas {...} com balanceamento de chaves (ex: {|p{4cm}|p{8cm}|})
+    while (idx < snippet.length && (snippet[idx] === ' ' || snippet[idx] === '\t' || snippet[idx] === '\n')) idx++;
+    if (snippet[idx] === '{') {
+      idx++;
+      let depth = 1;
+      while (idx < snippet.length && depth > 0) {
+        if (snippet[idx] === '{') depth++;
+        else if (snippet[idx] === '}') depth--;
+        idx++;
+      }
+    }
+    const endMatch = snippet.match(/\\end\{(?:tabular\*?|longtable\*?)\}/i);
+    const endIdx = endMatch && endMatch.index !== undefined ? endMatch.index : snippet.length;
+    tabularBody = snippet.slice(idx, endIdx);
+  }
 
   const rawRows = tabularBody.split(/\\\\/);
   const rowsData: string[][] = [];
@@ -196,6 +256,7 @@ function extractLatexTableBlock(snippet: string): Block | null {
       .replace(/\\toprule/g, '')
       .replace(/\\midrule/g, '')
       .replace(/\\bottomrule/g, '')
+      .replace(/\\cline\{[^}]+\}/g, '')
       .trim();
 
     if (!cleanedRow) continue;
@@ -221,7 +282,7 @@ function extractLatexTableBlock(snippet: string): Block | null {
 
   return {
     id: crypto.randomUUID(),
-    type: 'table',
+    type: isBox ? 'box' : 'table',
     content: '',
     meta: {
       headers,
@@ -229,6 +290,93 @@ function extractLatexTableBlock(snippet: string): Block | null {
       caption,
       source,
     },
+  };
+}
+
+function extractLatexAbstractAndKeywords(content: string): {
+  abstract?: string;
+  keywords?: string[];
+  foreignAbstract?: string;
+  foreignKeywords?: string[];
+} {
+  let abstractText: string | undefined;
+  let keywordsList: string[] | undefined;
+  let foreignAbstractText: string | undefined;
+  let foreignKeywordsList: string[] | undefined;
+
+  // 1. Foreign Abstract: \begin{resumo}[Abstract] ... \end{resumo} ou \begin{abstract} ... \end{abstract}
+  const foreignResumoMatch = content.match(
+    /\\begin\{resumo\}\s*\[(?:abstract|english|ingl[eê]s)\]([\s\S]*?)\\end\{resumo\}/i,
+  );
+  const standardAbstractMatch = content.match(
+    /\\begin\{abstract\}([\s\S]*?)\\end\{abstract\}/i,
+  );
+  const foreignRaw = foreignResumoMatch
+    ? foreignResumoMatch[1]
+    : standardAbstractMatch
+      ? standardAbstractMatch[1]
+      : undefined;
+
+  if (foreignRaw) {
+    const kwMatch = foreignRaw.match(
+      /(?:\\textbf\{Keywords?:?\}|Keywords?:?)\s*:?\s*([\s\S]*?)(?:\\end|\n\s*\n|\\vspace|$)/i,
+    );
+    if (kwMatch) {
+      foreignKeywordsList = parseKeywordsList(kwMatch[1]);
+    }
+    let cleanF = foreignRaw
+      .replace(/\\begin\{otherlanguage\*?\}\{[^}]*\}/gi, '')
+      .replace(/\\end\{otherlanguage\*?\}/gi, '')
+      .replace(/\\begin\{center\}[\s\S]*?\\end\{center\}/gi, '')
+      .replace(/(?:\\textbf\{Keywords?:?\}|Keywords?:?)\s*:?[\s\S]*?(?:\\end|\n\s*\n|\\vspace|$)/gi, '')
+      .replace(/\\vspace\*?\{[^}]*\}/gi, '')
+      .replace(/\\noindent\b/gi, '');
+    cleanF = cleanLatexText(cleanF);
+    if (cleanF) {
+      foreignAbstractText = cleanF;
+    }
+  }
+
+  // 2. Portuguese Abstract: \begin{resumo} (sem [Abstract]) ... \end{resumo}
+  const resumoRegex =
+    /\\begin\{resumo\}(?:\s*\[([^\]]*)\])?([\s\S]*?)\\end\{resumo\}/gi;
+  let rMatch: RegExpExecArray | null;
+  while ((rMatch = resumoRegex.exec(content)) !== null) {
+    const bracketArg = (rMatch[1] || '').trim().toLowerCase();
+    if (
+      bracketArg === 'abstract' ||
+      bracketArg === 'english' ||
+      bracketArg === 'inglês' ||
+      bracketArg === 'ingles'
+    ) {
+      continue;
+    }
+    const ptRaw = rMatch[2];
+    const kwMatch = ptRaw.match(
+      /(?:\\textbf\{Palavras[- ]?chaves?:?\}|Palavras[- ]?chaves?:?)\s*:?\s*([\s\S]*?)(?:\\end|\n\s*\n|\\vspace|$)/i,
+    );
+    if (kwMatch) {
+      keywordsList = parseKeywordsList(kwMatch[1]);
+    }
+    let cleanPt = ptRaw
+      .replace(/\\begin\{otherlanguage\*?\}\{[^}]*\}/gi, '')
+      .replace(/\\end\{otherlanguage\*?\}/gi, '')
+      .replace(/\\begin\{center\}[\s\S]*?\\end\{center\}/gi, '')
+      .replace(/(?:\\textbf\{Palavras[- ]?chaves?:?\}|Palavras[- ]?chaves?:?)\s*:?[\s\S]*?(?:\\end|\n\s*\n|\\vspace|$)/gi, '')
+      .replace(/\\vspace\*?\{[^}]*\}/gi, '')
+      .replace(/\\noindent\b/gi, '');
+    cleanPt = cleanLatexText(cleanPt);
+    if (cleanPt) {
+      abstractText = cleanPt;
+      break;
+    }
+  }
+
+  return {
+    abstract: abstractText,
+    keywords: keywordsList,
+    foreignAbstract: foreignAbstractText,
+    foreignKeywords: foreignKeywordsList,
   };
 }
 
@@ -411,7 +559,7 @@ export function parseLatexToProject(
   );
   const rawCourse = extractLatexCommandArg(
     texContent,
-    getCmdPattern('course', ['curso', 'course', 'programa', 'departamento']),
+    getCmdPattern('course', ['curso', 'course', 'programa', 'departamento', 'nomedocurso']),
   );
   const rawAdvisor = extractLatexCommandArg(
     texContent,
@@ -423,6 +571,10 @@ export function parseLatexToProject(
   );
   const rawLocation = extractLatexCommandArg(texContent, /\\local\s*(?=\{)/i);
   const rawDate = extractLatexCommandArg(texContent, /\\(?:data|date|ano)\s*(?=\{)/i);
+  const rawNature = extractLatexCommandArg(
+    texContent,
+    /\\(?:preambulo|tipotrabalho)\s*(?=\{)/i,
+  );
 
   if (rawTitle) {
     const cleanTitle = cleanLatexText(rawTitle.replace(/\\\\/g, ' '));
@@ -450,6 +602,9 @@ export function parseLatexToProject(
     base.metadata.author = authorsList.join('; ');
   }
   if (rawCourse) base.metadata.course = cleanLatexText(rawCourse);
+  if (rawNature && !base.metadata.nature) {
+    base.metadata.nature = cleanLatexText(rawNature);
+  }
   if (rawInstitution) {
     base.metadata.institution = cleanLatexText(rawInstitution.replace(/\\\\/g, ' — '));
   } else if (/universidade cat[oó]lica do salvador|ucsal/i.test(texContent)) {
@@ -468,20 +623,43 @@ export function parseLatexToProject(
   const committeeMembers: string[] = [];
   const committeeNames = getCmdNames('committee', [
     'membro',
+    'membroum',
+    'membrodois',
+    'membrotres',
+    'membroquatro',
+    'membroa',
     'membrob',
     'membroc',
+    'membrod',
     'examinador',
     'banca',
   ]);
-  const committeeRegex = new RegExp(
-    `\\\\(?:${committeeNames.join('|')})\\s*(?:\\[[^\\]]*\\])?\\{([^}]+)\\}`,
-    'gi',
-  );
-  const memberMatches = texContent.matchAll(committeeRegex);
-  for (const m of memberMatches) {
-    const member = cleanLatexText(m[1]).trim();
-    if (member && !committeeMembers.includes(member)) {
-      committeeMembers.push(member);
+  for (const name of committeeNames) {
+    const regex = new RegExp(`\\\\${name}\\s*(?:\\[[^\\]]*\\])?\\s*(?=\\{)`, 'gi');
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(texContent)) !== null) {
+      // Ignora se estiver comentado
+      const lineStart = texContent.lastIndexOf('\n', m.index);
+      const linePrefix = texContent.slice(lineStart === -1 ? 0 : lineStart + 1, m.index);
+      if (linePrefix.includes('%')) continue;
+
+      let idx = m.index + m[0].length;
+      while (idx < texContent.length && texContent[idx] !== '{') idx++;
+      if (texContent[idx] !== '{') continue;
+      idx++;
+      let depth = 1;
+      let arg = '';
+      while (idx < texContent.length && depth > 0) {
+        const ch = texContent[idx];
+        if (ch === '{') depth++;
+        else if (ch === '}') depth--;
+        if (depth > 0) arg += ch;
+        idx++;
+      }
+      const member = cleanLatexText(arg).trim();
+      if (member && !committeeMembers.includes(member)) {
+        committeeMembers.push(member);
+      }
     }
   }
   if (committeeMembers.length > 0) {
@@ -514,9 +692,21 @@ export function parseLatexToProject(
       getCmdPattern('epigraph', ['epigrafe', 'DEELepigrafe']),
     ) || extractLatexEnvironment(texContent, 'epigrafe');
   if (rawEpigrafe) {
-    let cleanEpig = cleanLatexText(rawEpigrafe.replace(/\\\\/g, ' '));
+    let cleanEpig = rawEpigrafe
+      .replace(/\\begin\{flushright\}/gi, '')
+      .replace(/\\end\{flushright\}/gi, '')
+      .replace(/\\vspace\*?\{[^}]*\}/gi, '');
+    cleanEpig = cleanLatexText(cleanEpig.replace(/\\\\/g, '\n'));
+    const lines = cleanEpig.split('\n').map((l) => l.trim()).filter(Boolean);
+    if (lines.length > 1) {
+      const lastLine = lines[lines.length - 1];
+      if (/^[A-ZÀ-Ú][a-zA-ZÀ-ÿ\s.-]+$/.test(lastLine) && lastLine.length < 60) {
+        base.metadata.epigraphAuthor = lastLine;
+        cleanEpig = lines.slice(0, -1).join(' ');
+      }
+    }
     const authorMatch = cleanEpig.match(/\(([^)]+)\)\s*$/);
-    if (authorMatch) {
+    if (authorMatch && !base.metadata.epigraphAuthor) {
       base.metadata.epigraphAuthor = authorMatch[1].trim();
       cleanEpig = cleanEpig.replace(/\(([^)]+)\)\s*$/, '').trim();
     }
@@ -526,48 +716,65 @@ export function parseLatexToProject(
       .trim();
   }
 
-  const rawResumo =
-    extractLatexCommandArg(texContent, getCmdPattern('abstract', ['resumo', 'DEELresumo'])) ||
-    extractLatexEnvironment(texContent, 'resumo');
-
-  const rawAbstract =
-    extractLatexCommandArg(
-      texContent,
-      getCmdPattern('foreignAbstract', ['abstract', 'DEELabstract']),
-    ) || extractLatexEnvironment(texContent, 'abstract');
-
-  if (rawResumo && rawAbstract) {
-    base.metadata.abstract = cleanLatexText(rawResumo);
-    base.metadata.foreignAbstract = cleanLatexText(rawAbstract);
-  } else if (rawResumo) {
-    base.metadata.abstract = cleanLatexText(rawResumo);
-  } else if (rawAbstract) {
-    base.metadata.abstract = cleanLatexText(rawAbstract);
+  const extractedAbstracts = extractLatexAbstractAndKeywords(texContent);
+  if (extractedAbstracts.abstract && extractedAbstracts.foreignAbstract) {
+    base.metadata.abstract = extractedAbstracts.abstract;
+    base.metadata.foreignAbstract = extractedAbstracts.foreignAbstract;
+  } else if (extractedAbstracts.abstract) {
+    base.metadata.abstract = extractedAbstracts.abstract;
+  } else if (extractedAbstracts.foreignAbstract) {
+    base.metadata.abstract = extractedAbstracts.foreignAbstract;
   }
 
-  const ieeeKeywordsMatch = texContent.match(
-    /\\begin\{IEEEkeywords\}([\s\S]*?)\\end\{IEEEkeywords\}/i,
-  );
-  const rawKeywords = extractLatexCommandArg(
-    texContent,
-    getCmdPattern('keywords', ['palavraschave', 'palavras-chave', 'palavras_chave']),
-  );
-  if (ieeeKeywordsMatch) {
-    base.metadata.keywords = parseKeywordsList(ieeeKeywordsMatch[1]);
-  } else if (rawKeywords) {
-    base.metadata.keywords = parseKeywordsList(rawKeywords);
+  if (extractedAbstracts.keywords && extractedAbstracts.keywords.length > 0) {
+    base.metadata.keywords = extractedAbstracts.keywords;
   }
-
-  const rawForeignKeywords = extractLatexCommandArg(
-    texContent,
-    getCmdPattern('foreignKeywords', ['keywords']),
-  );
-  if (rawForeignKeywords) {
-    const parsedFk = parseKeywordsList(rawForeignKeywords);
+  if (extractedAbstracts.foreignKeywords && extractedAbstracts.foreignKeywords.length > 0) {
     if (base.metadata.keywords.length === 0) {
-      base.metadata.keywords = parsedFk;
+      base.metadata.keywords = extractedAbstracts.foreignKeywords;
     } else {
-      base.metadata.foreignKeywords = parsedFk;
+      base.metadata.foreignKeywords = extractedAbstracts.foreignKeywords;
+    }
+  }
+
+  if (!base.metadata.abstract) {
+    const rawResumo =
+      extractLatexCommandArg(texContent, getCmdPattern('abstract', ['resumo', 'DEELresumo'])) ||
+      extractLatexEnvironment(texContent, 'resumo');
+    if (rawResumo) base.metadata.abstract = cleanLatexText(rawResumo);
+  }
+
+  if (!base.metadata.foreignAbstract) {
+    const rawAbstract =
+      extractLatexCommandArg(
+        texContent,
+        getCmdPattern('foreignAbstract', ['abstract', 'DEELabstract']),
+      ) || extractLatexEnvironment(texContent, 'abstract');
+    if (rawAbstract) base.metadata.foreignAbstract = cleanLatexText(rawAbstract);
+  }
+
+  if (base.metadata.keywords.length === 0) {
+    const ieeeKeywordsMatch = texContent.match(
+      /\\begin\{IEEEkeywords\}([\s\S]*?)\\end\{IEEEkeywords\}/i,
+    );
+    const rawKeywords = extractLatexCommandArg(
+      texContent,
+      getCmdPattern('keywords', ['palavraschave', 'palavras-chave', 'palavras_chave']),
+    );
+    if (ieeeKeywordsMatch) {
+      base.metadata.keywords = parseKeywordsList(ieeeKeywordsMatch[1]);
+    } else if (rawKeywords) {
+      base.metadata.keywords = parseKeywordsList(rawKeywords);
+    }
+  }
+
+  if (!base.metadata.foreignKeywords || base.metadata.foreignKeywords.length === 0) {
+    const rawForeignKeywords = extractLatexCommandArg(
+      texContent,
+      getCmdPattern('foreignKeywords', ['keywords']),
+    );
+    if (rawForeignKeywords) {
+      base.metadata.foreignKeywords = parseKeywordsList(rawForeignKeywords);
     }
   }
 
@@ -608,13 +815,23 @@ export function parseLatexToProject(
       ...getCmdNames('title', ['titulo', 'title', 'titulotrabalho', 'tituloingles', 'titulouk']),
       ...getCmdNames('keywords', ['palavraschave', 'palavras-chave', 'palavras_chave']),
       ...getCmdNames('foreignKeywords', ['keywords']),
-      ...getCmdNames('course', ['curso']),
+      ...getCmdNames('course', ['curso', 'nomedocurso']),
       ...getCmdNames('advisor', ['orientador']),
-      ...getCmdNames('committee', ['membrob', 'membroc', 'membro']),
+      ...getCmdNames('committee', [
+        'membrob',
+        'membroc',
+        'membro',
+        'membroum',
+        'membrodois',
+        'membrotres',
+        'membroquatro',
+      ]),
       'local',
       'data',
       'preambulo',
       'pretextualchapter',
+      'tipotrabalho',
+      'dataapresentacao',
     ]),
   );
 
@@ -625,16 +842,18 @@ export function parseLatexToProject(
   body = removeLatexCommandAndArg(body, stripRegex);
 
   body = body
-    .replace(/\\begin\{resumo\}[\s\S]*?\\end\{resumo\}/gi, '')
+    .replace(/\\begin\{resumo\}(?:\s*\[[^\]]*\])?[\s\S]*?\\end\{resumo\}/gi, '')
     .replace(/\\begin\{abstract\}[\s\S]*?\\end\{abstract\}/gi, '')
     .replace(/\\begin\{dedicatoria\}[\s\S]*?\\end\{dedicatoria\}/gi, '')
     .replace(/\\begin\{agradecimentos\}[\s\S]*?\\end\{agradecimentos\}/gi, '')
     .replace(/\\begin\{epigrafe\}[\s\S]*?\\end\{epigrafe\}/gi, '')
+    .replace(/\\begin\{siglas\}[\s\S]*?\\end\{siglas\}/gi, '')
     .replace(/\\begin\{IEEEkeywords\}[\s\S]*?\\end\{IEEEkeywords\}/gi, '')
     .replace(/\\begin\{tabbing\}[\s\S]*?\\end\{tabbing\}/gi, '');
 
   const blocks: Block[] = [];
   const lines = body.split(/\r?\n/);
+  const hasChapters = /\\chapter\*?\{/.test(body);
   let currentParagraph = '';
 
   const flushParagraph = () => {
@@ -730,14 +949,27 @@ export function parseLatexToProject(
       continue;
     }
 
-    // AMBIENTE: TABELA (\begin{table} ... \end{table} ou \begin{tabular} ... \end{tabular})
-    if (line.includes('\\begin{table}') || line.includes('\\begin{tabular}')) {
+    // AMBIENTE: TABELA OU QUADRO (\begin{table...}, \begin{quadro...}, \begin{tabular...}, \begin{longtable...})
+    const isTableOrQuadro =
+      /\\begin\{(?:table\*?|quadro\*?|tabular\*?|longtable\*?)\}/i.test(line);
+    if (isTableOrQuadro) {
       flushParagraph();
-      const isStandaloneTabular =
-        !line.includes('\\begin{table}') && line.includes('\\begin{tabular}');
-      const endMarker = isStandaloneTabular ? '\\end{tabular}' : '\\end{table}';
+      let endMarker = '\\end{table}';
+      if (/\\begin\{quadro\*?\}/i.test(line)) {
+        endMarker = /\\begin\{quadro\*\}/i.test(line) ? '\\end{quadro*}' : '\\end{quadro}';
+      } else if (/\\begin\{table\*?\}/i.test(line)) {
+        endMarker = /\\begin\{table\*\}/i.test(line) ? '\\end{table*}' : '\\end{table}';
+      } else if (/\\begin\{longtable\*?\}/i.test(line)) {
+        endMarker = /\\begin\{longtable\*\}/i.test(line) ? '\\end{longtable*}' : '\\end{longtable}';
+      } else if (/\\begin\{tabular\*?\}/i.test(line)) {
+        endMarker = /\\begin\{tabular\*\}/i.test(line) ? '\\end{tabular*}' : '\\end{tabular}';
+      }
+
       let tableContent = rawLine;
-      while (i + 1 < lines.length && !tableContent.includes(endMarker)) {
+      while (
+        i + 1 < lines.length &&
+        !tableContent.toLowerCase().includes(endMarker.toLowerCase())
+      ) {
         i++;
         tableContent += '\n' + lines[i];
       }
@@ -874,46 +1106,48 @@ export function parseLatexToProject(
     }
 
     // TÍTULOS E CAPÍTULOS
-    const chapterMatch = line.match(/\\chapter\{([^}]+)\}/);
+    const chapterMatch = line.match(/\\chapter(\*?)\{([^}]+)\}/);
     if (chapterMatch) {
       flushParagraph();
+      const isStarred = chapterMatch[1] === '*';
       blocks.push({
         id: crypto.randomUUID(),
-        type: 'h1',
-        content: cleanLatexText(chapterMatch[1]),
+        type: isStarred ? 'unnumbered_heading' : 'h1',
+        content: cleanLatexText(chapterMatch[2]),
       });
       continue;
     }
 
-    const secMatch = line.match(/\\section\{([^}]+)\}/);
+    const secMatch = line.match(/\\section(\*?)\{([^}]+)\}/);
     if (secMatch) {
       flushParagraph();
+      const isStarred = secMatch[1] === '*';
       blocks.push({
         id: crypto.randomUUID(),
-        type: 'h1',
-        content: cleanLatexText(secMatch[1]),
+        type: isStarred ? 'unnumbered_heading' : hasChapters ? 'h2' : 'h1',
+        content: cleanLatexText(secMatch[2]),
       });
       continue;
     }
 
-    const subSecMatch = line.match(/\\subsection\{([^}]+)\}/);
+    const subSecMatch = line.match(/\\subsection(\*?)\{([^}]+)\}/);
     if (subSecMatch) {
       flushParagraph();
       blocks.push({
         id: crypto.randomUUID(),
-        type: 'h2',
-        content: cleanLatexText(subSecMatch[1]),
+        type: hasChapters ? 'h3' : 'h2',
+        content: cleanLatexText(subSecMatch[2]),
       });
       continue;
     }
 
-    const subSubMatch = line.match(/\\subsubsection\{([^}]+)\}/);
+    const subSubMatch = line.match(/\\subsubsection(\*?)\{([^}]+)\}/);
     if (subSubMatch) {
       flushParagraph();
       blocks.push({
         id: crypto.randomUUID(),
-        type: 'h3',
-        content: cleanLatexText(subSubMatch[1]),
+        type: hasChapters ? 'h4' : 'h3',
+        content: cleanLatexText(subSubMatch[2]),
       });
       continue;
     }
@@ -927,6 +1161,16 @@ export function parseLatexToProject(
   }
 
   flushParagraph();
+
+  if (blocks.some((b) => b.type === 'box')) {
+    base.metadata.includeBoxesList = true;
+  }
+  if (blocks.some((b) => b.type === 'table')) {
+    base.metadata.includeTablesList = true;
+  }
+  if (blocks.some((b) => b.type === 'image')) {
+    base.metadata.includeFiguresList = true;
+  }
 
   return {
     ...base,
