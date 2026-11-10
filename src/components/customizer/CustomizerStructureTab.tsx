@@ -1,10 +1,12 @@
 import React from 'react';
-import { BookOpen, Palette, Trash2, Upload } from 'lucide-react';
+import { BookOpen, Lock, Palette, Trash2, Upload } from 'lucide-react';
 import { DocumentMetadata, TemplateConfig } from '@/types/document';
+import { CustomizerScope } from '@/core/templates/templateCapabilities';
 
 interface CustomizerStructureTabProps {
   config: TemplateConfig;
   metadata: DocumentMetadata;
+  scope?: CustomizerScope;
   onUpdateField: <K extends keyof TemplateConfig>(key: K, value: TemplateConfig[K]) => void;
   onLogoUpload: (file: File) => void;
   onRemoveLogo: () => void;
@@ -13,10 +15,14 @@ interface CustomizerStructureTabProps {
 export const CustomizerStructureTab: React.FC<CustomizerStructureTabProps> = ({
   config,
   metadata,
+  scope,
   onUpdateField,
   onLogoUpload,
   onRemoveLogo,
 }) => {
+  const isStructureLocked =
+    Boolean(scope && !scope.allowCoverToggle && !scope.allowTitlePageToggle && !scope.allowTocToggle);
+
   return (
     <div className="space-y-5">
       {/* Estrutura & Brasão */}
@@ -28,31 +34,64 @@ export const CustomizerStructureTab: React.FC<CustomizerStructureTabProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2 bg-neutral-50 p-3.5 rounded-xl border border-neutral-200">
-            <span className="block text-xs font-semibold text-neutral-800 mb-1">
-              Elementos Automáticos do Documento
-            </span>
-            <label className="flex items-center gap-2 text-xs text-neutral-700 cursor-pointer">
+            <div className="flex items-center justify-between mb-1">
+              <span className="block text-xs font-semibold text-neutral-800">
+                Elementos Automáticos do Documento
+              </span>
+              {isStructureLocked && (
+                <span
+                  className="flex items-center gap-1 text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"
+                  title={scope?.structureLockedReason}
+                >
+                  <Lock className="w-2.5 h-2.5 text-amber-600" />
+                  Travado
+                </span>
+              )}
+            </div>
+
+            {isStructureLocked && scope?.structureLockedReason && (
+              <p className="text-[11px] text-amber-800 bg-amber-50/80 p-2 rounded-lg border border-amber-200 mb-2 leading-relaxed">
+                {scope.structureLockedReason}
+              </p>
+            )}
+
+            <label
+              className={`flex items-center gap-2 text-xs text-neutral-700 ${
+                isStructureLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+              }`}
+            >
               <input
                 type="checkbox"
-                checked={config.includeCoverPage}
+                checked={isStructureLocked ? false : config.includeCoverPage}
+                disabled={isStructureLocked}
                 onChange={(e) => onUpdateField('includeCoverPage', e.target.checked)}
                 className="rounded text-emerald-600 focus:ring-emerald-500"
               />
               Gerar Capa (NBR 14724)
             </label>
-            <label className="flex items-center gap-2 text-xs text-neutral-700 cursor-pointer">
+            <label
+              className={`flex items-center gap-2 text-xs text-neutral-700 ${
+                isStructureLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+              }`}
+            >
               <input
                 type="checkbox"
-                checked={config.includeTitlePage}
+                checked={isStructureLocked ? false : config.includeTitlePage}
+                disabled={isStructureLocked}
                 onChange={(e) => onUpdateField('includeTitlePage', e.target.checked)}
                 className="rounded text-emerald-600 focus:ring-emerald-500"
               />
               Gerar Folha de Rosto com Natureza e Orientador
             </label>
-            <label className="flex items-center gap-2 text-xs text-neutral-700 cursor-pointer">
+            <label
+              className={`flex items-center gap-2 text-xs text-neutral-700 ${
+                isStructureLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+              }`}
+            >
               <input
                 type="checkbox"
-                checked={config.includeToc}
+                checked={isStructureLocked ? false : config.includeToc}
+                disabled={isStructureLocked}
                 onChange={(e) => onUpdateField('includeToc', e.target.checked)}
                 className="rounded text-emerald-600 focus:ring-emerald-500"
               />

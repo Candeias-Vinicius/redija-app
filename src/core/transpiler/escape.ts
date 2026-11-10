@@ -247,7 +247,7 @@ export function richTextToTypst(input: string, ctx?: RichTextTypstContext): stri
     const rawMode = extractHtmlAttribute(parsed.attrs, 'data-cite-mode')?.trim();
     const mode = rawMode === 'narrative' ? 'narrative' : 'parenthetical';
     const fallbackText = stripHtmlTags(parsed.inner);
-    const format = ctx?.citationFormat ?? 'abnt_upper';
+    const format = ctx?.citationFormat ?? 'abnt_titlecase';
 
     const ref = citeId && ctx?.references ? ctx.references.find((r) => r.id === citeId) : undefined;
     if (!ref) {
@@ -309,7 +309,7 @@ export function richTextToTypst(input: string, ctx?: RichTextTypstContext): stri
           page: b.groupPage,
           refNumber: b.groupRefNumber,
         })),
-        ctx?.citationFormat ?? 'abnt_upper',
+        ctx?.citationFormat ?? 'abnt_titlecase',
       );
       return pushAtom(grouped.typst);
     }
