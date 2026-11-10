@@ -52,7 +52,7 @@ export const Editor: React.FC<EditorProps> = ({
   blocks,
   metadata,
   references,
-  citationStyle = 'uppercase',
+  citationStyle = 'titlecase',
   citationFormat,
   referenceOrdering = 'alphabetical',
   isFullWidth = false,

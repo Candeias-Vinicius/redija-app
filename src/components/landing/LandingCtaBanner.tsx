@@ -43,7 +43,7 @@ export const LandingCtaBanner: React.FC<LandingCtaBannerProps> = ({
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <button
                 onClick={onLogin}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-bold text-sm bg-white hover:bg-slate-100 text-slate-900 transition-all shadow-lg active:scale-95"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-bold text-sm bg-[#ffffff] hover:bg-slate-100 text-slate-950 transition-all shadow-lg active:scale-95"
               >
                 <span>Continuar com o Google</span>
                 <ArrowRight className="w-4 h-4" />

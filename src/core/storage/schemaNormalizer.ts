@@ -81,10 +81,19 @@ export function normalizeProject(raw: unknown): DocumentProject {
     unknown
   >;
 
+  const DEMO_TCC_TITLE =
+    'Desenvolvimento de uma Plataforma Automatizada para Redação Científica em Conformidade com as Normas da ABNT';
+  const rawTitle = typeof rawMeta.title === 'string' ? rawMeta.title : name;
+  const rawAuthor = typeof rawMeta.author === 'string' ? rawMeta.author : 'Nome do Autor';
+  // Migra o nome do autor do documento de exemplo legado (antes usava o nome do mantenedor).
+  const isLegacyDemoAuthor =
+    rawTitle === DEMO_TCC_TITLE &&
+    /^vin[ií]cius\s+candeias$/i.test(rawAuthor.trim());
+
   const metadata: DocumentMetadata = {
-    title: typeof rawMeta.title === 'string' ? rawMeta.title : name,
+    title: rawTitle,
     subtitle: typeof rawMeta.subtitle === 'string' ? rawMeta.subtitle : '',
-    author: typeof rawMeta.author === 'string' ? rawMeta.author : 'Nome do Autor',
+    author: isLegacyDemoAuthor ? 'Nome do Autor' : rawAuthor,
     advisor: typeof rawMeta.advisor === 'string' ? rawMeta.advisor : '',
     coadvisor: typeof rawMeta.coadvisor === 'string' ? rawMeta.coadvisor : undefined,
     nature: typeof rawMeta.nature === 'string' ? rawMeta.nature : '',
@@ -183,20 +192,20 @@ export function normalizeProject(raw: unknown): DocumentProject {
     typeof rawConfig.citationFormat === 'string' &&
     validCitationFormats.includes(rawConfig.citationFormat as CitationFormat)
       ? (rawConfig.citationFormat as CitationFormat)
-      : rawConfig.citationStyle === 'titlecase'
-        ? 'abnt_titlecase'
+      : rawConfig.citationStyle === 'uppercase'
+        ? 'abnt_upper'
         : sanitizedPreset === 'ieee'
           ? 'ieee_numeric'
-          : 'abnt_upper';
+          : DEFAULT_TEMPLATE_CONFIG.citationFormat ?? 'abnt_titlecase';
 
   const sanitizedCitationStyle: 'uppercase' | 'titlecase' =
-    rawConfig.citationStyle === 'titlecase'
-      ? 'titlecase'
-      : rawConfig.citationStyle === 'uppercase'
-        ? 'uppercase'
-        : sanitizedCitationFormat === 'abnt_titlecase' || sanitizedCitationFormat === 'author_date'
-          ? 'titlecase'
-          : 'uppercase';
+    rawConfig.citationStyle === 'uppercase'
+      ? 'uppercase'
+      : rawConfig.citationStyle === 'titlecase'
+        ? 'titlecase'
+        : sanitizedCitationFormat === 'abnt_upper'
+          ? 'uppercase'
+          : DEFAULT_TEMPLATE_CONFIG.citationStyle;
 
   const sanitizedHighlight: ReferenceHighlight =
     typeof rawConfig.referenceHighlight === 'string' &&

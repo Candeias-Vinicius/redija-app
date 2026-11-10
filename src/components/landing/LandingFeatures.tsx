@@ -88,10 +88,10 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                    5 estilos reativos de chamada no texto (@)
+                    Estilos reativos de chamada no texto (@)
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Alterne retroativamente entre (SILVA, 2024), (Silva, 2024) da NBR 10520:2023, numérico IEEE [1], sobrescrito ¹ e APA 7ª (Silva, 2024).
+                    Padrão ABNT NBR 10520:2023 em caixa mista (Silva, 2024), numérico IEEE [1], sobrescrito ¹ e APA 7ª (Silva, 2024) com sincronização em tempo real.
                   </p>
                 </div>
               </div>

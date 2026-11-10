@@ -83,6 +83,7 @@ export interface DocumentMetadata {
 export type NormPresetId =
   | 'abnt_classic'
   | 'abnt_2023'
+  | 'article_1col'
   | 'article_2col'
   | 'apa_7'
   | 'sbc'
@@ -197,8 +198,8 @@ export const DEFAULT_TEMPLATE_CONFIG: TemplateConfig = {
   includeCoverPage: true,
   includeTitlePage: true,
   includeToc: true,
-  citationStyle: 'uppercase',
-  citationFormat: 'abnt_upper',
+  citationStyle: 'titlecase',
+  citationFormat: 'abnt_titlecase',
   referenceHighlight: 'bold',
   referenceAlignment: 'left',
   referenceSpacing: 'single_blank',

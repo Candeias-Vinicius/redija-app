@@ -55,7 +55,7 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
         'Resumo (150–500 palavras), Abstract e listas automáticas',
         'Numeração progressiva até a 5ª seção (NBR 6024)',
         'Tabelas estatísticas IBGE e Quadros textuais fechados',
-        'Verificador ABNT ativo com suporte a citações NBR 10520:2002 e 2023',
+        'Verificador ABNT ativo com conformidade à NBR 10520:2023 vigente',
         'Apêndices, anexos e glossário opcionais',
       ],
     },

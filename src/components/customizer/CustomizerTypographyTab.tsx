@@ -1,20 +1,23 @@
 import React from 'react';
-import { Type } from 'lucide-react';
+import { Lock, Type } from 'lucide-react';
 import {
   BodyAlignment,
   DocumentLanguage,
   FontFamilyId,
   TemplateConfig,
 } from '@/types/document';
+import { CustomizerScope } from '@/core/templates/templateCapabilities';
 import { FONT_CATALOG, sanitizeCustomFontFamily } from '@/core/typst/fontCatalog';
 
 interface CustomizerTypographyTabProps {
   config: TemplateConfig;
+  scope?: CustomizerScope;
   onUpdateField: <K extends keyof TemplateConfig>(key: K, value: TemplateConfig[K]) => void;
 }
 
 export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = ({
   config,
+  scope,
   onUpdateField,
 }) => {
   const isCustomFontInvalid =
@@ -194,23 +197,46 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
         </div>
 
         <div>
-          <label
-            htmlFor="template-columns"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
-          >
-            Colunas do Texto
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label
+              htmlFor="template-columns"
+              className="block text-[11px] font-medium text-neutral-600"
+            >
+              Colunas do Texto
+            </label>
+            {scope && !scope.allowColumnChange && (
+              <span
+                className="flex items-center gap-1 text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"
+                title={scope.columnLockedReason}
+              >
+                <Lock className="w-2.5 h-2.5 text-amber-600" />
+                Travado
+              </span>
+            )}
+          </div>
           <select
             id="template-columns"
-            value={config.columns}
+            value={
+              scope && !scope.allowColumnChange && scope.fixedColumns
+                ? scope.fixedColumns
+                : config.columns
+            }
+            disabled={Boolean(scope && !scope.allowColumnChange)}
             onChange={(e) =>
               onUpdateField('columns', Number(e.target.value) as TemplateConfig['columns'])
             }
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className={`w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600 ${
+              scope && !scope.allowColumnChange
+                ? 'bg-neutral-100 text-neutral-500 cursor-not-allowed'
+                : ''
+            }`}
           >
             <option value={1}>1 Coluna</option>
             <option value={2}>2 Colunas</option>
           </select>
+          {scope && !scope.allowColumnChange && scope.columnLockedReason && (
+            <p className="text-[10px] text-neutral-500 mt-1">{scope.columnLockedReason}</p>
+          )}
         </div>
 
         <div>

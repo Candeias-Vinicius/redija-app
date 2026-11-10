@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout } from 'lucide-react';
+import { Layout, Lock } from 'lucide-react';
 import {
   HeadingNumberingStyle,
   PageNumberingPosition,
@@ -7,20 +7,37 @@ import {
   PaperSize,
   TemplateConfig,
 } from '@/types/document';
+import { CustomizerScope } from '@/core/templates/templateCapabilities';
 
 interface CustomizerPageTabProps {
   config: TemplateConfig;
+  scope?: CustomizerScope;
   onUpdateField: <K extends keyof TemplateConfig>(key: K, value: TemplateConfig[K]) => void;
 }
 
-export const CustomizerPageTab: React.FC<CustomizerPageTabProps> = ({ config, onUpdateField }) => {
+export const CustomizerPageTab: React.FC<CustomizerPageTabProps> = ({
+  config,
+  scope,
+  onUpdateField,
+}) => {
   return (
     <div className="space-y-5">
       <div className="space-y-3">
-        <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-neutral-500">
-          <Layout className="w-3.5 h-3.5 text-emerald-600" />
-          Papel, Orientação, Recuo e Margens (cm)
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-neutral-500">
+            <Layout className="w-3.5 h-3.5 text-emerald-600" />
+            Papel, Orientação, Recuo e Margens (cm)
+          </label>
+          {scope && (!scope.allowMarginChange || !scope.allowPaperSizeChange) && (
+            <span
+              className="flex items-center gap-1 text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"
+              title={scope.marginLockedReason || scope.paperSizeLockedReason}
+            >
+              <Lock className="w-2.5 h-2.5 text-amber-600" />
+              Página padronizada pela norma
+            </span>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
@@ -33,8 +50,13 @@ export const CustomizerPageTab: React.FC<CustomizerPageTabProps> = ({ config, on
             <select
               id="template-paper-size"
               value={config.paperSize ?? 'a4'}
+              disabled={Boolean(scope && !scope.allowPaperSizeChange)}
               onChange={(e) => onUpdateField('paperSize', e.target.value as PaperSize)}
-              className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+              className={`w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600 ${
+                scope && !scope.allowPaperSizeChange
+                  ? 'bg-neutral-100 text-neutral-500 cursor-not-allowed'
+                  : ''
+              }`}
             >
               <option value="a4">A4 (21 × 29,7 cm)</option>
               <option value="letter">Carta / US Letter</option>
@@ -52,10 +74,15 @@ export const CustomizerPageTab: React.FC<CustomizerPageTabProps> = ({ config, on
             <select
               id="template-page-orientation"
               value={config.pageOrientation ?? 'portrait'}
+              disabled={Boolean(scope && !scope.allowOrientationChange)}
               onChange={(e) =>
                 onUpdateField('pageOrientation', e.target.value as PageOrientation)
               }
-              className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+              className={`w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600 ${
+                scope && !scope.allowOrientationChange
+                  ? 'bg-neutral-100 text-neutral-500 cursor-not-allowed'
+                  : ''
+              }`}
             >
               <option value="portrait">Retrato (Vertical)</option>
               <option value="landscape">Paisagem (Horizontal)</option>
@@ -93,8 +120,13 @@ export const CustomizerPageTab: React.FC<CustomizerPageTabProps> = ({ config, on
               min="1"
               max="6"
               value={config.marginTopCm}
+              disabled={Boolean(scope && !scope.allowMarginChange)}
               onChange={(e) => onUpdateField('marginTopCm', Number(e.target.value) || 3)}
-              className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+              className={`w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600 ${
+                scope && !scope.allowMarginChange
+                  ? 'bg-neutral-100 text-neutral-500 cursor-not-allowed'
+                  : ''
+              }`}
             />
           </div>
           <div>
@@ -107,8 +139,13 @@ export const CustomizerPageTab: React.FC<CustomizerPageTabProps> = ({ config, on
               min="1"
               max="6"
               value={config.marginLeftCm}
+              disabled={Boolean(scope && !scope.allowMarginChange)}
               onChange={(e) => onUpdateField('marginLeftCm', Number(e.target.value) || 3)}
-              className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+              className={`w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600 ${
+                scope && !scope.allowMarginChange
+                  ? 'bg-neutral-100 text-neutral-500 cursor-not-allowed'
+                  : ''
+              }`}
             />
           </div>
           <div>
@@ -121,8 +158,13 @@ export const CustomizerPageTab: React.FC<CustomizerPageTabProps> = ({ config, on
               min="1"
               max="6"
               value={config.marginBottomCm}
+              disabled={Boolean(scope && !scope.allowMarginChange)}
               onChange={(e) => onUpdateField('marginBottomCm', Number(e.target.value) || 2)}
-              className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+              className={`w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600 ${
+                scope && !scope.allowMarginChange
+                  ? 'bg-neutral-100 text-neutral-500 cursor-not-allowed'
+                  : ''
+              }`}
             />
           </div>
           <div>
@@ -135,11 +177,19 @@ export const CustomizerPageTab: React.FC<CustomizerPageTabProps> = ({ config, on
               min="1"
               max="6"
               value={config.marginRightCm}
+              disabled={Boolean(scope && !scope.allowMarginChange)}
               onChange={(e) => onUpdateField('marginRightCm', Number(e.target.value) || 2)}
-              className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+              className={`w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600 ${
+                scope && !scope.allowMarginChange
+                  ? 'bg-neutral-100 text-neutral-500 cursor-not-allowed'
+                  : ''
+              }`}
             />
           </div>
         </div>
+        {scope && !scope.allowMarginChange && scope.marginLockedReason && (
+          <p className="text-[10px] text-neutral-500">{scope.marginLockedReason}</p>
+        )}
       </div>
 
       <div className="border-t border-neutral-200 pt-4 space-y-3">
@@ -229,14 +279,26 @@ export const CustomizerPageTab: React.FC<CustomizerPageTabProps> = ({ config, on
             />
             Numeração romana minúscula (i, ii, iii) nos elementos pré-textuais
           </label>
-          <label className="flex items-center gap-2 text-xs text-neutral-700 cursor-pointer">
+          <label
+            className={`flex items-center gap-2 text-xs text-neutral-700 ${
+              scope && !scope.allowH1PageBreakToggle ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+            }`}
+          >
             <input
               type="checkbox"
-              checked={config.h1PageBreak ?? true}
+              checked={
+                scope && !scope.allowH1PageBreakToggle ? false : (config.h1PageBreak ?? true)
+              }
+              disabled={Boolean(scope && !scope.allowH1PageBreakToggle)}
               onChange={(e) => onUpdateField('h1PageBreak', e.target.checked)}
               className="rounded text-emerald-600 focus:ring-emerald-500"
             />
             Quebrar página automaticamente antes de Seções Primárias (H1)
+            {scope && !scope.allowH1PageBreakToggle && (
+              <span className="text-[10px] text-amber-700 font-medium ml-1">
+                (Desativado para seções corridas)
+              </span>
+            )}
           </label>
         </div>
       </div>
