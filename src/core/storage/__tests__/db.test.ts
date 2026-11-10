@@ -56,6 +56,26 @@ describe('Persistência IndexedDB (Dexie) e Backup .redija', () => {
     expect(list[0].id).toBe(clone?.id);
   });
 
+  it('ao duplicar projeto compartilhado ou sincronizado, cria cópia própria editável sem vínculo com Drive alheio', async () => {
+    const shared = createProjectFromTemplate('artigo', 'Artigo Compartilhado');
+    shared.driveFileId = 'shared_file_77';
+    shared.driveSyncedAt = '2026-11-09T10:00:00.000Z';
+    shared.isSharedWithMe = true;
+    shared.shareRole = 'reader';
+    shared.sharedBy = { name: 'Autor Original', email: 'autor@uf.br' };
+    shared.collabSecret = 'A'.repeat(43);
+    await saveProject(shared, false);
+
+    const cloned = await duplicateProject(shared.id);
+    expect(cloned).toBeDefined();
+    expect(cloned?.driveFileId).toBeUndefined();
+    expect(cloned?.driveSyncedAt).toBeUndefined();
+    expect(cloned?.isSharedWithMe).toBe(false);
+    expect(cloned?.sharedBy).toBeUndefined();
+    expect(cloned?.collabSecret).toBeUndefined();
+    expect(cloned?.shareRole).toBe('owner');
+  });
+
   it('exporta e importa um backup .redija preservando metadados, blocos e referências', () => {
     const original = createProjectFromTemplate('projeto_pesquisa', 'Projeto Mestrado');
     const serialized = serializeBackup(original);

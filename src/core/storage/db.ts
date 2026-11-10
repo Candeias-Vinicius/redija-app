@@ -178,6 +178,12 @@ export async function duplicateProject(id: string): Promise<DocumentProject | un
     id: crypto.randomUUID(),
     name: `${original.name} (Cópia)`,
     updatedAt: new Date().toISOString(),
+    driveFileId: undefined,
+    driveSyncedAt: undefined,
+    isSharedWithMe: false,
+    sharedBy: undefined,
+    shareRole: 'owner',
+    collabSecret: undefined,
   };
 
   await db.projects.put(clone);

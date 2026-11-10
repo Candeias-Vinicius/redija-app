@@ -6,6 +6,7 @@ import { PosTextualFieldId, TemplateCapabilities } from '@/core/templates/templa
 interface SidebarPostTextualsSectionProps {
   metadata: DocumentMetadata;
   capabilities: TemplateCapabilities;
+  readOnly?: boolean;
   onUpdateField: <K extends keyof DocumentMetadata>(
     field: K,
     value: DocumentMetadata[K],
@@ -15,6 +16,7 @@ interface SidebarPostTextualsSectionProps {
 export const SidebarPostTextualsSection: React.FC<SidebarPostTextualsSectionProps> = ({
   metadata,
   capabilities,
+  readOnly = false,
   onUpdateField,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,7 +52,10 @@ export const SidebarPostTextualsSection: React.FC<SidebarPostTextualsSectionProp
               <textarea
                 rows={2}
                 value={metadata.glossary || ''}
-                onChange={(e) => onUpdateField('glossary', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('glossary', e.target.value);
+                }}
                 placeholder="Ex: WebAssembly: Formato de instrução binária para execução na web..."
                 className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
               />
@@ -65,7 +70,10 @@ export const SidebarPostTextualsSection: React.FC<SidebarPostTextualsSectionProp
               <textarea
                 rows={3}
                 value={metadata.appendices || ''}
-                onChange={(e) => onUpdateField('appendices', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('appendices', e.target.value);
+                }}
                 placeholder="Ex: APÊNDICE A - Questionário aplicado aos participantes..."
                 className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
               />
@@ -80,7 +88,10 @@ export const SidebarPostTextualsSection: React.FC<SidebarPostTextualsSectionProp
               <textarea
                 rows={3}
                 value={metadata.annexes || ''}
-                onChange={(e) => onUpdateField('annexes', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('annexes', e.target.value);
+                }}
                 placeholder="Ex: ANEXO A - Parecer do Comitê de Ética..."
                 className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
               />

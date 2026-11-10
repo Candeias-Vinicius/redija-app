@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { FolderOpen, Plus, Upload } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { FolderOpen, Plus, Share2, Upload, X } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Editor } from '@/components/Editor';
@@ -11,16 +11,23 @@ import { TemplateCustomizerModal } from '@/components/TemplateCustomizerModal';
 import { BugReportModal } from '@/components/BugReportModal';
 import { BetaNoticeModal } from '@/components/BetaNoticeModal';
 import { ShareModal } from '@/components/ShareModal';
+import { SharedDriveAccessModal } from '@/components/SharedDriveAccessModal';
 import { AccountSettingsModal } from '@/components/AccountSettingsModal';
 import { BackupNoticeBanner } from '@/components/BackupNoticeBanner';
 import { LoginScreen } from '@/components/LoginScreen';
 import { DocsPage } from '@/components/docs/DocsPage';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
+import { listCollaborators } from '@/core/storage/googleDriveService';
+import { isGooglePickerConfigured } from '@/core/storage/googlePickerService';
 import { isBetaNoticeDismissed } from '@/core/version';
 import { AcademicReference, DEFAULT_TEMPLATE_CONFIG, DocumentProject } from '@/types/document';
 import { type ContextualGuideMode } from '@/core/templates/templateCapabilities';
-import { useAppRoute } from '@/hooks/useAppRoute';
+import {
+  clearSharedDriveFileFromLocation,
+  extractSharedDriveFileIdFromLocation,
+  useAppRoute,
+} from '@/hooks/useAppRoute';
 import { usePaneLayout } from '@/hooks/usePaneLayout';
 import { useUndoRedoHistory } from '@/hooks/useUndoRedoHistory';
 import { useRealtimeCollab } from '@/hooks/useRealtimeCollab';
@@ -31,6 +38,27 @@ import {
 import { useDriveSyncOrchestrator } from '@/hooks/useDriveSyncOrchestrator';
 import { useDocumentExport } from '@/hooks/useDocumentExport';
 import { readInitialGuestMode, useAuthSession } from '@/hooks/useAuthSession';
+
+const PENDING_DRIVE_FILE_STORAGE_KEY = 'redija:pendingDriveFileId';
+
+function readInitialPendingDriveFileId(): string | null {
+  if (typeof window === 'undefined') return null;
+  const fromUrl = extractSharedDriveFileIdFromLocation(window.location.search);
+  if (fromUrl) {
+    try {
+      sessionStorage.setItem(PENDING_DRIVE_FILE_STORAGE_KEY, fromUrl);
+    } catch {
+      // Ignora indisponibilidade de sessionStorage
+    }
+    return fromUrl;
+  }
+  try {
+    const stored = sessionStorage.getItem(PENDING_DRIVE_FILE_STORAGE_KEY);
+    return stored ? extractSharedDriveFileIdFromLocation(`?driveFileId=${stored}`) : null;
+  } catch {
+    return null;
+  }
+}
 
 export const App: React.FC = () => {
   const [project, setProject] = useState<DocumentProject>(FALLBACK_INITIAL_PROJECT);
@@ -49,6 +77,22 @@ export const App: React.FC = () => {
   const [isBetaNoticeOpen, setIsBetaNoticeOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
+  const [pendingSharedFileId, setPendingSharedFileId] = useState<string | null>(
+    readInitialPendingDriveFileId,
+  );
+  const [sharedAccessModal, setSharedAccessModal] = useState<{
+    isOpen: boolean;
+    fileId: string | null;
+  }>({ isOpen: false, fileId: null });
+  const [collabPolicy, setCollabPolicy] = useState<{
+    projectId: string;
+    fileId: string;
+    allowedEmails: string[];
+    allowAnyone: boolean;
+  } | null>(null);
+
+  const attemptedSharedAttemptKeyRef = useRef<string | null>(null);
+  const sharedBackupImportInputRef = useRef<HTMLInputElement | null>(null);
 
   // Autenticação Google e perfil convidado local
   const {
@@ -67,6 +111,7 @@ export const App: React.FC = () => {
 
   const activeOwner = isAuthenticated && user ? user.email : 'local';
   const isSessionActive = isAuthenticated || isGuestMode;
+  const isProjectReadOnly = project.shareRole === 'reader' || project.shareRole === 'commenter';
   const { route, sectionId, navigateTo } = useAppRoute();
   const handleOpenFullDocs = useCallback(
     (targetSectionId?: string) => navigateTo('/docs', targetSectionId),
@@ -96,23 +141,54 @@ export const App: React.FC = () => {
     handleUndo,
     handleRedo,
     clearHistory,
-  } = useUndoRedoHistory(setProject);
+  } = useUndoRedoHistory(setProject, isProjectReadOnly);
+
+  const hasMatchingCollabPolicy =
+    collabPolicy !== null &&
+    collabPolicy.projectId === project.id &&
+    Boolean(project.driveFileId) &&
+    collabPolicy.fileId === project.driveFileId;
+  const activeAllowedEmails = hasMatchingCollabPolicy ? collabPolicy.allowedEmails : undefined;
+  const activeAllowAnyone = hasMatchingCollabPolicy ? collabPolicy.allowAnyone : false;
+  const isSharedOrCollabActive = Boolean(
+    project.isSharedWithMe ||
+      (hasMatchingCollabPolicy &&
+        (collabPolicy.allowAnyone || collabPolicy.allowedEmails.length > 1)),
+  );
 
   const {
     activeCollaborators,
+    collabConnectionStatus,
     broadcastCursor,
     broadcastBlocksSync,
     broadcastBlockUpdate,
+    broadcastMetadataUpdate,
+    broadcastReferencesUpdate,
   } = useRealtimeCollab({
     isAuthenticated,
     user,
-    driveFileId: project.driveFileId,
+    project,
     setProject,
+    allowedEmails: activeAllowedEmails,
+    allowAnyone: activeAllowAnyone,
   });
 
   const openProjectsModal = useCallback(() => setIsProjectsModalOpen(true), []);
   const closeProjectsModal = useCallback(() => setIsProjectsModalOpen(false), []);
   const clearEditingReference = useCallback(() => setEditingReference(null), []);
+
+  const isHandlingSharedFlowRef = useRef(
+    Boolean(pendingSharedFileId) || sharedAccessModal.isOpen,
+  );
+  useEffect(() => {
+    isHandlingSharedFlowRef.current = Boolean(pendingSharedFileId) || sharedAccessModal.isOpen;
+  }, [pendingSharedFileId, sharedAccessModal.isOpen]);
+
+  const handleEmptyWorkspace = useCallback(() => {
+    if (!isHandlingSharedFlowRef.current) {
+      setIsProjectsModalOpen(true);
+    }
+  }, []);
 
   const {
     projects,
@@ -120,6 +196,7 @@ export const App: React.FC = () => {
     trashedProjects,
     isStorageReady,
     saveStatus,
+    isReadOnly,
     resetWorkspaceState,
     handleMetadataChange,
     handleChangeSidebarConfig,
@@ -147,7 +224,9 @@ export const App: React.FC = () => {
     clearHistory,
     onBroadcastBlocksSync: broadcastBlocksSync,
     onBroadcastBlockUpdate: broadcastBlockUpdate,
-    onEmptyWorkspace: openProjectsModal,
+    onBroadcastMetadataUpdate: broadcastMetadataUpdate,
+    onBroadcastReferencesUpdate: broadcastReferencesUpdate,
+    onEmptyWorkspace: handleEmptyWorkspace,
     onProjectImported: closeProjectsModal,
     onReferenceUpdated: clearEditingReference,
   });
@@ -155,8 +234,13 @@ export const App: React.FC = () => {
   const {
     driveSyncStatus,
     isSyncingDrive,
+    isOpeningShared,
+    sharedAccessError,
+    clearSharedAccessError,
     handleSyncFromDrive,
     handleEnsureProjectSavedToDrive,
+    openSharedDriveProject,
+    openSharedViaPicker,
   } = useDriveSyncOrchestrator({
     project,
     setProject,
@@ -167,6 +251,8 @@ export const App: React.FC = () => {
     user,
     login,
     getValidAccessToken,
+    collabConnectionStatus,
+    isSharedOrCollabActive,
   });
 
   const {
@@ -181,9 +267,123 @@ export const App: React.FC = () => {
     getValidAccessToken,
   });
 
+  const dismissPendingSharedDriveFile = useCallback(() => {
+    setPendingSharedFileId(null);
+    clearSharedDriveFileFromLocation();
+    try {
+      sessionStorage.removeItem(PENDING_DRIVE_FILE_STORAGE_KEY);
+    } catch {
+      // Ignora
+    }
+  }, []);
+
+  const handleCollaboratorsLoaded = useCallback(
+    ({ allowedEmails, allowAnyone }: { allowedEmails: string[]; allowAnyone: boolean }) => {
+      if (!project.driveFileId) return;
+      setCollabPolicy({
+        projectId: project.id,
+        fileId: project.driveFileId,
+        allowedEmails,
+        allowAnyone,
+      });
+    },
+    [project.id, project.driveFileId],
+  );
+
+  // Carrega política de colaboradores silenciosamente para alimentar a lista branca P2P e fallback Drive
+  const activeProjectIdForPolicy = project.id;
+  const activeDriveFileIdForPolicy = project.driveFileId;
+  useEffect(() => {
+    if (!isAuthenticated || !isStorageReady || !activeDriveFileIdForPolicy) {
+      return;
+    }
+
+    let isMounted = true;
+    getValidAccessToken(false)
+      .then((token) => {
+        if (!isMounted || !token) return null;
+        return listCollaborators(activeDriveFileIdForPolicy, token);
+      })
+      .then((list) => {
+        if (!isMounted || !list) return;
+        const allowAnyone = list.some((c) => c.type === 'anyone');
+        const allowedEmails = Array.from(
+          new Set(
+            list
+              .map((c) => c.emailAddress?.trim().toLowerCase())
+              .filter((email): email is string => Boolean(email)),
+          ),
+        );
+        setCollabPolicy({
+          projectId: activeProjectIdForPolicy,
+          fileId: activeDriveFileIdForPolicy,
+          allowedEmails,
+          allowAnyone,
+        });
+      })
+      .catch(() => {
+        // Permissões podem não ser listáveis por leitores; isSharedWithMe segue garantindo o fallback
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    isAuthenticated,
+    isStorageReady,
+    activeProjectIdForPolicy,
+    activeDriveFileIdForPolicy,
+    getValidAccessToken,
+  ]);
+
+  // Processa links diretos ?driveFileId=... automaticamente após autenticar e montar armazenamento local
+  useEffect(() => {
+    if (!isAuthenticated || !user || !isStorageReady || !pendingSharedFileId) {
+      return;
+    }
+    const attemptKey = `${user.email}:${pendingSharedFileId}`;
+    if (attemptedSharedAttemptKeyRef.current === attemptKey) {
+      return;
+    }
+    attemptedSharedAttemptKeyRef.current = attemptKey;
+
+    let isMounted = true;
+    openSharedDriveProject(pendingSharedFileId).then((outcome) => {
+      if (!isMounted) return;
+      const targetId = pendingSharedFileId;
+      dismissPendingSharedDriveFile();
+      closeProjectsModal();
+      if (outcome === 'opened') {
+        clearHistory();
+      } else if (outcome === 'needs_picker') {
+        clearSharedAccessError();
+        setSharedAccessModal({ isOpen: true, fileId: targetId });
+      } else {
+        setSharedAccessModal({ isOpen: true, fileId: targetId });
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    isAuthenticated,
+    user,
+    isStorageReady,
+    pendingSharedFileId,
+    openSharedDriveProject,
+    dismissPendingSharedDriveFile,
+    closeProjectsModal,
+    clearHistory,
+    clearSharedAccessError,
+  ]);
+
   const handleResetSessionWorkspace = useCallback(() => {
     resetWorkspaceState();
     clearHistory();
+    setCollabPolicy(null);
+    setSharedAccessModal({ isOpen: false, fileId: null });
+    attemptedSharedAttemptKeyRef.current = null;
   }, [resetWorkspaceState, clearHistory]);
 
   const {
@@ -241,12 +441,42 @@ export const App: React.FC = () => {
         isConfigured={isAuthConfigured}
         darkMode={darkMode}
         onToggleDarkMode={toggleDarkMode}
+        pendingSharedDriveFileId={pendingSharedFileId}
       />
     );
   }
 
   return (
     <div className="h-screen flex flex-col bg-neutral-100 select-none overflow-hidden">
+      {/* Banner para quem abriu link ?driveFileId=... enquanto navega em Modo Local */}
+      {!isAuthenticated && pendingSharedFileId && (
+        <div className="bg-emerald-950 text-emerald-50 px-4 py-2 text-xs flex items-center justify-between border-b border-emerald-800/80 z-20">
+          <div className="flex items-center gap-2.5 mx-auto max-w-5xl">
+            <Share2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>
+              Você abriu um link de trabalho compartilhado. Conecte sua conta Google para acessá-lo no editor.
+            </span>
+            <button
+              type="button"
+              onClick={handleLoginClick}
+              disabled={isAuthLoading}
+              className="ml-2 px-3 py-1 rounded-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-neutral-950 font-semibold text-[11px] transition-colors shrink-0 cursor-pointer"
+            >
+              Conectar Google para Abrir
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={dismissPendingSharedDriveFile}
+            className="p-1 text-emerald-300 hover:text-white rounded transition-colors shrink-0 cursor-pointer"
+            title="Dispensar convite"
+            aria-label="Dispensar convite"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Alerta de Recomendação de Backup para Usuários sem Login */}
       <BackupNoticeBanner
         isAuthenticated={isAuthenticated}
@@ -274,7 +504,9 @@ export const App: React.FC = () => {
         onToggleEditor={toggleEditor}
         onTogglePreview={togglePreview}
         onOpenProjectsModal={openProjectsModal}
-        onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
+        onOpenTemplateCustomizer={() => {
+          if (!isReadOnly) setIsCustomizerOpen(true);
+        }}
         onOpenBugReportModal={() => setIsBugReportOpen(true)}
         onOpenBetaNoticeModal={() => setIsBetaNoticeOpen(true)}
         onOpenWelcomeModal={() => {
@@ -293,6 +525,8 @@ export const App: React.FC = () => {
         isAuthenticated={isAuthenticated}
         isAuthLoading={isAuthLoading}
         activeCollaborators={activeCollaborators}
+        collabConnectionStatus={collabConnectionStatus}
+        isReadOnly={isReadOnly}
         onLogin={handleLoginClick}
         onLogout={handleLogout}
         isGuestMode={isGuestMode}
@@ -340,19 +574,24 @@ export const App: React.FC = () => {
               <Sidebar
                 project={project}
                 metadata={project.metadata}
+                readOnly={isReadOnly}
                 onChangeMetadata={handleMetadataChange}
                 onChangeSidebarConfig={handleChangeSidebarConfig}
                 references={project.references}
                 onOpenReferenceModal={() => {
+                  if (isReadOnly) return;
                   setEditingReference(null);
                   setIsModalOpen(true);
                 }}
                 onEditReference={(ref) => {
+                  if (isReadOnly) return;
                   setEditingReference(ref);
                   setIsModalOpen(true);
                 }}
                 onRemoveReference={handleRemoveReference}
-                onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
+                onOpenTemplateCustomizer={() => {
+                  if (!isReadOnly) setIsCustomizerOpen(true);
+                }}
                 onOpenAbntGuide={() => {
                   setWelcomeInitialTab('abnt');
                   setIsWelcomeModalOpen(true);
@@ -399,14 +638,17 @@ export const App: React.FC = () => {
                 citationFormat={project.templateConfig?.citationFormat}
                 referenceOrdering={project.templateConfig?.referenceOrdering}
                 isFullWidth={!showSidebar && !showPreview}
+                readOnly={isReadOnly}
                 activeCollaborators={activeCollaborators}
                 onOpenReferenceModal={() => {
+                  if (isReadOnly) return;
                   setEditingReference(null);
                   setIsModalOpen(true);
                 }}
                 onChangeBlocks={handleBlocksChange}
                 onFocusBlock={broadcastCursor}
                 onMinimize={toggleEditor}
+                onDuplicateProject={() => handleDuplicateProject(project.id)}
               />
             </ErrorBoundary>
           )}
@@ -453,7 +695,7 @@ export const App: React.FC = () => {
       )}
 
       <ReferenceModal
-        isOpen={isModalOpen}
+        isOpen={isModalOpen && !isReadOnly}
         onClose={() => {
           setIsModalOpen(false);
           setEditingReference(null);
@@ -482,6 +724,12 @@ export const App: React.FC = () => {
         isAuthenticated={isAuthenticated}
         onSyncFromDrive={() => handleSyncFromDrive(true)}
         isSyncingDrive={isSyncingDrive}
+        onOpenSharedFromPicker={() => {
+          clearSharedAccessError();
+          closeProjectsModal();
+          setSharedAccessModal({ isOpen: true, fileId: null });
+        }}
+        isOpeningShared={isOpeningShared}
       />
 
       <ShareModal
@@ -489,9 +737,59 @@ export const App: React.FC = () => {
         onClose={() => setIsShareModalOpen(false)}
         projectName={project.name}
         driveFileId={project.driveFileId}
+        shareRole={project.shareRole ?? (project.isSharedWithMe ? 'writer' : 'owner')}
+        collabConnectionStatus={collabConnectionStatus}
         getAccessToken={getValidAccessToken}
         currentUserEmail={user?.email}
         onEnsureProjectSavedToDrive={handleEnsureProjectSavedToDrive}
+        onCollaboratorsLoaded={handleCollaboratorsLoaded}
+      />
+
+      <SharedDriveAccessModal
+        isOpen={sharedAccessModal.isOpen}
+        fileId={sharedAccessModal.fileId}
+        isOpening={isOpeningShared}
+        error={sharedAccessError}
+        isPickerConfigured={isGooglePickerConfigured()}
+        onSelectViaPicker={async () => {
+          const ok = await openSharedViaPicker();
+          if (ok) {
+            clearHistory();
+          }
+          return ok;
+        }}
+        onRetryDirectLoad={
+          sharedAccessModal.fileId
+            ? async () => {
+                const targetId = sharedAccessModal.fileId;
+                if (!targetId) return;
+                const outcome = await openSharedDriveProject(targetId);
+                if (outcome === 'opened') {
+                  clearHistory();
+                  setSharedAccessModal({ isOpen: false, fileId: null });
+                }
+              }
+            : undefined
+        }
+        onImportLocalFile={() => sharedBackupImportInputRef.current?.click()}
+        onClose={() => {
+          clearSharedAccessError();
+          setSharedAccessModal({ isOpen: false, fileId: null });
+        }}
+      />
+
+      <input
+        ref={sharedBackupImportInputRef}
+        type="file"
+        accept=".redija,.json,.docx,.zip,.typ,.tex"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            handleImportBackup(file);
+            e.target.value = '';
+          }
+        }}
+        className="hidden"
       />
 
       <AccountSettingsModal
@@ -514,7 +812,7 @@ export const App: React.FC = () => {
       />
 
       <TemplateCustomizerModal
-        isOpen={isCustomizerOpen}
+        isOpen={isCustomizerOpen && !isReadOnly}
         onClose={() => setIsCustomizerOpen(false)}
         config={project.templateConfig ?? DEFAULT_TEMPLATE_CONFIG}
         metadata={project.metadata}

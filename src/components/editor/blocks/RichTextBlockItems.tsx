@@ -10,6 +10,7 @@ interface RichTextBlockItemsProps {
   citationStyle: 'uppercase' | 'titlecase';
   citationFormat?: CitationFormat;
   autoFocus: boolean;
+  readOnly?: boolean;
   openCitationTrigger: number;
   onOpenNewReferenceModal?: () => void;
   onUpdateContent: (id: string, content: string) => void;
@@ -27,6 +28,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
   citationStyle,
   citationFormat,
   autoFocus,
+  readOnly = false,
   openCitationTrigger,
   onOpenNewReferenceModal,
   onUpdateContent,
@@ -45,6 +47,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
         citationStyle={citationStyle}
         citationFormat={citationFormat}
         autoFocus={autoFocus}
+        readOnly={readOnly}
         openCitationTrigger={openCitationTrigger}
         onOpenNewReferenceModal={onOpenNewReferenceModal}
         onChange={(html) => onUpdateContent(block.id, html)}
@@ -68,6 +71,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           citationStyle={citationStyle}
           citationFormat={citationFormat}
           autoFocus={autoFocus}
+          readOnly={readOnly}
           onOpenNewReferenceModal={onOpenNewReferenceModal}
           onChange={(html) => onUpdateContent(block.id, html)}
           onEnter={() => onAddBlock(block.id, 'bullet')}
@@ -90,6 +94,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           citationStyle={citationStyle}
           citationFormat={citationFormat}
           autoFocus={autoFocus}
+          readOnly={readOnly}
           onOpenNewReferenceModal={onOpenNewReferenceModal}
           onChange={(html) => onUpdateContent(block.id, html)}
           onEnter={() => onAddBlock(block.id, 'numbered')}
@@ -117,6 +122,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           citationStyle={citationStyle}
           citationFormat={citationFormat}
           autoFocus={autoFocus}
+          readOnly={readOnly}
           onOpenNewReferenceModal={onOpenNewReferenceModal}
           onChange={(html) => onUpdateContent(block.id, html)}
           onEnter={() => onAddBlock(block.id, 'paragraph')}
@@ -127,21 +133,30 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           <input
             type="text"
             value={block.meta?.author || ''}
-            onChange={(e) => onUpdateMeta(block.id, { author: e.target.value })}
+            readOnly={readOnly}
+            onChange={(e) => {
+              if (!readOnly) onUpdateMeta(block.id, { author: e.target.value });
+            }}
             placeholder="Autor (ex: SILVA)"
             className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
           />
           <input
             type="text"
             value={block.meta?.year || ''}
-            onChange={(e) => onUpdateMeta(block.id, { year: e.target.value })}
+            readOnly={readOnly}
+            onChange={(e) => {
+              if (!readOnly) onUpdateMeta(block.id, { year: e.target.value });
+            }}
             placeholder="Ano (ex: 2024)"
             className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
           />
           <input
             type="text"
             value={block.meta?.page || ''}
-            onChange={(e) => onUpdateMeta(block.id, { page: e.target.value })}
+            readOnly={readOnly}
+            onChange={(e) => {
+              if (!readOnly) onUpdateMeta(block.id, { page: e.target.value });
+            }}
             placeholder="Página (ex: 42)"
             className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
           />
@@ -164,6 +179,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           citationStyle={citationStyle}
           citationFormat={citationFormat}
           autoFocus={autoFocus}
+          readOnly={readOnly}
           onOpenNewReferenceModal={onOpenNewReferenceModal}
           onChange={(html) => onUpdateContent(block.id, html)}
           onEnter={() => onAddBlock(block.id, 'paragraph')}

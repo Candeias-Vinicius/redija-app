@@ -5,6 +5,7 @@ interface HeadingBlockItemProps {
   block: Block;
   sectionNumber?: string;
   autoFocus: boolean;
+  readOnly?: boolean;
   onUpdateContent: (id: string, content: string) => void;
   onAddParagraphBelow: (afterId: string) => void;
   onRemoveBlock: (id: string) => void;
@@ -30,6 +31,7 @@ export const HeadingBlockItem: React.FC<HeadingBlockItemProps> = ({
   block,
   sectionNumber,
   autoFocus,
+  readOnly = false,
   onUpdateContent,
   onAddParagraphBelow,
   onRemoveBlock,
@@ -43,9 +45,13 @@ export const HeadingBlockItem: React.FC<HeadingBlockItemProps> = ({
         <input
           type="text"
           value={block.content}
-          autoFocus={autoFocus}
-          onChange={(e) => onUpdateContent(block.id, e.target.value)}
+          readOnly={readOnly}
+          autoFocus={autoFocus && !readOnly}
+          onChange={(e) => {
+            if (!readOnly) onUpdateContent(block.id, e.target.value);
+          }}
           onKeyDown={(e) => {
+            if (readOnly) return;
             if (e.key === 'Enter') {
               e.preventDefault();
               onAddParagraphBelow(block.id);
@@ -71,9 +77,13 @@ export const HeadingBlockItem: React.FC<HeadingBlockItemProps> = ({
       <input
         type="text"
         value={block.content}
-        autoFocus={autoFocus}
-        onChange={(e) => onUpdateContent(block.id, e.target.value)}
+        readOnly={readOnly}
+        autoFocus={autoFocus && !readOnly}
+        onChange={(e) => {
+          if (!readOnly) onUpdateContent(block.id, e.target.value);
+        }}
         onKeyDown={(e) => {
+          if (readOnly) return;
           if (e.key === 'Enter') {
             e.preventDefault();
             onAddParagraphBelow(block.id);

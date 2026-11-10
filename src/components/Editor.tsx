@@ -13,7 +13,7 @@ import {
   calculateProjectImageBytes,
   validateImageUploadForProject,
 } from '@/core/storage/imageQuota';
-import { Minimize2, Plus } from 'lucide-react';
+import { Copy, Lock, Minimize2, Plus } from 'lucide-react';
 import {
   SlashCommandType,
   computeSectionNumbers,
@@ -37,11 +37,13 @@ interface EditorProps {
   citationFormat?: CitationFormat;
   referenceOrdering?: ReferenceOrdering;
   isFullWidth?: boolean;
+  readOnly?: boolean;
   activeCollaborators?: CollaboratorPresence[];
   onOpenReferenceModal?: () => void;
   onChangeBlocks: (blocks: Block[]) => void;
   onFocusBlock?: (blockId: string) => void;
   onMinimize?: () => void;
+  onDuplicateProject?: () => void;
 }
 
 export const Editor: React.FC<EditorProps> = ({
@@ -52,11 +54,13 @@ export const Editor: React.FC<EditorProps> = ({
   citationFormat,
   referenceOrdering = 'alphabetical',
   isFullWidth = false,
+  readOnly = false,
   activeCollaborators = [],
   onOpenReferenceModal,
   onChangeBlocks,
   onFocusBlock,
   onMinimize,
+  onDuplicateProject,
 }) => {
   const [activeMenuBlockId, setActiveMenuBlockId] = useState<string | null>(null);
   const [menuSearch, setMenuSearch] = useState('');
@@ -74,12 +78,14 @@ export const Editor: React.FC<EditorProps> = ({
   const sectionNumbers = useMemo(() => computeSectionNumbers(blocks), [blocks]);
 
   const updateBlockContent = (id: string, content: string) => {
+    if (readOnly) return;
     const current = blocks.find((b) => b.id === id);
     if (!current || shouldSkipContentUpdate(current.content, content)) return;
     onChangeBlocks(blocks.map((b) => (b.id === id ? { ...b, content } : b)));
   };
 
   const updateBlockMeta = (id: string, meta: NonNullable<Block['meta']>) => {
+    if (readOnly) return;
     const current = blocks.find((b) => b.id === id);
     if (current && JSON.stringify(current.meta) === JSON.stringify({ ...current.meta, ...meta })) {
       return;
@@ -90,6 +96,7 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   const addBlock = (afterId: string, type: BlockType = 'paragraph') => {
+    if (readOnly) return;
     const newId = crypto.randomUUID();
     const newBlock: Block = {
       id: newId,
@@ -112,6 +119,7 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   const removeBlock = (id: string) => {
+    if (readOnly) return;
     if (blocks.length <= 1) return;
     const index = blocks.findIndex((b) => b.id === id);
     const next = blocks.filter((b) => b.id !== id);
@@ -122,6 +130,7 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   const changeBlockType = (id: string, type: BlockType) => {
+    if (readOnly) return;
     onChangeBlocks(
       blocks.map((b) =>
         b.id === id
@@ -139,6 +148,7 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   const handleSelectSlashOption = (id: string, type: SlashCommandType) => {
+    if (readOnly) return;
     setActiveMenuBlockId(null);
     setMenuSearch('');
     if (type === 'action_cite') {
@@ -154,6 +164,7 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   const handleImageUpload = (blockId: string, file: File) => {
+    if (readOnly) return;
     const projectBytesExcludingThisBlock = calculateProjectImageBytes(blocks, metadata, blockId);
     const check = validateImageUploadForProject(file, projectBytesExcludingThisBlock);
     if (!check.valid) {
@@ -178,6 +189,7 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   const handleClearImage = (blockId: string) => {
+    if (readOnly) return;
     setImageErrorByBlock((prev) => ({ ...prev, [blockId]: null }));
     updateBlockMeta(blockId, {
       imageDataUrl: undefined,
@@ -201,6 +213,7 @@ export const Editor: React.FC<EditorProps> = ({
           block={block}
           sectionNumber={sectionNumbers[block.id]}
           autoFocus={autoFocus}
+          readOnly={readOnly}
           onUpdateContent={updateBlockContent}
           onAddParagraphBelow={(afterId) => addBlock(afterId, 'paragraph')}
           onRemoveBlock={removeBlock}
@@ -223,6 +236,7 @@ export const Editor: React.FC<EditorProps> = ({
           citationStyle={citationStyle}
           citationFormat={citationFormat}
           autoFocus={autoFocus}
+          readOnly={readOnly}
           openCitationTrigger={citationTriggerByBlock[block.id] ?? 0}
           onOpenNewReferenceModal={onOpenReferenceModal}
           onUpdateContent={updateBlockContent}
@@ -231,6 +245,7 @@ export const Editor: React.FC<EditorProps> = ({
           onRemoveBlock={removeBlock}
           onChangeBlockType={changeBlockType}
           onOpenSlashMenu={(id) => {
+            if (readOnly) return;
             setActiveMenuBlockId(id);
             setMenuSearch('');
           }}
@@ -245,6 +260,7 @@ export const Editor: React.FC<EditorProps> = ({
           totalProjectImageBytes={totalProjectImageBytes}
           imageError={imageErrorByBlock[block.id]}
           isBlockReorderDragging={Boolean(draggedBlockId)}
+          readOnly={readOnly}
           onUpdateMeta={updateBlockMeta}
           onUploadImage={handleImageUpload}
           onClearImage={handleClearImage}
@@ -253,13 +269,14 @@ export const Editor: React.FC<EditorProps> = ({
     }
 
     if (block.type === 'table' || block.type === 'box') {
-      return <TableGridBlockItem block={block} onUpdateMeta={updateBlockMeta} />;
+      return <TableGridBlockItem block={block} readOnly={readOnly} onUpdateMeta={updateBlockMeta} />;
     }
 
     return (
       <CodeAndMathBlockItems
         block={block}
         autoFocus={autoFocus}
+        readOnly={readOnly}
         onUpdateContent={updateBlockContent}
         onUpdateMeta={updateBlockMeta}
       />
@@ -267,20 +284,52 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   return (
-    <div className="flex-1 h-full overflow-y-auto bg-white py-8 pl-24 pr-8 sm:pl-28 sm:pr-14 flex justify-center">
+    <div
+      className={`flex-1 h-full overflow-y-auto bg-white py-8 ${
+        readOnly ? 'px-6 sm:px-14' : 'pl-24 pr-8 sm:pl-28 sm:pr-14'
+      } flex justify-center`}
+    >
       <div
         className={`w-full ${
           isFullWidth ? 'max-w-5xl' : 'max-w-2xl'
         } space-y-3 pb-28 transition-all duration-200`}
       >
+        {readOnly && (
+          <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-900">
+            <div className="flex items-center gap-2 min-w-0">
+              <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                <strong>Modo somente leitura:</strong> este arquivo foi compartilhado apenas para
+                visualização.
+              </span>
+            </div>
+            {onDuplicateProject && (
+              <button
+                type="button"
+                onClick={onDuplicateProject}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 font-semibold text-[11px] transition-colors shrink-0"
+              >
+                <Copy className="w-3 h-3" />
+                <span>Duplicar para Editar</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Dica rápida no topo do editor */}
         <div className="mb-6 pb-3 border-b border-neutral-100 flex items-center justify-between gap-2 text-xs text-neutral-400">
           <span>
-            Dica: digite{' '}
-            <kbd className="px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded border border-neutral-200 font-mono">
-              /
-            </kbd>{' '}
-            em um bloco vazio para abrir os blocos ABNT ou selecione texto para formatar.
+            {readOnly ? (
+              'Visualização segura em tempo real dos blocos do documento.'
+            ) : (
+              <>
+                Dica: digite{' '}
+                <kbd className="px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded border border-neutral-200 font-mono">
+                  /
+                </kbd>{' '}
+                em um bloco vazio para abrir os blocos ABNT ou selecione texto para formatar.
+              </>
+            )}
           </span>
           <div className="flex items-center gap-2 shrink-0">
             <span>{blocks.length} blocos</span>
@@ -307,7 +356,7 @@ export const Editor: React.FC<EditorProps> = ({
                 onFocusBlock?.(block.id);
               }}
               onDragOver={(e) => {
-                if (!draggedBlockId || draggedBlockId === block.id) return;
+                if (readOnly || !draggedBlockId || draggedBlockId === block.id) return;
                 e.preventDefault();
                 setDragOverBlockId(block.id);
               }}
@@ -315,13 +364,15 @@ export const Editor: React.FC<EditorProps> = ({
                 if (dragOverBlockId === block.id) setDragOverBlockId(null);
               }}
               onDrop={(e) => {
-                if (!draggedBlockId) return;
+                if (readOnly || !draggedBlockId) return;
                 e.preventDefault();
                 onChangeBlocks(reorderBlocks(blocks, draggedBlockId, block.id));
                 setDraggedBlockId(null);
                 setDragOverBlockId(null);
               }}
-              className={`group relative flex items-start gap-2.5 -ml-24 pl-24 pr-3 py-1.5 rounded-lg transition-all hover:bg-neutral-50/80 ${
+              className={`group relative flex items-start gap-2.5 ${
+                readOnly ? 'px-3' : '-ml-24 pl-24 pr-3'
+              } py-1.5 rounded-lg transition-all hover:bg-neutral-50/80 ${
                 draggedBlockId === block.id ? 'opacity-40' : ''
               } ${
                 dragOverBlockId === block.id
@@ -340,24 +391,26 @@ export const Editor: React.FC<EditorProps> = ({
                 </div>
               )}
 
-              <BlockControlsGutter
-                blockId={block.id}
-                isMenuOpen={activeMenuBlockId === block.id}
-                canDelete={blocks.length > 1}
-                onAddBelow={(id) => addBlock(id)}
-                onToggleMenu={(id) => {
-                  setActiveMenuBlockId(activeMenuBlockId === id ? null : id);
-                  setMenuSearch('');
-                }}
-                onRemove={removeBlock}
-                onDragStart={(id) => setDraggedBlockId(id)}
-                onDragEnd={() => {
-                  setDraggedBlockId(null);
-                  setDragOverBlockId(null);
-                }}
-              />
+              {!readOnly && (
+                <BlockControlsGutter
+                  blockId={block.id}
+                  isMenuOpen={activeMenuBlockId === block.id}
+                  canDelete={blocks.length > 1}
+                  onAddBelow={(id) => addBlock(id)}
+                  onToggleMenu={(id) => {
+                    setActiveMenuBlockId(activeMenuBlockId === id ? null : id);
+                    setMenuSearch('');
+                  }}
+                  onRemove={removeBlock}
+                  onDragStart={(id) => setDraggedBlockId(id)}
+                  onDragEnd={() => {
+                    setDraggedBlockId(null);
+                    setDragOverBlockId(null);
+                  }}
+                />
+              )}
 
-              {activeMenuBlockId === block.id && (
+              {!readOnly && activeMenuBlockId === block.id && (
                 <SlashCommandMenu
                   blockId={block.id}
                   searchQuery={menuSearch}
@@ -374,14 +427,16 @@ export const Editor: React.FC<EditorProps> = ({
         })}
 
         {/* Botão para adicionar bloco no final */}
-        <button
-          type="button"
-          onClick={() => addBlock(blocks[blocks.length - 1]?.id ?? '', 'paragraph')}
-          className="mt-4 flex items-center gap-1.5 text-xs text-neutral-400 hover:text-emerald-600 py-2 px-3 rounded-md hover:bg-neutral-50 transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Adicionar parágrafo</span>
-        </button>
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={() => addBlock(blocks[blocks.length - 1]?.id ?? '', 'paragraph')}
+            className="mt-4 flex items-center gap-1.5 text-xs text-neutral-400 hover:text-emerald-600 py-2 px-3 rounded-md hover:bg-neutral-50 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Adicionar parágrafo</span>
+          </button>
+        )}
       </div>
     </div>
   );

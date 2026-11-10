@@ -24,6 +24,7 @@ const EQUATION_SNIPPETS = [
 interface CodeAndMathBlockItemsProps {
   block: Block;
   autoFocus: boolean;
+  readOnly?: boolean;
   onUpdateContent: (id: string, content: string) => void;
   onUpdateMeta: (id: string, meta: NonNullable<Block['meta']>) => void;
 }
@@ -31,6 +32,7 @@ interface CodeAndMathBlockItemsProps {
 export const CodeAndMathBlockItems: React.FC<CodeAndMathBlockItemsProps> = ({
   block,
   autoFocus,
+  readOnly = false,
   onUpdateContent,
   onUpdateMeta,
 }) => {
@@ -42,30 +44,37 @@ export const CodeAndMathBlockItems: React.FC<CodeAndMathBlockItemsProps> = ({
             <Sigma className="w-4 h-4 text-indigo-600" />
             Equação Matemática
           </span>
-          <span className="text-[10px] text-neutral-500">
-            Clique nos botões abaixo para inserir símbolos
-          </span>
+          {!readOnly && (
+            <span className="text-[10px] text-neutral-500">
+              Clique nos botões abaixo para inserir símbolos
+            </span>
+          )}
         </div>
 
         {/* Barra Visual de Símbolos e Estruturas Matemáticas */}
-        <div className="flex flex-wrap gap-1 bg-white p-2 rounded-lg border border-neutral-200">
-          {EQUATION_SNIPPETS.map((btn) => (
-            <button
-              key={btn.label}
-              type="button"
-              onClick={() => onUpdateContent(block.id, `${block.content}${btn.snippet}`)}
-              className="px-2 py-1 text-[11px] font-mono bg-neutral-50 hover:bg-indigo-100 text-neutral-800 rounded border border-neutral-200 transition-colors"
-            >
-              {btn.label}
-            </button>
-          ))}
-        </div>
+        {!readOnly && (
+          <div className="flex flex-wrap gap-1 bg-white p-2 rounded-lg border border-neutral-200">
+            {EQUATION_SNIPPETS.map((btn) => (
+              <button
+                key={btn.label}
+                type="button"
+                onClick={() => onUpdateContent(block.id, `${block.content}${btn.snippet}`)}
+                className="px-2 py-1 text-[11px] font-mono bg-neutral-50 hover:bg-indigo-100 text-neutral-800 rounded border border-neutral-200 transition-colors"
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <input
           type="text"
           value={block.content}
-          autoFocus={autoFocus}
-          onChange={(e) => onUpdateContent(block.id, e.target.value)}
+          readOnly={readOnly}
+          autoFocus={autoFocus && !readOnly}
+          onChange={(e) => {
+            if (!readOnly) onUpdateContent(block.id, e.target.value);
+          }}
           placeholder="Ex: f(x) = sum_(i=1)^n (x_i - mu)^2 / sigma^2"
           className="w-full font-mono text-xs px-3 py-2 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-indigo-600"
         />
@@ -83,8 +92,11 @@ export const CodeAndMathBlockItems: React.FC<CodeAndMathBlockItemsProps> = ({
           </span>
           <select
             value={block.meta?.language || 'python'}
-            onChange={(e) => onUpdateMeta(block.id, { language: e.target.value })}
-            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-sky-600"
+            disabled={readOnly}
+            onChange={(e) => {
+              if (!readOnly) onUpdateMeta(block.id, { language: e.target.value });
+            }}
+            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-sky-600 disabled:opacity-70"
           >
             <option value="python">Python</option>
             <option value="javascript">JavaScript / TypeScript</option>
@@ -99,7 +111,10 @@ export const CodeAndMathBlockItems: React.FC<CodeAndMathBlockItemsProps> = ({
         <input
           type="text"
           value={block.meta?.caption || ''}
-          onChange={(e) => onUpdateMeta(block.id, { caption: e.target.value })}
+          readOnly={readOnly}
+          onChange={(e) => {
+            if (!readOnly) onUpdateMeta(block.id, { caption: e.target.value });
+          }}
           placeholder="Título do Algoritmo / Código (ex: Cálculo da regressão linear)"
           className="w-full text-xs px-2.5 py-1.5 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-sky-600"
         />
@@ -107,8 +122,11 @@ export const CodeAndMathBlockItems: React.FC<CodeAndMathBlockItemsProps> = ({
         <textarea
           rows={5}
           value={block.content}
-          autoFocus={autoFocus}
-          onChange={(e) => onUpdateContent(block.id, e.target.value)}
+          readOnly={readOnly}
+          autoFocus={autoFocus && !readOnly}
+          onChange={(e) => {
+            if (!readOnly) onUpdateContent(block.id, e.target.value);
+          }}
           placeholder="Cole ou digite o código-fonte aqui..."
           className="w-full font-mono text-xs p-3 bg-neutral-900 text-neutral-100 rounded-lg focus:outline-none leading-relaxed"
         />
@@ -116,7 +134,10 @@ export const CodeAndMathBlockItems: React.FC<CodeAndMathBlockItemsProps> = ({
         <input
           type="text"
           value={block.meta?.source || ''}
-          onChange={(e) => onUpdateMeta(block.id, { source: e.target.value })}
+          readOnly={readOnly}
+          onChange={(e) => {
+            if (!readOnly) onUpdateMeta(block.id, { source: e.target.value });
+          }}
           placeholder="Fonte (ex: Elaborado pelo autor)"
           className="w-full text-xs px-2.5 py-1.5 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-sky-600"
         />
@@ -139,8 +160,11 @@ export const CodeAndMathBlockItems: React.FC<CodeAndMathBlockItemsProps> = ({
         <textarea
           rows={4}
           value={block.content}
-          autoFocus={autoFocus}
-          onChange={(e) => onUpdateContent(block.id, e.target.value)}
+          readOnly={readOnly}
+          autoFocus={autoFocus && !readOnly}
+          onChange={(e) => {
+            if (!readOnly) onUpdateContent(block.id, e.target.value);
+          }}
           placeholder="#rect(fill: luma(245), inset: 10pt, radius: 4pt)[Conteúdo Typst livre]"
           className="w-full font-mono text-xs p-3 bg-neutral-900 text-neutral-100 rounded-lg focus:outline-none leading-relaxed"
         />

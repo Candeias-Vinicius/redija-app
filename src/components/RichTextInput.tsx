@@ -45,6 +45,7 @@ interface RichTextInputProps {
   placeholder?: string;
   className?: string;
   autoFocus?: boolean;
+  readOnly?: boolean;
   openCitationTrigger?: number;
   onOpenNewReferenceModal?: () => void;
   onEnter?: () => void;
@@ -62,6 +63,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
   placeholder = 'Digite seu texto, "/" para comandos ou "@" para citar referência...',
   className = '',
   autoFocus = false,
+  readOnly = false,
   openCitationTrigger = 0,
   onOpenNewReferenceModal,
   onEnter,
@@ -84,11 +86,21 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
   const [mathDraft, setMathDraft] = useState('');
   const [lastSeenTrigger, setLastSeenTrigger] = useState(openCitationTrigger);
   const popoverOpenRef = useRef(false);
+  const readOnlyRef = useRef(readOnly);
+  const latestValueRef = useRef(value);
+
+  useEffect(() => {
+    readOnlyRef.current = readOnly;
+  }, [readOnly]);
+
+  useEffect(() => {
+    latestValueRef.current = value;
+  }, [value]);
 
   // Permite abrir o seletor de referência quando o usuário escolhe "Chamar Referência" no menu `/`
   if (openCitationTrigger !== lastSeenTrigger) {
     setLastSeenTrigger(openCitationTrigger);
-    if (openCitationTrigger > 0) {
+    if (openCitationTrigger > 0 && !readOnly) {
       setShowCitationPicker(true);
     }
   }
@@ -103,6 +115,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
     addKeyboardShortcuts() {
       return {
         Enter: () => {
+          if (readOnlyRef.current) return true;
           if (popoverOpenRef.current) return false;
           if (onEnter) {
             onEnter();
@@ -111,6 +124,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
           return false;
         },
         Backspace: ({ editor: ed }) => {
+          if (readOnlyRef.current) return true;
           if (ed.state.doc.content.size <= 2 && onBackspaceEmpty) {
             onBackspaceEmpty();
             return true;
@@ -158,17 +172,19 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
       CitationNode,
       InlineMathNode,
       Placeholder.configure({
-        placeholder,
+        placeholder: readOnly ? '' : placeholder,
       }),
       KeyboardShortcuts,
     ],
+    editable: !readOnly,
     content: value,
-    autofocus: autoFocus ? 'end' : false,
+    autofocus: autoFocus && !readOnly ? 'end' : false,
     editorProps: {
       attributes: {
         class: `focus:outline-none min-h-[1.5rem] ${className}`,
       },
       handleTextInput: (view, _from, _to, text) => {
+        if (readOnlyRef.current) return true;
         if (text === '/' && view.state.doc.textContent.trim() === '' && onSlashCommand) {
           onSlashCommand();
           return true;
@@ -181,9 +197,11 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
       },
     },
     onUpdate: ({ editor: ed }) => {
+      if (readOnlyRef.current) return;
       const html = ed.getHTML();
       const normalized = html === '<p></p>' ? '' : html;
-      const normalizedValue = value === '<p></p>' ? '' : value;
+      const currentVal = latestValueRef.current;
+      const normalizedValue = currentVal === '<p></p>' ? '' : currentVal;
       if (normalized === normalizedValue) return;
 
       // Se a única diferença for o wrapping inicial de <p> (ex: plain text "Olá" vs "<p>Olá</p>"),
@@ -199,6 +217,10 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
       onChange(normalized);
     },
     onSelectionUpdate: ({ editor: ed }) => {
+      if (readOnlyRef.current) {
+        setHasSelection(false);
+        return;
+      }
       const { from, to } = ed.state.selection;
       setHasSelection(to > from);
     },
@@ -207,15 +229,20 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
     },
   });
 
-  // Sincroniza quando o projeto é trocado externamente
+  useEffect(() => {
+    if (!editor) return;
+    editor.setEditable(!readOnly);
+  }, [editor, readOnly]);
+
+  // Sincroniza quando o projeto é trocado externamente ou atualizado via P2P/Drive sem re-emitir onUpdate
   useEffect(() => {
     if (!editor) return;
     const current = editor.getHTML();
     const normalizedCurrent = current === '<p></p>' ? '' : current;
-    if (value !== normalizedCurrent && !editor.isFocused) {
-      editor.commands.setContent(value || '');
+    if (value !== normalizedCurrent && (!editor.isFocused || readOnly)) {
+      editor.commands.setContent(value || '', { emitUpdate: false });
     }
-  }, [value, editor]);
+  }, [value, editor, readOnly]);
 
   const contextValue = useMemo(
     () => ({
@@ -328,7 +355,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
     <CitationRenderContext.Provider value={contextValue}>
       <div className="relative w-full">
         {/* Barra Flutuante de Formatação Inline (aparece ao selecionar texto) */}
-        {hasSelection && (
+        {!readOnly && hasSelection && (
           <div
             onMouseDown={(e) => e.preventDefault()}
             className="absolute -top-9 left-0 z-30 flex items-center gap-0.5 bg-neutral-900 text-white rounded-lg shadow-lg px-1.5 py-1 text-xs animate-in fade-in duration-100"
@@ -436,7 +463,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
         )}
 
         {/* Popover de Hyperlink */}
-        {showLinkInput && (
+        {!readOnly && showLinkInput && (
           <div className="absolute left-0 top-8 z-40 w-80 bg-white border border-neutral-200 rounded-xl shadow-xl p-2.5 text-xs space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase text-neutral-500">
@@ -495,7 +522,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
         )}
 
         {/* Popover de Matemática Inline */}
-        {showMathInput && (
+        {!readOnly && showMathInput && (
           <div className="absolute left-0 top-8 z-40 w-80 bg-white border border-neutral-200 rounded-xl shadow-xl p-2.5 text-xs space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase text-indigo-700 flex items-center gap-1">
@@ -543,32 +570,34 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
             <EditorContent editor={editor} />
           </div>
 
-          <div className="opacity-0 group-hover/cite:opacity-100 focus-within:opacity-100 shrink-0 flex items-center gap-1 transition-all select-none">
-            <button
-              type="button"
-              onClick={openMathPopover}
-              className="flex items-center px-1.5 py-0.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-indigo-50 hover:border-indigo-300 text-[11px] font-medium text-neutral-500 hover:text-indigo-700 transition-colors"
-              title="Inserir expressão matemática inline no texto ($...$)"
-              aria-label="Inserir matemática inline"
-            >
-              <Sigma className="w-3 h-3" />
-            </button>
+          {!readOnly && (
+            <div className="opacity-0 group-hover/cite:opacity-100 focus-within:opacity-100 shrink-0 flex items-center gap-1 transition-all select-none">
+              <button
+                type="button"
+                onClick={openMathPopover}
+                className="flex items-center px-1.5 py-0.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-indigo-50 hover:border-indigo-300 text-[11px] font-medium text-neutral-500 hover:text-indigo-700 transition-colors"
+                title="Inserir expressão matemática inline no texto ($...$)"
+                aria-label="Inserir matemática inline"
+              >
+                <Sigma className="w-3 h-3" />
+              </button>
 
-            {/* Botão rápido "+ Referência" que aparece discretamente à direita do parágrafo ao passar o mouse */}
-            <button
-              type="button"
-              onClick={() => setShowCitationPicker((prev) => !prev)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-emerald-50 hover:border-emerald-300 text-[11px] font-medium text-neutral-500 hover:text-emerald-700 transition-colors"
-              title="Chamar uma referência bibliográfica no final ou meio do texto (ou digite @)"
-            >
-              <Bookmark className="w-3 h-3 text-emerald-600" />
-              <span>+ Referência</span>
-            </button>
-          </div>
+              {/* Botão rápido "+ Referência" que aparece discretamente à direita do parágrafo ao passar o mouse */}
+              <button
+                type="button"
+                onClick={() => setShowCitationPicker((prev) => !prev)}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-emerald-50 hover:border-emerald-300 text-[11px] font-medium text-neutral-500 hover:text-emerald-700 transition-colors"
+                title="Chamar uma referência bibliográfica no final ou meio do texto (ou digite @)"
+              >
+                <Bookmark className="w-3 h-3 text-emerald-600" />
+                <span>+ Referência</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Seletor de Chamada de Referência (abre com @, pelo menu / ou pelo botão "+ Referência") */}
-        {showCitationPicker && (
+        {!readOnly && showCitationPicker && (
           <div className="absolute left-0 top-7 z-30 w-80 bg-white border border-neutral-200 rounded-xl shadow-xl py-2 text-xs">
             <div className="px-3 pb-1.5 text-[10px] font-bold uppercase text-neutral-400 flex items-center justify-between border-b border-neutral-100">
               <span className="flex items-center gap-1">

@@ -27,6 +27,7 @@ import {
 interface SidebarReferencesSectionProps {
   project: DocumentProject;
   references: AcademicReference[];
+  readOnly?: boolean;
   onOpenReferenceModal: () => void;
   onEditReference?: (ref: AcademicReference) => void;
   onOpenTemplateCustomizer?: () => void;
@@ -36,6 +37,7 @@ interface SidebarReferencesSectionProps {
 export const SidebarReferencesSection: React.FC<SidebarReferencesSectionProps> = ({
   project,
   references,
+  readOnly = false,
   onOpenReferenceModal,
   onEditReference,
   onOpenTemplateCustomizer,
@@ -101,7 +103,7 @@ export const SidebarReferencesSection: React.FC<SidebarReferencesSectionProps> =
               <Download className="w-3.5 h-3.5" />
             </button>
           )}
-          {onOpenTemplateCustomizer && (
+          {onOpenTemplateCustomizer && !readOnly && (
             <button
               onClick={onOpenTemplateCustomizer}
               className="p-1 hover:bg-neutral-100 rounded text-neutral-500 hover:text-emerald-700"
@@ -110,14 +112,16 @@ export const SidebarReferencesSection: React.FC<SidebarReferencesSectionProps> =
               <Sliders className="w-3.5 h-3.5" />
             </button>
           )}
-          <button
-            onClick={onOpenReferenceModal}
-            className="flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-semibold transition-colors"
-            title="Adicionar Referência (DOI, ISBN, .bib ou Manual)"
-          >
-            <Plus className="w-3 h-3" />
-            <span>Nova</span>
-          </button>
+          {!readOnly && (
+            <button
+              onClick={onOpenReferenceModal}
+              className="flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-semibold transition-colors"
+              title="Adicionar Referência (DOI, ISBN, .bib ou Manual)"
+            >
+              <Plus className="w-3 h-3" />
+              <span>Nova</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -158,12 +162,14 @@ export const SidebarReferencesSection: React.FC<SidebarReferencesSectionProps> =
           {references.length === 0 ? (
             <div className="text-[11px] text-neutral-400 py-4 px-2 text-center border border-dashed border-neutral-200 rounded-lg">
               Nenhuma referência cadastrada.
-              <button
-                onClick={onOpenReferenceModal}
-                className="block mx-auto text-emerald-600 font-semibold hover:underline mt-1"
-              >
-                + Adicionar por DOI, ISBN ou arquivo .bib
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={onOpenReferenceModal}
+                  className="block mx-auto text-emerald-600 font-semibold hover:underline mt-1"
+                >
+                  + Adicionar por DOI, ISBN ou arquivo .bib
+                </button>
+              )}
             </div>
           ) : filteredReferences.length === 0 ? (
             <div className="text-[11px] text-neutral-400 py-3 text-center">
@@ -205,7 +211,7 @@ export const SidebarReferencesSection: React.FC<SidebarReferencesSectionProps> =
                             <Copy className="w-3.5 h-3.5" />
                           )}
                         </button>
-                        {onEditReference && (
+                        {onEditReference && !readOnly && (
                           <button
                             onClick={() => onEditReference(ref)}
                             className="p-1 text-neutral-400 hover:text-blue-600 rounded"
@@ -214,13 +220,15 @@ export const SidebarReferencesSection: React.FC<SidebarReferencesSectionProps> =
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        <button
-                          onClick={() => onRemoveReference(ref.id)}
-                          className="p-1 text-neutral-400 hover:text-red-500 rounded"
-                          title="Remover referência"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {!readOnly && (
+                          <button
+                            onClick={() => onRemoveReference(ref.id)}
+                            className="p-1 text-neutral-400 hover:text-red-500 rounded"
+                            title="Remover referência"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -240,7 +248,7 @@ export const SidebarReferencesSection: React.FC<SidebarReferencesSectionProps> =
             </div>
           )}
 
-          {onOpenTemplateCustomizer && (
+          {onOpenTemplateCustomizer && !readOnly && (
             <button
               type="button"
               onClick={onOpenTemplateCustomizer}

@@ -19,12 +19,13 @@ import { SidebarPreTextualsSection } from './sidebar/SidebarPreTextualsSection';
 import { SidebarAbstractSection } from './sidebar/SidebarAbstractSection';
 import { SidebarReferencesSection } from './sidebar/SidebarReferencesSection';
 import { SidebarPostTextualsSection } from './sidebar/SidebarPostTextualsSection';
-import { PanelLeftClose, SlidersHorizontal } from 'lucide-react';
+import { Lock, PanelLeftClose, SlidersHorizontal } from 'lucide-react';
 
 interface SidebarProps {
   widthPx?: number;
   project: DocumentProject;
   metadata: DocumentMetadata;
+  readOnly?: boolean;
   onChangeMetadata: (meta: DocumentMetadata) => void;
   onChangeSidebarConfig?: (sidebarConfig?: SidebarConfig) => void;
   references: AcademicReference[];
@@ -41,6 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   widthPx = 320,
   project,
   metadata,
+  readOnly = false,
   onChangeMetadata,
   onChangeSidebarConfig,
   references,
@@ -58,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     field: K,
     value: DocumentMetadata[K],
   ) => {
+    if (readOnly) return;
     onChangeMetadata({ ...metadata, [field]: value });
   };
 
@@ -94,9 +97,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 {capabilities.badgeLabel}
               </span>
+              {readOnly && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border bg-amber-50 text-amber-800 border-amber-200">
+                  <Lock className="w-2.5 h-2.5" />
+                  <span>Somente leitura</span>
+                </span>
+              )}
             </div>
             <p className="text-[11px] text-neutral-500 mt-0.5">{capabilities.headerSubtitle}</p>
-            {onChangeSidebarConfig && (
+            {onChangeSidebarConfig && !readOnly && (
               <button
                 type="button"
                 onClick={() => setIsFieldCustomizerOpen(true)}
@@ -125,34 +134,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
             metadata={metadata}
             templateConfig={project.templateConfig}
             capabilities={capabilities}
+            readOnly={readOnly}
             onUpdateField={updateField}
-            onOpenTemplateCustomizer={onOpenTemplateCustomizer}
+            onOpenTemplateCustomizer={readOnly ? undefined : onOpenTemplateCustomizer}
           />
 
           <SidebarPreTextualsSection
             metadata={metadata}
             capabilities={capabilities}
+            readOnly={readOnly}
             onUpdateField={updateField}
           />
 
           <SidebarAbstractSection
             metadata={metadata}
             capabilities={capabilities}
+            readOnly={readOnly}
             onUpdateField={updateField}
           />
 
           <SidebarReferencesSection
             project={project}
             references={references}
+            readOnly={readOnly}
             onOpenReferenceModal={onOpenReferenceModal}
-            onEditReference={onEditReference}
-            onOpenTemplateCustomizer={onOpenTemplateCustomizer}
+            onEditReference={readOnly ? undefined : onEditReference}
+            onOpenTemplateCustomizer={readOnly ? undefined : onOpenTemplateCustomizer}
             onRemoveReference={onRemoveReference}
           />
 
           <SidebarPostTextualsSection
             metadata={metadata}
             capabilities={capabilities}
+            readOnly={readOnly}
             onUpdateField={updateField}
           />
 
@@ -171,7 +185,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </aside>
 
-      {onChangeSidebarConfig && (
+      {onChangeSidebarConfig && !readOnly && (
         <SidebarFieldCustomizerModal
           isOpen={isFieldCustomizerOpen}
           onClose={() => setIsFieldCustomizerOpen(false)}

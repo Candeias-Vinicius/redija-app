@@ -6,6 +6,7 @@ import { PreTextualFieldId, TemplateCapabilities } from '@/core/templates/templa
 interface SidebarPreTextualsSectionProps {
   metadata: DocumentMetadata;
   capabilities: TemplateCapabilities;
+  readOnly?: boolean;
   onUpdateField: <K extends keyof DocumentMetadata>(
     field: K,
     value: DocumentMetadata[K],
@@ -15,6 +16,7 @@ interface SidebarPreTextualsSectionProps {
 export const SidebarPreTextualsSection: React.FC<SidebarPreTextualsSectionProps> = ({
   metadata,
   capabilities,
+  readOnly = false,
   onUpdateField,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -53,7 +55,10 @@ export const SidebarPreTextualsSection: React.FC<SidebarPreTextualsSectionProps>
                     <input
                       type="checkbox"
                       checked={Boolean(metadata.includeApprovalPage)}
-                      onChange={(e) => onUpdateField('includeApprovalPage', e.target.checked)}
+                      disabled={readOnly}
+                      onChange={(e) => {
+                        if (!readOnly) onUpdateField('includeApprovalPage', e.target.checked);
+                      }}
                       className="rounded text-emerald-600 focus:ring-emerald-500"
                     />
                     <span>Incluir Folha de Aprovação (Banca Examinadora)</span>
@@ -68,7 +73,10 @@ export const SidebarPreTextualsSection: React.FC<SidebarPreTextualsSectionProps>
                         <input
                           type="text"
                           value={metadata.approvalDate || ''}
-                          onChange={(e) => onUpdateField('approvalDate', e.target.value)}
+                          readOnly={readOnly}
+                          onChange={(e) => {
+                            if (!readOnly) onUpdateField('approvalDate', e.target.value);
+                          }}
                           placeholder="Ex: 10 de dezembro de 2026"
                           className="w-full text-xs px-2 py-1 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
                         />
@@ -80,9 +88,12 @@ export const SidebarPreTextualsSection: React.FC<SidebarPreTextualsSectionProps>
                         <textarea
                           rows={3}
                           value={(metadata.committeeMembers ?? []).join('\n')}
-                          onChange={(e) =>
-                            onUpdateField('committeeMembers', e.target.value.split('\n'))
-                          }
+                          readOnly={readOnly}
+                          onChange={(e) => {
+                            if (!readOnly) {
+                              onUpdateField('committeeMembers', e.target.value.split('\n'));
+                            }
+                          }}
                           placeholder={
                             'Prof. Dr. Carlos Eduardo (Convidado)\nProfa. Dra. Ana Beatriz (Avaliadora)'
                           }
@@ -99,7 +110,10 @@ export const SidebarPreTextualsSection: React.FC<SidebarPreTextualsSectionProps>
                   <input
                     type="checkbox"
                     checked={Boolean(metadata.includeFiguresList)}
-                    onChange={(e) => onUpdateField('includeFiguresList', e.target.checked)}
+                    disabled={readOnly}
+                    onChange={(e) => {
+                      if (!readOnly) onUpdateField('includeFiguresList', e.target.checked);
+                    }}
                     className="rounded text-emerald-600 focus:ring-emerald-500"
                   />
                   <span>Gerar Lista de Ilustrações automática</span>
@@ -111,7 +125,10 @@ export const SidebarPreTextualsSection: React.FC<SidebarPreTextualsSectionProps>
                   <input
                     type="checkbox"
                     checked={Boolean(metadata.includeBoxesList)}
-                    onChange={(e) => onUpdateField('includeBoxesList', e.target.checked)}
+                    disabled={readOnly}
+                    onChange={(e) => {
+                      if (!readOnly) onUpdateField('includeBoxesList', e.target.checked);
+                    }}
                     className="rounded text-emerald-600 focus:ring-emerald-500"
                   />
                   <span>Gerar Lista de Quadros automática</span>
@@ -123,7 +140,10 @@ export const SidebarPreTextualsSection: React.FC<SidebarPreTextualsSectionProps>
                   <input
                     type="checkbox"
                     checked={Boolean(metadata.includeTablesList)}
-                    onChange={(e) => onUpdateField('includeTablesList', e.target.checked)}
+                    disabled={readOnly}
+                    onChange={(e) => {
+                      if (!readOnly) onUpdateField('includeTablesList', e.target.checked);
+                    }}
                     className="rounded text-emerald-600 focus:ring-emerald-500"
                   />
                   <span>Gerar Lista de Tabelas automática</span>
@@ -140,7 +160,10 @@ export const SidebarPreTextualsSection: React.FC<SidebarPreTextualsSectionProps>
               <textarea
                 rows={2}
                 value={metadata.dedicatory || ''}
-                onChange={(e) => onUpdateField('dedicatory', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('dedicatory', e.target.value);
+                }}
                 placeholder="Ex: Dedico este trabalho aos meus pais..."
                 className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
               />
@@ -155,7 +178,10 @@ export const SidebarPreTextualsSection: React.FC<SidebarPreTextualsSectionProps>
               <textarea
                 rows={3}
                 value={metadata.acknowledgments || ''}
-                onChange={(e) => onUpdateField('acknowledgments', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('acknowledgments', e.target.value);
+                }}
                 placeholder="Texto de agradecimentos..."
                 className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
               />
@@ -170,14 +196,20 @@ export const SidebarPreTextualsSection: React.FC<SidebarPreTextualsSectionProps>
               <textarea
                 rows={2}
                 value={metadata.epigraph || ''}
-                onChange={(e) => onUpdateField('epigraph', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('epigraph', e.target.value);
+                }}
                 placeholder="Citação filosófica ou epígrafe..."
                 className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600 mb-1"
               />
               <input
                 type="text"
                 value={metadata.epigraphAuthor || ''}
-                onChange={(e) => onUpdateField('epigraphAuthor', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('epigraphAuthor', e.target.value);
+                }}
                 placeholder="Autor da epígrafe (ex: Carl Sagan)"
                 className="w-full text-xs px-2 py-1 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
               />
@@ -192,7 +224,10 @@ export const SidebarPreTextualsSection: React.FC<SidebarPreTextualsSectionProps>
               <textarea
                 rows={3}
                 value={metadata.abbreviations || ''}
-                onChange={(e) => onUpdateField('abbreviations', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('abbreviations', e.target.value);
+                }}
                 placeholder="Ex: ABNT: Associação Brasileira de Normas Técnicas&#10;IBGE: Instituto Brasileiro de Geografia e Estatística"
                 className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
               />
@@ -207,7 +242,10 @@ export const SidebarPreTextualsSection: React.FC<SidebarPreTextualsSectionProps>
               <textarea
                 rows={2}
                 value={metadata.symbols || ''}
-                onChange={(e) => onUpdateField('symbols', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('symbols', e.target.value);
+                }}
                 placeholder="Ex: Ω: Ohm (Resistência elétrica)&#10;λ: Comprimento de onda"
                 className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
               />

@@ -21,5 +21,15 @@ describe('useDriveSyncOrchestrator helpers', () => {
       },
     };
     expect(getProjectContentSignature(base)).not.toBe(getProjectContentSignature(contentChanged));
+
+    // Tombstones e timestamps estruturais devem invalidar a assinatura para sincronizar no Drive
+    const tombstoneChanged = {
+      ...base,
+      deletedBlockTimestamps: { old_blk: 1731100000000 },
+      blocksOrderUpdatedAt: 1731100000000,
+    };
+    expect(getProjectContentSignature(base)).not.toBe(
+      getProjectContentSignature(tombstoneChanged),
+    );
   });
 });

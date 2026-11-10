@@ -3,6 +3,7 @@ import { DEFAULT_TEMPLATE_CONFIG } from '@/types/document';
 import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
 import {
   classifyBlocksChange,
+  computeNextDeletedBlockTimestamps,
   generateDefaultProjectName,
   generateUniqueCopyName,
   resolveTemplateTypeOnCustomizerApply,
@@ -75,5 +76,18 @@ describe('useProjectWorkspace helpers', () => {
       kind: 'content',
       modifiedBlock: edited[0],
     });
+  });
+
+  it('computeNextDeletedBlockTimestamps registra exclusões e remove tombstones quando blocos são restaurados', () => {
+    const b1 = { id: 'b1', type: 'paragraph' as const, content: 'A' };
+    const b2 = { id: 'b2', type: 'paragraph' as const, content: 'B' };
+
+    // Remove b2 -> cria tombstone
+    const afterDelete = computeNextDeletedBlockTimestamps([b1, b2], [b1], undefined, 5000);
+    expect(afterDelete).toEqual({ b2: 5000 });
+
+    // Restaura b2 (ex: via Undo) -> remove tombstone antigo
+    const afterUndo = computeNextDeletedBlockTimestamps([b1], [b1, b2], afterDelete, 6000);
+    expect(afterUndo).toBeUndefined();
   });
 });

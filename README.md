@@ -119,6 +119,9 @@ Acesse **`http://localhost:3000`** no navegador.
 | Variável | Obrigatória? | Finalidade |
 | :--- | :---: | :--- |
 | `VITE_GOOGLE_CLIENT_ID` | Opcional | Client ID OAuth 2.0 (Google Cloud Console) para habilitar login e sync real com Google Drive. |
+| `VITE_GOOGLE_API_KEY` | Opcional *(prod)* | Chave de API (Google Picker API) para abrir arquivos `.redija` compartilhados direto pelo seletor oficial do Drive mantendo escopo mínimo `drive.file`. |
+| `VITE_GOOGLE_APP_ID` | Opcional | Número do projeto no Google Cloud (inferido do prefixo de `VITE_GOOGLE_CLIENT_ID` se omitido). |
+| `VITE_TURN_URL` | Opcional | Servidor TURN/TURNS (com `VITE_TURN_USERNAME` e `VITE_TURN_CREDENTIAL`) para P2P WebRTC em redes restritas. |
 | `RESEND_API_KEY` | Opcional *(prod)* | Chave do Resend usada pela Vercel Serverless Function em `/api/feedback`. |
 | `RESEND_FROM_EMAIL` | Opcional *(prod)* | Remetente configurado no serviço Resend. |
 | `RESEND_TO_EMAIL` | Opcional *(prod)* | Caixa de destino para relatos de bug/contato (padrão: `contato.redija@gmail.com`). |

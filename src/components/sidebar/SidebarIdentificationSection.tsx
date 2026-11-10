@@ -7,6 +7,7 @@ interface SidebarIdentificationSectionProps {
   metadata: DocumentMetadata;
   templateConfig?: TemplateConfig;
   capabilities: TemplateCapabilities;
+  readOnly?: boolean;
   onUpdateField: <K extends keyof DocumentMetadata>(
     field: K,
     value: DocumentMetadata[K],
@@ -18,6 +19,7 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
   metadata,
   templateConfig,
   capabilities,
+  readOnly = false,
   onUpdateField,
   onOpenTemplateCustomizer,
 }) => {
@@ -92,7 +94,10 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
               <input
                 type="text"
                 value={metadata.title}
-                onChange={(e) => onUpdateField('title', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('title', e.target.value);
+                }}
                 className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 placeholder="Ex: Análise da Eficiência Energética..."
               />
@@ -107,7 +112,10 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
               <input
                 type="text"
                 value={metadata.subtitle || ''}
-                onChange={(e) => onUpdateField('subtitle', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('subtitle', e.target.value);
+                }}
                 className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 placeholder="Ex: Um estudo de caso regional"
               />
@@ -122,7 +130,10 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
               <input
                 type="text"
                 value={metadata.author}
-                onChange={(e) => onUpdateField('author', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('author', e.target.value);
+                }}
                 className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 placeholder="Ex: Nome do Autor"
               />
@@ -137,7 +148,10 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
               <input
                 type="text"
                 value={metadata.advisor || ''}
-                onChange={(e) => onUpdateField('advisor', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('advisor', e.target.value);
+                }}
                 className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 placeholder="Ex: Prof. Dr. Nome do Orientador"
               />
@@ -152,7 +166,10 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
               <input
                 type="text"
                 value={metadata.coadvisor || ''}
-                onChange={(e) => onUpdateField('coadvisor', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('coadvisor', e.target.value);
+                }}
                 className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 placeholder="Ex: Profa. Dra. Nome da Coorientadora"
               />
@@ -167,7 +184,10 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
               <textarea
                 rows={3}
                 value={metadata.nature || ''}
-                onChange={(e) => onUpdateField('nature', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('nature', e.target.value);
+                }}
                 className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 placeholder="Ex: Trabalho de Conclusão de Curso apresentado ao..."
               />
@@ -182,7 +202,10 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
               <input
                 type="text"
                 value={metadata.institution}
-                onChange={(e) => onUpdateField('institution', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('institution', e.target.value);
+                }}
                 className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 placeholder="Ex: Universidade Federal..."
               />
@@ -197,7 +220,10 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
               <input
                 type="text"
                 value={metadata.course}
-                onChange={(e) => onUpdateField('course', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('course', e.target.value);
+                }}
                 className="w-full text-xs px-2.5 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                 placeholder="Ex: Bacharelado em Engenharia de Software"
               />
@@ -214,7 +240,10 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
                   <input
                     type="text"
                     value={metadata.location}
-                    onChange={(e) => onUpdateField('location', e.target.value)}
+                    readOnly={readOnly}
+                    onChange={(e) => {
+                      if (!readOnly) onUpdateField('location', e.target.value);
+                    }}
                     className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                     placeholder="São Paulo"
                   />
@@ -228,7 +257,10 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
                   <input
                     type="text"
                     value={metadata.year}
-                    onChange={(e) => onUpdateField('year', e.target.value)}
+                    readOnly={readOnly}
+                    onChange={(e) => {
+                      if (!readOnly) onUpdateField('year', e.target.value);
+                    }}
                     className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
                     placeholder="2026"
                   />

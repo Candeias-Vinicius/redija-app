@@ -13,6 +13,7 @@ import {
   ProjectTemplateType,
   NormPresetId,
   SidebarConfig,
+  ShareRole,
   FontFamilyId,
   CitationFormat,
   ReferenceHighlight,
@@ -29,6 +30,7 @@ import {
   BibliographyEngine,
   CslStyle,
 } from '@/types/document';
+import { isValidCollabSecret } from '@/core/collaboration/collabCrypto';
 import {
   VALID_FONT_FAMILY_IDS,
   sanitizeCustomFontFamily,
@@ -525,6 +527,55 @@ export function normalizeProject(raw: unknown): DocumentProject {
     };
   }
 
+  const validShareRoles: ShareRole[] = ['owner', 'writer', 'commenter', 'reader'];
+  const shareRole: ShareRole | undefined =
+    typeof data.shareRole === 'string' && validShareRoles.includes(data.shareRole as ShareRole)
+      ? (data.shareRole as ShareRole)
+      : undefined;
+
+  const collabSecret = isValidCollabSecret(data.collabSecret) ? data.collabSecret : undefined;
+
+  let deletedBlockTimestamps: Record<string, number> | undefined = undefined;
+  if (data.deletedBlockTimestamps && typeof data.deletedBlockTimestamps === 'object' && !Array.isArray(data.deletedBlockTimestamps)) {
+    const entries: [string, number][] = [];
+    for (const key of Object.keys(data.deletedBlockTimestamps)) {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+      const val = (data.deletedBlockTimestamps as Record<string, unknown>)[key];
+      if (typeof val === 'number' && Number.isFinite(val) && val > 0) {
+        entries.push([key, val]);
+      }
+    }
+    if (entries.length > 0) {
+      entries.sort((a, b) => b[1] - a[1]);
+      deletedBlockTimestamps = Object.fromEntries(entries.slice(0, 500));
+    }
+  }
+
+  let sharedBy: DocumentProject['sharedBy'] = undefined;
+  if (data.sharedBy && typeof data.sharedBy === 'object' && !Array.isArray(data.sharedBy)) {
+    const rawShared = data.sharedBy as Record<string, unknown>;
+    const cleanName = typeof rawShared.name === 'string' ? rawShared.name.trim().slice(0, 128) : undefined;
+    const cleanEmail = typeof rawShared.email === 'string' ? rawShared.email.trim().slice(0, 128) : undefined;
+    const cleanPhoto =
+      typeof rawShared.photoLink === 'string' && /^https?:\/\//i.test(rawShared.photoLink)
+        ? rawShared.photoLink
+        : undefined;
+    if (cleanName || cleanEmail || cleanPhoto) {
+      sharedBy = {
+        ...(cleanName ? { name: cleanName } : {}),
+        ...(cleanEmail ? { email: cleanEmail } : {}),
+        ...(cleanPhoto ? { photoLink: cleanPhoto } : {}),
+      };
+    }
+  }
+
+  const sanitizeTimestamp = (rawTs: unknown): number | undefined =>
+    typeof rawTs === 'number' && Number.isFinite(rawTs) && rawTs >= 0 ? rawTs : undefined;
+
+  const blocksOrderUpdatedAt = sanitizeTimestamp(data.blocksOrderUpdatedAt);
+  const metadataUpdatedAt = sanitizeTimestamp(data.metadataUpdatedAt);
+  const referencesUpdatedAt = sanitizeTimestamp(data.referencesUpdatedAt);
+
   return {
     id,
     name,
@@ -540,9 +591,12 @@ export function normalizeProject(raw: unknown): DocumentProject {
     driveFileId: typeof data.driveFileId === 'string' ? data.driveFileId : undefined,
     driveSyncedAt: typeof data.driveSyncedAt === 'string' ? data.driveSyncedAt : undefined,
     isSharedWithMe: Boolean(data.isSharedWithMe),
-    sharedBy:
-      data.sharedBy && typeof data.sharedBy === 'object'
-        ? (data.sharedBy as DocumentProject['sharedBy'])
-        : undefined,
+    sharedBy,
+    ...(shareRole ? { shareRole } : {}),
+    ...(collabSecret ? { collabSecret } : {}),
+    ...(deletedBlockTimestamps ? { deletedBlockTimestamps } : {}),
+    ...(blocksOrderUpdatedAt !== undefined ? { blocksOrderUpdatedAt } : {}),
+    ...(metadataUpdatedAt !== undefined ? { metadataUpdatedAt } : {}),
+    ...(referencesUpdatedAt !== undefined ? { referencesUpdatedAt } : {}),
   };
 }

@@ -20,9 +20,14 @@ import {
   HardDrive,
   Loader2,
   BookOpen,
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
-import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
+import {
+  CollabConnectionStatus,
+  CollaboratorPresence,
+} from '@/core/collaboration/RealtimeCollabManager';
 import { GITHUB_REPO_URL } from '@/core/links';
 import { Logo } from './Logo';
 import { GitHubIcon } from './GitHubIcon';
@@ -62,6 +67,8 @@ interface HeaderProps {
   isAuthenticated: boolean;
   isAuthLoading: boolean;
   activeCollaborators?: CollaboratorPresence[];
+  collabConnectionStatus?: CollabConnectionStatus;
+  isReadOnly?: boolean;
   onLogin: () => void;
   onLogout: () => void;
   onOpenShareModal: () => void;
@@ -95,6 +102,8 @@ export const Header: React.FC<HeaderProps> = ({
   isAuthenticated,
   isAuthLoading,
   activeCollaborators = [],
+  collabConnectionStatus = 'idle',
+  isReadOnly = false,
   onLogin,
   onLogout,
   onOpenShareModal,
@@ -138,6 +147,16 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
           <ChevronDown className="w-3 h-3 text-neutral-400 shrink-0" />
         </button>
+
+        {isReadOnly && (
+          <span
+            className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shrink-0"
+            title="Arquivo compartilhado em modo somente leitura"
+          >
+            <Lock className="w-2.5 h-2.5" />
+            <span>Somente leitura</span>
+          </span>
+        )}
 
         {/* Botões Desfazer / Refazer (Ctrl+Z / Ctrl+Y) */}
         <div className="hidden md:flex items-center gap-0.5 pl-1.5 border-l border-neutral-200 dark:border-neutral-800">
@@ -243,11 +262,11 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Presença de Colaboradores em Tempo Real (Nível 3 P2P) */}
-        {activeCollaborators.length > 0 && (
+        {/* Presença de Colaboradores em Tempo Real (Nível 3 P2P E2EE / Fallback Drive) */}
+        {activeCollaborators.length > 0 ? (
           <div
             className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 animate-in fade-in duration-200"
-            title={`${activeCollaborators.length} colaborador(es) editando ao vivo agora`}
+            title={`${activeCollaborators.length} colaborador(es) conectados com criptografia ponta-a-ponta (${collabConnectionStatus === 'connected_p2p' ? 'WebRTC P2P E2EE' : 'Canal local seguro'})`}
           >
             <span className="relative flex h-2 w-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -277,7 +296,19 @@ export const Header: React.FC<HeaderProps> = ({
                 ? '1 online'
                 : `${activeCollaborators.length} online`}
             </span>
+            <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400 hidden lg:inline shrink-0" />
           </div>
+        ) : (
+          isAuthenticated &&
+          collabConnectionStatus === 'fallback_drive' && (
+            <div
+              className="hidden md:flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[10px] font-medium text-blue-700 dark:text-blue-300"
+              title="Rede P2P direta indisponível neste ambiente. Sincronização automática via Google Drive ativa."
+            >
+              <Cloud className="w-3 h-3 shrink-0" />
+              <span>Via Drive</span>
+            </div>
+          )
         )}
 
         {/* Botão Compartilhar */}

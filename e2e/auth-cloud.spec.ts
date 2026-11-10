@@ -139,4 +139,106 @@ test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
     await expect(page.getByText('Redija', { exact: true })).toBeVisible();
     await expect(page.getByText(/O Redija cuida das normas por você/i)).not.toBeVisible();
   });
+
+  test('abre link direto ?driveFileId=, exibe link direto no ShareModal e modal Abrir Compartilhado', async ({
+    page,
+  }) => {
+    // 1. Acessa diretamente um link compartilhado ?driveFileId=...
+    await page.goto('/?driveFileId=mock_shared_file_999');
+
+    // 2. Valida banner de convite dentro do card de login
+    await expect(
+      page.getByText(/Você foi convidado para um trabalho no RedijaApp/i),
+    ).toBeVisible();
+
+    const demoBtn = page.getByRole('button', { name: /Entrar como Usuário Demonstração/i });
+    if (!(await demoBtn.isVisible())) {
+      // Caso rodando em ambiente com Client ID real sem login OAuth, o banner da landing já foi validado
+      return;
+    }
+
+    await demoBtn.click();
+
+    // 3. O projeto compartilhado deve abrir automaticamente no workspace e limpar ?driveFileId da URL
+    await expect(
+      page.locator('header').getByText('Artigo Compartilhado (Demo)'),
+    ).toBeVisible({ timeout: 6000 });
+    await expect(page).not.toHaveURL(/driveFileId=/);
+
+    // 4. Valida ShareModal: link direto (?driveFileId=mock_shared_file_999), status E2EE e seletor Editor/Leitor
+    await page.getByRole('button', { name: /Compartilhar/i }).click();
+    const shareModal = page.locator('div.fixed.z-50');
+    await expect(shareModal.getByText('Compartilhar Trabalho')).toBeVisible();
+    await expect(
+      shareModal.locator('input[readonly][value*="?driveFileId=mock_shared_file_999"]'),
+    ).toBeVisible();
+    await expect(shareModal.getByLabel('Nível de permissão do convidado')).toBeVisible();
+
+    // Fecha ShareModal
+    await shareModal.getByRole('button', { name: 'Fechar' }).click();
+    await expect(shareModal.getByText('Compartilhar Trabalho')).not.toBeVisible();
+
+    // 5. Abre ProjectsModal e valida botão "Abrir Compartilhado (Drive)" -> SharedDriveAccessModal
+    await page.locator('header button', { hasText: 'Artigo Compartilhado (Demo)' }).click();
+    const projectsModal = page.locator('div.fixed.z-50');
+    await expect(
+      projectsModal.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i }),
+    ).toBeVisible();
+
+    const openSharedBtn = projectsModal.getByRole('button', {
+      name: /Abrir Compartilhado \(Drive\)/i,
+    });
+    await expect(openSharedBtn).toBeVisible();
+    await openSharedBtn.click();
+
+    const accessModal = page.locator('div[role="dialog"]');
+    await expect(
+      accessModal.getByRole('heading', { name: /Abrir Trabalho Compartilhado/i }),
+    ).toBeVisible();
+    await expect(accessModal.getByText(/drive\.file/)).toBeVisible();
+    await expect(
+      accessModal.getByRole('button', { name: /Importar arquivo \.redija/i }),
+    ).toBeVisible();
+    await accessModal.getByRole('button', { name: 'Fechar' }).last().click();
+  });
+
+  test('sincroniza edições em tempo real via P2P criptografado E2EE entre duas abas (BroadcastChannel)', async ({
+    page,
+    context,
+  }) => {
+    await page.goto('/?driveFileId=mock_p2p_room_e2ee');
+
+    const demoBtn = page.getByRole('button', { name: /Entrar como Usuário Demonstração/i });
+    if (!(await demoBtn.isVisible())) {
+      return;
+    }
+
+    await demoBtn.click();
+    await expect(
+      page.locator('header').getByText('Artigo Compartilhado (Demo)'),
+    ).toBeVisible({ timeout: 6000 });
+
+    // Abre segunda aba no mesmo contexto compartilhando BroadcastChannel + IndexedDB
+    const page2 = await context.newPage();
+    page2.on('dialog', async (dialog) => {
+      await dialog.accept();
+    });
+    await page2.goto('/');
+    await expect(
+      page2.locator('header').getByText('Artigo Compartilhado (Demo)'),
+    ).toBeVisible({ timeout: 6000 });
+
+    // Aguarda descoberta mútua via BroadcastChannel E2EE antes de digitar
+    await expect(page.locator('header').getByText(/1 online/i)).toBeVisible({ timeout: 8000 });
+
+    // Digita em um bloco editável na Aba 1 e verifica propagação instantânea cifrada na Aba 2
+    const firstParagraphTab1 = page.locator('.ProseMirror[contenteditable="true"]').first();
+    await firstParagraphTab1.click();
+    await firstParagraphTab1.pressSequentially(' TESTE_E2EE_REDIJA', { delay: 10 });
+
+    await expect(page2.getByText(/TESTE_E2EE_REDIJA/)).toBeVisible({ timeout: 8000 });
+    await expect(page2.locator('header').getByText(/1 online/i)).toBeVisible({ timeout: 6000 });
+
+    await page2.close();
+  });
 });

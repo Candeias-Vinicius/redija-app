@@ -8,6 +8,7 @@ import { getAbstractWordRange } from './sidebarHelpers';
 interface SidebarAbstractSectionProps {
   metadata: DocumentMetadata;
   capabilities: TemplateCapabilities;
+  readOnly?: boolean;
   onUpdateField: <K extends keyof DocumentMetadata>(
     field: K,
     value: DocumentMetadata[K],
@@ -17,6 +18,7 @@ interface SidebarAbstractSectionProps {
 export const SidebarAbstractSection: React.FC<SidebarAbstractSectionProps> = ({
   metadata,
   capabilities,
+  readOnly = false,
   onUpdateField,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -79,7 +81,10 @@ export const SidebarAbstractSection: React.FC<SidebarAbstractSectionProps> = ({
               <textarea
                 rows={4}
                 value={metadata.abstract}
-                onChange={(e) => onUpdateField('abstract', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('abstract', e.target.value);
+                }}
                 placeholder={
                   capabilities.effectiveType === 'ieee'
                     ? 'Concise English abstract summarizing objectives, methodology and main findings...'
@@ -100,12 +105,15 @@ export const SidebarAbstractSection: React.FC<SidebarAbstractSectionProps> = ({
               <input
                 type="text"
                 value={metadata.keywords.join(', ')}
-                onChange={(e) =>
-                  onUpdateField(
-                    'keywords',
-                    e.target.value.split(',').map((k) => k.trim()),
-                  )
-                }
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) {
+                    onUpdateField(
+                      'keywords',
+                      e.target.value.split(',').map((k) => k.trim()),
+                    );
+                  }
+                }}
                 placeholder={
                   capabilities.effectiveType === 'ieee'
                     ? 'Ex: Edge Computing, IoT, Performance'
@@ -124,19 +132,25 @@ export const SidebarAbstractSection: React.FC<SidebarAbstractSectionProps> = ({
               <textarea
                 rows={3}
                 value={metadata.foreignAbstract || ''}
-                onChange={(e) => onUpdateField('foreignAbstract', e.target.value)}
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) onUpdateField('foreignAbstract', e.target.value);
+                }}
                 placeholder="English abstract..."
                 className="w-full text-xs p-2 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600 mb-1.5"
               />
               <input
                 type="text"
                 value={(metadata.foreignKeywords ?? []).join(', ')}
-                onChange={(e) =>
-                  onUpdateField(
-                    'foreignKeywords',
-                    e.target.value.split(',').map((k) => k.trim()),
-                  )
-                }
+                readOnly={readOnly}
+                onChange={(e) => {
+                  if (!readOnly) {
+                    onUpdateField(
+                      'foreignKeywords',
+                      e.target.value.split(',').map((k) => k.trim()),
+                    );
+                  }
+                }}
                 placeholder="Keywords separated by comma"
                 className="w-full text-xs px-2 py-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
               />

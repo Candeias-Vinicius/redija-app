@@ -8,6 +8,7 @@ import {
   Loader2,
   AlertTriangle,
   HelpCircle,
+  Share2,
 } from 'lucide-react';
 import { LandingMockup } from './LandingMockup';
 
@@ -19,6 +20,7 @@ interface LandingHeroProps {
   isLoading: boolean;
   error: string | null;
   isConfigured: boolean;
+  pendingSharedDriveFileId?: string | null;
   onOpenDoc: () => void;
 }
 
@@ -30,6 +32,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
   isLoading,
   error,
   isConfigured,
+  pendingSharedDriveFileId,
   onOpenDoc,
 }) => {
   return (
@@ -93,6 +96,25 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
             }`}
           >
             <div className="space-y-3.5">
+              {/* Banner de Convite Compartilhado Pendente */}
+              {pendingSharedDriveFileId && (
+                <div
+                  className={`p-3 rounded-xl border text-xs space-y-1 text-left ${
+                    isDark
+                      ? 'bg-emerald-950/60 border-emerald-700 text-emerald-200'
+                      : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  }`}
+                >
+                  <p className="font-semibold flex items-center gap-1.5">
+                    <Share2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                    <span>Você foi convidado para um trabalho no RedijaApp</span>
+                  </p>
+                  <p className="text-[11px] leading-relaxed opacity-90">
+                    Entre com sua conta Google abaixo para abrir o documento compartilhado.
+                  </p>
+                </div>
+              )}
+
               {/* Mensagem de Erro, se houver */}
               {error && (
                 <div

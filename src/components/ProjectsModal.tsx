@@ -23,6 +23,9 @@ import {
   RefreshCw,
   Globe,
   ExternalLink,
+  FolderSearch,
+  Lock,
+  Loader2,
 } from 'lucide-react';
 
 interface ProjectsModalProps {
@@ -47,6 +50,8 @@ interface ProjectsModalProps {
   isAuthenticated?: boolean;
   onSyncFromDrive?: () => Promise<void>;
   isSyncingDrive?: boolean;
+  onOpenSharedFromPicker?: () => Promise<void> | void;
+  isOpeningShared?: boolean;
 }
 
 export const ProjectsModal: React.FC<ProjectsModalProps> = ({
@@ -67,6 +72,8 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
   isAuthenticated,
   onSyncFromDrive,
   isSyncingDrive,
+  onOpenSharedFromPicker,
+  isOpeningShared,
 }) => {
   const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
   const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplateType>('tcc');
@@ -171,7 +178,23 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {isAuthenticated && onOpenSharedFromPicker && (
+              <button
+                type="button"
+                onClick={onOpenSharedFromPicker}
+                disabled={isOpeningShared}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                title="Selecionar um trabalho compartilhado na aba Compartilhados comigo do Google Drive"
+              >
+                {isOpeningShared ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <FolderSearch className="w-3.5 h-3.5" />
+                )}
+                <span>Abrir Compartilhado (Drive)</span>
+              </button>
+            )}
             {isAuthenticated && onSyncFromDrive && (
               <button
                 onClick={onSyncFromDrive}
@@ -335,6 +358,15 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                                   >
                                     <Users className="w-2.5 h-2.5" />
                                     <span>Compartilhado</span>
+                                  </span>
+                                )}
+                                {(proj.shareRole === 'reader' || proj.shareRole === 'commenter') && (
+                                  <span
+                                    className="text-[10px] font-medium bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded flex items-center gap-1"
+                                    title="Acesso em modo somente leitura"
+                                  >
+                                    <Lock className="w-2.5 h-2.5" />
+                                    <span>Somente leitura</span>
                                   </span>
                                 )}
                               </div>

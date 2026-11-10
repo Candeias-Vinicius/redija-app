@@ -8,6 +8,39 @@ export interface ResolvedAppRoute {
 }
 
 const VALID_DOCS_PATH_PREFIX = /^\/docs(?:\/([^/]+))?\/?$/i;
+const VALID_DRIVE_FILE_ID_REGEX = /^[a-zA-Z0-9_-]{4,128}$/;
+
+export function extractSharedDriveFileIdFromLocation(search: string): string | null {
+  if (!search) return null;
+  const params = new URLSearchParams(search);
+  const rawId = params.get('driveFileId')?.trim();
+  if (!rawId || !VALID_DRIVE_FILE_ID_REGEX.test(rawId)) {
+    return null;
+  }
+  return rawId;
+}
+
+export function buildProjectShareUrl(driveFileId: string, origin?: string): string {
+  const baseOrigin =
+    (origin ?? (typeof window !== 'undefined' ? window.location.origin : 'https://redija.app')).replace(
+      /\/+$/,
+      '',
+    );
+  return `${baseOrigin}/?driveFileId=${encodeURIComponent(driveFileId)}`;
+}
+
+export function clearSharedDriveFileFromLocation(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('driveFileId')) {
+      url.searchParams.delete('driveFileId');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+  } catch {
+    // Ignora falha em ambientes sem history/URL válido
+  }
+}
 
 export function resolveRouteFromLocation(
   pathname: string,

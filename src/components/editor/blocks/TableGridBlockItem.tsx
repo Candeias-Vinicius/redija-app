@@ -4,10 +4,15 @@ import { Block } from '@/types/document';
 
 interface TableGridBlockItemProps {
   block: Block;
+  readOnly?: boolean;
   onUpdateMeta: (id: string, meta: NonNullable<Block['meta']>) => void;
 }
 
-export const TableGridBlockItem: React.FC<TableGridBlockItemProps> = ({ block, onUpdateMeta }) => {
+export const TableGridBlockItem: React.FC<TableGridBlockItemProps> = ({
+  block,
+  readOnly = false,
+  onUpdateMeta,
+}) => {
   const headers = block.meta?.headers ?? ['Coluna 1', 'Coluna 2'];
   const rows = block.meta?.rows ?? [['', '']];
 
@@ -27,35 +32,40 @@ export const TableGridBlockItem: React.FC<TableGridBlockItemProps> = ({ block, o
             </>
           )}
         </span>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              const nextHeaders = [...headers, `Coluna ${headers.length + 1}`];
-              const nextRows = rows.map((r) => [...r, '']);
-              onUpdateMeta(block.id, { headers: nextHeaders, rows: nextRows });
-            }}
-            className="px-2 py-1 bg-white border border-neutral-200 rounded hover:bg-neutral-100 text-[11px]"
-          >
-            + Coluna
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const nextRows = [...rows, Array(headers.length).fill('')];
-              onUpdateMeta(block.id, { headers, rows: nextRows });
-            }}
-            className="px-2 py-1 bg-white border border-neutral-200 rounded hover:bg-neutral-100 text-[11px]"
-          >
-            + Linha
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                const nextHeaders = [...headers, `Coluna ${headers.length + 1}`];
+                const nextRows = rows.map((r) => [...r, '']);
+                onUpdateMeta(block.id, { headers: nextHeaders, rows: nextRows });
+              }}
+              className="px-2 py-1 bg-white border border-neutral-200 rounded hover:bg-neutral-100 text-[11px]"
+            >
+              + Coluna
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const nextRows = [...rows, Array(headers.length).fill('')];
+                onUpdateMeta(block.id, { headers, rows: nextRows });
+              }}
+              className="px-2 py-1 bg-white border border-neutral-200 rounded hover:bg-neutral-100 text-[11px]"
+            >
+              + Linha
+            </button>
+          </div>
+        )}
       </div>
 
       <input
         type="text"
         value={block.meta?.caption || ''}
-        onChange={(e) => onUpdateMeta(block.id, { caption: e.target.value })}
+        readOnly={readOnly}
+        onChange={(e) => {
+          if (!readOnly) onUpdateMeta(block.id, { caption: e.target.value });
+        }}
         placeholder="Título da Tabela (acima)"
         className="w-full text-xs px-2.5 py-1.5 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
       />
@@ -69,7 +79,9 @@ export const TableGridBlockItem: React.FC<TableGridBlockItemProps> = ({ block, o
                   <input
                     type="text"
                     value={h}
+                    readOnly={readOnly}
                     onChange={(e) => {
+                      if (readOnly) return;
                       const nextHeaders = [...headers];
                       nextHeaders[cIdx] = e.target.value;
                       onUpdateMeta(block.id, { headers: nextHeaders });
@@ -88,7 +100,9 @@ export const TableGridBlockItem: React.FC<TableGridBlockItemProps> = ({ block, o
                     <input
                       type="text"
                       value={row[cIdx] ?? ''}
+                      readOnly={readOnly}
                       onChange={(e) => {
+                        if (readOnly) return;
                         const nextRows = rows.map((r) => [...r]);
                         nextRows[rIdx][cIdx] = e.target.value;
                         onUpdateMeta(block.id, { rows: nextRows });
@@ -107,7 +121,10 @@ export const TableGridBlockItem: React.FC<TableGridBlockItemProps> = ({ block, o
       <input
         type="text"
         value={block.meta?.source || ''}
-        onChange={(e) => onUpdateMeta(block.id, { source: e.target.value })}
+        readOnly={readOnly}
+        onChange={(e) => {
+          if (!readOnly) onUpdateMeta(block.id, { source: e.target.value });
+        }}
         placeholder="Fonte da Tabela (abaixo)"
         className="w-full text-xs px-2.5 py-1.5 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
       />

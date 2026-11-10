@@ -6,10 +6,61 @@
 import { Block, DocumentProject, AcademicReference, DocumentMetadata } from '@/types/document';
 import { stripHtmlTags } from '@/core/transpiler/escape';
 
+const MAX_TOMBSTONES = 500;
+
 export interface MergeResult {
   mergedProject: DocumentProject;
   hasMergedRemoteChanges: boolean;
   mergedBlockCount: number;
+}
+
+export interface MergeBlocksOptions {
+  localDeletedAt?: Record<string, number>;
+  remoteDeletedAt?: Record<string, number>;
+  preferRemoteOrder?: boolean;
+}
+
+/**
+ * Mescla mapas de tombstones de blocos excluídos mantendo o timestamp mais recente
+ * e limitando o tamanho do histórico para evitar crescimento ilimitado.
+ */
+export function mergeDeletedBlockTimestamps(
+  localMap?: Record<string, number>,
+  remoteMap?: Record<string, number>,
+): Record<string, number> | undefined {
+  const combined = new Map<string, number>();
+
+  const collect = (source?: Record<string, number>) => {
+    if (!source || typeof source !== 'object') return;
+    for (const [id, ts] of Object.entries(source)) {
+      if (
+        !id ||
+        id === '__proto__' ||
+        id === 'constructor' ||
+        id === 'prototype' ||
+        typeof ts !== 'number' ||
+        !Number.isFinite(ts) ||
+        ts <= 0
+      ) {
+        continue;
+      }
+      const prev = combined.get(id) ?? 0;
+      if (ts > prev) {
+        combined.set(id, ts);
+      }
+    }
+  };
+
+  collect(localMap);
+  collect(remoteMap);
+
+  if (combined.size === 0) return undefined;
+
+  const sorted = Array.from(combined.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, MAX_TOMBSTONES);
+
+  return Object.fromEntries(sorted);
 }
 
 /**
@@ -22,105 +73,166 @@ function normalizeContent(content: string): string {
   return stripHtmlTags(trimmed).trim();
 }
 
+function isBlockDeletedByTombstone(
+  block: Block,
+  tombstones?: Record<string, number>,
+): boolean {
+  if (!tombstones) return false;
+  const deletedAt = tombstones[block.id];
+  if (typeof deletedAt !== 'number' || !Number.isFinite(deletedAt)) return false;
+  const editedAt = typeof block.updatedAt === 'number' && Number.isFinite(block.updatedAt) ? block.updatedAt : 0;
+  return deletedAt >= editedAt;
+}
+
+function resolveSharedBlockConflict(
+  localBlock: Block,
+  remoteBlock: Block,
+): Block[] {
+  const localNorm = normalizeContent(localBlock.content);
+  const remoteNorm = normalizeContent(remoteBlock.content);
+
+  // Se o conteúdo e o tipo forem idênticos, preserva o local com metadados mais recentes/completos
+  if (localNorm === remoteNorm && localBlock.type === remoteBlock.type) {
+    const localTime = localBlock.updatedAt ?? 0;
+    const remoteTime = remoteBlock.updatedAt ?? 0;
+    return [
+      {
+        ...localBlock,
+        updatedAt: Math.max(localTime, remoteTime) || localBlock.updatedAt,
+        meta:
+          remoteTime > localTime
+            ? { ...localBlock.meta, ...remoteBlock.meta }
+            : { ...remoteBlock.meta, ...localBlock.meta },
+      },
+    ];
+  }
+
+  // Se ambos editaram o mesmo bloco, vence o timestamp mais recente de forma determinística
+  const localTime = localBlock.updatedAt ?? 0;
+  const remoteTime = remoteBlock.updatedAt ?? 0;
+
+  if (remoteTime > localTime) {
+    return [
+      {
+        ...remoteBlock,
+        meta: remoteBlock.meta ?? localBlock.meta,
+      },
+    ];
+  }
+
+  if (localTime > remoteTime) {
+    return [
+      {
+        ...localBlock,
+        meta: localBlock.meta ?? remoteBlock.meta,
+      },
+    ];
+  }
+
+  // Timestamps iguais ou ausentes: heurística não-destrutiva legada
+  if (!localNorm && remoteNorm) {
+    return [remoteBlock];
+  }
+  if (localNorm && !remoteNorm) {
+    return [localBlock];
+  }
+
+  const resolved: Block[] = [localBlock];
+  if (
+    localBlock.type === 'paragraph' &&
+    remoteBlock.type === 'paragraph' &&
+    !localNorm.includes(remoteNorm) &&
+    !remoteNorm.includes(localNorm)
+  ) {
+    resolved.push({
+      ...remoteBlock,
+      id: crypto.randomUUID(),
+    });
+  }
+  return resolved;
+}
+
 /**
  * Mescla de forma inteligente duas listas de blocos de um documento científico.
- * Preserva as alterações locais e incorpora blocos novos ou editados pelo colaborador no Drive.
+ * Suporta tombstones de exclusão e preferência explícita de reordenação remota.
  */
-export function mergeBlocks(localBlocks: Block[], remoteBlocks: Block[]): Block[] {
+export function mergeBlocks(
+  localBlocks: Block[],
+  remoteBlocks: Block[],
+  options?: MergeBlocksOptions,
+): Block[] {
+  const mergedTombstones = mergeDeletedBlockTimestamps(
+    options?.localDeletedAt,
+    options?.remoteDeletedAt,
+  );
+  const preferRemoteOrder = Boolean(options?.preferRemoteOrder);
+
   const localMap = new Map<string, Block>();
   localBlocks.forEach((b) => localMap.set(b.id, b));
 
   const remoteMap = new Map<string, Block>();
   remoteBlocks.forEach((b) => remoteMap.set(b.id, b));
 
+  const primaryList = preferRemoteOrder ? remoteBlocks : localBlocks;
+  const secondaryList = preferRemoteOrder ? localBlocks : remoteBlocks;
+
   const result: Block[] = [];
   const processedIds = new Set<string>();
 
-  // 1. Processa blocos locais mantendo sua ordem original
-  for (const localBlock of localBlocks) {
-    processedIds.add(localBlock.id);
-    const remoteBlock = remoteMap.get(localBlock.id);
+  // 1. Processa sequência primária mantendo sua ordem
+  for (const primaryBlock of primaryList) {
+    processedIds.add(primaryBlock.id);
+    const localBlock = localMap.get(primaryBlock.id);
+    const remoteBlock = remoteMap.get(primaryBlock.id);
 
-    if (!remoteBlock) {
-      // Bloco criado localmente e ainda não presente no remoto: preserva
-      result.push(localBlock);
-      continue;
-    }
-
-    const localNorm = normalizeContent(localBlock.content);
-    const remoteNorm = normalizeContent(remoteBlock.content);
-
-    // Se o conteúdo for idêntico, preserva o local com metadados mais completos
-    if (localNorm === remoteNorm) {
-      result.push({
-        ...localBlock,
-        meta: { ...remoteBlock.meta, ...localBlock.meta },
-      });
-      continue;
-    }
-
-    // Se ambos editaram o mesmo bloco:
-    // Se temos timestamps explícitos, a edição mais recente prevalece de forma determinística
-    const localTime = localBlock.updatedAt ?? 0;
-    const remoteTime = remoteBlock.updatedAt ?? 0;
-
-    if (remoteTime > localTime) {
-      result.push({
-        ...remoteBlock,
-        meta: { ...localBlock.meta, ...remoteBlock.meta },
-      });
-      continue;
-    } else if (localTime > remoteTime) {
-      result.push({
-        ...localBlock,
-        meta: { ...remoteBlock.meta, ...localBlock.meta },
-      });
-      continue;
-    }
-
-    // Se nenhum tem timestamp explícito (ou timestamps idênticos):
-    // Se o local não foi alterado (está vazio ou muito curto) e o remoto tem texto substancial, adota o remoto
-    if (!localNorm && remoteNorm) {
-      result.push(remoteBlock);
-    } else if (localNorm && !remoteNorm) {
-      result.push(localBlock);
-    } else {
-      // Ambos possuem texto: preserva o local e se o remoto for substancialmente diferente,
-      // anexa como parágrafo de colaboração complementar
-      result.push(localBlock);
-      if (
-        localBlock.type === 'paragraph' &&
-        remoteBlock.type === 'paragraph' &&
-        !localNorm.includes(remoteNorm) &&
-        !remoteNorm.includes(localNorm)
-      ) {
-        result.push({
-          ...remoteBlock,
-          id: crypto.randomUUID(), // Novo ID para não colidir
-        });
+    if (localBlock && !remoteBlock) {
+      if (isBlockDeletedByTombstone(localBlock, mergedTombstones)) {
+        continue;
       }
+      result.push(localBlock);
+      continue;
+    }
+
+    if (!localBlock && remoteBlock) {
+      if (isBlockDeletedByTombstone(remoteBlock, mergedTombstones)) {
+        continue;
+      }
+      result.push(remoteBlock);
+      continue;
+    }
+
+    if (localBlock && remoteBlock) {
+      const winnerTime = Math.max(localBlock.updatedAt ?? 0, remoteBlock.updatedAt ?? 0);
+      const deletedAt = mergedTombstones?.[localBlock.id];
+      if (typeof deletedAt === 'number' && deletedAt >= winnerTime) {
+        continue;
+      }
+      result.push(...resolveSharedBlockConflict(localBlock, remoteBlock));
     }
   }
 
-  // 2. Incorpora blocos novos que foram criados no remoto pelo outro usuário
-  for (let i = 0; i < remoteBlocks.length; i++) {
-    const remoteBlock = remoteBlocks[i];
-    if (processedIds.has(remoteBlock.id)) continue;
+  // 2. Incorpora blocos sobreviventes da sequência secundária na posição relativa do vizinho anterior
+  for (let i = 0; i < secondaryList.length; i++) {
+    const secondaryBlock = secondaryList[i];
+    if (processedIds.has(secondaryBlock.id)) continue;
+    processedIds.add(secondaryBlock.id);
 
-    // Encontra o ponto ideal de inserção relativo ao bloco anterior do remoto
-    const prevRemote = i > 0 ? remoteBlocks[i - 1] : null;
+    if (isBlockDeletedByTombstone(secondaryBlock, mergedTombstones)) {
+      continue;
+    }
+
+    const prevSecondary = i > 0 ? secondaryList[i - 1] : null;
     let insertIndex = -1;
 
-    if (prevRemote) {
-      insertIndex = result.findIndex((b) => b.id === prevRemote.id);
+    if (prevSecondary) {
+      insertIndex = result.findIndex((b) => b.id === prevSecondary.id);
     }
 
     if (insertIndex !== -1) {
-      result.splice(insertIndex + 1, 0, remoteBlock);
+      result.splice(insertIndex + 1, 0, secondaryBlock);
     } else {
-      result.push(remoteBlock);
+      result.push(secondaryBlock);
     }
-    processedIds.add(remoteBlock.id);
   }
 
   return result;
@@ -165,6 +277,8 @@ export function mergeMetadata(
   remote: DocumentMetadata
 ): DocumentMetadata {
   return {
+    ...remote,
+    ...local,
     title: local.title?.trim() || remote.title || 'Sem Título',
     subtitle: local.subtitle?.trim() || remote.subtitle,
     author: local.author?.trim() || remote.author || 'Autor',
@@ -196,21 +310,60 @@ export function mergeMetadata(
 }
 
 /**
- * Executa a mesclagem automática completa entre o projeto local e a versão recebida do Google Drive.
- * Garante que nenhum conteúdo de nenhum usuário seja perdido ou apagado.
+ * Executa a mesclagem automática completa entre o projeto local e a versão recebida do Google Drive ou P2P.
+ * Preserva exclusões (tombstones), reordenações, metadados, referências e segredos de sala.
  */
 export function autoMergeProjects(
   local: DocumentProject,
   remote: DocumentProject
 ): MergeResult {
-  const mergedBlocks = mergeBlocks(local.blocks, remote.blocks);
-  const mergedRefs = mergeReferences(local.references, remote.references);
-  const mergedMeta = mergeMetadata(local.metadata, remote.metadata);
+  const localOrderTime = local.blocksOrderUpdatedAt ?? 0;
+  const remoteOrderTime = remote.blocksOrderUpdatedAt ?? 0;
+
+  const mergedTombstones = mergeDeletedBlockTimestamps(
+    local.deletedBlockTimestamps,
+    remote.deletedBlockTimestamps,
+  );
+
+  const mergedBlocks = mergeBlocks(local.blocks, remote.blocks, {
+    localDeletedAt: local.deletedBlockTimestamps,
+    remoteDeletedAt: remote.deletedBlockTimestamps,
+    preferRemoteOrder: remoteOrderTime > localOrderTime,
+  });
+
+  const localRefsTime = local.referencesUpdatedAt ?? 0;
+  const remoteRefsTime = remote.referencesUpdatedAt ?? 0;
+  const mergedRefs =
+    remoteRefsTime > localRefsTime
+      ? remote.references
+      : localRefsTime > remoteRefsTime
+        ? local.references
+        : mergeReferences(local.references, remote.references);
+
+  const localMetaTime = local.metadataUpdatedAt ?? 0;
+  const remoteMetaTime = remote.metadataUpdatedAt ?? 0;
+  const mergedMeta =
+    remoteMetaTime > localMetaTime
+      ? { ...local.metadata, ...remote.metadata }
+      : localMetaTime > remoteMetaTime
+        ? local.metadata
+        : mergeMetadata(local.metadata, remote.metadata);
+
+  const nextOrderTime = Math.max(localOrderTime, remoteOrderTime) || undefined;
+  const nextMetaTime = Math.max(localMetaTime, remoteMetaTime) || undefined;
+  const nextRefsTime = Math.max(localRefsTime, remoteRefsTime) || undefined;
+
+  const blocksChanged =
+    mergedBlocks.length !== local.blocks.length ||
+    JSON.stringify(mergedBlocks) !== JSON.stringify(local.blocks);
+  const refsChanged = JSON.stringify(mergedRefs) !== JSON.stringify(local.references);
+  const metaChanged = JSON.stringify(mergedMeta) !== JSON.stringify(local.metadata);
+  const tombstonesChanged =
+    JSON.stringify(mergedTombstones) !== JSON.stringify(local.deletedBlockTimestamps);
+  const secretChanged = Boolean(remote.collabSecret && !local.collabSecret);
 
   const hasMergedRemoteChanges =
-    mergedBlocks.length !== local.blocks.length ||
-    mergedRefs.length !== local.references.length ||
-    JSON.stringify(mergedBlocks) !== JSON.stringify(local.blocks);
+    blocksChanged || refsChanged || metaChanged || tombstonesChanged || secretChanged;
 
   const mergedProject: DocumentProject = {
     ...local,
@@ -221,7 +374,15 @@ export function autoMergeProjects(
     sidebarConfig: local.sidebarConfig || remote.sidebarConfig,
     driveFileId: local.driveFileId || remote.driveFileId,
     driveSyncedAt: remote.driveSyncedAt || local.driveSyncedAt,
-    updatedAt: new Date().toISOString(),
+    isSharedWithMe: local.isSharedWithMe ?? remote.isSharedWithMe,
+    sharedBy: local.sharedBy ?? remote.sharedBy,
+    shareRole: remote.shareRole || local.shareRole,
+    collabSecret: local.collabSecret || remote.collabSecret,
+    deletedBlockTimestamps: mergedTombstones,
+    blocksOrderUpdatedAt: nextOrderTime,
+    metadataUpdatedAt: nextMetaTime,
+    referencesUpdatedAt: nextRefsTime,
+    updatedAt: hasMergedRemoteChanges ? new Date().toISOString() : local.updatedAt,
   };
 
   return {

@@ -243,6 +243,8 @@ export interface SidebarConfig {
   hiddenFieldIds?: string[];
 }
 
+export type ShareRole = 'owner' | 'writer' | 'commenter' | 'reader';
+
 export interface DocumentProject {
   id: string;
   name: string;
@@ -265,6 +267,14 @@ export interface DocumentProject {
     email?: string;
     photoLink?: string;
   };
+  shareRole?: ShareRole;
+
+  // Colaboração em Tempo Real (P2P E2EE + Controle de Conflitos/Exclusões)
+  collabSecret?: string;
+  deletedBlockTimestamps?: Record<string, number>;
+  blocksOrderUpdatedAt?: number;
+  metadataUpdatedAt?: number;
+  referencesUpdatedAt?: number;
 }
 
 export interface RedijaBackupFile {

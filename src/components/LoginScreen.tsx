@@ -21,6 +21,7 @@ export interface LoginScreenProps {
   isConfigured: boolean;
   darkMode?: boolean;
   onToggleDarkMode?: () => void;
+  pendingSharedDriveFileId?: string | null;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({
@@ -33,6 +34,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   isConfigured,
   darkMode,
   onToggleDarkMode,
+  pendingSharedDriveFileId,
 }) => {
   // Modal de suporte (Documentação, Sobre nós, Contato, etc.)
   const [activeModal, setActiveModal] = useState<LandingModalType>(null);
@@ -111,6 +113,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         isLoading={isLoading}
         error={error}
         isConfigured={isConfigured}
+        pendingSharedDriveFileId={pendingSharedDriveFileId}
         onOpenDoc={() => handleOpenDoc()}
       />
 

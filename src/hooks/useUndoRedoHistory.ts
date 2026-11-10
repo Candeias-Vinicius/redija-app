@@ -47,6 +47,23 @@ export function applyHistorySnapshot(
   proj: DocumentProject,
   snapshot: HistorySnapshot,
 ): DocumentProject {
+  let nextTombstones = proj.deletedBlockTimestamps;
+  if (nextTombstones) {
+    const restoredIds = new Set(snapshot.blocks.map((b) => b.id));
+    const filtered: Record<string, number> = Object.create(null);
+    let changed = false;
+    for (const [id, ts] of Object.entries(nextTombstones)) {
+      if (restoredIds.has(id)) {
+        changed = true;
+      } else {
+        filtered[id] = ts;
+      }
+    }
+    if (changed) {
+      nextTombstones = Object.keys(filtered).length > 0 ? filtered : undefined;
+    }
+  }
+
   return {
     ...proj,
     templateType: snapshot.templateType ?? proj.templateType,
@@ -55,11 +72,13 @@ export function applyHistorySnapshot(
     references: snapshot.references,
     templateConfig: snapshot.templateConfig,
     sidebarConfig: snapshot.sidebarConfig,
+    deletedBlockTimestamps: nextTombstones,
   };
 }
 
 export function useUndoRedoHistory(
   setProject: React.Dispatch<React.SetStateAction<DocumentProject>>,
+  isReadOnly = false,
 ) {
   const [past, setPast] = useState<HistorySnapshot[]>([]);
   const [future, setFuture] = useState<HistorySnapshot[]>([]);
@@ -73,6 +92,7 @@ export function useUndoRedoHistory(
 
   const recordHistorySnapshot = useCallback(
     (currentProj: DocumentProject, forceNewEntry = false) => {
+      if (isReadOnly) return;
       const now = Date.now();
       const snapshot = toHistorySnapshot(currentProj);
 
@@ -90,10 +110,11 @@ export function useUndoRedoHistory(
       });
       setFuture([]);
     },
-    [],
+    [isReadOnly],
   );
 
   const handleUndo = useCallback(() => {
+    if (isReadOnly) return;
     setPast((prevPast) => {
       if (prevPast.length === 0) return prevPast;
       const previous = prevPast[prevPast.length - 1];
@@ -109,9 +130,10 @@ export function useUndoRedoHistory(
 
       return nextPast;
     });
-  }, [setProject]);
+  }, [setProject, isReadOnly]);
 
   const handleRedo = useCallback(() => {
+    if (isReadOnly) return;
     setFuture((prevFuture) => {
       if (prevFuture.length === 0) return prevFuture;
       const next = prevFuture[0];
@@ -127,10 +149,11 @@ export function useUndoRedoHistory(
 
       return remainingFuture;
     });
-  }, [setProject]);
+  }, [setProject, isReadOnly]);
 
   // Atalhos globais de teclado Ctrl+Z e Ctrl+Y / Ctrl+Shift+Z
   useEffect(() => {
+    if (isReadOnly) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
       const key = e.key.toLowerCase();
@@ -150,11 +173,11 @@ export function useUndoRedoHistory(
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [past.length, future.length, handleUndo, handleRedo]);
+  }, [isReadOnly, past.length, future.length, handleUndo, handleRedo]);
 
   return {
-    canUndo: past.length > 0,
-    canRedo: future.length > 0,
+    canUndo: !isReadOnly && past.length > 0,
+    canRedo: !isReadOnly && future.length > 0,
     recordHistorySnapshot,
     handleUndo,
     handleRedo,

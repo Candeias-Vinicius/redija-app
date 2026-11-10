@@ -58,4 +58,22 @@ describe('useUndoRedoHistory helpers', () => {
     });
     expect(areSnapshotsSameReference(s1, s3)).toBe(false);
   });
+
+  it('remove tombstones de blocos que foram restaurados pelo Undo', () => {
+    const project = createProjectFromTemplate('artigo');
+    const removedBlock = project.blocks[project.blocks.length - 1];
+    const snapshotWithRemovedBlock = toHistorySnapshot(project);
+
+    const projectAfterDelete = {
+      ...project,
+      blocks: project.blocks.slice(0, -1),
+      deletedBlockTimestamps: {
+        [removedBlock.id]: 999999,
+        other_deleted: 888888,
+      },
+    };
+
+    const restored = applyHistorySnapshot(projectAfterDelete, snapshotWithRemovedBlock);
+    expect(restored.deletedBlockTimestamps).toEqual({ other_deleted: 888888 });
+  });
 });

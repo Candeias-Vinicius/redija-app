@@ -144,6 +144,45 @@ export function classifyBlocksChange(
   return { kind: 'content', modifiedBlock };
 }
 
+const MAX_TOMBSTONES = 500;
+
+export function computeNextDeletedBlockTimestamps(
+  prevBlocks: Block[],
+  nextBlocks: Block[],
+  prevTombstones: Record<string, number> | undefined,
+  now: number,
+): Record<string, number> | undefined {
+  const nextIds = new Set(nextBlocks.map((b) => b.id));
+  const removedIds = prevBlocks.filter((b) => !nextIds.has(b.id)).map((b) => b.id);
+
+  let hasChange = removedIds.length > 0;
+  const merged: Record<string, number> = Object.create(null);
+
+  if (prevTombstones) {
+    for (const [blockId, ts] of Object.entries(prevTombstones)) {
+      if (nextIds.has(blockId)) {
+        // Bloco foi reinserido (ex: Undo) -> limpa tombstone antigo
+        hasChange = true;
+      } else {
+        merged[blockId] = ts;
+      }
+    }
+  }
+
+  for (const id of removedIds) {
+    merged[id] = now;
+  }
+
+  if (!hasChange) {
+    return prevTombstones;
+  }
+
+  const entries = Object.entries(merged)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, MAX_TOMBSTONES);
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
 interface UseProjectWorkspaceOptions {
   project: DocumentProject;
   setProject: React.Dispatch<React.SetStateAction<DocumentProject>>;
@@ -151,8 +190,22 @@ interface UseProjectWorkspaceOptions {
   isSessionActive: boolean;
   recordHistorySnapshot: (currentProj: DocumentProject, forceNewEntry?: boolean) => void;
   clearHistory: () => void;
-  onBroadcastBlocksSync?: (blocks: Block[]) => void;
-  onBroadcastBlockUpdate?: (blockId: string, content: string, meta?: Block['meta']) => void;
+  onBroadcastBlocksSync?: (
+    blocks: Block[],
+    deletedBlockTimestamps?: Record<string, number>,
+    blocksOrderUpdatedAt?: number,
+  ) => void;
+  onBroadcastBlockUpdate?: (
+    blockId: string,
+    content: string,
+    meta?: Block['meta'],
+    updatedAt?: number,
+  ) => void;
+  onBroadcastMetadataUpdate?: (metadata: DocumentMetadata, metadataUpdatedAt: number) => void;
+  onBroadcastReferencesUpdate?: (
+    references: AcademicReference[],
+    referencesUpdatedAt: number,
+  ) => void;
   onEmptyWorkspace: () => void;
   onProjectImported: () => void;
   onReferenceUpdated: () => void;
@@ -167,6 +220,8 @@ export function useProjectWorkspace({
   clearHistory,
   onBroadcastBlocksSync,
   onBroadcastBlockUpdate,
+  onBroadcastMetadataUpdate,
+  onBroadcastReferencesUpdate,
   onEmptyWorkspace,
   onProjectImported,
   onReferenceUpdated,
@@ -177,6 +232,12 @@ export function useProjectWorkspace({
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
 
   const skipNextAutoSaveRef = useRef(true);
+  const latestProjectRef = useRef<DocumentProject>(project);
+  useEffect(() => {
+    latestProjectRef.current = project;
+  }, [project]);
+
+  const isReadOnly = project.shareRole === 'reader' || project.shareRole === 'commenter';
 
   const resetWorkspaceState = useCallback(() => {
     skipNextAutoSaveRef.current = true;
@@ -256,25 +317,48 @@ export function useProjectWorkspace({
 
   const handleMetadataChange = useCallback(
     (metadata: DocumentMetadata) => {
-      setProject((prev) => {
-        if (JSON.stringify(prev.metadata) === JSON.stringify(metadata)) {
-          return prev;
-        }
-        recordHistorySnapshot(prev);
-        return { ...prev, metadata };
+      const prev = latestProjectRef.current;
+      if (prev.shareRole === 'reader' || prev.shareRole === 'commenter') return;
+      if (JSON.stringify(prev.metadata) === JSON.stringify(metadata)) return;
+
+      const now = Date.now();
+      recordHistorySnapshot(prev);
+      latestProjectRef.current = { ...prev, metadata, metadataUpdatedAt: now };
+
+      setProject((current) => {
+        if (current.shareRole === 'reader' || current.shareRole === 'commenter') return current;
+        if (JSON.stringify(current.metadata) === JSON.stringify(metadata)) return current;
+        return {
+          ...current,
+          metadata,
+          metadataUpdatedAt: Math.max(now, current.metadataUpdatedAt ?? 0),
+        };
       });
+
+      onBroadcastMetadataUpdate?.(metadata, now);
     },
-    [setProject, recordHistorySnapshot],
+    [setProject, recordHistorySnapshot, onBroadcastMetadataUpdate],
   );
 
   const handleChangeSidebarConfig = useCallback(
     (sidebarConfig?: SidebarConfig) => {
-      setProject((prev) => {
-        if (JSON.stringify(prev.sidebarConfig) === JSON.stringify(sidebarConfig)) {
-          return prev;
-        }
-        recordHistorySnapshot(prev, true);
-        const next = { ...prev };
+      const prev = latestProjectRef.current;
+      if (prev.shareRole === 'reader' || prev.shareRole === 'commenter') return;
+      if (JSON.stringify(prev.sidebarConfig) === JSON.stringify(sidebarConfig)) return;
+
+      recordHistorySnapshot(prev, true);
+      const nextSnapshot = { ...prev };
+      if (sidebarConfig) {
+        nextSnapshot.sidebarConfig = sidebarConfig;
+      } else {
+        delete nextSnapshot.sidebarConfig;
+      }
+      latestProjectRef.current = nextSnapshot;
+
+      setProject((current) => {
+        if (current.shareRole === 'reader' || current.shareRole === 'commenter') return current;
+        if (JSON.stringify(current.sidebarConfig) === JSON.stringify(sidebarConfig)) return current;
+        const next = { ...current };
         if (sidebarConfig) {
           next.sidebarConfig = sidebarConfig;
         } else {
@@ -288,117 +372,243 @@ export function useProjectWorkspace({
 
   const handleApplyTemplateCustomizer = useCallback(
     ({ config: templateConfig, metadata: nextMetadata, selectedTemplateType }: TemplateCustomizerApplyPayload) => {
-      setProject((prev) => {
-        const configChanged = JSON.stringify(prev.templateConfig) !== JSON.stringify(templateConfig);
-        const metadataChanged = JSON.stringify(prev.metadata) !== JSON.stringify(nextMetadata);
-        const nextTemplateType = resolveTemplateTypeOnCustomizerApply(
-          prev.templateType,
+      const prev = latestProjectRef.current;
+      if (prev.shareRole === 'reader' || prev.shareRole === 'commenter') return;
+
+      const configChanged = JSON.stringify(prev.templateConfig) !== JSON.stringify(templateConfig);
+      const metadataChanged = JSON.stringify(prev.metadata) !== JSON.stringify(nextMetadata);
+      const nextTemplateType = resolveTemplateTypeOnCustomizerApply(
+        prev.templateType,
+        templateConfig,
+        selectedTemplateType,
+      );
+      const typeChanged = prev.templateType !== nextTemplateType;
+
+      if (!configChanged && !metadataChanged && !typeChanged) {
+        return;
+      }
+
+      const now = Date.now();
+      recordHistorySnapshot(prev, true);
+      latestProjectRef.current = {
+        ...prev,
+        templateType: nextTemplateType,
+        templateConfig,
+        metadata: nextMetadata,
+        ...(metadataChanged ? { metadataUpdatedAt: now } : {}),
+      };
+
+      setProject((current) => {
+        if (current.shareRole === 'reader' || current.shareRole === 'commenter') return current;
+        const resolvedType = resolveTemplateTypeOnCustomizerApply(
+          current.templateType,
           templateConfig,
           selectedTemplateType,
         );
-        const typeChanged = prev.templateType !== nextTemplateType;
-
-        if (!configChanged && !metadataChanged && !typeChanged) {
-          return prev;
-        }
-
-        recordHistorySnapshot(prev, true);
         return {
-          ...prev,
-          templateType: nextTemplateType,
+          ...current,
+          templateType: resolvedType,
           templateConfig,
           metadata: nextMetadata,
+          ...(metadataChanged
+            ? { metadataUpdatedAt: Math.max(now, current.metadataUpdatedAt ?? 0) }
+            : {}),
         };
       });
+
+      if (metadataChanged) {
+        onBroadcastMetadataUpdate?.(nextMetadata, now);
+      }
     },
-    [setProject, recordHistorySnapshot],
+    [setProject, recordHistorySnapshot, onBroadcastMetadataUpdate],
   );
 
   const handleBlocksChange = useCallback(
     (blocks: Block[]) => {
-      setProject((prev) => {
-        const classification = classifyBlocksChange(prev.blocks, blocks);
-        if (classification.kind === 'none') {
-          return prev;
-        }
+      const prev = latestProjectRef.current;
+      if (prev.shareRole === 'reader' || prev.shareRole === 'commenter') return;
 
-        const now = Date.now();
-        if (classification.kind === 'structural') {
-          const updatedBlocks = blocks.map((b) => (b.updatedAt ? b : { ...b, updatedAt: now }));
-          recordHistorySnapshot(prev, true);
-          onBroadcastBlocksSync?.(updatedBlocks);
-          return { ...prev, blocks: updatedBlocks };
-        }
+      const classification = classifyBlocksChange(prev.blocks, blocks);
+      if (classification.kind === 'none') {
+        return;
+      }
 
-        const modifiedBlock = classification.modifiedBlock;
-        const updatedBlocks = blocks.map((b) =>
-          b.id === modifiedBlock?.id ? { ...b, updatedAt: now } : b,
+      const now = Date.now();
+      if (classification.kind === 'structural') {
+        const updatedBlocks = blocks.map((b) => (b.updatedAt ? b : { ...b, updatedAt: now }));
+        const nextTombstones = computeNextDeletedBlockTimestamps(
+          prev.blocks,
+          updatedBlocks,
+          prev.deletedBlockTimestamps,
+          now,
         );
-        recordHistorySnapshot(prev, false);
-        if (modifiedBlock) {
-          onBroadcastBlockUpdate?.(
-            modifiedBlock.id,
-            modifiedBlock.content,
-            modifiedBlock.meta,
+
+        recordHistorySnapshot(prev, true);
+        latestProjectRef.current = {
+          ...prev,
+          blocks: updatedBlocks,
+          deletedBlockTimestamps: nextTombstones,
+          blocksOrderUpdatedAt: now,
+        };
+
+        setProject((current) => {
+          if (current.shareRole === 'reader' || current.shareRole === 'commenter') return current;
+          const mergedTombstones = computeNextDeletedBlockTimestamps(
+            current.blocks,
+            updatedBlocks,
+            current.deletedBlockTimestamps,
+            now,
           );
-        }
-        return { ...prev, blocks: updatedBlocks };
+          return {
+            ...current,
+            blocks: updatedBlocks,
+            deletedBlockTimestamps: mergedTombstones,
+            blocksOrderUpdatedAt: Math.max(now, current.blocksOrderUpdatedAt ?? 0),
+          };
+        });
+
+        onBroadcastBlocksSync?.(updatedBlocks, nextTombstones, now);
+        return;
+      }
+
+      const modifiedBlock = classification.modifiedBlock;
+      const updatedBlocks = blocks.map((b) =>
+        b.id === modifiedBlock?.id ? { ...b, updatedAt: now } : b,
+      );
+
+      recordHistorySnapshot(prev, false);
+      latestProjectRef.current = {
+        ...prev,
+        blocks: updatedBlocks,
+      };
+
+      setProject((current) => {
+        if (current.shareRole === 'reader' || current.shareRole === 'commenter') return current;
+        return {
+          ...current,
+          blocks: updatedBlocks,
+        };
       });
+
+      if (modifiedBlock) {
+        onBroadcastBlockUpdate?.(modifiedBlock.id, modifiedBlock.content, modifiedBlock.meta, now);
+      }
     },
     [setProject, recordHistorySnapshot, onBroadcastBlocksSync, onBroadcastBlockUpdate],
   );
 
   const handleAddReference = useCallback(
     (ref: AcademicReference) => {
-      setProject((prev) => {
-        recordHistorySnapshot(prev, true);
+      const prev = latestProjectRef.current;
+      if (prev.shareRole === 'reader' || prev.shareRole === 'commenter') return;
+
+      const now = Date.now();
+      const nextRefs = [...prev.references, ref];
+      recordHistorySnapshot(prev, true);
+      latestProjectRef.current = {
+        ...prev,
+        references: nextRefs,
+        referencesUpdatedAt: now,
+      };
+
+      setProject((current) => {
+        if (current.shareRole === 'reader' || current.shareRole === 'commenter') return current;
         return {
-          ...prev,
-          references: [...prev.references, ref],
+          ...current,
+          references: [...current.references, ref],
+          referencesUpdatedAt: Math.max(now, current.referencesUpdatedAt ?? 0),
         };
       });
+
+      onBroadcastReferencesUpdate?.(nextRefs, now);
     },
-    [setProject, recordHistorySnapshot],
+    [setProject, recordHistorySnapshot, onBroadcastReferencesUpdate],
   );
 
   const handleUpdateReference = useCallback(
     (updatedRef: AcademicReference) => {
-      setProject((prev) => {
-        recordHistorySnapshot(prev, true);
+      const prev = latestProjectRef.current;
+      if (prev.shareRole === 'reader' || prev.shareRole === 'commenter') return;
+
+      const now = Date.now();
+      const nextRefs = prev.references.map((r) => (r.id === updatedRef.id ? updatedRef : r));
+      recordHistorySnapshot(prev, true);
+      latestProjectRef.current = {
+        ...prev,
+        references: nextRefs,
+        referencesUpdatedAt: now,
+      };
+
+      setProject((current) => {
+        if (current.shareRole === 'reader' || current.shareRole === 'commenter') return current;
         return {
-          ...prev,
-          references: prev.references.map((r) => (r.id === updatedRef.id ? updatedRef : r)),
+          ...current,
+          references: current.references.map((r) => (r.id === updatedRef.id ? updatedRef : r)),
+          referencesUpdatedAt: Math.max(now, current.referencesUpdatedAt ?? 0),
         };
       });
+
+      onBroadcastReferencesUpdate?.(nextRefs, now);
       onReferenceUpdated();
     },
-    [setProject, recordHistorySnapshot, onReferenceUpdated],
+    [setProject, recordHistorySnapshot, onBroadcastReferencesUpdate, onReferenceUpdated],
   );
 
   const handleAddMultipleReferences = useCallback(
     (refs: AcademicReference[]) => {
-      setProject((prev) => {
-        recordHistorySnapshot(prev, true);
+      const prev = latestProjectRef.current;
+      if (prev.shareRole === 'reader' || prev.shareRole === 'commenter') return;
+      if (refs.length === 0) return;
+
+      const now = Date.now();
+      const nextRefs = [...prev.references, ...refs];
+      recordHistorySnapshot(prev, true);
+      latestProjectRef.current = {
+        ...prev,
+        references: nextRefs,
+        referencesUpdatedAt: now,
+      };
+
+      setProject((current) => {
+        if (current.shareRole === 'reader' || current.shareRole === 'commenter') return current;
         return {
-          ...prev,
-          references: [...prev.references, ...refs],
+          ...current,
+          references: [...current.references, ...refs],
+          referencesUpdatedAt: Math.max(now, current.referencesUpdatedAt ?? 0),
         };
       });
+
+      onBroadcastReferencesUpdate?.(nextRefs, now);
     },
-    [setProject, recordHistorySnapshot],
+    [setProject, recordHistorySnapshot, onBroadcastReferencesUpdate],
   );
 
   const handleRemoveReference = useCallback(
     (id: string) => {
-      setProject((prev) => {
-        recordHistorySnapshot(prev, true);
+      const prev = latestProjectRef.current;
+      if (prev.shareRole === 'reader' || prev.shareRole === 'commenter') return;
+
+      const now = Date.now();
+      const nextRefs = prev.references.filter((r) => r.id !== id);
+      recordHistorySnapshot(prev, true);
+      latestProjectRef.current = {
+        ...prev,
+        references: nextRefs,
+        referencesUpdatedAt: now,
+      };
+
+      setProject((current) => {
+        if (current.shareRole === 'reader' || current.shareRole === 'commenter') return current;
         return {
-          ...prev,
-          references: prev.references.filter((r) => r.id !== id),
+          ...current,
+          references: current.references.filter((r) => r.id !== id),
+          referencesUpdatedAt: Math.max(now, current.referencesUpdatedAt ?? 0),
         };
       });
+
+      onBroadcastReferencesUpdate?.(nextRefs, now);
     },
-    [setProject, recordHistorySnapshot],
+    [setProject, recordHistorySnapshot, onBroadcastReferencesUpdate],
   );
 
   const handleSelectProject = useCallback(
@@ -577,6 +787,7 @@ export function useProjectWorkspace({
     trashedProjects,
     isStorageReady,
     saveStatus,
+    isReadOnly,
     resetWorkspaceState,
     handleMetadataChange,
     handleChangeSidebarConfig,

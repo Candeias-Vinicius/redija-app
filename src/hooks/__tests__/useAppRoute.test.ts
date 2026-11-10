@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { resolveRouteFromLocation } from '../useAppRoute';
+import {
+  buildProjectShareUrl,
+  extractSharedDriveFileIdFromLocation,
+  resolveRouteFromLocation,
+} from '../useAppRoute';
 
 describe('resolveRouteFromLocation', () => {
   it('resolve "/" como rota principal da aplicação', () => {
@@ -34,5 +38,18 @@ describe('resolveRouteFromLocation', () => {
       route: 'docs',
       sectionId: 'importacao-exportacao',
     });
+  });
+
+  it('extrai e valida driveFileId de links diretos e constrói URL canônica de compartilhamento', () => {
+    expect(extractSharedDriveFileIdFromLocation('?driveFileId=1AbCdEfGhIjK_9876')).toBe(
+      '1AbCdEfGhIjK_9876',
+    );
+    expect(extractSharedDriveFileIdFromLocation('')).toBeNull();
+    expect(extractSharedDriveFileIdFromLocation('?driveFileId=abc')).toBeNull(); // muito curto
+    expect(extractSharedDriveFileIdFromLocation('?driveFileId=<script>alert(1)</script>')).toBeNull();
+
+    expect(buildProjectShareUrl('file_id_1234', 'https://redija.app/')).toBe(
+      'https://redija.app/?driveFileId=file_id_1234',
+    );
   });
 });

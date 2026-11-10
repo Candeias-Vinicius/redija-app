@@ -12,6 +12,7 @@ interface ImageBlockItemProps {
   totalProjectImageBytes: number;
   imageError?: string | null;
   isBlockReorderDragging: boolean;
+  readOnly?: boolean;
   onUpdateMeta: (id: string, meta: NonNullable<Block['meta']>) => void;
   onUploadImage: (blockId: string, file: File) => void;
   onClearImage: (blockId: string) => void;
@@ -22,6 +23,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
   totalProjectImageBytes,
   imageError,
   isBlockReorderDragging,
+  readOnly = false,
   onUpdateMeta,
   onUploadImage,
   onClearImage,
@@ -32,6 +34,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
     <div
       tabIndex={0}
       onPaste={(e) => {
+        if (readOnly) return;
         const items = e.clipboardData?.items;
         if (!items) return;
         for (const item of Array.from(items)) {
@@ -46,7 +49,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
         }
       }}
       onDragOver={(e) => {
-        if (isBlockReorderDragging) return;
+        if (readOnly || isBlockReorderDragging) return;
         e.preventDefault();
         e.stopPropagation();
         setIsDragOverFile(true);
@@ -56,7 +59,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
         setIsDragOverFile(false);
       }}
       onDrop={(e) => {
-        if (isBlockReorderDragging) return;
+        if (readOnly || isBlockReorderDragging) return;
         e.preventDefault();
         e.stopPropagation();
         setIsDragOverFile(false);
@@ -79,34 +82,39 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
         <div className="flex items-center gap-2">
           <select
             value={block.meta?.imageWidthPct || 75}
-            onChange={(e) =>
-              onUpdateMeta(block.id, {
-                imageWidthPct: Number(e.target.value) as 50 | 75 | 100,
-              })
-            }
+            disabled={readOnly}
+            onChange={(e) => {
+              if (!readOnly) {
+                onUpdateMeta(block.id, {
+                  imageWidthPct: Number(e.target.value) as 50 | 75 | 100,
+                });
+              }
+            }}
             title="Largura da imagem na folha A4 do PDF"
-            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded text-neutral-700"
+            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded text-neutral-700 disabled:opacity-70"
           >
             <option value={50}>Largura: 50%</option>
             <option value={75}>Largura: 75%</option>
             <option value={100}>Largura: 100%</option>
           </select>
 
-          <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-neutral-200 hover:bg-neutral-100 text-neutral-700 font-medium text-[11px] shadow-2xs">
-            <Upload className="w-3 h-3 text-blue-600" />
-            <span>{block.meta?.imageDataUrl ? 'Trocar imagem' : 'Upload de imagem'}</span>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) onUploadImage(block.id, file);
-              }}
-              className="hidden"
-            />
-          </label>
+          {!readOnly && (
+            <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-neutral-200 hover:bg-neutral-100 text-neutral-700 font-medium text-[11px] shadow-2xs">
+              <Upload className="w-3 h-3 text-blue-600" />
+              <span>{block.meta?.imageDataUrl ? 'Trocar imagem' : 'Upload de imagem'}</span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) onUploadImage(block.id, file);
+                }}
+                className="hidden"
+              />
+            </label>
+          )}
 
-          {block.meta?.imageDataUrl && (
+          {!readOnly && block.meta?.imageDataUrl && (
             <button
               type="button"
               onClick={() => onClearImage(block.id)}
@@ -163,7 +171,10 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
         <input
           type="text"
           value={block.meta?.caption || ''}
-          onChange={(e) => onUpdateMeta(block.id, { caption: e.target.value })}
+          readOnly={readOnly}
+          onChange={(e) => {
+            if (!readOnly) onUpdateMeta(block.id, { caption: e.target.value });
+          }}
           placeholder="Ex: Fluxo de arquitetura do sistema"
           className="w-full text-xs px-2.5 py-1.5 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
         />
@@ -177,6 +188,10 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
             alt={block.meta.caption || 'Figura do documento'}
             className="max-h-56 object-contain rounded"
           />
+        </div>
+      ) : readOnly ? (
+        <div className="w-full h-20 bg-neutral-100 border border-dashed border-neutral-300 rounded-lg flex items-center justify-center text-neutral-400 text-xs">
+          Nenhuma imagem anexada neste bloco.
         </div>
       ) : (
         <label className="w-full h-28 bg-neutral-100 hover:bg-neutral-200/50 border border-dashed border-neutral-300 rounded-lg flex flex-col items-center justify-center text-neutral-400 text-xs cursor-pointer transition-colors px-4 text-center">
@@ -207,7 +222,10 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
         <input
           type="text"
           value={block.meta?.source || ''}
-          onChange={(e) => onUpdateMeta(block.id, { source: e.target.value })}
+          readOnly={readOnly}
+          onChange={(e) => {
+            if (!readOnly) onUpdateMeta(block.id, { source: e.target.value });
+          }}
           placeholder="Ex: Elaborado pelo autor (2026)"
           className="w-full text-xs px-2.5 py-1.5 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
         />

@@ -1,5 +1,5 @@
 // =====================================================================
-// Tipagens para Google Identity Services (GIS)
+// Tipagens para Google Identity Services (GIS) e Google Picker API
 // =====================================================================
 
 declare namespace google {
@@ -46,9 +46,81 @@ declare namespace google {
       function disableAutoSelect(): void;
     }
   }
+
+  namespace picker {
+    const ViewId: {
+      DOCS: string;
+      RECENTLY_PICKED: string;
+    };
+
+    const Response: {
+      ACTION: string;
+      DOCUMENTS: string;
+    };
+
+    const Action: {
+      PICKED: string;
+      CANCEL: string;
+      ERROR?: string;
+    };
+
+    const Document: {
+      ID: string;
+      NAME: string;
+      MIME_TYPE: string;
+      URL: string;
+    };
+
+    const Feature: {
+      NAV_HIDDEN: string;
+      SUPPORT_DRIVES: string;
+    };
+
+    interface PickerDocument {
+      [key: string]: string | undefined;
+    }
+
+    interface ResponseObject {
+      action?: string;
+      docs?: PickerDocument[];
+      [key: string]: unknown;
+    }
+
+    class DocsView {
+      constructor(viewId?: string);
+      setOwnedByMe(ownedByMe: boolean): this;
+      setIncludeFolders(included: boolean): this;
+      setSelectFolderEnabled(enabled: boolean): this;
+      setQuery(query: string): this;
+      setMimeTypes(mimeTypes: string): this;
+    }
+
+    class PickerBuilder {
+      addView(viewOrId: DocsView | string): this;
+      enableFeature(feature: string): this;
+      setOAuthToken(token: string): this;
+      setDeveloperKey(key: string): this;
+      setAppId(appId: string): this;
+      setTitle(title: string): this;
+      setLocale(locale: string): this;
+      setCallback(cb: (data: ResponseObject) => void): this;
+      build(): { setVisible: (visible: boolean) => void; dispose?: () => void };
+    }
+  }
+}
+
+interface GapiLoadOptions {
+  callback: () => void;
+  onerror?: () => void;
+  timeout?: number;
+  ontimeout?: () => void;
+}
+
+interface GapiNamespace {
+  load(libraries: string, options: GapiLoadOptions | (() => void)): void;
 }
 
 interface Window {
   google?: typeof google;
+  gapi?: GapiNamespace;
 }
-

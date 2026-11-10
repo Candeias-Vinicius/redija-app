@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   mergeBlocks,
+  mergeDeletedBlockTimestamps,
   mergeReferences,
   autoMergeProjects,
 } from '../projectMerger';
@@ -165,5 +166,91 @@ describe('projectMerger — Mesclagem Automática por Blocos (Nível 2)', () => 
     const merged = mergeBlocks(localBlocks, remoteBlocks);
     expect(merged.length).toBe(1);
     expect(merged[0].content).toBe('<p>Edição remota mais recente feita pelo orientador</p>');
+  });
+
+  it('respeita tombstones ao mesclar blocos excluídos sem perder reedições mais recentes', () => {
+    const mergedMap = mergeDeletedBlockTimestamps(
+      { b_resurrected: 4000, shared: 1000 },
+      { b_deleted: 5000, shared: 2500 },
+    );
+    expect(mergedMap).toEqual({
+      b_deleted: 5000,
+      b_resurrected: 4000,
+      shared: 2500,
+    });
+
+    const localBlocks: Block[] = [
+      { id: 'b1', type: 'h1', content: '1 Introdução', updatedAt: 1000 },
+      { id: 'b_deleted', type: 'paragraph', content: '<p>Parágrafo velho</p>', updatedAt: 3000 },
+    ];
+
+    const remoteBlocks: Block[] = [
+      { id: 'b1', type: 'h1', content: '1 Introdução', updatedAt: 1000 },
+      // Este bloco foi recriado/editado APÓS o tombstone (6000 > 4000) -> deve permanecer
+      { id: 'b_resurrected', type: 'paragraph', content: '<p>Novo bloco</p>', updatedAt: 6000 },
+    ];
+
+    const merged = mergeBlocks(localBlocks, remoteBlocks, {
+      localDeletedAt: { b_resurrected: 4000 },
+      remoteDeletedAt: { b_deleted: 5000 },
+    });
+    expect(merged.map((b) => b.id)).toEqual(['b1', 'b_resurrected']);
+  });
+
+  it('adota ordenação estrutural remota mais recente e propaga exclusões de referências via timestamps', () => {
+    const localProj: DocumentProject = {
+      id: 'proj_sync',
+      name: 'Artigo Colaborativo',
+      updatedAt: '2026-11-08T10:00:00Z',
+      blocksOrderUpdatedAt: 1000,
+      metadataUpdatedAt: 1000,
+      referencesUpdatedAt: 1000,
+      collabSecret: 'A'.repeat(43),
+      metadata: {
+        title: 'Título Antigo',
+        author: 'Autor 1',
+        advisor: '',
+        institution: 'UF',
+        course: 'CC',
+        location: 'SP',
+        year: '2026',
+        abstract: '',
+        keywords: [],
+      },
+      blocks: [
+        { id: 'b1', type: 'paragraph', content: 'Primeiro', updatedAt: 1000 },
+        { id: 'b2', type: 'paragraph', content: 'Segundo', updatedAt: 1000 },
+      ],
+      references: [
+        { id: 'ref1', authors: 'SILVA', title: 'Ref Removida', city: 'SP', publisher: 'Ed.', year: '2020' },
+        { id: 'ref2', authors: 'SOUZA', title: 'Ref Mantida', city: 'RJ', publisher: 'Ed.', year: '2025' },
+      ],
+    };
+
+    const remoteProj: DocumentProject = {
+      ...localProj,
+      updatedAt: '2026-11-08T10:05:00Z',
+      blocksOrderUpdatedAt: 3000,
+      metadataUpdatedAt: 3000,
+      referencesUpdatedAt: 3000,
+      metadata: {
+        ...localProj.metadata,
+        title: 'Título Atualizado pelo Coautor',
+      },
+      blocks: [
+        { id: 'b2', type: 'paragraph', content: 'Segundo', updatedAt: 1000 },
+        { id: 'b1', type: 'paragraph', content: 'Primeiro', updatedAt: 1000 },
+      ],
+      references: [
+        { id: 'ref2', authors: 'SOUZA', title: 'Ref Mantida', city: 'RJ', publisher: 'Ed.', year: '2025' },
+      ],
+    };
+
+    const res = autoMergeProjects(localProj, remoteProj);
+    expect(res.hasMergedRemoteChanges).toBe(true);
+    expect(res.mergedProject.blocks.map((b) => b.id)).toEqual(['b2', 'b1']);
+    expect(res.mergedProject.metadata.title).toBe('Título Atualizado pelo Coautor');
+    expect(res.mergedProject.references.map((r) => r.id)).toEqual(['ref2']);
+    expect(res.mergedProject.blocksOrderUpdatedAt).toBe(3000);
   });
 });

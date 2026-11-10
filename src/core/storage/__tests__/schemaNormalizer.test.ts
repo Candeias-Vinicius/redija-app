@@ -278,4 +278,41 @@ describe('schemaNormalizer: Regressão e Integridade de Dados', () => {
     });
     expect(preserved.metadata.author).toBe('Vinícius Candeias');
   });
+
+  it('higieniza campos de compartilhamento, segredo P2P e tombstones de sincronização', () => {
+    const validSecret = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde';
+    const cleaned = normalizeProject({
+      name: 'Projeto Sync',
+      metadata: { title: 'Sync' },
+      blocks: [],
+      shareRole: 'reader',
+      collabSecret: validSecret,
+      blocksOrderUpdatedAt: 1731100000000,
+      metadataUpdatedAt: 1731100001000,
+      referencesUpdatedAt: -5, // negativo inválido -> ignorado
+      deletedBlockTimestamps: {
+        blk_1: 1731100002000,
+        blk_bad: 'invalid',
+        blk_zero: 0,
+      },
+    });
+
+    expect(cleaned.shareRole).toBe('reader');
+    expect(cleaned.collabSecret).toBe(validSecret);
+    expect(cleaned.blocksOrderUpdatedAt).toBe(1731100000000);
+    expect(cleaned.metadataUpdatedAt).toBe(1731100001000);
+    expect(cleaned.referencesUpdatedAt).toBeUndefined();
+    expect(cleaned.deletedBlockTimestamps).toEqual({ blk_1: 1731100002000 });
+
+    const invalidSecretProj = normalizeProject({
+      name: 'Segredo Fraco',
+      metadata: { title: 'Weak' },
+      blocks: [],
+      shareRole: 'superadmin',
+      collabSecret: 'fraco',
+    });
+
+    expect(invalidSecretProj.shareRole).toBeUndefined();
+    expect(invalidSecretProj.collabSecret).toBeUndefined();
+  });
 });

@@ -2,16 +2,43 @@
 // RedijaApp — Serviço Google Drive API v3 (CRUD de Projetos e Colaboração)
 // =====================================================================
 
-import { DocumentProject, RedijaBackupFile } from '@/types/document';
+import { DocumentProject, RedijaBackupFile, ShareRole } from '@/types/document';
+import {
+  generateCollabSecret,
+  isValidCollabSecret,
+} from '@/core/collaboration/collabCrypto';
+import { normalizeProject } from './schemaNormalizer';
+import { createProjectFromTemplate } from './projectTemplates';
 
 const REDIJA_MIME_TYPE = 'application/json';
 const BACKUP_VERSION = 1;
+
+export type DriveAccessErrorCode =
+  | 'NOT_FOUND_OR_SCOPE'
+  | 'AUTH_EXPIRED'
+  | 'INVALID_FORMAT'
+  | 'READ_ONLY'
+  | 'NETWORK';
+
+export class DriveAccessError extends Error {
+  public readonly code: DriveAccessErrorCode;
+  public readonly status?: number;
+
+  constructor(message: string, code: DriveAccessErrorCode, status?: number) {
+    super(message);
+    this.name = 'DriveAccessError';
+    this.code = code;
+    this.status = status;
+  }
+}
 
 export interface DriveProjectSummary {
   id: string; // Google Drive fileId
   name: string;
   modifiedTime: string;
   isSharedWithMe: boolean;
+  canEdit?: boolean;
+  role?: ShareRole;
   sharedBy?: {
     name?: string;
     email?: string;
@@ -23,7 +50,8 @@ export interface Collaborator {
   id: string; // Permission ID do Google
   displayName: string;
   emailAddress: string;
-  role: 'owner' | 'writer' | 'reader';
+  role: ShareRole;
+  type?: 'user' | 'group' | 'domain' | 'anyone';
   photoLink?: string;
 }
 
@@ -31,27 +59,69 @@ interface GoogleDriveApiFile {
   id: string;
   name: string;
   modifiedTime: string;
+  trashed?: boolean;
+  mimeType?: string;
+  ownedByMe?: boolean;
   sharedWithMeTime?: string;
   sharingUser?: { displayName?: string; emailAddress?: string; photoLink?: string };
   owners?: { displayName?: string; emailAddress?: string; photoLink?: string }[];
+  capabilities?: {
+    canEdit?: boolean;
+    canComment?: boolean;
+  };
 }
 
 interface GoogleDrivePermissionApi {
   id: string;
+  type?: 'user' | 'group' | 'domain' | 'anyone';
   displayName?: string;
   emailAddress?: string;
-  role?: 'owner' | 'writer' | 'reader';
+  role?: ShareRole;
   photoLink?: string;
+}
+
+function buildCanonicalUploadProject(
+  project: DocumentProject,
+  collabSecret: string,
+): DocumentProject {
+  const sanitized: DocumentProject = {
+    ...project,
+    collabSecret,
+  };
+  delete sanitized.isSharedWithMe;
+  delete sanitized.sharedBy;
+  delete sanitized.shareRole;
+  delete sanitized.ownerEmail;
+  return sanitized;
+}
+
+function deriveShareRoleFromMetadata(
+  meta: GoogleDriveApiFile,
+  currentUserEmail?: string,
+): ShareRole {
+  const ownerEmail = meta.owners?.[0]?.emailAddress?.toLowerCase();
+  const isOwned =
+    typeof meta.ownedByMe === 'boolean'
+      ? meta.ownedByMe
+      : Boolean(
+          currentUserEmail && ownerEmail && ownerEmail === currentUserEmail.trim().toLowerCase(),
+        );
+
+  if (isOwned && !meta.sharedWithMeTime) {
+    return 'owner';
+  }
+  if (meta.capabilities?.canEdit === false) {
+    return meta.capabilities?.canComment ? 'commenter' : 'reader';
+  }
+  return 'writer';
 }
 
 /**
  * Busca no Google Drive se já existe um arquivo .redija correspondente a este projeto.
- * Prioriza a busca pela propriedade appProperties (redijaProjectId) e, em seguida,
- * pelo nome exato do arquivo (.redija), evitando a criação de arquivos duplicados.
  */
 export async function findDriveFileForProject(
   project: DocumentProject,
-  accessToken: string
+  accessToken: string,
 ): Promise<{ id: string; modifiedTime: string } | null> {
   if (accessToken.startsWith('mock_dev_token')) {
     return null;
@@ -60,16 +130,15 @@ export async function findDriveFileForProject(
   const cleanName = project.name.replace(/\.redija$/i, '').trim() || 'Sem Titulo';
   const fileName = `${cleanName}.redija`;
 
-  // 1. Tenta buscar por appProperties (vínculo unívoco pelo ID do projeto)
   try {
     const propQuery = encodeURIComponent(
-      `appProperties has { key='redijaProjectId' and value='${project.id}' } and trashed = false`
+      `appProperties has { key='redijaProjectId' and value='${project.id}' } and trashed = false`,
     );
     const propRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${propQuery}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc`,
+      `https://www.googleapis.com/drive/v3/files?q=${propQuery}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc&supportsAllDrives=true&includeItemsFromAllDrives=true`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
-      }
+      },
     );
     if (propRes.ok) {
       const data = await propRes.json();
@@ -84,15 +153,14 @@ export async function findDriveFileForProject(
     console.warn('Erro ao consultar Drive por appProperties:', err);
   }
 
-  // 2. Se não encontrou por appProperties, busca pelo nome exato do arquivo
   try {
     const safeName = fileName.replace(/'/g, "\\'");
     const nameQuery = encodeURIComponent(`name = '${safeName}' and trashed = false`);
     const nameRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${nameQuery}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc`,
+      `https://www.googleapis.com/drive/v3/files?q=${nameQuery}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc&supportsAllDrives=true&includeItemsFromAllDrives=true`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
-      }
+      },
     );
     if (nameRes.ok) {
       const data = await nameRes.json();
@@ -112,7 +180,6 @@ export async function findDriveFileForProject(
 
 /**
  * Garante que a pasta principal "RedijaApp" exista no Google Drive do usuário.
- * Retorna o ID da pasta raiz "RedijaApp".
  */
 export async function getOrCreateRedijaAppRootFolder(
   accessToken: string,
@@ -136,7 +203,6 @@ export async function getOrCreateRedijaAppRootFolder(
       }
     }
 
-    // Se não encontrou, cria a pasta "RedijaApp" na raiz
     const createRes = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
       method: 'POST',
       headers: {
@@ -162,8 +228,6 @@ export async function getOrCreateRedijaAppRootFolder(
 
 /**
  * Garante que exista uma subpasta dedicada para o projeto dentro de "RedijaApp".
- * Ex: "RedijaApp / Meu TCC /"
- * Retorna o ID da pasta do projeto.
  */
 export async function getOrCreateProjectFolder(
   project: DocumentProject,
@@ -177,7 +241,6 @@ export async function getOrCreateProjectFolder(
   const cleanName = project.name.replace(/\.redija$/i, '').trim() || 'Sem Titulo';
 
   try {
-    // 1. Busca se já existe uma pasta vinculada a este projeto por appProperties
     const propQuery = encodeURIComponent(
       `appProperties has { key='redijaProjectId' and value='${project.id}' } and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
     );
@@ -197,7 +260,6 @@ export async function getOrCreateProjectFolder(
       }
     }
 
-    // Se não encontrou por appProperties, busca dentro da pasta RedijaApp pelo nome do projeto
     if (!existingFolderId && rootFolderId) {
       const safeName = cleanName.replace(/'/g, "\\'");
       const nameQuery = encodeURIComponent(
@@ -217,7 +279,6 @@ export async function getOrCreateProjectFolder(
     }
 
     if (existingFolderId) {
-      // Se o projeto foi renomeado, atualiza o nome da pasta também
       if (existingFolderName !== cleanName) {
         await fetch(`https://www.googleapis.com/drive/v3/files/${existingFolderId}`, {
           method: 'PATCH',
@@ -237,7 +298,6 @@ export async function getOrCreateProjectFolder(
       return existingFolderId;
     }
 
-    // 2. Se a pasta não existe, cria a pasta do projeto dentro de RedijaApp
     const metadata: Record<string, unknown> = {
       name: cleanName,
       mimeType: 'application/vnd.google-apps.folder',
@@ -272,27 +332,40 @@ export async function getOrCreateProjectFolder(
 }
 
 /**
- * Cria ou atualiza o arquivo `.redija` no Google Drive dentro da pasta estruturada do projeto.
- * Se o projeto já tem `driveFileId` ou já possui um arquivo com o mesmo ID/nome no Drive,
- * executa PATCH no mesmo arquivo. Caso contrário, executa POST (multipart).
+ * Cria ou atualiza o arquivo `.redija` no Google Drive.
+ * Em arquivos compartilhados (`isSharedWithMe`), nunca tenta mover pastas (`addParents`)
+ * nem recriar duplicatas — atualiza apenas o conteúdo quando permitido (`writer`).
  */
 export async function saveProjectToDrive(
   project: DocumentProject,
-  accessToken: string
-): Promise<{ fileId: string; modifiedTime: string }> {
-  // Simulação para testes de desenvolvimento local sem credencial configurada
+  accessToken: string,
+): Promise<{ fileId: string; modifiedTime: string; collabSecret: string }> {
+  if (project.shareRole === 'reader' || project.shareRole === 'commenter') {
+    throw new DriveAccessError(
+      'Este projeto foi compartilhado em modo somente leitura. Duplique-o para editar sua própria cópia.',
+      'READ_ONLY',
+      403,
+    );
+  }
+
+  const collabSecret = isValidCollabSecret(project.collabSecret)
+    ? project.collabSecret
+    : generateCollabSecret();
+
   if (accessToken.startsWith('mock_dev_token')) {
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 250));
     return {
       fileId: project.driveFileId || `mock_drive_file_${Date.now()}`,
       modifiedTime: new Date().toISOString(),
+      collabSecret,
     };
   }
 
+  const canonicalProject = buildCanonicalUploadProject(project, collabSecret);
   const backupPayload: RedijaBackupFile = {
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    project,
+    project: canonicalProject,
   };
 
   const fileContent = JSON.stringify(backupPayload, null, 2);
@@ -301,24 +374,70 @@ export async function saveProjectToDrive(
 
   let targetFileId = project.driveFileId;
 
-  // Se o projeto local não possui driveFileId registrado, verifica antes no Drive
-  // se já existe um arquivo com esse nome ou ID para reaproveitá-lo e não gerar duplicata
-  if (!targetFileId) {
+  if (!targetFileId && !project.isSharedWithMe) {
     const existing = await findDriveFileForProject(project, accessToken);
     if (existing) {
       targetFileId = existing.id;
     }
   }
 
-  // Garante a existência da pasta dedicada do projeto dentro de RedijaApp/
+  // CENÁRIO S: Arquivo compartilhado de terceiros -> atualiza mídia diretamente sem addParents
+  if (project.isSharedWithMe && targetFileId) {
+    const updateSharedRes = await fetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(targetFileId)}?uploadType=media&supportsAllDrives=true&fields=id,modifiedTime`,
+      {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': REDIJA_MIME_TYPE,
+        },
+        body: fileContent,
+      },
+    );
+
+    if (updateSharedRes.ok) {
+      const data = await updateSharedRes.json().catch(() => ({}));
+      return {
+        fileId: data.id || targetFileId,
+        modifiedTime: data.modifiedTime || new Date().toISOString(),
+        collabSecret,
+      };
+    }
+
+    if (updateSharedRes.status === 401) {
+      throw new DriveAccessError('Sessão Google expirada.', 'AUTH_EXPIRED', 401);
+    }
+    if (updateSharedRes.status === 403) {
+      throw new DriveAccessError(
+        'Sem permissão de escrita no arquivo compartilhado do Google Drive.',
+        'READ_ONLY',
+        403,
+      );
+    }
+    if (updateSharedRes.status === 404) {
+      throw new DriveAccessError(
+        'Arquivo compartilhado não encontrado ou acesso revogado no Google Drive.',
+        'NOT_FOUND_OR_SCOPE',
+        404,
+      );
+    }
+
+    const err = await updateSharedRes.json().catch(() => ({}));
+    throw new DriveAccessError(
+      err.error?.message || 'Falha ao atualizar arquivo compartilhado no Google Drive.',
+      'NETWORK',
+      updateSharedRes.status,
+    );
+  }
+
+  // Projetos próprios: organiza dentro de RedijaApp/<Nome do Projeto>/
   const projectFolderId = await getOrCreateProjectFolder(project, accessToken);
 
-  // CENÁRIO A: ATUALIZAR ARQUIVO EXISTENTE NO DRIVE
+  // CENÁRIO A: Atualizar arquivo próprio existente
   if (targetFileId) {
-    // 1. Atualiza metadados (nome caso tenha mudado e vincula appProperties e pasta)
     const patchUrl = projectFolderId
-      ? `https://www.googleapis.com/drive/v3/files/${targetFileId}?addParents=${projectFolderId}`
-      : `https://www.googleapis.com/drive/v3/files/${targetFileId}`;
+      ? `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(targetFileId)}?addParents=${encodeURIComponent(projectFolderId)}&supportsAllDrives=true`
+      : `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(targetFileId)}?supportsAllDrives=true`;
 
     const patchMetaRes = await fetch(patchUrl, {
       method: 'PATCH',
@@ -335,9 +454,8 @@ export async function saveProjectToDrive(
     });
 
     if (patchMetaRes.ok) {
-      // 2. Atualiza o conteúdo do arquivo
       const updateRes = await fetch(
-        `https://www.googleapis.com/upload/drive/v3/files/${targetFileId}?uploadType=media`,
+        `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(targetFileId)}?uploadType=media&supportsAllDrives=true&fields=id,modifiedTime`,
         {
           method: 'PATCH',
           headers: {
@@ -345,21 +463,33 @@ export async function saveProjectToDrive(
             'Content-Type': REDIJA_MIME_TYPE,
           },
           body: fileContent,
-        }
+        },
       );
 
       if (updateRes.ok) {
         const data = await updateRes.json().catch(() => ({}));
-        return { fileId: data.id || targetFileId, modifiedTime: new Date().toISOString() };
+        return {
+          fileId: data.id || targetFileId,
+          modifiedTime: data.modifiedTime || new Date().toISOString(),
+          collabSecret,
+        };
       }
+      if (updateRes.status === 401) {
+        throw new DriveAccessError('Sessão Google expirada.', 'AUTH_EXPIRED', 401);
+      }
+    } else if (patchMetaRes.status === 401) {
+      throw new DriveAccessError('Sessão Google expirada.', 'AUTH_EXPIRED', 401);
     } else if (patchMetaRes.status !== 404) {
       const err = await patchMetaRes.json().catch(() => ({}));
-      throw new Error(err.error?.message || 'Falha ao sincronizar alterações no Google Drive.');
+      throw new DriveAccessError(
+        err.error?.message || 'Falha ao sincronizar alterações no Google Drive.',
+        'NETWORK',
+        patchMetaRes.status,
+      );
     }
-    // Se recebeu 404 (arquivo foi apagado no Drive pelo usuário), continua abaixo para recriar
   }
 
-  // CENÁRIO B: CRIAR NOVO ARQUIVO NO DRIVE (Multipart com appProperties e pasta pai)
+  // CENÁRIO B: Criar novo arquivo no Drive (Multipart com pasta pai)
   const metadata: Record<string, unknown> = {
     name: fileName,
     mimeType: REDIJA_MIME_TYPE,
@@ -382,30 +512,42 @@ export async function saveProjectToDrive(
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
       body: form,
-    }
+    },
   );
 
   if (!createRes.ok) {
+    if (createRes.status === 401) {
+      throw new DriveAccessError('Sessão Google expirada.', 'AUTH_EXPIRED', 401);
+    }
     const err = await createRes.json().catch(() => ({}));
-    throw new Error(err.error?.message || 'Falha ao criar arquivo no Google Drive.');
+    throw new DriveAccessError(
+      err.error?.message || 'Falha ao criar arquivo no Google Drive.',
+      'NETWORK',
+      createRes.status,
+    );
   }
 
   const data = await createRes.json();
-  return { fileId: data.id, modifiedTime: data.modifiedTime || new Date().toISOString() };
+  return {
+    fileId: data.id,
+    modifiedTime: data.modifiedTime || new Date().toISOString(),
+    collabSecret,
+  };
 }
 
 /**
  * Salva ou atualiza a cópia em PDF do projeto no Google Drive como backup legível.
- * O RedijaApp não depende desse arquivo para funcionar (usa o .redija para edição),
- * mas ele permite que o usuário e seus orientadores visualizem, imprimam e compartilhem
- * o documento diagramado nativamente dentro do Google Drive (inclusive no celular).
+ * Para projetos compartilhados de terceiros, retorna `null` sem criar cópias paralelas indesejadas.
  */
 export async function saveProjectPdfToDrive(
   project: DocumentProject,
   pdfBytes: Uint8Array,
   accessToken: string,
 ): Promise<{ fileId: string; modifiedTime: string } | null> {
-  // Simulação para testes de desenvolvimento local
+  if (project.isSharedWithMe) {
+    return null;
+  }
+
   if (accessToken.startsWith('mock_dev_token')) {
     return {
       fileId: `mock_pdf_${Date.now()}`,
@@ -416,7 +558,6 @@ export async function saveProjectPdfToDrive(
   const cleanName = project.name.replace(/\.redija$/i, '').trim() || 'Sem Titulo';
   const fileName = `${cleanName}.pdf`;
 
-  // 1. Procura se já existe um PDF deste projeto no Drive
   let existingFileId: string | null = null;
   try {
     const propQuery = encodeURIComponent(
@@ -436,7 +577,6 @@ export async function saveProjectPdfToDrive(
     console.warn('Erro ao buscar PDF por appProperties no Drive:', err);
   }
 
-  // Se não encontrou por appProperties, busca pelo nome exato do arquivo .pdf
   if (!existingFileId) {
     try {
       const safeName = fileName.replace(/'/g, "\\'");
@@ -458,12 +598,9 @@ export async function saveProjectPdfToDrive(
     }
   }
 
-  // Garante a existência da pasta dedicada do projeto dentro de RedijaApp/
   const projectFolderId = await getOrCreateProjectFolder(project, accessToken);
 
-  // CENÁRIO A: ATUALIZAR ARQUIVO PDF EXISTENTE
   if (existingFileId) {
-    // Atualiza metadados / nome caso o projeto tenha sido renomeado e garante pasta pai
     const patchUrl = projectFolderId
       ? `https://www.googleapis.com/drive/v3/files/${existingFileId}?addParents=${projectFolderId}`
       : `https://www.googleapis.com/drive/v3/files/${existingFileId}`;
@@ -483,7 +620,6 @@ export async function saveProjectPdfToDrive(
       }),
     }).catch(() => null);
 
-    // Atualiza os bytes do PDF
     const updateRes = await fetch(
       `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=media`,
       {
@@ -502,7 +638,6 @@ export async function saveProjectPdfToDrive(
     }
   }
 
-  // CENÁRIO B: CRIAR NOVO ARQUIVO PDF NO DRIVE (Multipart com pasta pai)
   const metadata: Record<string, unknown> = {
     name: fileName,
     mimeType: 'application/pdf',
@@ -540,7 +675,7 @@ export async function saveProjectPdfToDrive(
 }
 
 /**
- * Lista todos os projetos .redija do usuário (próprios e compartilhados com ele).
+ * Lista os projetos .redija acessíveis ao aplicativo no Google Drive (próprios e abertos via Picker).
  */
 export async function listDriveProjects(accessToken: string): Promise<DriveProjectSummary[]> {
   if (accessToken.startsWith('mock_dev_token')) {
@@ -550,12 +685,16 @@ export async function listDriveProjects(accessToken: string): Promise<DriveProje
         name: 'Trabalho de Conclusão de Curso (ABNT)',
         modifiedTime: new Date().toISOString(),
         isSharedWithMe: false,
+        canEdit: true,
+        role: 'owner',
       },
       {
         id: 'mock_drive_file_2',
         name: 'Artigo Científico em Grupo',
         modifiedTime: new Date(Date.now() - 3600000).toISOString(),
         isSharedWithMe: true,
+        canEdit: true,
+        role: 'writer',
         sharedBy: {
           name: 'Prof. Orientador',
           email: 'orientador@universidade.edu.br',
@@ -566,17 +705,20 @@ export async function listDriveProjects(accessToken: string): Promise<DriveProje
 
   const query = encodeURIComponent("name contains '.redija' and trashed = false");
   const fields = encodeURIComponent(
-    'files(id, name, modifiedTime, sharedWithMeTime, sharingUser, owners)'
+    'files(id, name, modifiedTime, ownedByMe, sharedWithMeTime, sharingUser, owners, capabilities(canEdit, canComment))',
   );
 
   const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&orderBy=modifiedTime desc`,
+    `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&orderBy=modifiedTime desc&supportsAllDrives=true&includeItemsFromAllDrives=true`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
-    }
+    },
   );
 
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new DriveAccessError('Sessão Google expirada.', 'AUTH_EXPIRED', 401);
+    }
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error?.message || 'Erro ao consultar projetos do Google Drive.');
   }
@@ -584,15 +726,26 @@ export async function listDriveProjects(accessToken: string): Promise<DriveProje
   const data = await response.json();
 
   return (data.files || []).map((f: GoogleDriveApiFile) => {
-    const isShared = Boolean(f.sharedWithMeTime);
+    const isShared =
+      typeof f.ownedByMe === 'boolean' ? !f.ownedByMe : Boolean(f.sharedWithMeTime);
     const owner = f.owners?.[0];
     const sharing = f.sharingUser;
+    const canEdit = f.capabilities?.canEdit !== false;
+    const role: ShareRole = !isShared
+      ? 'owner'
+      : canEdit
+        ? 'writer'
+        : f.capabilities?.canComment
+          ? 'commenter'
+          : 'reader';
 
     return {
       id: f.id,
       name: f.name.replace(/\.redija$/i, ''),
       modifiedTime: f.modifiedTime,
       isSharedWithMe: isShared,
+      canEdit,
+      role,
       sharedBy: isShared
         ? {
             name: sharing?.displayName || owner?.displayName || 'Outro usuário',
@@ -605,34 +758,205 @@ export async function listDriveProjects(accessToken: string): Promise<DriveProje
 }
 
 /**
+ * Consulta leve apenas para checar modifiedTime remoto no Drive (fallback quando P2P WebRTC estiver indisponível).
+ */
+export async function getDriveFileModifiedTime(
+  fileId: string,
+  accessToken: string,
+): Promise<string | null> {
+  if (!fileId || accessToken.startsWith('mock_dev_token')) {
+    return null;
+  }
+
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=modifiedTime,trashed&supportsAllDrives=true`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      throw new DriveAccessError('Sessão Google expirada.', 'AUTH_EXPIRED', 401);
+    }
+    if (res.status === 403 || res.status === 404) {
+      throw new DriveAccessError(
+        'Sem acesso ou arquivo não encontrado no Drive.',
+        'NOT_FOUND_OR_SCOPE',
+        res.status,
+      );
+    }
+    return null;
+  }
+
+  const data = (await res.json()) as { modifiedTime?: string; trashed?: boolean };
+  if (data.trashed) return null;
+  return data.modifiedTime || null;
+}
+
+/**
  * Baixa e decodifica um projeto `.redija` a partir do Google Drive.
  */
 export async function loadProjectFromDrive(
   fileId: string,
-  accessToken: string
+  accessToken: string,
 ): Promise<DocumentProject> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    const demo = createProjectFromTemplate(
+      fileId === 'mock_drive_file_2' ? 'artigo' : 'tcc',
+      fileId === 'mock_drive_file_2'
+        ? 'Artigo Científico em Grupo'
+        : 'Trabalho de Conclusão de Curso (ABNT)',
+    );
+    return {
+      ...demo,
+      id: `demo_${fileId}`,
+      driveFileId: fileId,
+      driveSyncedAt: new Date().toISOString(),
+      collabSecret: 'mock_shared_demo_secret_123456',
+    };
+  }
+
   const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
-    }
+    },
   );
 
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new DriveAccessError('Sessão Google expirada.', 'AUTH_EXPIRED', 401);
+    }
+    if (response.status === 403 || response.status === 404) {
+      throw new DriveAccessError(
+        'O arquivo não está autorizado para o RedijaApp neste navegador. Selecione-o via Google Picker para abrir.',
+        'NOT_FOUND_OR_SCOPE',
+        response.status,
+      );
+    }
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || 'Erro ao carregar o arquivo do Google Drive.');
+    throw new DriveAccessError(
+      err.error?.message || 'Erro ao carregar o arquivo do Google Drive.',
+      'NETWORK',
+      response.status,
+    );
   }
 
-  const backupData = (await response.json()) as RedijaBackupFile;
+  let backupData: RedijaBackupFile;
+  try {
+    backupData = (await response.json()) as RedijaBackupFile;
+  } catch {
+    throw new DriveAccessError(
+      'O arquivo selecionado não é um projeto .redija válido em JSON.',
+      'INVALID_FORMAT',
+    );
+  }
+
   if (!backupData || !backupData.project) {
-    throw new Error('O arquivo selecionado não é um documento válido do RedijaApp.');
+    throw new DriveAccessError(
+      'O arquivo selecionado não é um documento válido do RedijaApp. Verifique se você escolheu o arquivo .redija (e não o .pdf).',
+      'INVALID_FORMAT',
+    );
   }
 
-  const loadedProject = backupData.project;
+  const loadedProject = normalizeProject(backupData.project);
   loadedProject.driveFileId = fileId;
   loadedProject.driveSyncedAt = new Date().toISOString();
 
   return loadedProject;
+}
+
+/**
+ * Abre um projeto compartilhado ou específico pelo `fileId` resolvendo também
+ * quem compartilhou (`sharedBy`), status (`isSharedWithMe`) e papel (`shareRole`).
+ */
+export async function loadSharedProjectFromDrive(
+  fileId: string,
+  accessToken: string,
+  currentUserEmail?: string,
+): Promise<DocumentProject> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    const demo = createProjectFromTemplate('artigo', 'Artigo Compartilhado (Demo)');
+    return {
+      ...demo,
+      id: `shared_${fileId}`,
+      driveFileId: fileId,
+      driveSyncedAt: new Date().toISOString(),
+      ownerEmail: currentUserEmail,
+      isSharedWithMe: true,
+      sharedBy: {
+        name: 'Prof. Orientador',
+        email: 'orientador@universidade.edu.br',
+      },
+      shareRole: 'writer',
+      collabSecret: 'mock_shared_demo_secret_123456',
+    };
+  }
+
+  const fields = encodeURIComponent(
+    'id, name, modifiedTime, trashed, mimeType, ownedByMe, sharedWithMeTime, sharingUser, owners, capabilities(canEdit, canComment)',
+  );
+
+  const metaRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=${fields}&supportsAllDrives=true`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+
+  if (!metaRes.ok) {
+    if (metaRes.status === 401) {
+      throw new DriveAccessError('Sessão Google expirada. Entre novamente.', 'AUTH_EXPIRED', 401);
+    }
+    if (metaRes.status === 403 || metaRes.status === 404) {
+      throw new DriveAccessError(
+        'Arquivo compartilhado ainda não autorizado para este navegador ou sem permissão de acesso.',
+        'NOT_FOUND_OR_SCOPE',
+        metaRes.status,
+      );
+    }
+    const err = await metaRes.json().catch(() => ({}));
+    throw new DriveAccessError(
+      err.error?.message || 'Erro ao consultar metadados do arquivo no Drive.',
+      'NETWORK',
+      metaRes.status,
+    );
+  }
+
+  const meta = (await metaRes.json()) as GoogleDriveApiFile;
+  if (meta.trashed) {
+    throw new DriveAccessError('Este projeto foi movido para a lixeira do Google Drive.', 'NOT_FOUND_OR_SCOPE', 404);
+  }
+  if (meta.mimeType === 'application/pdf' || meta.name?.toLowerCase().endsWith('.pdf')) {
+    throw new DriveAccessError(
+      'Você selecionou a cópia em PDF. Selecione o arquivo de projeto ".redija" para abrir no editor.',
+      'INVALID_FORMAT',
+    );
+  }
+
+  const project = await loadProjectFromDrive(fileId, accessToken);
+  const role = deriveShareRoleFromMetadata(meta, currentUserEmail);
+  const isShared = role !== 'owner';
+  const owner = meta.owners?.[0];
+  const sharing = meta.sharingUser;
+
+  return {
+    ...project,
+    driveFileId: fileId,
+    driveSyncedAt: meta.modifiedTime || project.driveSyncedAt,
+    isSharedWithMe: isShared,
+    shareRole: role,
+    ...(isShared
+      ? {
+          sharedBy: {
+            name: sharing?.displayName || owner?.displayName || 'Outro usuário',
+            email: sharing?.emailAddress || owner?.emailAddress || '',
+            photoLink: sharing?.photoLink || owner?.photoLink || '',
+          },
+        }
+      : { sharedBy: undefined }),
+  };
 }
 
 /**
@@ -718,21 +1042,43 @@ export async function deleteAllUserDriveProjects(accessToken: string): Promise<n
 // COMPARTILHAMENTO E PERMISSÕES (Google Drive Permissions API)
 // ============================================================================
 
+export interface InviteCollaboratorOptions {
+  role?: 'writer' | 'commenter' | 'reader';
+  projectName?: string;
+  shareUrl?: string;
+}
+
 /**
- * Convida um usuário via e-mail para ter permissão de escrita/edição no projeto.
+ * Convida um usuário via e-mail enviando link direto para abrir o projeto no RedijaApp.
  */
 export async function inviteCollaborator(
   fileId: string,
   emailAddress: string,
-  accessToken: string
+  accessToken: string,
+  options?: InviteCollaboratorOptions,
 ): Promise<void> {
   if (accessToken.startsWith('mock_dev_token')) {
     await new Promise((r) => setTimeout(r, 400));
     return;
   }
 
+  const targetRole = options?.role ?? 'writer';
+  const params = new URLSearchParams({
+    sendNotificationEmail: 'true',
+    supportsAllDrives: 'true',
+  });
+
+  if (options?.shareUrl || options?.projectName) {
+    const projLabel = options.projectName?.trim() || 'Trabalho Acadêmico';
+    const roleLabel = targetRole === 'reader' ? 'visualizar' : 'editar e colaborar';
+    const message = options.shareUrl
+      ? `Você foi convidado(a) para ${roleLabel} no projeto "${projLabel}" no RedijaApp.\n\nAbra diretamente pelo link:\n${options.shareUrl}\n\nSe for seu primeiro acesso a este arquivo, clique em "Selecionar no Google Drive" na guia "Compartilhados comigo" e escolha "${projLabel}.redija".`
+      : `Você foi convidado(a) para ${roleLabel} no projeto "${projLabel}" no RedijaApp.`;
+    params.set('emailMessage', message);
+  }
+
   const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?sendNotificationEmail=true`,
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/permissions?${params.toString()}`,
     {
       method: 'POST',
       headers: {
@@ -740,11 +1086,11 @@ export async function inviteCollaborator(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        role: 'writer',
+        role: targetRole,
         type: 'user',
         emailAddress: emailAddress.trim(),
       }),
-    }
+    },
   );
 
   if (!res.ok) {
@@ -758,7 +1104,7 @@ export async function inviteCollaborator(
  */
 export async function listCollaborators(
   fileId: string,
-  accessToken: string
+  accessToken: string,
 ): Promise<Collaborator[]> {
   if (accessToken.startsWith('mock_dev_token')) {
     return [
@@ -767,22 +1113,26 @@ export async function listCollaborators(
         displayName: 'Vinicius Candeias (Você)',
         emailAddress: 'vinicandeias@gmail.com',
         role: 'owner',
+        type: 'user',
       },
       {
         id: 'perm_collab_1',
         displayName: 'Prof. Dr. Orientador',
         emailAddress: 'orientador@universidade.edu.br',
         role: 'writer',
+        type: 'user',
       },
     ];
   }
 
-  const fields = encodeURIComponent('permissions(id, displayName, emailAddress, role, photoLink)');
+  const fields = encodeURIComponent(
+    'permissions(id, type, displayName, emailAddress, role, photoLink)',
+  );
   const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?fields=${fields}`,
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/permissions?fields=${fields}&supportsAllDrives=true`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
-    }
+    },
   );
 
   if (!res.ok) {
@@ -796,6 +1146,7 @@ export async function listCollaborators(
     displayName: p.displayName || p.emailAddress || 'Colaborador',
     emailAddress: p.emailAddress || '',
     role: p.role || 'writer',
+    type: p.type,
     photoLink: p.photoLink,
   }));
 }
@@ -806,18 +1157,18 @@ export async function listCollaborators(
 export async function removeCollaborator(
   fileId: string,
   permissionId: string,
-  accessToken: string
+  accessToken: string,
 ): Promise<void> {
   if (accessToken.startsWith('mock_dev_token')) {
     await new Promise((r) => setTimeout(r, 300));
     return;
   }
   const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}/permissions/${permissionId}`,
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/permissions/${encodeURIComponent(permissionId)}?supportsAllDrives=true`,
     {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${accessToken}` },
-    }
+    },
   );
 
   if (!res.ok) {
@@ -825,4 +1176,3 @@ export async function removeCollaborator(
     throw new Error(err.error?.message || 'Erro ao remover colaborador.');
   }
 }
-

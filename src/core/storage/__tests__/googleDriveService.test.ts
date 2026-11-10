@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
+  DriveAccessError,
+  getDriveFileModifiedTime,
   saveProjectToDrive,
   saveProjectPdfToDrive,
   getOrCreateRedijaAppRootFolder,
   getOrCreateProjectFolder,
   loadProjectFromDrive,
+  loadSharedProjectFromDrive,
   listDriveProjects,
   inviteCollaborator,
   listCollaborators,
@@ -339,5 +342,140 @@ describe('Google Drive Service (BYOS, Pastas Estruturadas & Colaboração)', () 
     expect(list[0].role).toBe('owner');
     expect(list[1].role).toBe('writer');
     expect(list[1].emailAddress).toBe('colega@gmail.com');
+  });
+
+  it('bloqueia envio no Drive quando shareRole é somente leitura (reader/commenter)', async () => {
+    const readOnlyProj = createProjectFromTemplate('tcc', 'Trabalho Leitura');
+    readOnlyProj.driveFileId = 'shared_ro_file';
+    readOnlyProj.isSharedWithMe = true;
+    readOnlyProj.shareRole = 'reader';
+
+    await expect(saveProjectToDrive(readOnlyProj, 'token_ro')).rejects.toMatchObject({
+      name: 'DriveAccessError',
+      code: 'READ_ONLY',
+    });
+
+    const pdfRes = await saveProjectPdfToDrive(
+      readOnlyProj,
+      new Uint8Array([37, 80, 68, 70]),
+      'token_ro',
+    );
+    expect(pdfRes).toBeNull();
+  });
+
+  it('atualiza arquivo compartilhado diretamente por uploadType=media sem addParents e higieniza payload canônico', async () => {
+    const sharedWriterProj = createProjectFromTemplate('artigo', 'Artigo Compartilhado');
+    sharedWriterProj.driveFileId = 'shared_writer_123';
+    sharedWriterProj.isSharedWithMe = true;
+    sharedWriterProj.shareRole = 'writer';
+    sharedWriterProj.ownerEmail = 'coautor@uf.br';
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'shared_writer_123',
+        modifiedTime: '2026-11-09T12:00:00Z',
+      }),
+    } as Response);
+
+    const res = await saveProjectToDrive(sharedWriterProj, 'token_writer');
+    expect(res.fileId).toBe('shared_writer_123');
+    expect(res.collabSecret).toMatch(/^[A-Za-z0-9_-]{43}$/);
+
+    // Apenas 1 PATCH direto de mídia sem consultar pastas ou addParents
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(String(url)).toContain('/upload/drive/v3/files/shared_writer_123?uploadType=media');
+    expect(String(url)).not.toContain('addParents');
+
+    const sentBackup = JSON.parse(String(init?.body));
+    expect(sentBackup.project.collabSecret).toBe(res.collabSecret);
+    expect(sentBackup.project.shareRole).toBeUndefined();
+    expect(sentBackup.project.isSharedWithMe).toBeUndefined();
+    expect(sentBackup.project.ownerEmail).toBeUndefined();
+  });
+
+  it('carrega projeto compartilhado inferindo role reader, bloqueando PDF e sinalizando 404 NOT_FOUND_OR_SCOPE', async () => {
+    const sampleProj = createProjectFromTemplate('tcc', 'TCC Compartilhado');
+
+    // 1. Metadata indicando leitor + download do arquivo .redija
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 'shared_ro_99',
+          name: 'TCC Compartilhado.redija',
+          mimeType: 'application/json',
+          modifiedTime: '2026-11-09T10:00:00Z',
+          capabilities: { canEdit: false, canComment: false },
+          owners: [{ displayName: 'Dono', emailAddress: 'dono@uf.br' }],
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          version: 1,
+          exportedAt: '2026-11-09T10:00:00Z',
+          project: sampleProj,
+        }),
+      } as Response);
+
+    const loaded = await loadSharedProjectFromDrive('shared_ro_99', 'token_ok', 'leitor@uf.br');
+    expect(loaded.shareRole).toBe('reader');
+    expect(loaded.isSharedWithMe).toBe(true);
+    expect(loaded.sharedBy?.email).toBe('dono@uf.br');
+
+    // 2. Tentativa de abrir PDF compartilhado deve falhar com INVALID_FORMAT
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'shared_pdf_1',
+        name: 'Artigo.pdf',
+        mimeType: 'application/pdf',
+      }),
+    } as Response);
+
+    await expect(loadSharedProjectFromDrive('shared_pdf_1', 'token_ok')).rejects.toMatchObject({
+      name: 'DriveAccessError',
+      code: 'INVALID_FORMAT',
+    });
+
+    // 3. HTTP 404 (escopo drive.file ainda não concedido) -> NOT_FOUND_OR_SCOPE
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: { message: 'File not found' } }),
+    } as Response);
+
+    await expect(loadSharedProjectFromDrive('shared_hidden', 'token_ok')).rejects.toBeInstanceOf(
+      DriveAccessError,
+    );
+  });
+
+  it('envia emailMessage com link direto e consulta getDriveFileModifiedTime corretamente', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'perm_1' }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ modifiedTime: '2026-11-09T18:30:00.000Z' }),
+      } as Response);
+
+    await inviteCollaborator('file_99', 'revisor@uf.br', 'tok', {
+      role: 'reader',
+      projectName: 'TCC Redes',
+      shareUrl: 'https://redija.app/?driveFileId=file_99',
+    });
+
+    const [inviteUrl, inviteInit] = fetchSpy.mock.calls[0];
+    expect(String(inviteUrl)).toContain('emailMessage=');
+    expect(decodeURIComponent(String(inviteUrl))).toContain('https://redija.app/?driveFileId=file_99');
+    expect(JSON.parse(String(inviteInit?.body)).role).toBe('reader');
+
+    const modified = await getDriveFileModifiedTime('file_99', 'tok');
+    expect(modified).toBe('2026-11-09T18:30:00.000Z');
   });
 });
