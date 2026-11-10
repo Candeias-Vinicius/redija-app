@@ -531,9 +531,12 @@ export function normalizeProject(raw: unknown): DocumentProject {
     driveFileId: typeof data.driveFileId === 'string' ? data.driveFileId : undefined,
     driveSyncedAt: typeof data.driveSyncedAt === 'string' ? data.driveSyncedAt : undefined,
     isSharedWithMe: Boolean(data.isSharedWithMe),
+    sharedWithEmail: typeof data.sharedWithEmail === 'string' ? data.sharedWithEmail : undefined,
     sharedBy:
       data.sharedBy && typeof data.sharedBy === 'object'
         ? (data.sharedBy as DocumentProject['sharedBy'])
         : undefined,
+    members: Array.isArray(data.members) ? (data.members as DocumentProject['members']) : undefined,
+    comments: Array.isArray(data.comments) ? (data.comments as DocumentProject['comments']) : undefined,
   };
 }

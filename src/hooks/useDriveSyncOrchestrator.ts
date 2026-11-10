@@ -249,7 +249,17 @@ export function useDriveSyncOrchestrator({
             if (remoteTime > localTime + 2000) {
               try {
                 const remoteLoaded = await loadProjectFromDrive(summary.id, token);
-                remoteLoaded.ownerEmail = user.email;
+                if (summary.isSharedWithMe) {
+                  remoteLoaded.isSharedWithMe = true;
+                  remoteLoaded.sharedWithEmail = user.email;
+                  remoteLoaded.sharedBy = summary.sharedBy;
+                  if (!remoteLoaded.ownerEmail) {
+                    remoteLoaded.ownerEmail = summary.sharedBy?.email || 'compartilhado';
+                  }
+                } else {
+                  remoteLoaded.ownerEmail = user.email;
+                  remoteLoaded.isSharedWithMe = false;
+                }
                 const { mergedProject, hasMergedRemoteChanges } = autoMergeProjects(
                   existsLocally,
                   remoteLoaded,
@@ -276,7 +286,17 @@ export function useDriveSyncOrchestrator({
             } else {
               try {
                 const loaded = await loadProjectFromDrive(summary.id, token);
-                loaded.ownerEmail = user.email;
+                if (summary.isSharedWithMe) {
+                  loaded.isSharedWithMe = true;
+                  loaded.sharedWithEmail = user.email;
+                  loaded.sharedBy = summary.sharedBy;
+                  if (!loaded.ownerEmail) {
+                    loaded.ownerEmail = summary.sharedBy?.email || 'compartilhado';
+                  }
+                } else {
+                  loaded.ownerEmail = user.email;
+                  loaded.isSharedWithMe = false;
+                }
                 await saveProject(loaded, false);
                 driveFileIdByProjectIdRef.current[loaded.id] = summary.id;
                 hasNewOrUpdated = true;

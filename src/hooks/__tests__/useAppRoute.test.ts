@@ -35,4 +35,19 @@ describe('resolveRouteFromLocation', () => {
       sectionId: 'importacao-exportacao',
     });
   });
+
+  it('extrai sharedDocId de parâmetros ?doc, ?project e ?join', () => {
+    expect(resolveRouteFromLocation('/', '?doc=1a2b3c4d5e', '')).toEqual({
+      route: 'app',
+      sharedDocId: '1a2b3c4d5e',
+    });
+    expect(resolveRouteFromLocation('/', '?project=xyz987', '')).toEqual({
+      route: 'app',
+      sharedDocId: 'xyz987',
+    });
+    expect(resolveRouteFromLocation('/', '?join=room123', '')).toEqual({
+      route: 'app',
+      sharedDocId: 'room123',
+    });
+  });
 });

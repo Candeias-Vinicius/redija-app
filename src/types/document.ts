@@ -262,6 +262,7 @@ export interface DocumentProject {
   driveFileId?: string;
   driveSyncedAt?: string;
   isSharedWithMe?: boolean;
+  sharedWithEmail?: string;
   sharedBy?: {
     name?: string;
     email?: string;

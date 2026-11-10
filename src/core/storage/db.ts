@@ -89,7 +89,14 @@ export async function listProjects(ownerEmail?: string | null): Promise<Document
   if (!ownerEmail || ownerEmail === 'local') {
     return active.filter((p) => !p.ownerEmail || p.ownerEmail === 'local');
   }
-  return active.filter((p) => p.ownerEmail === ownerEmail);
+  const normEmail = ownerEmail.toLowerCase();
+  return active.filter(
+    (p) =>
+      p.ownerEmail?.toLowerCase() === normEmail ||
+      (p.isSharedWithMe &&
+        (p.sharedWithEmail?.toLowerCase() === normEmail ||
+          p.members?.some((m) => m.email.toLowerCase() === normEmail)))
+  );
 }
 
 /**
@@ -108,7 +115,14 @@ export async function listTrashedProjects(ownerEmail?: string | null): Promise<D
   if (!ownerEmail || ownerEmail === 'local') {
     return trashed.filter((p) => !p.ownerEmail || p.ownerEmail === 'local');
   }
-  return trashed.filter((p) => p.ownerEmail === ownerEmail);
+  const normEmail = ownerEmail.toLowerCase();
+  return trashed.filter(
+    (p) =>
+      p.ownerEmail?.toLowerCase() === normEmail ||
+      (p.isSharedWithMe &&
+        (p.sharedWithEmail?.toLowerCase() === normEmail ||
+          p.members?.some((m) => m.email.toLowerCase() === normEmail)))
+  );
 }
 
 /**

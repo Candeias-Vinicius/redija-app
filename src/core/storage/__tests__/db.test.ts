@@ -166,4 +166,30 @@ describe('Persistência IndexedDB (Dexie) e Backup .redija', () => {
     expect(colleagueSession.allProjects).toHaveLength(1);
     expect(colleagueSession.activeProject?.name).toBe('Artigo do Colega');
   });
+
+  it('lista projetos compartilhados com o usuário autenticado além dos seus próprios', async () => {
+    // 1. Projeto próprio de aluno@univ.edu.br
+    const ownProj = createProjectFromTemplate('tcc', 'Meu TCC de Graduação');
+    ownProj.ownerEmail = 'aluno@univ.edu.br';
+    await saveProject(ownProj, false);
+
+    // 2. Projeto de orientador@univ.edu.br compartilhado com aluno@univ.edu.br
+    const sharedProj = createProjectFromTemplate('artigo', 'Artigo do Laboratório');
+    sharedProj.ownerEmail = 'orientador@univ.edu.br';
+    sharedProj.isSharedWithMe = true;
+    sharedProj.sharedWithEmail = 'aluno@univ.edu.br';
+    sharedProj.sharedBy = { name: 'Prof. Orientador', email: 'orientador@univ.edu.br' };
+    await saveProject(sharedProj, false);
+
+    // Consulta do aluno: deve listar os 2 projetos (o próprio e o compartilhado com ele)
+    const alunoList = await listProjects('aluno@univ.edu.br');
+    expect(alunoList).toHaveLength(2);
+    expect(alunoList.map((p) => p.name)).toContain('Meu TCC de Graduação');
+    expect(alunoList.map((p) => p.name)).toContain('Artigo do Laboratório');
+
+    // Consulta do orientador: deve listar apenas o que é dele
+    const orientadorList = await listProjects('orientador@univ.edu.br');
+    expect(orientadorList.map((p) => p.name)).toContain('Artigo do Laboratório');
+    expect(orientadorList.map((p) => p.name)).not.toContain('Meu TCC de Graduação');
+  });
 });

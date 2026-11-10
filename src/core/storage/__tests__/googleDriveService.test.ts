@@ -372,4 +372,36 @@ describe('Google Drive Service (BYOS, Pastas Estruturadas & Colaboração)', () 
     expect(list[1].role).toBe('writer');
     expect(list[1].emailAddress).toBe('colega@gmail.com');
   });
+
+  describe('extractDriveFileIdFromInput', () => {
+    it('extrai fileId de links do Redija com parâmetro ?doc=', async () => {
+      const { extractDriveFileIdFromInput } = await import('../googleDriveService');
+      expect(extractDriveFileIdFromInput('https://redija.app/?doc=1bA4c9xYzkLmnOP_12345')).toBe('1bA4c9xYzkLmnOP_12345');
+      expect(extractDriveFileIdFromInput('http://localhost:5173/?doc=1bA4c9xYzkLmnOP_12345')).toBe('1bA4c9xYzkLmnOP_12345');
+      expect(extractDriveFileIdFromInput('?doc=1bA4c9xYzkLmnOP_12345')).toBe('1bA4c9xYzkLmnOP_12345');
+    });
+
+    it('extrai fileId de URLs do Google Drive', async () => {
+      const { extractDriveFileIdFromInput } = await import('../googleDriveService');
+      expect(
+        extractDriveFileIdFromInput('https://drive.google.com/file/d/1bA4c9xYzkLmnOP_12345/view?usp=sharing')
+      ).toBe('1bA4c9xYzkLmnOP_12345');
+      expect(
+        extractDriveFileIdFromInput('https://drive.google.com/open?id=1bA4c9xYzkLmnOP_12345')
+      ).toBe('1bA4c9xYzkLmnOP_12345');
+    });
+
+    it('extrai fileId a partir do ID puro do Drive', async () => {
+      const { extractDriveFileIdFromInput } = await import('../googleDriveService');
+      expect(extractDriveFileIdFromInput('1bA4c9xYzkLmnOP_12345')).toBe('1bA4c9xYzkLmnOP_12345');
+      expect(extractDriveFileIdFromInput('   1bA4c9xYzkLmnOP_12345   ')).toBe('1bA4c9xYzkLmnOP_12345');
+    });
+
+    it('retorna null para entradas inválidas', async () => {
+      const { extractDriveFileIdFromInput } = await import('../googleDriveService');
+      expect(extractDriveFileIdFromInput('')).toBeNull();
+      expect(extractDriveFileIdFromInput('abc')).toBeNull();
+      expect(extractDriveFileIdFromInput('https://google.com')).toBeNull();
+    });
+  });
 });

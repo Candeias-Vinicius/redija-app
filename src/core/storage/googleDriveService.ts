@@ -19,6 +19,53 @@ export interface DriveProjectSummary {
   };
 }
 
+/**
+ * Extrai o ID do arquivo do Google Drive a partir de uma entrada fornecida pelo usuário:
+ * - Link do Redija: https://redija.app/?doc=1a2b3c... ou ?project=1a2b3c...
+ * - Link do Google Drive: https://drive.google.com/file/d/1a2b3c.../view ou open?id=1a2b3c...
+ * - ID puro do Drive: 1a2b3c...
+ */
+export function extractDriveFileIdFromInput(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  // 1. Link Redija (com ?doc= ou ?project= ou ?join=)
+  try {
+    if (trimmed.includes('?')) {
+      const url = new URL(trimmed.startsWith('http') ? trimmed : `https://redija.app/${trimmed}`);
+      const docParam =
+        url.searchParams.get('doc') ||
+        url.searchParams.get('project') ||
+        url.searchParams.get('join') ||
+        url.searchParams.get('id');
+      if (docParam && /^[a-zA-Z0-9_-]{10,}$/.test(docParam)) {
+        return docParam;
+      }
+    }
+  } catch {
+    // Se não for URL válida, continua para regexes
+  }
+
+  // 2. Link do Google Drive /file/d/{id}
+  const driveFileMatch = trimmed.match(/\/d\/([a-zA-Z0-9_-]{15,})/);
+  if (driveFileMatch) {
+    return driveFileMatch[1];
+  }
+
+  // 3. Link do Google Drive open?id={id} ou uc?id={id}
+  const driveIdParamMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
+  if (driveIdParamMatch) {
+    return driveIdParamMatch[1];
+  }
+
+  // 4. ID bruto do Google Drive (entre 15 e 60 caracteres)
+  if (/^[a-zA-Z0-9_-]{15,60}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return null;
+}
+
 export interface Collaborator {
   id: string; // Permission ID do Google
   displayName: string;

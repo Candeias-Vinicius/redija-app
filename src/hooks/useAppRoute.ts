@@ -5,6 +5,7 @@ export type AppRoute = 'app' | 'docs';
 export interface ResolvedAppRoute {
   route: AppRoute;
   sectionId?: string;
+  sharedDocId?: string;
 }
 
 const VALID_DOCS_PATH_PREFIX = /^\/docs(?:\/([^/]+))?\/?$/i;
@@ -42,7 +43,9 @@ export function resolveRouteFromLocation(
     };
   }
 
-  return { route: 'app' };
+  const sharedDocId = params.get('doc') || params.get('project') || params.get('join') || undefined;
+
+  return { route: 'app', sharedDocId };
 }
 
 function readCurrentLocation(): ResolvedAppRoute {
@@ -94,6 +97,7 @@ export function useAppRoute() {
   return {
     route: locationState.route,
     sectionId: locationState.sectionId,
+    sharedDocId: locationState.sharedDocId,
     navigateTo,
   };
 }

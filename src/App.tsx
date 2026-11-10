@@ -18,6 +18,8 @@ import { DocsPage } from '@/components/docs/DocsPage';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { CommentsDrawer } from '@/components/comments/CommentsDrawer';
 import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
+import { loadProjectFromDrive } from '@/core/storage/googleDriveService';
+import { listProjects, saveProject } from '@/core/storage/db';
 import { isBetaNoticeDismissed } from '@/core/version';
 import { AcademicReference, DEFAULT_TEMPLATE_CONFIG, DocumentProject } from '@/types/document';
 import { getEffectiveUserRole, ProjectRole } from '@/types/members';
@@ -72,7 +74,7 @@ export const App: React.FC = () => {
 
   const activeOwner = isAuthenticated && user ? user.email : 'local';
   const isSessionActive = isAuthenticated || isGuestMode;
-  const { route, sectionId, navigateTo } = useAppRoute();
+  const { route, sectionId, sharedDocId, navigateTo } = useAppRoute();
   const handleOpenFullDocs = useCallback(
     (targetSectionId?: string) => navigateTo('/docs', targetSectionId),
     [navigateTo],
@@ -302,6 +304,69 @@ export const App: React.FC = () => {
     },
     []
   );
+
+  // Deep linking para ingressar em documento compartilhado (?doc=fileId)
+  useEffect(() => {
+    if (!sharedDocId || !isStorageReady) return;
+
+    let isCancelled = false;
+
+    const processDeepLink = async () => {
+      try {
+        // Se já está com este projeto ativo, apenas limpa a URL
+        if (project.driveFileId === sharedDocId) {
+          window.history.replaceState({}, '', window.location.pathname);
+          return;
+        }
+
+        // 1. Procura se já está no IndexedDB
+        const localMatch = projects.find((p) => p.driveFileId === sharedDocId);
+        if (localMatch) {
+          handleSelectProject(localMatch);
+          window.history.replaceState({}, '', window.location.pathname);
+          return;
+        }
+
+        // 2. Se logado, baixa do Google Drive automaticamente
+        if (isAuthenticated) {
+          const token = await getValidAccessToken(false);
+          if (token && !isCancelled) {
+            const loaded = await loadProjectFromDrive(sharedDocId, token);
+            loaded.isSharedWithMe = true;
+            loaded.sharedWithEmail = user?.email;
+            if (!loaded.ownerEmail) {
+              loaded.ownerEmail = 'compartilhado';
+            }
+            await saveProject(loaded, true);
+            if (!isCancelled) {
+              handleSelectProject(loaded);
+              const all = await listProjects(user?.email);
+              setProjects(all);
+              window.history.replaceState({}, '', window.location.pathname);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Falha ao processar deep link de compartilhamento:', err);
+      }
+    };
+
+    processDeepLink();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    sharedDocId,
+    isStorageReady,
+    isAuthenticated,
+    project.driveFileId,
+    projects,
+    getValidAccessToken,
+    user?.email,
+    handleSelectProject,
+    setProjects,
+  ]);
 
   // Exibição do aviso de boas-vindas do Beta no primeiro acesso do usuário
   useEffect(() => {
