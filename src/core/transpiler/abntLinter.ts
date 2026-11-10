@@ -412,7 +412,7 @@ export function parseBibtex(bibContent: string): AcademicReference[] {
     const school = extractField(body, 'school') || extractField(body, 'institution');
 
     results.push({
-      id: crypto.randomUUID(),
+      id: match[2]?.trim() || crypto.randomUUID(),
       type,
       authors,
       title: mainTitle.trim(),

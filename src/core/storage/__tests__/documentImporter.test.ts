@@ -149,6 +149,107 @@ describe('Document Importer (DOCX, ZIP Redija, ZIP Overleaf / LaTeX, .redija)', 
       expect(ref?.authors).toContain('TURING');
     });
 
+    it('expande múltiplos arquivos LaTeX (include/input), macros ABNT customizadas e siglas', async () => {
+      const mainTex = `
+        \\documentclass{abntex2}
+        \\titulo{Plataforma Redija: Automação Inteligente de TCC}
+        \\DEELautor{ Lucas Silva\\\\Ana Reis\\\\}{}
+        \\curso{Engenharia de Software}
+        \\orientador{Prof. Dr. Orientador Principal}
+        \\membrob{Prof. Me. Membro da Banca}
+        \\palavraschave{1. Gamificação. 2. Aprendizado. 3. Síndrome de Down.}
+        \\keywords{1. Gamification. 2. Learning.}
+        \\DEELdedicatoria{Dedico aos meus pais.}
+        \\DEELagradecimentos{Agradeço aos professores.}
+        \\DEELepigrafe{"A imaginação é mais importante que o conhecimento." \\\\ (Albert Einstein)}
+        \\DEELresumo{Resumo completo do trabalho de conclusão.}
+        \\DEELabstract{Full abstract of the capstone project.}
+        \\begin{document}
+        \\onehalfspacing
+        \\ElementosPreTextuais
+        \\include{list_siglas}
+        \\Sumario
+        \\textual
+        \\include{capitulos/1_introducao}
+        \\end{document}
+      `;
+
+      const cap1Tex = `
+        \\chapter{Introdução}\\label{chp:intro}
+        Este é o parágrafo inicial da introdução com \\citeonline{turing1950}.
+        \\section{Objetivos}
+        \\begin{itemize}
+          \\item Primeiro objetivo específico.
+          \\item Segundo objetivo com \\cite{turing1950}.
+        \\end{itemize}
+      `;
+
+      const siglasTex = `
+        \\begin{tabbing}
+        xxxxxxxxxxx \\= xxxxxxxxxxxxx \\kill
+        \\textsc{IA} \\> Inteligência Artificial\\\\
+        \\textsc{BES} \\> Bacharelado em Engenharia de Software
+        \\end{tabbing}
+      `;
+
+      const bibCode = `
+        @article{turing1950,
+          title={Computing Machinery and Intelligence},
+          author={Turing, Alan M},
+          year={1950}
+        }
+      `;
+
+      const zip = new JSZip();
+      zip.file('Main.tex', mainTex);
+      zip.file('capitulos/1_introducao.tex', cap1Tex);
+      zip.file('list_siglas.tex', siglasTex);
+      zip.file('referencias.bib', bibCode);
+
+      const zipBuffer = await zip.generateAsync({ type: 'arraybuffer' });
+      const imported = await importFromZip(zipBuffer, 'TCC_Completo.zip');
+
+      // Metadados semânticos extraídos
+      expect(imported.metadata.title).toBe('Plataforma Redija');
+      expect(imported.metadata.subtitle).toBe('Automação Inteligente de TCC');
+      expect(imported.metadata.author).toBe('Lucas Silva; Ana Reis');
+      expect(imported.metadata.course).toBe('Engenharia de Software');
+      expect(imported.metadata.advisor).toBe('Prof. Dr. Orientador Principal');
+      expect(imported.metadata.committeeMembers).toEqual(['Prof. Me. Membro da Banca']);
+      expect(imported.metadata.includeApprovalPage).toBe(true);
+      expect(imported.metadata.dedicatory).toBe('Dedico aos meus pais.');
+      expect(imported.metadata.acknowledgments).toBe('Agradeço aos professores.');
+      expect(imported.metadata.epigraph).toBe('A imaginação é mais importante que o conhecimento.');
+      expect(imported.metadata.epigraphAuthor).toBe('Albert Einstein');
+      expect(imported.metadata.abstract).toBe('Resumo completo do trabalho de conclusão.');
+      expect(imported.metadata.foreignAbstract).toBe('Full abstract of the capstone project.');
+      expect(imported.metadata.keywords).toEqual(['Gamificação', 'Aprendizado', 'Síndrome de Down']);
+      expect(imported.metadata.foreignKeywords).toEqual(['Gamification', 'Learning']);
+      expect(imported.metadata.abbreviations).toContain('IA - Inteligência Artificial');
+      expect(imported.metadata.abbreviations).toContain('BES - Bacharelado em Engenharia de Software');
+
+      // Conteúdo dos capítulos incluídos expandidos
+      const h1Intro = imported.blocks.find((b) => b.type === 'h1' && b.content.includes('Introdução'));
+      expect(h1Intro).toBeDefined();
+
+      const introPara = imported.blocks.find((b) => b.type === 'paragraph' && b.content.includes('parágrafo inicial'));
+      expect(introPara).toBeDefined();
+      expect(introPara?.content).toContain('data-cite-id="turing1950"');
+      expect(introPara?.content).toContain('data-cite-mode="narrative"');
+
+      // Itens de lista (itemize) convertidos para bullet
+      const bullets = imported.blocks.filter((b) => b.type === 'bullet');
+      expect(bullets.length).toBe(2);
+      expect(bullets[0].content).toContain('Primeiro objetivo específico.');
+      expect(bullets[1].content).toContain('data-cite-mode="parenthetical"');
+
+      // Limpeza de ruídos de macros estruturais do LaTeX
+      expect(imported.blocks.some((b) => b.content.includes('\\onehalfspacing'))).toBe(false);
+      expect(imported.blocks.some((b) => b.content.includes('\\ElementosPreTextuais'))).toBe(false);
+      expect(imported.blocks.some((b) => b.content.includes('\\DEELresumo'))).toBe(false);
+      expect(imported.blocks.some((b) => b.content.includes('\\include'))).toBe(false);
+    });
+
     it('rejeita arquivo ZIP não reconhecido (sem .redija e sem .tex)', async () => {
       const zip = new JSZip();
       zip.file('random.txt', 'arquivo qualquer');

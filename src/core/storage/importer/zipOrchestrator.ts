@@ -52,6 +52,99 @@ async function extractReferencesAndImagesFromZip(
   return { references, imageMap };
 }
 
+function findZipEntry(
+  zip: JSZip,
+  relativePath: string,
+  defaultExt: string = '.tex',
+): string | undefined {
+  const normalized = relativePath.replace(/\\/g, '/').trim().toLowerCase();
+  const withExt = normalized.endsWith(defaultExt) ? normalized : `${normalized}${defaultExt}`;
+  const keys = Object.keys(zip.files);
+  return keys.find((k) => {
+    const lk = k.toLowerCase();
+    return (
+      lk === normalized ||
+      lk === withExt ||
+      lk.endsWith(`/${normalized}`) ||
+      lk.endsWith(`/${withExt}`)
+    );
+  });
+}
+
+async function resolveLatexIncludes(
+  zip: JSZip,
+  content: string,
+  visited: Set<string> = new Set(),
+): Promise<string> {
+  const includeRegex = /\\(?:include|input)\s*\{([^}]+)\}/g;
+  let resolved = '';
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = includeRegex.exec(content)) !== null) {
+    resolved += content.slice(lastIndex, match.index);
+    lastIndex = includeRegex.lastIndex;
+
+    const rawPath = match[1].trim();
+    if (/packages|style\/packages|ucsal\.sty|\.sty$/i.test(rawPath)) {
+      continue;
+    }
+
+    const entryKey = findZipEntry(zip, rawPath, '.tex');
+    if (entryKey && !visited.has(entryKey.toLowerCase())) {
+      visited.add(entryKey.toLowerCase());
+      try {
+        const subContent = await zip.files[entryKey].async('string');
+        const expandedSub = await resolveLatexIncludes(zip, subContent, visited);
+        resolved +=
+          `\n% --- BEGIN INCLUDE: ${rawPath} ---\n` +
+          expandedSub +
+          `\n% --- END INCLUDE: ${rawPath} ---\n`;
+      } catch (err) {
+        console.warn(`Erro ao resolver include latex ${rawPath}:`, err);
+      }
+    }
+  }
+
+  resolved += content.slice(lastIndex);
+  return resolved;
+}
+
+async function resolveTypstIncludes(
+  zip: JSZip,
+  content: string,
+  visited: Set<string> = new Set(),
+): Promise<string> {
+  const includeRegex = /#include\s+["']([^"']+)["']/g;
+  let resolved = '';
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = includeRegex.exec(content)) !== null) {
+    resolved += content.slice(lastIndex, match.index);
+    lastIndex = includeRegex.lastIndex;
+
+    const rawPath = match[1].trim();
+    const entryKey = findZipEntry(zip, rawPath, '.typ');
+    if (entryKey && !visited.has(entryKey.toLowerCase())) {
+      visited.add(entryKey.toLowerCase());
+      try {
+        const subContent = await zip.files[entryKey].async('string');
+        const expandedSub = await resolveTypstIncludes(zip, subContent, visited);
+        resolved +=
+          `\n// --- BEGIN INCLUDE: ${rawPath} ---\n` +
+          expandedSub +
+          `\n// --- END INCLUDE: ${rawPath} ---\n`;
+      } catch (err) {
+        console.warn(`Erro ao resolver include typst ${rawPath}:`, err);
+      }
+    }
+  }
+
+  resolved += content.slice(lastIndex);
+  return resolved;
+}
+
 async function importFromTypstZip(
   zip: JSZip,
   fileNames: string[],
@@ -79,7 +172,10 @@ async function importFromTypstZip(
       }) ?? typFiles[0];
   }
 
-  const typContent = await zip.files[mainTypFile].async('string');
+  let typContent = await zip.files[mainTypFile].async('string');
+  const visited = new Set<string>([mainTypFile.toLowerCase()]);
+  typContent = await resolveTypstIncludes(zip, typContent, visited);
+
   const { references, imageMap } = await extractReferencesAndImagesFromZip(zip, fileNames);
   const cleanProjectName = zipFileName.replace(/\.zip$/i, '').trim() || 'Projeto Typst';
 
@@ -114,7 +210,25 @@ async function importFromOverleafZip(
     mainTexFile = texFiles[0];
   }
 
-  const texContent = await zip.files[mainTexFile].async('string');
+  let texContent = await zip.files[mainTexFile].async('string');
+  const visited = new Set<string>([mainTexFile.toLowerCase()]);
+  texContent = await resolveLatexIncludes(zip, texContent, visited);
+
+  const siglasFile = fileNames.find(
+    (n) => /siglas|acronyms|abreviaturas/i.test(n) && n.endsWith('.tex'),
+  );
+  if (siglasFile && !visited.has(siglasFile.toLowerCase())) {
+    try {
+      const siglasContent = await zip.files[siglasFile].async('string');
+      texContent +=
+        `\n% --- BEGIN INCLUDE: ${siglasFile} ---\n` +
+        siglasContent +
+        `\n% --- END INCLUDE: ${siglasFile} ---\n`;
+    } catch {
+      // ignore
+    }
+  }
+
   const { references, imageMap } = await extractReferencesAndImagesFromZip(zip, fileNames);
   const cleanProjectName = zipFileName.replace(/\.zip$/i, '').trim() || 'Projeto Overleaf';
   return parseLatexToProject(texContent, cleanProjectName, imageMap, references);
