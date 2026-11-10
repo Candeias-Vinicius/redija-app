@@ -290,12 +290,12 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     await page.keyboard.press('End');
     await page.keyboard.type(' @');
 
-    // Picker de referências abre e permite escolher SILVA; SOUZA
+    // Picker de referências abre e permite escolher SILVA; SOUZA (NBR 10520:2023)
     await expect(page.getByText('Selecionar Referência')).toBeVisible();
-    await page.getByRole('button', { name: /^\(SILVA; SOUZA, 2023\)/i }).click();
+    await page.getByRole('button', { name: /^\(Silva; Souza, 2023\)/i }).click();
 
-    // Pill reativo inserido no editor em formato ABNT
-    await expect(firstParagraph.getByRole('button', { name: '(SILVA; SOUZA, 2023)' })).toBeVisible();
+    // Pill reativo inserido no editor em formato ABNT NBR 10520:2023
+    await expect(firstParagraph.getByRole('button', { name: '(Silva; Souza, 2023)' })).toBeVisible();
 
     // Troca o formato para IEEE Numérico e ordenação por ordem de citação
     await page
@@ -311,7 +311,7 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
 
     // O mesmo pill no texto deve atualizar retroativamente para [1]
     await expect(firstParagraph.getByRole('button', { name: '[1]' })).toBeVisible();
-    await expect(firstParagraph.getByRole('button', { name: '(SILVA; SOUZA, 2023)' })).not.toBeVisible();
+    await expect(firstParagraph.getByRole('button', { name: '(Silva; Souza, 2023)' })).not.toBeVisible();
 
     // Valida no código Typst gerado
     await page.getByRole('button', { name: /Ver Typst/i }).click();

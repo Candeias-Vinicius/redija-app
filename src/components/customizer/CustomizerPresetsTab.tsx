@@ -78,7 +78,7 @@ export const CustomizerPresetsTab: React.FC<CustomizerPresetsTabProps> = ({
           );
         })}
 
-        {/* 8º Card: Conector Typst Universe */}
+        {/* Card: Conector Typst Universe */}
         <button
           type="button"
           onClick={onToggleUniverseExplorer}

@@ -22,14 +22,14 @@ export const ABNT_STANDARDS_DOCS: StandardDocSection[] = [
     ],
   },
   {
-    code: 'ABNT NBR 10520 (2002 e atualização 2023)',
+    code: 'ABNT NBR 10520:2023',
     title: 'Citações em Documentos',
     summary:
       'Regulamenta as chamadas de autores no texto e a diagramação de citações diretas curtas, longas e indiretas.',
     rulesApplied: [
       'Citação direta longa (mais de 3 linhas) com recuo esquerdo obrigatório de 4 cm, fonte 10 pt, espaçamento simples e sem aspas.',
-      'Suporte tanto ao padrão tradicional em maiúsculas (SILVA, 2023) quanto à atualização NBR 10520:2023 em caixa mista entre parênteses (Silva, 2023).',
-      'Formatação automática de múltiplos autores (até 3 separados por ponto e vírgula, e 4 ou mais abreviados com et al. em itálico).',
+      'Conformidade integral com a NBR 10520:2023 vigente: citações no sistema autor-data em caixa mista entre parênteses (Silva, 2023).',
+      'Expressões latinas obrigatórias em itálico (et al., apud) e separação de múltiplos autores por ponto e vírgula.',
       'Inserção rápida de chamadas pelo atalho "@" ou pelo comando "/" direto no parágrafo.',
     ],
   },

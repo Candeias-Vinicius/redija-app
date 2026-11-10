@@ -1,5 +1,5 @@
 import React from 'react';
-import { Quote } from 'lucide-react';
+import { Lock, Quote } from 'lucide-react';
 import {
   BibliographyEngine,
   CitationFormat,
@@ -11,6 +11,7 @@ import {
   ReferenceSpacing,
   TemplateConfig,
 } from '@/types/document';
+import { CustomizerScope } from '@/core/templates/templateCapabilities';
 import { formatShortCitation, resolveCitationFormat } from '@/core/transpiler/abntLinter';
 import {
   resolveEffectiveCslStyle,
@@ -20,16 +21,23 @@ import {
 
 interface CustomizerCitationsTabProps {
   config: TemplateConfig;
+  scope?: CustomizerScope;
   onUpdateField: <K extends keyof TemplateConfig>(key: K, value: TemplateConfig[K]) => void;
   onCitationFormatChange: (format: CitationFormat) => void;
 }
 
 export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
   config,
+  scope,
   onUpdateField,
   onCitationFormatChange,
 }) => {
   const effectiveCitationFormat = resolveCitationFormat(config);
+  const isCitationLocked = Boolean(
+    scope && !scope.isFullyUnrestricted && scope.allowedCitationFormats.length === 1,
+  );
+  const isAllowed = (fmt: CitationFormat) =>
+    !scope || scope.isFullyUnrestricted || scope.allowedCitationFormats.includes(fmt);
   const effectiveAlignment: ReferenceAlignment = config.referenceAlignment ?? 'left';
   const effectiveSpacing: ReferenceSpacing = config.referenceSpacing ?? 'single_blank';
   const effectiveOrdering: ReferenceOrdering = config.referenceOrdering ?? 'alphabetical';
@@ -67,24 +75,48 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label
-            htmlFor="template-citation-format"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
-          >
-            Formato da Chamada no Texto
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label
+              htmlFor="template-citation-format"
+              className="block text-[11px] font-medium text-neutral-600"
+            >
+              Formato da Chamada no Texto
+            </label>
+            {isCitationLocked && (
+              <span
+                className="flex items-center gap-1 text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"
+                title={scope?.citationLockedReason}
+              >
+                <Lock className="w-2.5 h-2.5 text-amber-600" />
+                Travado
+              </span>
+            )}
+          </div>
           <select
             id="template-citation-format"
             value={effectiveCitationFormat}
+            disabled={isCitationLocked}
             onChange={(e) => onCitationFormatChange(e.target.value as CitationFormat)}
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className={`w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600 ${
+              isCitationLocked ? 'bg-neutral-100 text-neutral-500 cursor-not-allowed' : ''
+            }`}
           >
-            <option value="abnt_upper">ABNT Maiúsculas: (SILVA, 2023) [NBR 10520:2002]</option>
-            <option value="abnt_titlecase">ABNT Caixa Mista: (Silva, 2023) [NBR 10520:2023]</option>
-            <option value="ieee_numeric">Numérico Colchetes: [1] (IEEE / Vancouver)</option>
-            <option value="superscript">Sobrescrito Numérico: ¹ (Nature / ABNT Numérico)</option>
-            <option value="author_date">Autor-Data Internacional: (Silva, 2023) [APA 7ª]</option>
+            {isAllowed('abnt_titlecase') && (
+              <option value="abnt_titlecase">ABNT Autor-Data: (Silva, 2023) [NBR 10520:2023]</option>
+            )}
+            {isAllowed('ieee_numeric') && (
+              <option value="ieee_numeric">Numérico Colchetes: [1] (IEEE / Vancouver)</option>
+            )}
+            {isAllowed('superscript') && (
+              <option value="superscript">Sobrescrito Numérico: ¹ (Nature / ABNT Numérico)</option>
+            )}
+            {isAllowed('author_date') && (
+              <option value="author_date">Autor-Data Internacional: (Silva, 2023) [APA 7ª]</option>
+            )}
           </select>
+          {isCitationLocked && scope?.citationLockedReason && (
+            <p className="text-[10px] text-neutral-500 mt-1">{scope.citationLockedReason}</p>
+          )}
         </div>
 
         <div>
