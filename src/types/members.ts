@@ -18,24 +18,24 @@ export type GoogleDrivePermissionRole = 'owner' | 'writer' | 'commenter' | 'read
 export const ROLE_LABELS: Record<ProjectRole, { title: string; short: string; description: string; badgeClass: string }> = {
   owner: {
     title: 'Proprietário',
-    short: 'Owner',
+    short: 'Proprietário',
     description: 'Controle total do projeto, convites e exclusão.',
     badgeClass: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
   },
   editor: {
-    title: 'Editor (Coautor)',
+    title: 'Editor',
     short: 'Editor',
     description: 'Pode editar textos, blocos, metadados, referências e criar comentários.',
     badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
   },
   commenter: {
-    title: 'Comentador (Orientador)',
-    short: 'Orientador',
+    title: 'Comentador',
+    short: 'Comentador',
     description: 'Pode revisar, selecionar trechos de texto para adicionar apontamentos e responder threads.',
     badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800',
   },
   reader: {
-    title: 'Leitor (Somente Leitura)',
+    title: 'Leitor',
     short: 'Leitor',
     description: 'Pode apenas visualizar o trabalho formatado e o PDF compilado.',
     badgeClass: 'bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700',

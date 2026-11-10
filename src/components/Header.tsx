@@ -21,6 +21,7 @@ import {
   BookOpen,
   MessageSquare,
   Users,
+  Share2,
 } from 'lucide-react';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
@@ -322,14 +323,14 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* Botão Membros do Projeto & Compartilhamento */}
+        {/* Botão Compartilhar */}
         <button
           onClick={onOpenShareModal}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-          title="Gerenciar membros e permissões do projeto via Google Drive"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors"
+          title="Compartilhar trabalho e gerenciar membros via Google Drive"
         >
-          <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
-          <span className="hidden sm:inline">Membros</span>
+          <Share2 className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Compartilhar</span>
         </button>
 
         {/* Botão Relatar Problema (Direto) */}
@@ -409,6 +410,19 @@ export const Header: React.FC<HeaderProps> = ({
                     <Settings className="w-3.5 h-3.5 text-neutral-500" />
                     <span>Configurações da Conta</span>
                   </button>
+
+                  {onOpenShareModal && (
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        onOpenShareModal();
+                      }}
+                      className="w-full flex items-center gap-2 px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
+                    >
+                      <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Gerenciar Membros</span>
+                    </button>
+                  )}
 
                   <a
                     href="/docs"
@@ -521,6 +535,19 @@ export const Header: React.FC<HeaderProps> = ({
                         {darkMode ? 'Escuro' : 'Claro'}
                       </span>
                     </button>
+
+                    {onOpenShareModal && (
+                      <button
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          onOpenShareModal();
+                        }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
+                      >
+                        <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span>Gerenciar Membros</span>
+                      </button>
+                    )}
 
                     <a
                       href="/docs"

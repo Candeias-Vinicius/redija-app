@@ -305,6 +305,39 @@ export const App: React.FC = () => {
     []
   );
 
+  const handleJoinSharedDocument = useCallback(
+    async (fileId: string) => {
+      // 1. Verifica se já existe localmente
+      const existing = projects.find((p) => p.driveFileId === fileId);
+      if (existing) {
+        handleSelectProject(existing);
+        return;
+      }
+
+      // 2. Se não estiver autenticado com Google, dispara o login
+      if (!isAuthenticated) {
+        await login(true);
+      }
+
+      const token = await getValidAccessToken(true);
+      if (!token) {
+        throw new Error('Não foi possível autenticar junto ao Google Drive.');
+      }
+
+      const loaded = await loadProjectFromDrive(fileId, token);
+      loaded.isSharedWithMe = true;
+      loaded.sharedWithEmail = user?.email;
+      if (!loaded.ownerEmail) {
+        loaded.ownerEmail = 'compartilhado';
+      }
+      await saveProject(loaded, true);
+      handleSelectProject(loaded);
+      const all = await listProjects(user?.email);
+      setProjects(all);
+    },
+    [projects, isAuthenticated, login, getValidAccessToken, user?.email, handleSelectProject, setProjects],
+  );
+
   // Deep linking para ingressar em documento compartilhado (?doc=fileId)
   useEffect(() => {
     if (!sharedDocId || !isStorageReady) return;
@@ -669,6 +702,8 @@ export const App: React.FC = () => {
         isAuthenticated={isAuthenticated}
         onSyncFromDrive={() => handleSyncFromDrive(true)}
         isSyncingDrive={isSyncingDrive}
+        currentUserEmail={user?.email}
+        onJoinSharedDocument={handleJoinSharedDocument}
       />
 
       <ShareModal

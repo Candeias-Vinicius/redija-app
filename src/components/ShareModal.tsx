@@ -7,12 +7,14 @@ import {
   Check,
   AlertCircle,
   Loader2,
-  ShieldCheck,
   Mail,
   GraduationCap,
   Edit3,
   Eye,
   Crown,
+  Share2,
+  Link2,
+  Copy,
 } from 'lucide-react';
 import {
   Collaborator,
@@ -56,6 +58,33 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
+
+  const handleCopyLink = async () => {
+    setError(null);
+    setIsCopying(true);
+    try {
+      let fileId = driveFileId;
+      if (!fileId) {
+        fileId = (await onEnsureProjectSavedToDrive()) || undefined;
+      }
+      if (!fileId) {
+        setError('Salve o trabalho no Google Drive para gerar o link de compartilhamento.');
+        return;
+      }
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://redija.app';
+      const shareUrl = `${origin}/?doc=${fileId}`;
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setSuccessMessage('Link de convite copiado para a área de transferência!');
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      setError('Não foi possível copiar o link automaticamente.');
+    } finally {
+      setIsCopying(false);
+    }
+  };
 
   // Carrega a lista de colaboradores ao abrir o modal
   useEffect(() => {
@@ -123,9 +152,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       setEmailInput('');
       const roleName =
         roleInput === 'commenter'
-          ? 'Comentador (Orientador)'
+          ? 'Comentador'
           : roleInput === 'writer'
-            ? 'Editor (Coautor)'
+            ? 'Editor'
             : 'Leitor';
       setSuccessMessage(`Convite como ${roleName} enviado para ${email}!`);
 
@@ -206,10 +235,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4 bg-neutral-50/70">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs">
-              <Users className="w-5 h-5" />
+              <Share2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-neutral-900">Membros do Projeto & Permissões</h2>
+              <h2 className="text-base font-semibold text-neutral-900">Compartilhar Projeto</h2>
               <p className="text-xs text-neutral-500 truncate max-w-xs">{projectName}</p>
             </div>
           </div>
@@ -223,6 +252,34 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
         {/* Conteúdo */}
         <div className="p-6 space-y-5">
+          {/* Caixa de Compartilhamento por Link */}
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-neutral-50 border border-neutral-200">
+            <div className="flex-1 min-w-0 flex items-center gap-2 text-xs text-neutral-600">
+              <Link2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="truncate select-all font-mono text-[11px] text-neutral-700">
+                {driveFileId
+                  ? `${typeof window !== 'undefined' ? window.location.origin : 'https://redija.app'}/?doc=${driveFileId}`
+                  : 'Gere um link salvando no Google Drive'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              disabled={isCopying}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-neutral-300 hover:bg-neutral-50 text-neutral-800 shadow-xs transition-all shrink-0"
+              title="Copiar link para convidar colegas e orientadores"
+            >
+              {isCopying ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+              ) : copied ? (
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+              ) : (
+                <Copy className="w-3.5 h-3.5 text-neutral-500" />
+              )}
+              <span>{copied ? 'Copiado!' : 'Copiar link'}</span>
+            </button>
+          </div>
+
           {/* Mensagens de Sucesso / Erro */}
           {error && (
             <div className="flex items-center gap-2 p-3 text-xs rounded-lg bg-red-50 text-red-700 border border-red-200">
@@ -241,7 +298,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           {/* Formulário de Convite com Seletor de Papel */}
           <form onSubmit={handleInvite} className="space-y-3">
             <label className="block text-xs font-semibold text-neutral-700">
-              Convidar novo membro (E-mail Google)
+              Convidar por e-mail Google
             </label>
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative flex-1">
@@ -256,15 +313,15 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 />
               </div>
 
-              {/* Seletor de Papel no Convite */}
+              {/* Seletor de Papel no Convite (Sem emojis e sem parênteses) */}
               <select
                 value={roleInput}
                 onChange={(e) => setRoleInput(e.target.value as 'writer' | 'commenter' | 'reader')}
                 className="text-xs px-2.5 py-2 border border-neutral-300 rounded-lg bg-white text-neutral-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shrink-0"
               >
-                <option value="commenter">🎓 Comentador (Orientador)</option>
-                <option value="writer">✏️ Editor (Coautor)</option>
-                <option value="reader">👁️ Leitor (Somente Leitura)</option>
+                <option value="commenter">Comentador</option>
+                <option value="writer">Editor</option>
+                <option value="reader">Leitor</option>
               </select>
 
               <button
@@ -284,7 +341,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[11px] text-neutral-500 pt-1">
               <div className="flex items-center gap-1">
                 <GraduationCap className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                <span><strong>Orientador:</strong> comenta e revisa</span>
+                <span><strong>Comentador:</strong> comenta e revisa</span>
               </div>
               <div className="flex items-center gap-1">
                 <Edit3 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -305,7 +362,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 <span>Pessoas com acesso ({collaborators.length})</span>
               </h3>
               <span className="text-[11px] text-neutral-400">
-                Você pode alterar os papéis a qualquer momento
+                Altere os papéis a qualquer momento
               </span>
             </div>
 
@@ -378,9 +435,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                                 }
                                 className="text-[11px] font-medium border border-neutral-300 rounded-md px-1.5 py-1 bg-white hover:bg-neutral-50 text-neutral-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
                               >
-                                <option value="commenter">🎓 Comentador</option>
-                                <option value="writer">✏️ Editor</option>
-                                <option value="reader">👁️ Leitor</option>
+                                <option value="commenter">Comentador</option>
+                                <option value="writer">Editor</option>
+                                <option value="reader">Leitor</option>
                               </select>
                             )}
 
@@ -399,15 +456,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 })}
               </div>
             )}
-          </div>
-
-          {/* Nota de Segurança */}
-          <div className="flex items-start gap-2 p-3 rounded-xl bg-emerald-50/60 text-emerald-800 text-[11px] border border-emerald-100">
-            <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />
-            <span>
-              Sincronizado diretamente com a Google Drive API v3. As permissões de Orientador, Editor e
-              Leitor entram em vigor imediatamente para quem acessar.
-            </span>
           </div>
         </div>
       </div>

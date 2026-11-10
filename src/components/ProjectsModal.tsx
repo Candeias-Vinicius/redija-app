@@ -3,6 +3,8 @@ import { DocumentProject, ProjectTemplateType } from '@/types/document';
 import { PROJECT_TEMPLATES } from '@/core/storage/projectTemplates';
 import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
 import { getRemainingTrashDays, TRASH_RETENTION_DAYS } from '@/core/storage/db';
+import { extractDriveFileIdFromInput } from '@/core/storage/googleDriveService';
+import { getEffectiveUserRole, ROLE_LABELS } from '@/types/members';
 import {
   X,
   FolderOpen,
@@ -23,6 +25,8 @@ import {
   RefreshCw,
   Globe,
   ExternalLink,
+  Link2,
+  Loader2,
 } from 'lucide-react';
 
 interface ProjectsModalProps {
@@ -47,6 +51,8 @@ interface ProjectsModalProps {
   isAuthenticated?: boolean;
   onSyncFromDrive?: () => Promise<void>;
   isSyncingDrive?: boolean;
+  currentUserEmail?: string;
+  onJoinSharedDocument?: (driveFileId: string) => Promise<void>;
 }
 
 export const ProjectsModal: React.FC<ProjectsModalProps> = ({
@@ -67,13 +73,24 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
   isAuthenticated,
   onSyncFromDrive,
   isSyncingDrive,
+  currentUserEmail,
+  onJoinSharedDocument,
 }) => {
-  const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
+  const [activeTab, setActiveTab] = useState<'my-projects' | 'shared' | 'trash'>('my-projects');
   const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplateType>('tcc');
   const [universePackageInput, setUniversePackageInput] = useState('@preview/charged-ieee:0.1.4');
   const [newProjectName, setNewProjectName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+
+  // Estado para ingressar em documento compartilhado via link ou ID
+  const [isJoiningOpen, setIsJoiningOpen] = useState(false);
+  const [joinInput, setJoinInput] = useState('');
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [isJoiningLoading, setIsJoiningLoading] = useState(false);
+
+  const myProjects = projects.filter((p) => !p.isSharedWithMe);
+  const sharedProjects = projects.filter((p) => Boolean(p.isSharedWithMe));
 
   // Estado de confirmação de exclusão digitando o nome
   const [confirmTarget, setConfirmTarget] = useState<{
@@ -85,6 +102,32 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
+
+  const handleJoinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setJoinError(null);
+    const fileId = extractDriveFileIdFromInput(joinInput);
+    if (!fileId) {
+      setJoinError('Link ou ID não reconhecido. Certifique-se de colar o link do Redija (?doc=...) ou ID do Google Drive.');
+      return;
+    }
+    if (!onJoinSharedDocument) {
+      setJoinError('Recurso de importação indisponível nesta sessão.');
+      return;
+    }
+    setIsJoiningLoading(true);
+    try {
+      await onJoinSharedDocument(fileId);
+      setJoinInput('');
+      setIsJoiningOpen(false);
+      onClose();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao ingressar no documento compartilhado.';
+      setJoinError(msg);
+    } finally {
+      setIsJoiningLoading(false);
+    }
+  };
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,6 +197,151 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
     setConfirmTypedName('');
   };
 
+  const renderProjectCard = (proj: DocumentProject) => {
+    const isActive = proj.id === activeProjectId;
+    const isEditing = editingId === proj.id;
+    const updatedDate = new Date(proj.updatedAt).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const effectiveRole = getEffectiveUserRole(proj, currentUserEmail);
+    const roleConfig = ROLE_LABELS[effectiveRole];
+
+    return (
+      <div
+        key={proj.id}
+        className={`group rounded-lg border p-3 transition-all ${
+          isActive
+            ? 'border-emerald-600 bg-emerald-50/40 shadow-xs'
+            : 'border-neutral-200 bg-white hover:border-neutral-300'
+        }`}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            {isEditing ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitRename(proj.id);
+                    if (e.key === 'Escape') setEditingId(null);
+                  }}
+                  autoFocus
+                  className="w-full text-xs font-semibold px-2 py-1 border border-emerald-600 rounded bg-white focus:outline-none"
+                />
+                <button
+                  onClick={() => commitRename(proj.id)}
+                  className="p-1 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+                  title="Confirmar nome"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  onSelectProject(proj);
+                  onClose();
+                }}
+                className="text-left w-full"
+              >
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <FileText
+                    className={`w-3.5 h-3.5 shrink-0 ${
+                      isActive ? 'text-emerald-600' : 'text-neutral-400'
+                    }`}
+                  />
+                  <span className="font-semibold text-xs text-neutral-900 truncate">
+                    {proj.name}
+                  </span>
+                  {isActive && (
+                    <span className="text-[10px] font-semibold bg-emerald-600 text-white px-1.5 py-0.2 rounded">
+                      Ativo
+                    </span>
+                  )}
+                  {proj.driveFileId && (
+                    <span
+                      className="text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded flex items-center gap-1"
+                      title="Sincronizado com Google Drive"
+                    >
+                      <Cloud className="w-2.5 h-2.5" />
+                      <span>Drive</span>
+                    </span>
+                  )}
+                  {proj.isSharedWithMe && (
+                    <span
+                      className="text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded flex items-center gap-1"
+                      title={`Compartilhado por ${proj.sharedBy?.name || 'um colega'}`}
+                    >
+                      <Users className="w-2.5 h-2.5" />
+                      <span>Compartilhado</span>
+                    </span>
+                  )}
+                  {proj.isSharedWithMe && roleConfig && (
+                    <span
+                      className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border ${roleConfig.badgeClass}`}
+                      title={roleConfig.description}
+                    >
+                      {roleConfig.title}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-neutral-500 truncate mt-1">
+                  {proj.isSharedWithMe && proj.sharedBy?.name ? (
+                    <span className="text-blue-600 font-medium mr-1">
+                      De: {proj.sharedBy.name} •
+                    </span>
+                  ) : null}
+                  {proj.metadata.title || 'Sem título definido'}
+                </p>
+                <p className="text-[10px] text-neutral-400 mt-1">
+                  Atualizado em {updatedDate} • {proj.blocks.length} blocos
+                </p>
+              </button>
+            )}
+          </div>
+
+          {/* Ações do projeto */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => startRename(proj)}
+              className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded"
+              title="Renomear projeto"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onDuplicateProject(proj.id)}
+              className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded"
+              title="Duplicar projeto"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onExportBackup(proj)}
+              className="p-1.5 text-neutral-400 hover:text-emerald-700 hover:bg-emerald-50 rounded"
+              title="Baixar backup .redija"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => openDeleteConfirm(proj, 'trash')}
+              className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded"
+              title="Mover para a Lixeira"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl border border-neutral-200 w-full max-w-4xl overflow-hidden flex flex-col max-h-[88vh] relative">
@@ -209,20 +397,32 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
 
         {/* Corpo dividido: Lista de projetos / Lixeira + Criar novo */}
         <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x divide-neutral-200">
-          {/* Coluna Esquerda: Abas Ativos vs Lixeira */}
+          {/* Coluna Esquerda: Abas Meus Trabalhos vs Compartilhados vs Lixeira */}
           <div className="md:col-span-7 p-5 space-y-3 overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-neutral-100 pb-2.5">
-              <div className="flex items-center gap-1.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-100 pb-2.5 gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('active')}
+                  onClick={() => setActiveTab('my-projects')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                    activeTab === 'active'
+                    activeTab === 'my-projects'
                       ? 'bg-emerald-600 text-white'
                       : 'text-neutral-600 hover:bg-neutral-100'
                   }`}
                 >
-                  Trabalhos Salvos ({projects.length})
+                  Meus Trabalhos ({myProjects.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('shared')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    activeTab === 'shared'
+                      ? 'bg-emerald-600 text-white'
+                      : 'text-neutral-600 hover:bg-neutral-100'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Compartilhados ({sharedProjects.length})</span>
                 </button>
                 <button
                   type="button"
@@ -237,160 +437,110 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                   <span>Lixeira ({trashedProjects.length})</span>
                 </button>
               </div>
+
+              {/* Botão de Ingressar com Link / ID */}
+              <button
+                type="button"
+                onClick={() => setIsJoiningOpen(!isJoiningOpen)}
+                className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 rounded-lg border border-emerald-200 transition-colors shrink-0"
+                title="Abrir trabalho compartilhado por link ou ID do Google Drive"
+              >
+                <Link2 className="w-3.5 h-3.5" />
+                <span>Ingressar com Link/ID</span>
+              </button>
             </div>
 
-            {activeTab === 'active' ? (
+            {/* Formulário Retrátil para Ingressar com Link ou ID */}
+            {isJoiningOpen && (
+              <form
+                onSubmit={handleJoinSubmit}
+                className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-200 space-y-2 animate-in fade-in duration-150"
+              >
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-neutral-800 flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Ingressar em Trabalho Compartilhado</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsJoiningOpen(false);
+                      setJoinError(null);
+                    }}
+                    className="text-neutral-400 hover:text-neutral-600 p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={joinInput}
+                    onChange={(e) => setJoinInput(e.target.value)}
+                    placeholder="Cole o link (ex: https://redija.app/?doc=...) ou ID do Drive"
+                    required
+                    className="flex-1 text-xs px-2.5 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isJoiningLoading || !joinInput.trim()}
+                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center gap-1 shrink-0 transition-colors"
+                  >
+                    {isJoiningLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : null}
+                    <span>Ingressar</span>
+                  </button>
+                </div>
+                {joinError && (
+                  <p className="text-[11px] text-red-600 font-medium">{joinError}</p>
+                )}
+              </form>
+            )}
+
+            {/* Aba Meus Trabalhos */}
+            {activeTab === 'my-projects' && (
               <div className="space-y-2">
-                {projects.length === 0 ? (
+                {myProjects.length === 0 ? (
                   <div className="text-center py-12 px-4 space-y-3">
                     <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
                       <FolderOpen className="w-6 h-6" />
                     </div>
                     <div>
-                      <p className="font-semibold text-xs text-neutral-800">Nenhum trabalho criado ainda</p>
+                      <p className="font-semibold text-xs text-neutral-800">Nenhum trabalho criado por você ainda</p>
                       <p className="text-[11px] text-neutral-500 mt-1 max-w-xs mx-auto leading-relaxed">
-                        Escolha um modelo ao lado para iniciar seu primeiro trabalho acadêmico ou importe um arquivo existente.
+                        Escolha um modelo ao lado para iniciar seu trabalho acadêmico ou importe um arquivo existente.
                       </p>
                     </div>
                   </div>
                 ) : (
-                  projects.map((proj) => {
-                  const isActive = proj.id === activeProjectId;
-                  const isEditing = editingId === proj.id;
-                  const updatedDate = new Date(proj.updatedAt).toLocaleString('pt-BR', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  });
-
-                  return (
-                    <div
-                      key={proj.id}
-                      className={`group rounded-lg border p-3 transition-all ${
-                        isActive
-                          ? 'border-emerald-600 bg-emerald-50/40 shadow-xs'
-                          : 'border-neutral-200 bg-white hover:border-neutral-300'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          {isEditing ? (
-                            <div className="flex items-center gap-1.5">
-                              <input
-                                type="text"
-                                value={editingName}
-                                onChange={(e) => setEditingName(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') commitRename(proj.id);
-                                  if (e.key === 'Escape') setEditingId(null);
-                                }}
-                                autoFocus
-                                className="w-full text-xs font-semibold px-2 py-1 border border-emerald-600 rounded bg-white focus:outline-none"
-                              />
-                              <button
-                                onClick={() => commitRename(proj.id)}
-                                className="p-1 bg-emerald-600 text-white rounded hover:bg-emerald-700"
-                                title="Confirmar nome"
-                              >
-                                <Check className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                onSelectProject(proj);
-                                onClose();
-                              }}
-                              className="text-left w-full"
-                            >
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <FileText
-                                  className={`w-3.5 h-3.5 shrink-0 ${
-                                    isActive ? 'text-emerald-600' : 'text-neutral-400'
-                                  }`}
-                                />
-                                <span className="font-semibold text-xs text-neutral-900 truncate">
-                                  {proj.name}
-                                </span>
-                                {isActive && (
-                                  <span className="text-[10px] font-semibold bg-emerald-600 text-white px-1.5 py-0.2 rounded">
-                                    Ativo
-                                  </span>
-                                )}
-                                {proj.driveFileId && (
-                                  <span
-                                    className="text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded flex items-center gap-1"
-                                    title="Sincronizado com Google Drive"
-                                  >
-                                    <Cloud className="w-2.5 h-2.5" />
-                                    <span>Drive</span>
-                                  </span>
-                                )}
-                                {proj.isSharedWithMe && (
-                                  <span
-                                    className="text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded flex items-center gap-1"
-                                    title={`Compartilhado por ${proj.sharedBy?.name || 'um colega'}`}
-                                  >
-                                    <Users className="w-2.5 h-2.5" />
-                                    <span>Compartilhado</span>
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[11px] text-neutral-500 truncate mt-1">
-                                {proj.isSharedWithMe && proj.sharedBy?.name ? (
-                                  <span className="text-blue-600 font-medium mr-1">
-                                    De: {proj.sharedBy.name} •
-                                  </span>
-                                ) : null}
-                                {proj.metadata.title || 'Sem título definido'}
-                              </p>
-                              <p className="text-[10px] text-neutral-400 mt-1">
-                                Atualizado em {updatedDate} • {proj.blocks.length} blocos
-                              </p>
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Ações do projeto */}
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => startRename(proj)}
-                            className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded"
-                            title="Renomear projeto"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => onDuplicateProject(proj.id)}
-                            className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded"
-                            title="Duplicar projeto"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => onExportBackup(proj)}
-                            className="p-1.5 text-neutral-400 hover:text-emerald-700 hover:bg-emerald-50 rounded"
-                            title="Baixar backup .redija"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => openDeleteConfirm(proj, 'trash')}
-                            className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded"
-                            title="Mover para a Lixeira"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }))}
+                  myProjects.map((proj) => renderProjectCard(proj))
+                )}
               </div>
-            ) : (
-              /* Aba da Lixeira */
+            )}
+
+            {/* Aba Compartilhados Comigo */}
+            {activeTab === 'shared' && (
+              <div className="space-y-2">
+                {sharedProjects.length === 0 ? (
+                  <div className="text-center py-12 px-4 space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-xs text-neutral-800">Nenhum trabalho compartilhado com você ainda</p>
+                      <p className="text-[11px] text-neutral-500 mt-1 max-w-xs mx-auto leading-relaxed">
+                        Quando um colega ou orientador convidar você por e-mail ou te enviar um link, o trabalho aparecerá aqui automaticamente.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  sharedProjects.map((proj) => renderProjectCard(proj))
+                )}
+              </div>
+            )}
+            {/* Aba Lixeira */}
+            {activeTab === 'trash' && (
               <div className="space-y-2.5">
                 <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-600 shrink-0" />
