@@ -763,10 +763,10 @@ describe('Typst compilation integration', () => {
         ],
       });
 
-      // 1. ABNT Upper + alphabetical
+      // 1. ABNT Autor-Data (NBR 10520:2023) + alphabetical
       const abntMain = generateMain(proj);
       expect(abntMain).toContain('Silva e Souza (2024, p. 15)');
-      expect(abntMain).toContain('(ALMEIDA, 2022)');
+      expect(abntMain).toContain('(Almeida, 2022)');
 
       // 2. IEEE Numeric + citation_order: r1 aparece antes de r2 -> [1] Silva, [2] Almeida
       const ieeeProj: DocumentProject = {

@@ -11,7 +11,11 @@ import {
   transpileReference,
 } from '../typstGenerator';
 import {
+  formatGroupedParentheticalCitations,
   formatNarrativeCitation,
+  formatParentheticalCitationBody,
+  formatParentheticalGroupSegment,
+  formatShortCitation,
 } from '../abntLinter';
 import { AcademicReference, DocumentProject, DEFAULT_TEMPLATE_CONFIG } from '@/types/document';
 import { ABNT_CONFIG } from '@/types/abnt';
@@ -209,6 +213,28 @@ describe('Conformidade ABNT NBR 10520 (Citações)', () => {
     expect(
       formatCitationReference('SILVA, R.; SOUZA, M.; SANTOS, P.', '2024', undefined, 'titlecase'),
     ).toBe('Silva; Souza; Santos, 2024');
+    // NBR 10520: até 3 autores listados com ponto e vírgula (sem "e" / "&")
+    expect(
+      formatCitationReference(
+        'AGHAJANYAN, Armen; GUPTA, Suchin; ZETTLEMOYER, Luke',
+        '2020',
+        undefined,
+        'titlecase',
+      ),
+    ).toBe('Aghajanyan; Gupta; Zettlemoyer, 2020');
+    expect(
+      formatShortCitation(
+        {
+          id: 'aghajanyan2020',
+          authors: 'Aghajanyan, Armen and Gupta, Suchin and Zettlemoyer, Luke',
+          title: 'Better Fine-Tuning',
+          city: '',
+          publisher: '',
+          year: '2020',
+        },
+        'abnt_titlecase',
+      ),
+    ).toBe('(Aghajanyan; Gupta; Zettlemoyer, 2020)');
   });
 
   it('formata citação autor-data com 4 ou mais autores com et al.', () => {
@@ -218,6 +244,38 @@ describe('Conformidade ABNT NBR 10520 (Citações)', () => {
     expect(
       formatCitationReference('ALMEIDA, C.; PEREIRA, A.; SANTOS, B.; COSTA, D.', '2025', '110', 'titlecase'),
     ).toBe('Almeida et al., 2025, p. 110');
+  });
+
+  it('agrupa citações parentéticas consecutivas no padrão NBR 10520 §6.1.8', () => {
+    const tecnicas: AcademicReference = {
+      id: 'tecnicas2011',
+      authors: 'Técnicas',
+      title: 'Normas',
+      city: '',
+      publisher: '',
+      year: '2011',
+    };
+    const silvaSouza: AcademicReference = {
+      id: 'silva2023',
+      authors: 'SILVA, Ana; SOUZA, Bruno',
+      title: 'Obra',
+      city: '',
+      publisher: '',
+      year: '2023',
+    };
+
+    expect(formatParentheticalCitationBody(tecnicas, 'abnt_titlecase')).toBe('Técnicas, 2011');
+    expect(formatGroupedParentheticalCitations(
+      [{ ref: tecnicas }, { ref: silvaSouza }],
+      'abnt_titlecase',
+    )).toBe('(Técnicas, 2011; Silva; Souza, 2023)');
+
+    expect(formatParentheticalGroupSegment(tecnicas, 'first', { format: 'abnt_titlecase' })).toBe(
+      '(Técnicas, 2011;',
+    );
+    expect(formatParentheticalGroupSegment(silvaSouza, 'last', { format: 'abnt_titlecase' })).toBe(
+      'Silva; Souza, 2023)',
+    );
   });
 
   it('formata citação de citação (apud) conforme NBR 10520', () => {
@@ -271,8 +329,8 @@ describe('Conformidade ABNT NBR 10520 (Citações)', () => {
     const proj = createAbntMonographProject();
     const main = generateMain(proj);
 
-    // Deve transpolar o bloco quote_long usando a macro #citacao(...)
-    expect(main).toContain('#citacao(referencia: [SILVA; SOUZA, 2023, p. 45\\-47])');
+    // Deve transpolar o bloco quote_long usando a macro #citacao(...) conforme NBR 10520:2023 (caixa mista)
+    expect(main).toContain('#citacao(referencia: [Silva; Souza, 2023, p. 45\\-47])');
 
     // Valida que o abnt.typ define citação com inset de 4cm e fonte proporcional (0.85em)
     const files = generateTypstFiles(proj);

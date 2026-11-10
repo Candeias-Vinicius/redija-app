@@ -292,8 +292,8 @@ export function createProjectFromTemplate(
         includeCoverPage: false,
         includeTitlePage: false,
         includeToc: false,
-        citationStyle: 'uppercase',
-        citationFormat: 'abnt_upper',
+        citationStyle: 'titlecase',
+        citationFormat: 'abnt_titlecase',
         referenceEntryFormat: 'abnt',
         referenceOrdering: 'alphabetical',
         referenceHighlight: 'bold',
@@ -485,7 +485,7 @@ export function createProjectFromTemplate(
         posterOrientation: 'portrait',
         posterColumns: 3,
         posterTheme: 'emerald',
-        citationFormat: 'abnt_upper',
+        citationFormat: 'abnt_titlecase',
         referenceAlignment: 'justify',
         includeCoverPage: false,
         includeTitlePage: false,
@@ -672,7 +672,7 @@ export function createProjectFromTemplate(
       title:
         'Desenvolvimento de uma Plataforma Automatizada para Redação Científica em Conformidade com as Normas da ABNT',
       subtitle: 'Um estudo de caso em tecnologias baseadas em WebAssembly e Typst',
-      author: 'Vinícius Candeias',
+      author: 'Nome do Autor',
       advisor: 'Prof. Dr. Nome do Orientador',
       nature:
         'Trabalho de Conclusão de Curso apresentado ao Bacharelado em Ciência da Computação da Universidade Federal de Tecnologia, como requisito parcial para obtenção do título de Bacharel.',
