@@ -6,6 +6,7 @@ import {
   getOrCreateProjectFolder,
   loadProjectFromDrive,
   listDriveProjects,
+  findDriveFileForProject,
   inviteCollaborator,
   listCollaborators,
 } from '../googleDriveService';
@@ -339,5 +340,38 @@ describe('Google Drive Service (BYOS, Pastas Estruturadas & Colaboração)', () 
     expect(list[0].role).toBe('owner');
     expect(list[1].role).toBe('writer');
     expect(list[1].emailAddress).toBe('colega@gmail.com');
+  });
+
+  it('não reaproveita (sobrescreve) arquivo homônimo que pertence a outro projeto', async () => {
+    const project = createProjectFromTemplate('artigo', 'Meu TCC');
+    vi.spyOn(globalThis, 'fetch')
+      // 1. Busca por appProperties: nada
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ files: [] }) } as Response)
+      // 2. Busca por nome: só existe um homônimo de OUTRO projeto
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          files: [{ id: 'file_outro', appProperties: { redijaProjectId: 'outro_projeto' } }],
+        }),
+      } as Response);
+
+    expect(await findDriveFileForProject(project, 'token')).toBeNull();
+  });
+
+  it('reaproveita arquivo homônimo legado (sem vínculo de projeto)', async () => {
+    const project = createProjectFromTemplate('artigo', 'Meu TCC');
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ files: [] }) } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          files: [
+            { id: 'file_outro', appProperties: { redijaProjectId: 'outro_projeto' } },
+            { id: 'file_legado', modifiedTime: '2026-01-01T00:00:00.000Z' },
+          ],
+        }),
+      } as Response);
+
+    expect((await findDriveFileForProject(project, 'token'))?.id).toBe('file_legado');
   });
 });

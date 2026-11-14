@@ -243,6 +243,16 @@ export interface SidebarConfig {
   hiddenFieldIds?: string[];
 }
 
+/**
+ * Estado da lixeira de um projeto em relação ao Google Drive:
+ * - `pending-trash`: está na lixeira local, mas o Drive ainda não confirmou o envio à lixeira.
+ * - `pending-restore`: foi restaurado localmente, mas o Drive ainda não confirmou a restauração.
+ * - `local-only`: a lixeira só vale neste dispositivo (ex.: arquivo compartilhado por outra pessoa).
+ * - `synced`: está na lixeira local E o Drive confirmou que o arquivo está na lixeira dele.
+ *   Só nesse estado um arquivo ativo no Drive significa "restaurado em outro dispositivo".
+ */
+export type DriveTrashSyncState = 'pending-trash' | 'pending-restore' | 'local-only' | 'synced';
+
 export interface DocumentProject {
   id: string;
   name: string;
@@ -254,6 +264,8 @@ export interface DocumentProject {
   references: AcademicReference[];
   updatedAt: string;
   deletedAt?: string | null;
+  /** Ausente/`null` quando a lixeira local e o Drive estão de acordo. */
+  driveTrashSync?: DriveTrashSyncState | null;
 
   // Gestão de Usuário e Google Drive Sync
   ownerEmail?: string;
