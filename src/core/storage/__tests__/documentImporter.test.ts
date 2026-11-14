@@ -476,7 +476,7 @@ describe('Document Importer (DOCX, ZIP Redija, ZIP Overleaf / LaTeX, .redija)', 
   describe('Registry Strategy de Importadores (IMPORTER_STRATEGIES)', () => {
     it('expõe estratégias registradas para todos os formatos suportados sem duplicação de mapeamento', () => {
       const ids = IMPORTER_STRATEGIES.map((s) => s.id);
-      expect(ids).toEqual(['redija', 'docx', 'zip', 'typst', 'latex']);
+      expect(ids).toEqual(['redija', 'docx', 'zip', 'typst', 'latex', 'markdown']);
       expect(IMPORTER_STRATEGIES.find((s) => s.matches('tcc.redija'))?.id).toBe('redija');
       expect(IMPORTER_STRATEGIES.find((s) => s.matches('artigo.docx'))?.id).toBe('docx');
       expect(IMPORTER_STRATEGIES.find((s) => s.matches('overleaf.zip'))?.id).toBe('zip');
