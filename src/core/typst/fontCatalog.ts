@@ -16,6 +16,21 @@ export interface FontCatalogEntry {
   cdnUrls: string[];
 }
 
+/**
+ * Fontes servidas de `public/` e carregadas pelo Web Worker em toda compilação.
+ * Inclui a fonte matemática (OpenType MATH) usada por padrão pelo Typst em
+ * `math.equation` — sem ela qualquer fórmula falha com "no font could be found".
+ */
+export const BUNDLED_FONT_FILES: readonly string[] = [
+  'fonts/Tinos-Regular.ttf',
+  'fonts/Tinos-Bold.ttf',
+  'fonts/Tinos-Italic.ttf',
+  'fonts/Tinos-BoldItalic.ttf',
+  'fonts/Arimo-Regular.ttf',
+  'fonts/Arimo-Italic.ttf',
+  'fonts/NewCMMath-Regular.otf',
+];
+
 const TYPST_ASSETS_BASE = 'https://cdn.jsdelivr.net/gh/typst/typst-assets@v0.13.1/files/fonts';
 const FONTSOURCE_CDN_BASE = 'https://cdn.jsdelivr.net/fontsource/fonts';
 
