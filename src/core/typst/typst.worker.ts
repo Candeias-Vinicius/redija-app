@@ -25,6 +25,7 @@ import compilerWasmUrl from '@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_w
 import rendererWasmUrl from '@myriaddreamin/typst-ts-renderer/pkg/typst_ts_renderer_bg.wasm?url';
 import type { TypstDiagnostic } from './diagnostics';
 import {
+  BUNDLED_FONT_FILES,
   getCdnUrlsForFont,
   getFontCacheKey,
   type RequestedFontDescriptor,
@@ -104,15 +105,6 @@ export interface WorkerGetPagesInfoResponse {
   error?: string;
 }
 
-const FONT_FILES = [
-  'fonts/Tinos-Regular.ttf',
-  'fonts/Tinos-Bold.ttf',
-  'fonts/Tinos-Italic.ttf',
-  'fonts/Tinos-BoldItalic.ttf',
-  'fonts/Arimo-Regular.ttf',
-  'fonts/Arimo-Italic.ttf',
-];
-
 let compilerPromise: Promise<TypstCompiler> | null = null;
 let rendererPromise: Promise<TypstRenderer> | null = null;
 let latestRenderRequestId = 0;
@@ -130,7 +122,7 @@ function resolveFontUrls(): string[] {
   const basePath = cleanBase.startsWith('/') ? cleanBase : `/${cleanBase}`;
   const root = origin ? `${origin}${basePath}` : basePath;
   const normalizedRoot = root.endsWith('/') ? root : `${root}/`;
-  return FONT_FILES.map((file) => `${normalizedRoot}${file.replace(/^\/+/, '')}`);
+  return BUNDLED_FONT_FILES.map((file) => `${normalizedRoot}${file.replace(/^\/+/, '')}`);
 }
 
 function isValidFontBinary(bytes: Uint8Array): boolean {
