@@ -11,7 +11,7 @@ import {
   calculateProjectImageBytes,
   validateImageUploadForProject,
 } from '@/core/storage/imageQuota';
-import { Lock, RotateCcw, Sliders, Unlock, X } from 'lucide-react';
+import { RotateCcw, Sliders, X } from 'lucide-react';
 import {
   CustomizerTabId,
   MODAL_TABS,
@@ -64,8 +64,7 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
   const [draftTemplateType, setDraftTemplateType] = useState<ProjectTemplateType>(() =>
     resolveDraftTemplateType(initialConfig, initialTemplateType),
   );
-  const [isManuallyUnlocked, setIsManuallyUnlocked] = useState<boolean>(false);
-  const scope = getCustomizerScope(draftTemplateType, draftConfig, isManuallyUnlocked);
+  const scope = getCustomizerScope(draftTemplateType, draftConfig);
   const initialIsUniverse =
     initialConfig.preset === 'universe_custom' ||
     (initialConfig.preset === 'custom' && initialTemplateType === 'universe_custom');
@@ -271,7 +270,7 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
           </button>
         </div>
 
-        {/* Barra de 5 Abas + Indicador de Escopo */}
+        {/* Barra de Abas */}
         <div
           role="tablist"
           aria-label="Seções de configuração do template"
@@ -280,6 +279,8 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
           <div className="flex flex-wrap items-center gap-1">
             {MODAL_TABS.map((tab) => {
               const selected = activeTab === tab.id;
+              const tabLabel =
+                tab.id === 'structure' && isPosterActive ? 'Banner & Pôster' : tab.label;
               return (
                 <button
                   key={tab.id}
@@ -293,34 +294,10 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
                       : 'border-transparent text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100/80'
                   }`}
                 >
-                  {tab.label}
+                  {tabLabel}
                 </button>
               );
             })}
-          </div>
-
-          <div className="flex items-center gap-2 pb-1.5 sm:pb-0">
-            {!scope.isFullyUnrestricted && !isManuallyUnlocked ? (
-              <button
-                type="button"
-                onClick={() => setIsManuallyUnlocked(true)}
-                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition-colors"
-                title="Permite editar livremente margens, colunas e capa fora da norma estrita"
-              >
-                <Unlock className="w-3 h-3 text-amber-600" />
-                <span>Destravar opções da norma</span>
-              </button>
-            ) : isManuallyUnlocked ? (
-              <button
-                type="button"
-                onClick={() => setIsManuallyUnlocked(false)}
-                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition-colors"
-                title="Restaurar as travas recomendadas pela norma"
-              >
-                <Lock className="w-3 h-3 text-emerald-600" />
-                <span>Reativar travas normativas</span>
-              </button>
-            ) : null}
           </div>
         </div>
 
@@ -329,6 +306,7 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
           {activeTab === 'presets' && (
             <CustomizerPresetsTab
               config={draftConfig}
+              templateType={draftTemplateType}
               isPosterActive={isPosterActive}
               isUniverseSelected={isUniverseSelected}
               showUniverseExplorer={showUniverseExplorer}

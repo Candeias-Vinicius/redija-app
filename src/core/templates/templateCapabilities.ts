@@ -78,9 +78,16 @@ export interface CustomizerScope {
   isFullyUnrestricted: boolean;
   isManuallyUnlocked: boolean;
 
+  // Visibilidade contextual por Padrão de Layout (exibe apenas o que faz sentido no layout ativo)
+  showPosterSettings: boolean;
+  showPreTextualStructureToggles: boolean;
+  showTextColumnsControl: boolean;
+  showStandardPageSettings: boolean;
+  showPreTextualPaginationToggles: boolean;
+
   // Colunas
   allowColumnChange: boolean;
-  fixedColumns?: 1 | 2;
+  fixedColumns?: 1 | 2 | 3;
   columnLockedReason?: string;
 
   // Margens e Página
@@ -429,197 +436,58 @@ export function getPreservedHiddenFields(
 }
 
 /**
- * Retorna o escopo de configurações permitido no Customizador para o template ativo,
- * garantindo conformidade com a norma escolhida (colunas, margens, pré-textuais e citações).
+ * Retorna o escopo contextual de opções do Customizador de acordo com o Padrão de Layout ativo.
+ * Exibe apenas as seções que fazem sentido para o layout escolhido (ex.: opções de Pôster apenas
+ * em Pôster; Capa/Folha de Rosto/Sumário apenas em Monografias/Documentos), sem travas artificiais
+ * nas configurações visíveis.
  */
 export function getCustomizerScope(
   effectiveType: ProjectTemplateType,
   _config?: TemplateConfig,
   isManuallyUnlocked = false,
 ): CustomizerScope {
-  if (isManuallyUnlocked || effectiveType === 'em_branco') {
-    return {
-      effectiveType,
-      isFullyUnrestricted: true,
-      isManuallyUnlocked,
-      allowColumnChange: true,
-      allowMarginChange: true,
-      allowPaperSizeChange: true,
-      allowOrientationChange: true,
-      allowCoverToggle: true,
-      allowTitlePageToggle: true,
-      allowTocToggle: true,
-      allowH1PageBreakToggle: true,
-      allowedCitationFormats: [
-        'abnt_titlecase',
-        'ieee_numeric',
-        'superscript',
-        'author_date',
-      ],
-      allowedPresetIds: [
-        'abnt_classic',
-        'abnt_2023',
-        'article_1col',
-        'article_2col',
-        'apa_7',
-        'sbc',
-        'ieee',
-        'poster',
-      ],
-    };
-  }
+  const isPoster = effectiveType === 'poster';
+  const isCompactArticle =
+    effectiveType === 'artigo' || effectiveType === 'sbc' || effectiveType === 'ieee';
+  const hasPreTextualStructure = !isPoster && !isCompactArticle;
 
-  if (effectiveType === 'universe_custom') {
-    return {
-      effectiveType,
-      isFullyUnrestricted: true,
-      isManuallyUnlocked: false,
-      allowColumnChange: true,
-      allowMarginChange: true,
-      allowPaperSizeChange: true,
-      allowOrientationChange: true,
-      allowCoverToggle: true,
-      allowTitlePageToggle: true,
-      allowTocToggle: true,
-      allowH1PageBreakToggle: true,
-      allowedCitationFormats: [
-        'abnt_titlecase',
-        'ieee_numeric',
-        'superscript',
-        'author_date',
-      ],
-      allowedPresetIds: [
-        'abnt_classic',
-        'abnt_2023',
-        'article_1col',
-        'article_2col',
-        'apa_7',
-        'sbc',
-        'ieee',
-        'poster',
-        'universe_custom',
-      ],
-    };
-  }
+  const allCitations: CitationFormat[] = [
+    'abnt_titlecase',
+    'ieee_numeric',
+    'superscript',
+    'author_date',
+  ];
 
-  if (effectiveType === 'ieee') {
-    return {
-      effectiveType,
-      isFullyUnrestricted: false,
-      isManuallyUnlocked: false,
-      allowColumnChange: false,
-      fixedColumns: 2,
-      columnLockedReason: 'O padrão IEEE Conference exige diagramação estrita em 2 colunas.',
-      allowMarginChange: false,
-      marginLockedReason: 'Margens oficiais IEEE: Topo 1.9cm, Fundo 2.54cm, Laterais 1.57cm.',
-      allowPaperSizeChange: false,
-      paperSizeLockedReason: 'Artigos IEEE Conference são padronizados em papel A4.',
-      allowOrientationChange: false,
-      orientationLockedReason: 'Artigos IEEE são diagramados em orientação retrato.',
-      allowCoverToggle: false,
-      allowTitlePageToggle: false,
-      allowTocToggle: false,
-      structureLockedReason:
-        'Formato IEEE inicia na página 1 com título, autores e abstract, sem capa nem sumário.',
-      allowH1PageBreakToggle: false,
-      h1PageBreakLockedReason: 'Seções IEEE continuam corridas sem quebra de página.',
-      allowedCitationFormats: ['ieee_numeric'],
-      citationLockedReason:
-        'Norma IEEE exige chamadas numéricas entre colchetes [1] em ordem de citação.',
-      allowedPresetIds: ['ieee'],
-    };
-  }
+  const allLayoutPresets: NormPresetId[] = [
+    'abnt_classic',
+    'article_1col',
+    'apa_7',
+    'sbc',
+    'ieee',
+    'poster',
+  ];
 
-  if (effectiveType === 'sbc') {
-    return {
-      effectiveType,
-      isFullyUnrestricted: false,
-      isManuallyUnlocked: false,
-      allowColumnChange: false,
-      fixedColumns: 1,
-      columnLockedReason: 'Diretrizes da SBC estipulam corpo do artigo em coluna única.',
-      allowMarginChange: false,
-      marginLockedReason:
-        'Margens oficiais SBC: Superior 3.5cm, Esquerda 3cm, Inferior 2.5cm, Direita 3cm.',
-      allowPaperSizeChange: false,
-      paperSizeLockedReason: 'Artigos da SBC são padronizados em formato A4.',
-      allowOrientationChange: false,
-      orientationLockedReason: 'Artigos SBC são diagramados em orientação retrato.',
-      allowCoverToggle: false,
-      allowTitlePageToggle: false,
-      allowTocToggle: false,
-      structureLockedReason:
-        'Artigos da SBC iniciam diretamente com cabeçalho na página 1, sem capa nem sumário.',
-      allowH1PageBreakToggle: false,
-      h1PageBreakLockedReason: 'Seções continuam corridas sem quebra de página.',
-      allowedCitationFormats: ['abnt_titlecase', 'ieee_numeric', 'author_date'],
-      allowedPresetIds: ['sbc'],
-    };
-  }
-
-  if (effectiveType === 'artigo') {
-    return {
-      effectiveType,
-      isFullyUnrestricted: false,
-      isManuallyUnlocked: false,
-      allowColumnChange: true,
-      allowMarginChange: true,
-      allowPaperSizeChange: false,
-      paperSizeLockedReason: 'Artigos científicos adotam formato padrão A4.',
-      allowOrientationChange: false,
-      orientationLockedReason: 'Artigos científicos utilizam orientação retrato.',
-      allowCoverToggle: false,
-      allowTitlePageToggle: false,
-      allowTocToggle: false,
-      structureLockedReason:
-        'Artigos científicos (NBR 6022) iniciam direto no topo da página 1 com identificação e resumo.',
-      allowH1PageBreakToggle: false,
-      h1PageBreakLockedReason: 'Artigos mantêm seções corridas sem quebra obrigatória de página.',
-      allowedCitationFormats: ['abnt_titlecase', 'ieee_numeric', 'superscript', 'author_date'],
-      allowedPresetIds: ['article_1col', 'article_2col', 'abnt_2023', 'apa_7'],
-    };
-  }
-
-  if (effectiveType === 'poster') {
-    return {
-      effectiveType,
-      isFullyUnrestricted: false,
-      isManuallyUnlocked: false,
-      allowColumnChange: true,
-      allowMarginChange: true,
-      allowPaperSizeChange: true,
-      allowOrientationChange: true,
-      allowCoverToggle: false,
-      allowTitlePageToggle: false,
-      allowTocToggle: false,
-      structureLockedReason: 'Pôsteres acadêmicos são impressos em folha única (banner).',
-      allowH1PageBreakToggle: false,
-      allowedCitationFormats: ['abnt_titlecase', 'ieee_numeric', 'author_date', 'superscript'],
-      allowedPresetIds: ['poster'],
-    };
-  }
-
-  // Padrão Monografia / TCC / Relatório / Projeto de Pesquisa (NBR 14724 / 10719 / 15287)
   return {
     effectiveType,
-    isFullyUnrestricted: false,
-    isManuallyUnlocked: false,
-    allowColumnChange: false,
-    fixedColumns: 1,
-    columnLockedReason:
-      'NBR 14724 exige corpo do trabalho acadêmico (TCC/Monografia) em coluna única.',
-    allowMarginChange: false,
-    marginLockedReason:
-      'Margens oficiais ABNT: Superior 3cm, Esquerda 3cm, Inferior 2cm, Direita 2cm.',
-    allowPaperSizeChange: false,
-    paperSizeLockedReason: 'NBR 14724 padroniza formato A4 para trabalhos acadêmicos.',
-    allowOrientationChange: false,
-    orientationLockedReason: 'Trabalhos acadêmicos utilizam orientação retrato.',
-    allowCoverToggle: true,
-    allowTitlePageToggle: true,
-    allowTocToggle: true,
-    allowH1PageBreakToggle: true,
-    allowedCitationFormats: ['abnt_titlecase', 'ieee_numeric', 'superscript', 'author_date'],
-    allowedPresetIds: ['abnt_classic', 'abnt_2023', 'apa_7'],
+    isFullyUnrestricted: true,
+    isManuallyUnlocked,
+    showPosterSettings: isPoster,
+    showPreTextualStructureToggles: hasPreTextualStructure,
+    showTextColumnsControl: !isPoster,
+    showStandardPageSettings: !isPoster,
+    showPreTextualPaginationToggles: hasPreTextualStructure,
+    allowColumnChange: !isPoster,
+    allowMarginChange: true,
+    allowPaperSizeChange: !isPoster,
+    allowOrientationChange: !isPoster,
+    allowCoverToggle: hasPreTextualStructure,
+    allowTitlePageToggle: hasPreTextualStructure,
+    allowTocToggle: hasPreTextualStructure,
+    allowH1PageBreakToggle: hasPreTextualStructure,
+    allowedCitationFormats: allCitations,
+    allowedPresetIds:
+      effectiveType === 'universe_custom'
+        ? [...allLayoutPresets, 'universe_custom']
+        : allLayoutPresets,
   };
 }

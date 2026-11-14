@@ -94,9 +94,9 @@ test.describe('RedijaApp: Jornada Completa do Estudante', () => {
     await expect(modalHeading).not.toBeVisible();
     await expect(page.getByText('Redija', { exact: true })).toBeVisible();
 
-    // Abre o modal de Norma & Layout a partir da barra de estrutura (seção Referências)
+    // Abre o modal de Norma & Layout a partir do topo da barra de estrutura
     const customizerOption = page.getByRole('button', {
-      name: 'Layout das Referências e Citações (Norma & Layout)',
+      name: 'Norma & Layout',
       exact: true,
     });
     await expect(customizerOption).toBeVisible();
@@ -106,6 +106,6 @@ test.describe('RedijaApp: Jornada Completa do Estudante', () => {
     await expect(
       page.getByText('Personalizar Norma, Template e Layout da Faculdade'),
     ).toBeVisible();
-    await expect(page.getByText(/Escolha um Padrão de Norma/i)).toBeVisible();
+    await expect(page.getByText(/Escolha um Padrão de Layout/i)).toBeVisible();
   });
 });

@@ -221,78 +221,69 @@ describe('templateCapabilities: Matriz de Capacidades e Preservação de Metadad
     });
   });
 
-  describe('getCustomizerScope (Guardrails Contextuais)', () => {
-    it('bloqueia colunas e margens para TCC (NBR 14724), liberando capa e sumário', () => {
+  describe('getCustomizerScope (Visibilidade Contextual por Layout, Sem Travas Artificiais)', () => {
+    it('habilita opções de monografia (capa, sumário, paginação, colunas, margens) para TCC sem travas', () => {
       const scope = getCustomizerScope('tcc');
-      expect(scope.isFullyUnrestricted).toBe(false);
-      expect(scope.allowColumnChange).toBe(false);
-      expect(scope.fixedColumns).toBe(1);
-      expect(scope.columnLockedReason).toContain('NBR 14724');
-      expect(scope.allowMarginChange).toBe(false);
-      expect(scope.allowCoverToggle).toBe(true);
-      expect(scope.allowTocToggle).toBe(true);
-      expect(scope.allowedCitationFormats).toContain('abnt_titlecase');
-      expect(scope.allowedCitationFormats).toContain('ieee_numeric');
-    });
-
-    it('bloqueia capa e sumário para Artigo (NBR 6022), mas permite alternar 1 ou 2 colunas', () => {
-      const scope = getCustomizerScope('artigo');
-      expect(scope.isFullyUnrestricted).toBe(false);
-      expect(scope.allowColumnChange).toBe(true);
-      expect(scope.allowCoverToggle).toBe(false);
-      expect(scope.allowTitlePageToggle).toBe(false);
-      expect(scope.allowTocToggle).toBe(false);
-      expect(scope.structureLockedReason).toContain('NBR 6022');
-      expect(scope.allowH1PageBreakToggle).toBe(false);
-    });
-
-    it('trava colunas em 1 e margens oficiais para Artigo SBC', () => {
-      const scope = getCustomizerScope('sbc');
-      expect(scope.allowColumnChange).toBe(false);
-      expect(scope.fixedColumns).toBe(1);
-      expect(scope.allowMarginChange).toBe(false);
-      expect(scope.marginLockedReason).toContain('SBC');
-      expect(scope.allowCoverToggle).toBe(false);
-      expect(scope.allowedPresetIds).toEqual(['sbc']);
-    });
-
-    it('trava colunas em 2, margens compactas e citação exclusivamente em ieee_numeric para IEEE', () => {
-      const scope = getCustomizerScope('ieee');
-      expect(scope.allowColumnChange).toBe(false);
-      expect(scope.fixedColumns).toBe(2);
-      expect(scope.allowMarginChange).toBe(false);
-      expect(scope.allowCoverToggle).toBe(false);
-      expect(scope.allowedCitationFormats).toEqual(['ieee_numeric']);
-      expect(scope.citationLockedReason).toContain('IEEE');
-      expect(scope.allowedPresetIds).toEqual(['ieee']);
-    });
-
-    it('libera todas as opções para documento em branco (em_branco)', () => {
-      const scope = getCustomizerScope('em_branco');
       expect(scope.isFullyUnrestricted).toBe(true);
       expect(scope.allowColumnChange).toBe(true);
       expect(scope.allowMarginChange).toBe(true);
       expect(scope.allowCoverToggle).toBe(true);
       expect(scope.allowTocToggle).toBe(true);
+      expect(scope.showPosterSettings).toBe(false);
+      expect(scope.showPreTextualStructureToggles).toBe(true);
+      expect(scope.showTextColumnsControl).toBe(true);
+      expect(scope.showStandardPageSettings).toBe(true);
+      expect(scope.showPreTextualPaginationToggles).toBe(true);
       expect(scope.allowedCitationFormats).toHaveLength(4);
     });
 
-    it('libera todas as opções para Typst Universe comunitário (universe_custom)', () => {
-      const scope = getCustomizerScope('universe_custom');
+    it('oculta capa/sumário e opções de pôster para Artigo Científico (NBR 6022), permitindo configurar 1, 2 ou 3 colunas', () => {
+      const scope = getCustomizerScope('artigo');
       expect(scope.isFullyUnrestricted).toBe(true);
       expect(scope.allowColumnChange).toBe(true);
-      expect(scope.allowMarginChange).toBe(true);
+      expect(scope.showTextColumnsControl).toBe(true);
+      expect(scope.showPreTextualStructureToggles).toBe(false);
+      expect(scope.showPreTextualPaginationToggles).toBe(false);
+      expect(scope.showPosterSettings).toBe(false);
+      expect(scope.showStandardPageSettings).toBe(true);
     });
 
-    it('libera opções restritas quando destravado manualmente pelo autor (escape hatch)', () => {
-      const lockedScope = getCustomizerScope('tcc', undefined, false);
-      expect(lockedScope.allowColumnChange).toBe(false);
+    it('oculta elementos de capa e opções de pôster para SBC e IEEE, mantendo colunas e margens configuráveis', () => {
+      const sbcScope = getCustomizerScope('sbc');
+      expect(sbcScope.allowColumnChange).toBe(true);
+      expect(sbcScope.allowMarginChange).toBe(true);
+      expect(sbcScope.showPreTextualStructureToggles).toBe(false);
+      expect(sbcScope.showPosterSettings).toBe(false);
+      expect(sbcScope.showTextColumnsControl).toBe(true);
 
-      const unlockedScope = getCustomizerScope('tcc', undefined, true);
-      expect(unlockedScope.isFullyUnrestricted).toBe(true);
-      expect(unlockedScope.isManuallyUnlocked).toBe(true);
-      expect(unlockedScope.allowColumnChange).toBe(true);
-      expect(unlockedScope.allowMarginChange).toBe(true);
+      const ieeeScope = getCustomizerScope('ieee');
+      expect(ieeeScope.allowColumnChange).toBe(true);
+      expect(ieeeScope.allowMarginChange).toBe(true);
+      expect(ieeeScope.showPreTextualStructureToggles).toBe(false);
+      expect(ieeeScope.showPosterSettings).toBe(false);
+      expect(ieeeScope.showTextColumnsControl).toBe(true);
+      expect(ieeeScope.allowedCitationFormats).toHaveLength(4);
+    });
+
+    it('exibe configurações de Pôster A0/A1 e oculta controles de página A4 e capa para layout Pôster', () => {
+      const scope = getCustomizerScope('poster');
+      expect(scope.showPosterSettings).toBe(true);
+      expect(scope.showStandardPageSettings).toBe(false);
+      expect(scope.showPreTextualStructureToggles).toBe(false);
+      expect(scope.showPreTextualPaginationToggles).toBe(false);
+      expect(scope.showTextColumnsControl).toBe(false);
+    });
+
+    it('libera todas as opções para documento em branco (em_branco) e Typst Universe (universe_custom)', () => {
+      const blankScope = getCustomizerScope('em_branco');
+      expect(blankScope.isFullyUnrestricted).toBe(true);
+      expect(blankScope.showPreTextualStructureToggles).toBe(true);
+      expect(blankScope.showPosterSettings).toBe(false);
+
+      const universeScope = getCustomizerScope('universe_custom');
+      expect(universeScope.isFullyUnrestricted).toBe(true);
+      expect(universeScope.showStandardPageSettings).toBe(true);
+      expect(universeScope.showPosterSettings).toBe(false);
     });
   });
 });

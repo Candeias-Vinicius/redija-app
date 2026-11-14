@@ -44,6 +44,7 @@ const DEFAULT_PROJECT_NAME_BY_TEMPLATE: Record<ProjectTemplateType, string> = {
 };
 
 const COMPACT_ARTICLE_OR_POSTER_TYPES = new Set<ProjectTemplateType | undefined>([
+  'artigo',
   'sbc',
   'ieee',
   'poster',
@@ -59,14 +60,16 @@ export function resolveTemplateTypeOnCustomizerApply(
   if (preset === 'sbc' || preset === 'ieee' || preset === 'poster' || preset === 'universe_custom') {
     return preset;
   }
+  if (preset === 'article_1col' || preset === 'article_2col') {
+    return 'artigo';
+  }
   if (
     (preset === 'abnt_classic' || preset === 'abnt_2023' || preset === 'apa_7') &&
     COMPACT_ARTICLE_OR_POSTER_TYPES.has(prevTemplateType)
   ) {
-    return 'tcc';
-  }
-  if (preset === 'article_2col' && COMPACT_ARTICLE_OR_POSTER_TYPES.has(prevTemplateType)) {
-    return 'artigo';
+    return selectedTemplateType && !COMPACT_ARTICLE_OR_POSTER_TYPES.has(selectedTemplateType)
+      ? selectedTemplateType
+      : 'tcc';
   }
   return selectedTemplateType ?? prevTemplateType;
 }
