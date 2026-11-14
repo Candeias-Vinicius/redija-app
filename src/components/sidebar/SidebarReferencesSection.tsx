@@ -7,7 +7,6 @@ import {
   Pencil,
   Plus,
   Search,
-  Sliders,
   Trash2,
 } from 'lucide-react';
 import { AcademicReference, DocumentProject } from '@/types/document';
@@ -38,7 +37,6 @@ export const SidebarReferencesSection: React.FC<SidebarReferencesSectionProps> =
   references,
   onOpenReferenceModal,
   onEditReference,
-  onOpenTemplateCustomizer,
   onRemoveReference,
 }) => {
   const [isOpen, setIsOpen] = useState(true);
@@ -99,15 +97,6 @@ export const SidebarReferencesSection: React.FC<SidebarReferencesSectionProps> =
               title="Exportar todas as referências em formato BibTeX (.bib)"
             >
               <Download className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {onOpenTemplateCustomizer && (
-            <button
-              onClick={onOpenTemplateCustomizer}
-              className="p-1 hover:bg-neutral-100 rounded text-neutral-500 hover:text-emerald-700"
-              title="Configurar formatação e layout das referências e citações (Norma & Layout)"
-            >
-              <Sliders className="w-3.5 h-3.5" />
             </button>
           )}
           <button
@@ -238,17 +227,6 @@ export const SidebarReferencesSection: React.FC<SidebarReferencesSectionProps> =
                 );
               })}
             </div>
-          )}
-
-          {onOpenTemplateCustomizer && (
-            <button
-              type="button"
-              onClick={onOpenTemplateCustomizer}
-              className="w-full mt-1 py-1.5 px-2.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-[11px] text-neutral-600 flex items-center justify-center gap-1.5 transition-colors"
-            >
-              <Sliders className="w-3 h-3 text-emerald-600" />
-              <span>Layout das Referências e Citações (Norma &amp; Layout)</span>
-            </button>
           )}
         </div>
       )}

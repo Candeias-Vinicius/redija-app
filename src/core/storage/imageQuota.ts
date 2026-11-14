@@ -2,7 +2,12 @@
 // RedijaApp — Controle de Quota de Imagens por Projeto (150 MB)
 // =====================================================================
 
-import { Block, DocumentMetadata, DocumentProject } from '@/types/document';
+import { Block, DocumentMetadata, DocumentProject, SubImageItem } from '@/types/document';
+
+/**
+ * Limite máximo de imagens compostas dentro de um único bloco de Figura.
+ */
+export const MAX_IMAGES_PER_BLOCK = 4;
 
 /**
  * Limite máximo de armazenamento de imagens por projeto: 150 MB (150 * 1024 * 1024 bytes).
@@ -41,6 +46,42 @@ export function getDataUrlByteSize(dataUrl?: string | null): number {
 }
 
 /**
+ * Retorna a lista normalizada de imagens (1 a 4) presentes em um bloco de figura,
+ * mantendo retrocompatibilidade total com blocos que possuem apenas `imageDataUrl`.
+ */
+export function getBlockImages(block: Block): SubImageItem[] {
+  if (block.type !== 'image') return [];
+  const sub = block.meta?.subImages;
+  if (Array.isArray(sub) && sub.length > 0) {
+    return sub
+      .filter((item): item is SubImageItem => Boolean(item && typeof item.dataUrl === 'string' && item.dataUrl))
+      .slice(0, MAX_IMAGES_PER_BLOCK);
+  }
+  if (typeof block.meta?.imageDataUrl === 'string' && block.meta.imageDataUrl) {
+    return [
+      {
+        id: `${block.id}_0`,
+        dataUrl: block.meta.imageDataUrl,
+        mime: block.meta.imageMime,
+        label: '',
+      },
+    ];
+  }
+  return [];
+}
+
+/**
+ * Calcula o peso em bytes de todas as imagens pertencentes a um único bloco de figura.
+ */
+export function calculateBlockImageBytes(block: Block): number {
+  let bytes = 0;
+  for (const item of getBlockImages(block)) {
+    bytes += getDataUrlByteSize(item.dataUrl);
+  }
+  return bytes;
+}
+
+/**
  * Calcula o uso total em bytes de todas as imagens de um projeto
  * (soma de todos os blocos de imagem + brasão da capa se houver),
  * opcionalmente ignorando um bloco específico (útil ao substituir a imagem daquele bloco).
@@ -58,8 +99,8 @@ export function calculateProjectImageBytes(
 
   for (const block of blocks) {
     if (excludeBlockId && block.id === excludeBlockId) continue;
-    if (block.type === 'image' && block.meta?.imageDataUrl) {
-      total += getDataUrlByteSize(block.meta.imageDataUrl);
+    if (block.type === 'image') {
+      total += calculateBlockImageBytes(block);
     }
   }
 
@@ -73,8 +114,8 @@ export function countProjectImages(blocks: Block[], metadata?: DocumentMetadata)
   let count = 0;
   if (metadata?.institutionLogoDataUrl) count += 1;
   for (const block of blocks) {
-    if (block.type === 'image' && block.meta?.imageDataUrl) {
-      count += 1;
+    if (block.type === 'image') {
+      count += getBlockImages(block).length;
     }
   }
   return count;
@@ -118,6 +159,36 @@ export function validateImageUploadForProject(
         currentProjectBytes,
       )} / 150 MB).`,
     };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Valida o upload de um ou vários arquivos de imagem para um bloco de figura,
+ * garantindo até 4 imagens por bloco e o teto de 150 MB do projeto.
+ */
+export function validateMultipleImageUploadsForProject(
+  files: File[],
+  currentProjectBytes: number,
+  existingBlockImageCount = 0,
+): { valid: boolean; error?: string } {
+  if (files.length === 0) {
+    return { valid: false, error: 'Nenhuma imagem selecionada.' };
+  }
+
+  if (existingBlockImageCount + files.length > MAX_IMAGES_PER_BLOCK) {
+    return {
+      valid: false,
+      error: `Cada bloco de Figura comporta até ${MAX_IMAGES_PER_BLOCK} imagens juntas (atualmente: ${existingBlockImageCount}/${MAX_IMAGES_PER_BLOCK}).`,
+    };
+  }
+
+  let runningBytes = currentProjectBytes;
+  for (const file of files) {
+    const check = validateImageUploadForProject(file, runningBytes);
+    if (!check.valid) return check;
+    runningBytes += file.size;
   }
 
   return { valid: true };

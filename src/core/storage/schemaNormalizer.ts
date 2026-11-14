@@ -291,7 +291,7 @@ export function normalizeProject(raw: unknown): DocumentProject {
       typeof rawConfig.marginRightCm === 'number' && Number.isFinite(rawConfig.marginRightCm) && rawConfig.marginRightCm >= 0
         ? rawConfig.marginRightCm
         : DEFAULT_TEMPLATE_CONFIG.marginRightCm,
-    columns: rawConfig.columns === 2 ? 2 : 1,
+    columns: rawConfig.columns === 3 ? 3 : rawConfig.columns === 2 ? 2 : 1,
     includeCoverPage:
       typeof rawConfig.includeCoverPage === 'boolean'
         ? rawConfig.includeCoverPage
@@ -439,6 +439,37 @@ export function normalizeProject(raw: unknown): DocumentProject {
                 : typeof rawMeta.imageWidthPct === 'number' && Number.isFinite(rawMeta.imageWidthPct)
                   ? (Math.min(100, Math.max(10, Math.round(rawMeta.imageWidthPct))) as 50 | 75 | 100)
                   : undefined,
+            imageLayout:
+              rawMeta.imageLayout === 'auto' ||
+              rawMeta.imageLayout === 'row' ||
+              rawMeta.imageLayout === 'grid_2x2' ||
+              rawMeta.imageLayout === 'stack'
+                ? rawMeta.imageLayout
+                : undefined,
+            subImages: Array.isArray(rawMeta.subImages)
+              ? rawMeta.subImages
+                  .filter(
+                    (item): item is Record<string, unknown> =>
+                      Boolean(
+                        item &&
+                          typeof item === 'object' &&
+                          typeof (item as Record<string, unknown>).dataUrl === 'string' &&
+                          (item as Record<string, unknown>).dataUrl,
+                      ),
+                  )
+                  .slice(0, 4)
+                  .map((item, idx) => ({
+                    id:
+                      typeof item.id === 'string' && item.id
+                        ? item.id
+                        : `sub_${idx}_${crypto.randomUUID()}`,
+                    dataUrl: item.dataUrl as string,
+                    mime: typeof item.mime === 'string' ? item.mime : undefined,
+                    label: typeof item.label === 'string' ? item.label : undefined,
+                  }))
+              : undefined,
+            equationNumbered:
+              typeof rawMeta.equationNumbered === 'boolean' ? rawMeta.equationNumbered : undefined,
             language:
               typeof rawMeta.language === 'string' && /^[a-zA-Z0-9_-]+$/.test(rawMeta.language.trim())
                 ? rawMeta.language.trim()

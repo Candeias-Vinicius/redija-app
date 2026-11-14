@@ -18,6 +18,15 @@ export type BlockType =
   | 'bullet'
   | 'numbered';
 
+export type ImageGridLayout = 'auto' | 'row' | 'grid_2x2' | 'stack';
+
+export interface SubImageItem {
+  id: string;
+  dataUrl: string;
+  mime?: string;
+  label?: string;
+}
+
 export interface Block {
   id: string;
   type: BlockType;
@@ -33,6 +42,8 @@ export interface Block {
     imageDataUrl?: string;
     imageMime?: string;
     imageWidthPct?: 50 | 75 | 100;
+    imageLayout?: ImageGridLayout;
+    subImages?: SubImageItem[];
     headers?: string[];
     rows?: string[][];
     language?: string;
@@ -141,7 +152,7 @@ export interface TemplateConfig {
   marginLeftCm: number;
   marginBottomCm: number;
   marginRightCm: number;
-  columns: 1 | 2;
+  columns: 1 | 2 | 3;
   includeCoverPage: boolean;
   includeTitlePage: boolean;
   includeToc: boolean;
