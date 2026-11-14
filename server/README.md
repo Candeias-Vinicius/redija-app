@@ -38,22 +38,45 @@ docker run --rm -p 8080:8080 redija-import
 
 No front, crie `.env.local` com `VITE_IMPORT_API_URL=http://localhost:8080`.
 
-## Deploy no Railway
+## Deploy no Railway (Infrastructure as Code)
 
-1. **New Project → Deploy from GitHub repo** e escolha este repositório.
-2. Em **Settings → Source**, defina **Root Directory** como `server`. O Railway lê `server/railway.json`
-   (build pelo `Dockerfile`, healthcheck em `/health`).
-3. Em **Variables**:
-   - `ALLOWED_ORIGINS=https://seu-dominio.com.br,https://*.vercel.app` (domínio de produção + previews da Vercel)
-   - Opcionais: `MAX_UPLOAD_MB` (25), `PANDOC_TIMEOUT_MS` (45000), `MAX_CONCURRENT_JOBS` (2),
-     `RATE_LIMIT_PER_MINUTE` (12), `PANDOC_MAX_HEAP` (768m).
-   - **Não coloque segredos neste serviço**: ele processa arquivos enviados por qualquer usuário.
-4. Em **Settings → Networking**, gere um domínio público (`*.up.railway.app`).
-5. Em **Settings → Deploy**, ative **Serverless / App Sleeping** para não pagar com o serviço ocioso
-   (a primeira importação depois de um tempo parado leva alguns segundos a mais).
-6. Em **Settings → Resources**, limite a memória (1 GB é suficiente).
-7. Na **Vercel**, adicione `VITE_IMPORT_API_URL=https://<seu-servico>.up.railway.app` e faça redeploy.
-   O CSP (`vercel.json`) já libera `https://*.up.railway.app`; troque pelo domínio exato quando ele existir.
+A infraestrutura está descrita em [`.railway/railway.ts`](../.railway/railway.ts), na raiz do repositório
+(o antigo Config as Code, `railway.json`, foi descontinuado pelo Railway). Ele define o serviço
+`redija-import` nos dois ambientes:
+
+| Ambiente     | Branch    | Domínio                 | CORS (`ALLOWED_ORIGINS`)                         |
+| ------------ | --------- | ----------------------- | ------------------------------------------------ |
+| `production` | `main`    | `api.redija.com.br`     | `https://app.redija.com.br`                      |
+| `dev`        | `develop` | `api-dev.redija.com.br` | `https://dev.redija.com.br` + localhost          |
+
+Em ambos: build pelo `Dockerfile` de `server/`, rebuild só quando `server/**` muda, healthcheck em `/health`,
+reinício em caso de falha, App Sleeping e teto de 1 GB de memória.
+
+**Aplicando** (o arquivo só é lido pela CLI, nunca durante os deploys):
+
+```bash
+npm install -g @railway/cli
+railway login
+railway link          # escolha o projeto e o ambiente (production ou dev)
+railway config plan   # revise: mostra o que será criado, alterado ou removido
+railway config apply  # aplica após confirmação
+```
+
+Repita `link` → `plan` → `apply` para o outro ambiente. Se o ambiente `dev` ainda não existir, crie-o no
+painel (seletor de ambiente → **New Environment**).
+
+> **Atenção ao `plan`:** o arquivo declara só o `redija-import`. Serviços que já existirem no projeto e não
+> estiverem no arquivo aparecem como remoção — confira antes de aplicar.
+
+**DNS:** os domínios `api` e `api-dev` precisam de um registro **CNAME** no DNS de `redija.com.br`
+apontando para o alvo que o Railway mostra em **Settings → Networking** de cada ambiente.
+
+**Variáveis opcionais** (adicione em `env` no `railway.ts`): `MAX_UPLOAD_MB` (25), `PANDOC_TIMEOUT_MS` (45000),
+`MAX_CONCURRENT_JOBS` (2), `RATE_LIMIT_PER_MINUTE` (12), `PANDOC_MAX_HEAP` (768m).
+**Não coloque segredos neste serviço**: ele processa arquivos enviados por qualquer usuário.
+
+**Vercel:** defina `VITE_IMPORT_API_URL` por ambiente — `https://api.redija.com.br` em Production e
+`https://api-dev.redija.com.br` em Preview (branch `develop`) — e faça redeploy.
 
 ## Segurança
 
