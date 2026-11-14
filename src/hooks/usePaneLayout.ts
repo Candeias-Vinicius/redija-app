@@ -93,21 +93,27 @@ export function usePaneLayout() {
   });
   const [resizingPane, setResizingPane] = useState<ResizingPane>(null);
 
-  const desktopPanesRef = useRef<DesktopPaneState>(readDesktopPanes());
+  // Estado inicial calculado uma única vez (sem ler refs durante o render)
+  const [initialPanes] = useState(() => {
+    const desktop = readDesktopPanes();
+    const visible: DesktopPaneState = readIsCompact()
+      ? { showSidebar: false, showEditor: true, showPreview: false }
+      : desktop;
+    return { desktop, visible };
+  });
+
+  const desktopPanesRef = useRef<DesktopPaneState>(initialPanes.desktop);
   const wasCompactRef = useRef(isCompact);
-  const panesRef = useRef({ showSidebar: true, showEditor: true, showPreview: true });
+  const panesRef = useRef<DesktopPaneState>(initialPanes.visible);
 
-  const [showSidebar, setShowSidebar] = useState(() =>
-    readIsCompact() ? false : desktopPanesRef.current.showSidebar,
-  );
-  const [showEditor, setShowEditor] = useState(() =>
-    readIsCompact() ? true : desktopPanesRef.current.showEditor,
-  );
-  const [showPreview, setShowPreview] = useState(() =>
-    readIsCompact() ? false : desktopPanesRef.current.showPreview,
-  );
+  const [showSidebar, setShowSidebar] = useState(initialPanes.visible.showSidebar);
+  const [showEditor, setShowEditor] = useState(initialPanes.visible.showEditor);
+  const [showPreview, setShowPreview] = useState(initialPanes.visible.showPreview);
 
-  panesRef.current = { showSidebar, showEditor, showPreview };
+  // Mantém um snapshot dos painéis visíveis para a transição desktop → compacto
+  useEffect(() => {
+    panesRef.current = { showSidebar, showEditor, showPreview };
+  }, [showSidebar, showEditor, showPreview]);
 
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try {
