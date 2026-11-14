@@ -108,7 +108,8 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
               }`}
             >
               <Code2 className="w-3.5 h-3.5" />
-              <span>Typst</span>
+              <span className="sm:hidden">Typst</span>
+              <span className="hidden sm:inline">Typst (.typ)</span>
             </button>
           </div>
 
