@@ -68,7 +68,7 @@ test.describe('RedijaApp: Gestão de Projetos e Lixeira de Segurança', () => {
     await expect(page.getByText(/Mover trabalho para a Lixeira\?/i)).not.toBeVisible();
     const modal = page.locator('div.fixed.z-50');
     await expect(modal.getByRole('status')).toContainText(targetProjectName);
-    await modal.getByRole('button', { name: 'Desfazer' }).click();
+    await modal.getByRole('button', { name: 'Desfazer', exact: true }).click();
 
     await expect(modal.getByRole('button', { name: /^Lixeira \(0\)/ })).toBeVisible();
     await expect(modal.getByText(targetProjectName)).toBeVisible();
