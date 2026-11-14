@@ -71,7 +71,7 @@ painel (seletor de ambiente → **New Environment**).
 **DNS:** os domínios `api` e `api-dev` precisam de um registro **CNAME** no DNS de `redija.com.br`
 apontando para o alvo que o Railway mostra em **Settings → Networking** de cada ambiente.
 
-**Variáveis opcionais** (adicione em `env` no `railway.ts`): `MAX_UPLOAD_MB` (25), `PANDOC_TIMEOUT_MS` (45000),
+**Variáveis opcionais** (adicione em `env` no `railway.ts`): `MAX_UPLOAD_MB` (150), `PANDOC_TIMEOUT_MS` (90000),
 `MAX_CONCURRENT_JOBS` (2), `RATE_LIMIT_PER_MINUTE` (12), `PANDOC_MAX_HEAP` (768m).
 **Não coloque segredos neste serviço**: ele processa arquivos enviados por qualquer usuário.
 
