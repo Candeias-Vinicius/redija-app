@@ -186,14 +186,14 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".redija,.docx,.zip,.typ,.tex,.json"
+              accept=".redija,.docx,.zip,.typ,.tex,.md,.markdown,.json"
               onChange={handleFileChange}
               className="hidden"
             />
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 transition-colors"
-              title="Importar documento Word (.docx), LaTeX (.tex), Typst (.typ), pacote (.zip do Redija, Overleaf ou Typst) ou backup (.redija)"
+              title="Importar documento Word (.docx), LaTeX (.tex), Typst (.typ), Markdown (.md), pacote (.zip do Redija, Overleaf ou Typst) ou backup (.redija)"
             >
               <Upload className="w-3.5 h-3.5 text-emerald-600" />
               <span>Importar Projeto</span>

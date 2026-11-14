@@ -1,0 +1,36 @@
+\documentclass[12pt,a4paper,oneside,english,brazil]{abntex2}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage[alf]{abntex2cite}
+\titulo{Importação de Documentos Acadêmicos}
+\autor{Maria Oliveira}
+\local{Recife}
+\data{2025}
+\orientador{Prof. Dr. João Santos}
+\instituicao{Universidade Federal de Pernambuco \par Centro de Informática}
+\tipotrabalho{Trabalho de Conclusão de Curso}
+\preambulo{Monografia apresentada ao curso de Ciência da Computação.}
+\newcommand{\sigla}[1]{\textsc{#1}}
+\begin{document}
+\imprimircapa
+\imprimirfolhaderosto
+\begin{resumo}
+Este trabalho apresenta um conversor de documentos.
+
+\textbf{Palavras-chave}: Pandoc. Typst. ABNT.
+\end{resumo}
+\begin{resumo}[Abstract]
+\begin{otherlanguage*}{english}
+This work presents a document converter.
+
+\vspace{\onelineskip}
+\noindent
+\textbf{Keywords}: Pandoc. Typst.
+\end{otherlanguage*}
+\end{resumo}
+\tableofcontents*
+\textual
+\input{capitulos/introducao}
+\include{capitulos/metodologia}
+\bibliography{referencias}
+\end{document}

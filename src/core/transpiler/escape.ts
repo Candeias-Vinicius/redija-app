@@ -405,6 +405,14 @@ export function richTextToTypst(input: string, ctx?: RichTextTypstContext): stri
     });
   }
 
+  // Em Typst, `#emph[x](y)` continua a chamada da função: o "(" literal logo após o fechamento
+  // de uma função de marcação viraria argumento (ex.: "*append*(nome)" → erro "nome desconhecido").
+  // Escapa esse parêntese fora de trechos matemáticos ($…$).
+  restored = restored
+    .split(/(\$(?:[^$\\]|\\.)*\$)/)
+    .map((part, i) => (i % 2 === 1 ? part : part.replace(/\](?=\()/g, ']\\')))
+    .join('');
+
   return restored.trim();
 }
 

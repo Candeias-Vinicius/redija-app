@@ -477,3 +477,20 @@ describe('Transpilador Typst: Novas Marcas Inline e Átomos (Links, Tachado, Có
     expect(ieee).toContain('\\[2\\]');
   });
 });
+
+describe('Parêntese literal após formatação', () => {
+  it('escapa "(" logo após uma função de marcação para não virar argumento', () => {
+    const out = richTextToTypst('<p>chama comandados.<em>append</em>(nome) e <strong>x</strong> (y)</p>');
+    expect(out).toContain('#emph[append]\\(nome)');
+    expect(out).toContain('#strong[x] (y)');
+    // Matemática inline continua intacta
+    const math = richTextToTypst('<p><span data-inline-math="true" data-math="f[x](y)">f</span></p>');
+    expect(math).not.toContain('\\(');
+
+    const compiler = NodeCompiler.create();
+    const result = compiler.compile({ mainFileContent: out });
+    const err = result.takeError();
+    if (err) throw new Error(JSON.stringify(compiler.fetchDiagnostics(err)));
+    expect(result.result).toBeTruthy();
+  });
+});
