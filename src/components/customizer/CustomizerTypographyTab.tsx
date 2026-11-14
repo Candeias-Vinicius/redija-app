@@ -6,21 +6,27 @@ import {
   FontFamilyId,
   TemplateConfig,
 } from '@/types/document';
+import { CustomizerScope } from '@/core/templates/templateCapabilities';
 import { FONT_CATALOG, sanitizeCustomFontFamily } from '@/core/typst/fontCatalog';
 
 interface CustomizerTypographyTabProps {
   config: TemplateConfig;
+  scope?: CustomizerScope;
   onUpdateField: <K extends keyof TemplateConfig>(key: K, value: TemplateConfig[K]) => void;
 }
 
 export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = ({
   config,
+  scope,
   onUpdateField,
 }) => {
   const isCustomFontInvalid =
     config.fontFamily === 'custom' &&
     Boolean(config.customFontFamily?.trim()) &&
     !sanitizeCustomFontFamily(config.customFontFamily);
+
+  const showColumnsControl = scope ? scope.showTextColumnsControl : true;
+  const quickFontSizes = scope?.showPosterSettings ? [20, 22, 24] : [10, 11, 12];
 
   return (
     <div className="space-y-4">
@@ -61,7 +67,7 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
               Tamanho do Corpo (pt)
             </label>
             <div className="flex items-center gap-1">
-              {[10, 11, 12].map((pt) => (
+              {quickFontSizes.map((pt) => (
                 <button
                   key={pt}
                   type="button"
@@ -144,7 +150,11 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2 border-t border-neutral-100">
+      <div
+        className={`grid grid-cols-1 ${
+          showColumnsControl ? 'sm:grid-cols-4' : 'sm:grid-cols-3'
+        } gap-3 pt-2 border-t border-neutral-100`}
+      >
         <div>
           <label
             htmlFor="template-body-alignment"
@@ -193,25 +203,28 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
           />
         </div>
 
-        <div>
-          <label
-            htmlFor="template-columns"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
-          >
-            Colunas do Texto
-          </label>
-          <select
-            id="template-columns"
-            value={config.columns}
-            onChange={(e) =>
-              onUpdateField('columns', Number(e.target.value) as TemplateConfig['columns'])
-            }
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
-          >
-            <option value={1}>1 Coluna</option>
-            <option value={2}>2 Colunas</option>
-          </select>
-        </div>
+        {showColumnsControl && (
+          <div>
+            <label
+              htmlFor="template-columns"
+              className="block text-[11px] font-medium text-neutral-600 mb-1"
+            >
+              Colunas do Texto
+            </label>
+            <select
+              id="template-columns"
+              value={config.columns}
+              onChange={(e) =>
+                onUpdateField('columns', Number(e.target.value) as TemplateConfig['columns'])
+              }
+              className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            >
+              <option value={1}>1 Coluna</option>
+              <option value={2}>2 Colunas</option>
+              <option value={3}>3 Colunas</option>
+            </select>
+          </div>
+        )}
 
         <div>
           <label

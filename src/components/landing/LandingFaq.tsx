@@ -45,9 +45,9 @@ export const LandingFaq: React.FC<LandingFaqProps> = ({ isDark }) => {
         'Para evitar falsos positivos quando sua universidade adota regras próprias, o Redija muda o selo de conformidade para "ABNT Modificado" (ou equivalente) e pausa as cobranças estritas daquela norma, mantendo ativo o Verificador de Integridade (Sanity Linter) para proteger citações, legendas e metadados. Nenhum conteúdo digitado é perdido ao ocultar campos.',
     },
     {
-      question: 'O Redija já atende à atualização recente da NBR 10520:2023 de citações?',
+      question: 'O Redija já atende à atualização oficial da NBR 10520:2023 de citações?',
       answer:
-        'Sim! O Redija oferece 5 estilos reativos no texto (@): caixa alta tradicional (SILVA, 2024), caixa mista da NBR 10520:2023 (Silva, 2024), numérico IEEE [1], sobrescrito ¹ e APA 7ª. Ao alternar no Template Customizer, todas as chamadas já inseridas no texto são atualizadas automaticamente.',
+        'Sim! O Redija adota a NBR 10520:2023 como padrão oficial: chamadas autor-data entre parênteses em caixa mista (Silva, 2024), com expressões latinas em itálico (et al., apud). Também oferece estilos internacionais como IEEE [1], sobrescrito ¹ e APA 7ª, com atualização reativa e instantânea de todas as chamadas do texto.',
     },
     {
       question: 'Meu orientador ou colega precisa instalar algo para colaborar?',

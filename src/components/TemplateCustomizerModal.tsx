@@ -20,6 +20,7 @@ import {
   parseUniverseEntrypoint,
   resolveDraftTemplateType,
 } from './customizer/presets';
+import { getCustomizerScope } from '@/core/templates/templateCapabilities';
 import { CustomizerPresetsTab } from './customizer/CustomizerPresetsTab';
 import { CustomizerTypographyTab } from './customizer/CustomizerTypographyTab';
 import { CustomizerPageTab } from './customizer/CustomizerPageTab';
@@ -63,6 +64,7 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
   const [draftTemplateType, setDraftTemplateType] = useState<ProjectTemplateType>(() =>
     resolveDraftTemplateType(initialConfig, initialTemplateType),
   );
+  const scope = getCustomizerScope(draftTemplateType, draftConfig);
   const initialIsUniverse =
     initialConfig.preset === 'universe_custom' ||
     (initialConfig.preset === 'custom' && initialTemplateType === 'universe_custom');
@@ -268,31 +270,35 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
           </button>
         </div>
 
-        {/* Barra de 5 Abas */}
+        {/* Barra de Abas */}
         <div
           role="tablist"
           aria-label="Seções de configuração do template"
-          className="px-4 pt-2 border-b border-neutral-200 bg-neutral-50/70 flex flex-wrap md:flex-nowrap items-center gap-1 shrink-0"
+          className="px-4 pt-2 border-b border-neutral-200 bg-neutral-50/70 flex flex-wrap items-center justify-between gap-2 shrink-0"
         >
-          {MODAL_TABS.map((tab) => {
-            const selected = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap rounded-t-lg ${
-                  selected
-                    ? 'border-emerald-600 text-emerald-700 bg-white'
-                    : 'border-transparent text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100/80'
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
+          <div className="flex flex-wrap items-center gap-1">
+            {MODAL_TABS.map((tab) => {
+              const selected = activeTab === tab.id;
+              const tabLabel =
+                tab.id === 'structure' && isPosterActive ? 'Banner & Pôster' : tab.label;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap rounded-t-lg ${
+                    selected
+                      ? 'border-emerald-600 text-emerald-700 bg-white'
+                      : 'border-transparent text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100/80'
+                  }`}
+                >
+                  {tabLabel}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Conteúdo da Aba Ativa */}
@@ -300,6 +306,7 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
           {activeTab === 'presets' && (
             <CustomizerPresetsTab
               config={draftConfig}
+              templateType={draftTemplateType}
               isPosterActive={isPosterActive}
               isUniverseSelected={isUniverseSelected}
               showUniverseExplorer={showUniverseExplorer}
@@ -313,16 +320,25 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
           )}
 
           {activeTab === 'typography' && (
-            <CustomizerTypographyTab config={draftConfig} onUpdateField={updateField} />
+            <CustomizerTypographyTab
+              config={draftConfig}
+              scope={scope}
+              onUpdateField={updateField}
+            />
           )}
 
           {activeTab === 'page' && (
-            <CustomizerPageTab config={draftConfig} onUpdateField={updateField} />
+            <CustomizerPageTab
+              config={draftConfig}
+              scope={scope}
+              onUpdateField={updateField}
+            />
           )}
 
           {activeTab === 'citations' && (
             <CustomizerCitationsTab
               config={draftConfig}
+              scope={scope}
               onUpdateField={updateField}
               onCitationFormatChange={handleCitationFormatChange}
             />
@@ -332,6 +348,7 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
             <CustomizerStructureTab
               config={draftConfig}
               metadata={draftMetadata}
+              scope={scope}
               onUpdateField={updateField}
               onLogoUpload={handleLogoUpload}
               onRemoveLogo={handleRemoveLogo}

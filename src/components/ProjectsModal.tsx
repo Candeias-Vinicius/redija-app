@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { DocumentProject, ProjectTemplateType } from '@/types/document';
 import { PROJECT_TEMPLATES } from '@/core/storage/projectTemplates';
 import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
@@ -24,6 +24,8 @@ import {
   Globe,
   ExternalLink,
 } from 'lucide-react';
+
+const UNDO_TIMEOUT_MS = 8000;
 
 interface ProjectsModalProps {
   isOpen: boolean;
@@ -75,14 +77,19 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
 
-  // Estado de confirmação de exclusão digitando o nome
-  const [confirmTarget, setConfirmTarget] = useState<{
-    project: DocumentProject;
-    mode: 'trash' | 'permanent';
-  } | null>(null);
+  // Confirmação (digitando o nome) só para a exclusão DEFINITIVA.
+  // Mover para a Lixeira é reversível, então acontece na hora com a opção "Desfazer".
+  const [confirmTarget, setConfirmTarget] = useState<DocumentProject | null>(null);
   const [confirmTypedName, setConfirmTypedName] = useState('');
+  const [undoTarget, setUndoTarget] = useState<{ id: string; name: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!undoTarget) return;
+    const timer = setTimeout(() => setUndoTarget(null), UNDO_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [undoTarget]);
 
   if (!isOpen) return null;
 
@@ -133,23 +140,31 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
     }
   };
 
-  const openDeleteConfirm = (proj: DocumentProject, mode: 'trash' | 'permanent') => {
-    setConfirmTarget({ project: proj, mode });
+  const moveToTrashWithUndo = (proj: DocumentProject) => {
+    onMoveToTrash(proj.id);
+    setUndoTarget({ id: proj.id, name: proj.name });
+  };
+
+  const undoMoveToTrash = () => {
+    if (!undoTarget) return;
+    onRestoreFromTrash(undoTarget.id);
+    setUndoTarget(null);
+  };
+
+  const openPermanentDeleteConfirm = (proj: DocumentProject) => {
+    setConfirmTarget(proj);
     setConfirmTypedName('');
   };
 
   const isConfirmMatch =
     confirmTarget !== null &&
-    confirmTypedName.trim().toLowerCase() === confirmTarget.project.name.trim().toLowerCase();
+    confirmTypedName.trim().toLowerCase() === confirmTarget.name.trim().toLowerCase();
 
   const executeConfirmedDelete = (e: React.FormEvent) => {
     e.preventDefault();
     if (!confirmTarget || !isConfirmMatch) return;
-    if (confirmTarget.mode === 'trash') {
-      onMoveToTrash(confirmTarget.project.id);
-    } else {
-      onPermanentDelete(confirmTarget.project.id);
-    }
+    onPermanentDelete(confirmTarget.id);
+    if (undoTarget?.id === confirmTarget.id) setUndoTarget(null);
     setConfirmTarget(null);
     setConfirmTypedName('');
   };
@@ -186,14 +201,14 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".redija,.docx,.zip,.typ,.tex,.json"
+              accept=".redija,.docx,.zip,.typ,.tex,.md,.markdown,.json"
               onChange={handleFileChange}
               className="hidden"
             />
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 transition-colors"
-              title="Importar documento Word (.docx), LaTeX (.tex), Typst (.typ), pacote (.zip do Redija, Overleaf ou Typst) ou backup (.redija)"
+              title="Importar documento Word (.docx), LaTeX (.tex), Typst (.typ), Markdown (.md), pacote (.zip do Redija, Overleaf ou Typst) ou backup (.redija)"
             >
               <Upload className="w-3.5 h-3.5 text-emerald-600" />
               <span>Importar Projeto</span>
@@ -377,7 +392,7 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                             <Download className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => openDeleteConfirm(proj, 'trash')}
+                            onClick={() => moveToTrashWithUndo(proj)}
                             className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded"
                             title="Mover para a Lixeira"
                           >
@@ -437,7 +452,7 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                           </button>
                           <button
                             type="button"
-                            onClick={() => openDeleteConfirm(proj, 'permanent')}
+                            onClick={() => openPermanentDeleteConfirm(proj)}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-200 bg-white hover:bg-red-50 text-red-600 text-xs font-medium transition-colors"
                             title="Excluir permanentemente agora"
                           >
@@ -609,20 +624,13 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-neutral-900">
-                    {confirmTarget.mode === 'trash'
-                      ? 'Mover trabalho para a Lixeira?'
-                      : 'Excluir trabalho permanentemente?'}
+                    Excluir trabalho permanentemente?
                   </h4>
                   <p className="text-xs text-neutral-600 mt-1 leading-relaxed">
-                    {confirmTarget.mode === 'trash' ? (
-                      <>
-                        O projeto ficará guardado na <strong>Lixeira por {TRASH_RETENTION_DAYS} dias</strong> antes de ser apagado definitivamente.
-                      </>
-                    ) : (
-                      <>
-                        Esta ação <strong>não pode ser desfeita</strong>. Todos os blocos, figuras e referências deste trabalho serão apagados definitivamente.
-                      </>
-                    )}
+                    Esta ação <strong>não pode ser desfeita</strong>. Todos os blocos, figuras e referências deste trabalho serão apagados definitivamente
+                    {isAuthenticated && confirmTarget.driveFileId && !confirmTarget.isSharedWithMe
+                      ? ', inclusive do seu Google Drive.'
+                      : '.'}
                   </p>
                 </div>
               </div>
@@ -631,7 +639,7 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                 <label className="block text-xs text-neutral-700">
                   Para confirmar, digite exatamente o nome do projeto:{' '}
                   <strong className="font-mono text-red-700 select-all">
-                    {confirmTarget.project.name}
+                    {confirmTarget.name}
                   </strong>
                 </label>
                 <input
@@ -639,7 +647,7 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                   value={confirmTypedName}
                   onChange={(e) => setConfirmTypedName(e.target.value)}
                   autoFocus
-                  placeholder={confirmTarget.project.name}
+                  placeholder={confirmTarget.name}
                   className="w-full px-3 py-2 text-xs bg-white border border-neutral-300 rounded-md focus:outline-none focus:border-red-600"
                 />
               </div>
@@ -660,12 +668,38 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                   disabled={!isConfirmMatch}
                   className="px-4 py-2 rounded-lg text-xs font-semibold bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
                 >
-                  {confirmTarget.mode === 'trash'
-                    ? 'Confirmar e Mover para Lixeira'
-                    : 'Excluir Permanentemente'}
+                  Excluir Permanentemente
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Aviso de "movido para a Lixeira" com opção de desfazer */}
+        {undoTarget && (
+          <div
+            role="status"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 rounded-lg bg-neutral-900 text-white text-xs shadow-xl max-w-[90%]"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-neutral-300 shrink-0" />
+            <span className="truncate">
+              <strong>{undoTarget.name}</strong> foi movido para a Lixeira.
+            </span>
+            <button
+              type="button"
+              onClick={undoMoveToTrash}
+              className="shrink-0 px-2 py-1 rounded-md font-semibold text-emerald-300 hover:bg-white/10"
+            >
+              Desfazer
+            </button>
+            <button
+              type="button"
+              onClick={() => setUndoTarget(null)}
+              className="shrink-0 p-0.5 text-neutral-400 hover:text-white"
+              title="Fechar aviso"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
       </div>

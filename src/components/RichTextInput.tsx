@@ -57,7 +57,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
   onChange,
   references = [],
   refIndexMap: externalRefIndexMap,
-  citationStyle = 'uppercase',
+  citationStyle = 'titlecase',
   citationFormat,
   placeholder = 'Digite seu texto, "/" para comandos ou "@" para citar referência...',
   className = '',

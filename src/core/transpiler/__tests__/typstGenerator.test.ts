@@ -751,10 +751,10 @@ describe('Typst compilation integration', () => {
         ],
       });
 
-      // 1. ABNT Upper + alphabetical
+      // 1. ABNT Autor-Data (NBR 10520:2023) + alphabetical
       const abntMain = generateMain(proj);
       expect(abntMain).toContain('Silva e Souza (2024, p. 15)');
-      expect(abntMain).toContain('(ALMEIDA, 2022)');
+      expect(abntMain).toContain('(Almeida, 2022)');
 
       // 2. IEEE Numeric + citation_order: r1 aparece antes de r2 -> [1] Silva, [2] Almeida
       const ieeeProj: DocumentProject = {
@@ -974,6 +974,69 @@ describe('Typst compilation integration', () => {
       expect(touyingMain).toContain('#import "@preview/touying:0.5.3": *');
       expect(touyingMain).toContain('#import themes.simple: *');
       expect(touyingMain).toContain('#show: simple-theme.with(aspect-ratio: "16-9")');
+    });
+
+    it('transpila e compila figuras compostas com até 4 imagens em grade 2x2, lado a lado (row) e empilhadas (stack)', () => {
+      const tinyPng =
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+      const proj = createSampleProject({
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'article_1col',
+          columns: 2,
+        },
+        blocks: [
+          { id: 'h1', type: 'h1', content: 'Resultados Experimentais' },
+          {
+            id: 'img_4_grid',
+            type: 'image',
+            content: '',
+            meta: {
+              caption: 'Microscopia das 4 fases do experimento',
+              source: 'Elaborado pelos autores (2026)',
+              imageLayout: 'grid_2x2',
+              imageWidthPct: 75,
+              subImages: [
+                { id: 's1', dataUrl: tinyPng, label: 'Fase Inicial' },
+                { id: 's2', dataUrl: tinyPng, label: 'Fase Intermediária' },
+                { id: 's3', dataUrl: tinyPng, label: 'Fase Avançada' },
+                { id: 's4', dataUrl: tinyPng, label: 'Fase Final' },
+              ],
+            },
+          },
+          {
+            id: 'img_3_row',
+            type: 'image',
+            content: '',
+            meta: {
+              caption: 'Três amostras lado a lado',
+              source: 'Dados da pesquisa',
+              imageLayout: 'row',
+              subImages: [
+                { id: 'r1', dataUrl: tinyPng, label: 'Controle' },
+                { id: 'r2', dataUrl: tinyPng, label: 'Teste A' },
+                { id: 'r3', dataUrl: tinyPng, label: 'Teste B' },
+              ],
+            },
+          },
+        ],
+      });
+
+      const files = generateTypstFiles(proj);
+      expect(files[MAIN_FILE]).toContain('grid(columns: (1fr, 1fr), gutter: 8pt');
+      expect(files[MAIN_FILE]).toContain('grid(columns: (1fr, 1fr, 1fr), gutter: 8pt');
+      expect(files[MAIN_FILE]).toContain('image("/assets/img_img_4_grid_1.png", width: 100%)');
+      expect(files[MAIN_FILE]).toContain('image("/assets/img_img_4_grid_4.png", width: 100%)');
+      expect(files[MAIN_FILE]).toContain('(a) Fase Inicial');
+      expect(files[MAIN_FILE]).toContain('(d) Fase Final');
+
+      const standalone = generateStandaloneTypst(proj);
+      const compiler = NodeCompiler.create();
+      const res = compiler.compile({ mainFileContent: standalone });
+      expect(res.hasError()).toBe(false);
+      const pdfBuffer = compiler.pdf(res.result!);
+      expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
     });
   });
 });

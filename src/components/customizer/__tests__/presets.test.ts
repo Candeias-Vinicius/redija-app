@@ -4,13 +4,14 @@ import {
   MODAL_TABS,
   PRESETS,
   parseUniverseEntrypoint,
+  resolveActiveLayoutPresetId,
   resolveDraftTemplateType,
   resolveEffectiveCslStyle,
   resolvePreviewCitationStyle,
 } from '../presets';
 
 describe('Customizer Presets & Helpers', () => {
-  it('expõe exatamente 5 abas e 7 presets normativos consistentes', () => {
+  it('expõe exatamente 5 abas e 6 padrões de layout consolidados (sem duplicatas)', () => {
     expect(MODAL_TABS.map((t) => t.id)).toEqual([
       'presets',
       'typography',
@@ -20,13 +21,27 @@ describe('Customizer Presets & Helpers', () => {
     ]);
     expect(PRESETS.map((p) => p.id)).toEqual([
       'abnt_classic',
-      'abnt_2023',
-      'article_2col',
+      'article_1col',
       'apa_7',
       'sbc',
       'ieee',
       'poster',
     ]);
+  });
+
+  it('resolveActiveLayoutPresetId mapeia presets legados (abnt_2023 e article_2col) para os layouts unificados', () => {
+    expect(
+      resolveActiveLayoutPresetId({ ...DEFAULT_TEMPLATE_CONFIG, preset: 'abnt_2023' }, 'tcc'),
+    ).toBe('abnt_classic');
+    expect(
+      resolveActiveLayoutPresetId({ ...DEFAULT_TEMPLATE_CONFIG, preset: 'article_2col' }, 'artigo'),
+    ).toBe('article_1col');
+    expect(
+      resolveActiveLayoutPresetId({ ...DEFAULT_TEMPLATE_CONFIG, preset: 'custom' }, 'artigo'),
+    ).toBe('article_1col');
+    expect(
+      resolveActiveLayoutPresetId({ ...DEFAULT_TEMPLATE_CONFIG, preset: 'custom' }, 'poster'),
+    ).toBe('poster');
   });
 
   it('resolveDraftTemplateType respeita presets especiais e preserva tipos ABNT', () => {
@@ -53,6 +68,9 @@ describe('Customizer Presets & Helpers', () => {
         'projeto_pesquisa',
       ),
     ).toBe('projeto_pesquisa');
+    expect(
+      resolveDraftTemplateType({ ...DEFAULT_TEMPLATE_CONFIG, preset: 'article_1col' }, 'poster'),
+    ).toBe('artigo');
     expect(
       resolveDraftTemplateType({ ...DEFAULT_TEMPLATE_CONFIG, preset: 'article_2col' }, 'poster'),
     ).toBe('artigo');

@@ -19,7 +19,7 @@ import { SidebarPreTextualsSection } from './sidebar/SidebarPreTextualsSection';
 import { SidebarAbstractSection } from './sidebar/SidebarAbstractSection';
 import { SidebarReferencesSection } from './sidebar/SidebarReferencesSection';
 import { SidebarPostTextualsSection } from './sidebar/SidebarPostTextualsSection';
-import { PanelLeftClose, SlidersHorizontal } from 'lucide-react';
+import { PanelLeftClose, Sliders, SlidersHorizontal } from 'lucide-react';
 
 interface SidebarProps {
   widthPx?: number;
@@ -96,16 +96,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-neutral-500 mt-0.5">{capabilities.headerSubtitle}</p>
-            {onChangeSidebarConfig && (
-              <button
-                type="button"
-                onClick={() => setIsFieldCustomizerOpen(true)}
-                className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-emerald-50 hover:border-emerald-300 text-[10px] font-medium text-neutral-600 hover:text-emerald-700 transition-colors"
-                title="Escolher quais campos de metadados ficam visíveis nesta barra lateral"
-              >
-                <SlidersHorizontal className="w-3 h-3 text-emerald-600" />
-                <span>Personalizar Campos</span>
-              </button>
+            {(onOpenTemplateCustomizer || onChangeSidebarConfig) && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {onOpenTemplateCustomizer && (
+                  <button
+                    type="button"
+                    onClick={onOpenTemplateCustomizer}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-emerald-50 hover:border-emerald-300 text-[10px] font-medium text-neutral-600 hover:text-emerald-700 transition-colors"
+                    title="Escolher padrão de layout e configurar norma, tipografia, página e citações"
+                  >
+                    <Sliders className="w-3 h-3 text-emerald-600" />
+                    <span>Norma &amp; Layout</span>
+                  </button>
+                )}
+                {onChangeSidebarConfig && (
+                  <button
+                    type="button"
+                    onClick={() => setIsFieldCustomizerOpen(true)}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-emerald-50 hover:border-emerald-300 text-[10px] font-medium text-neutral-600 hover:text-emerald-700 transition-colors"
+                    title="Escolher quais campos de metadados ficam visíveis nesta barra lateral"
+                  >
+                    <SlidersHorizontal className="w-3 h-3 text-emerald-600" />
+                    <span>Personalizar Campos</span>
+                  </button>
+                )}
+              </div>
             )}
           </div>
           {onMinimize && (

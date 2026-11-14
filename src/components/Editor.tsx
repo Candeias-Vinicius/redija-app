@@ -6,12 +6,16 @@ import {
   CitationFormat,
   DocumentMetadata,
   ReferenceOrdering,
+  SubImageItem,
 } from '@/types/document';
 import { getReferenceIndexMap } from '@/core/transpiler/abntLinter';
 import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
 import {
   calculateProjectImageBytes,
-  validateImageUploadForProject,
+  getBlockImages,
+  getDataUrlByteSize,
+  MAX_IMAGES_PER_BLOCK,
+  validateMultipleImageUploadsForProject,
 } from '@/core/storage/imageQuota';
 import { Minimize2, Plus } from 'lucide-react';
 import {
@@ -48,7 +52,7 @@ export const Editor: React.FC<EditorProps> = ({
   blocks,
   metadata,
   references,
-  citationStyle = 'uppercase',
+  citationStyle = 'titlecase',
   citationFormat,
   referenceOrdering = 'alphabetical',
   isFullWidth = false,
@@ -153,9 +157,36 @@ export const Editor: React.FC<EditorProps> = ({
     changeBlockType(id, type);
   };
 
-  const handleImageUpload = (blockId: string, file: File) => {
-    const projectBytesExcludingThisBlock = calculateProjectImageBytes(blocks, metadata, blockId);
-    const check = validateImageUploadForProject(file, projectBytesExcludingThisBlock);
+  const handleUploadImages = (blockId: string, files: File[], replaceIndex?: number) => {
+    const targetBlock = blocks.find((b) => b.id === blockId);
+    const existingImages = targetBlock ? getBlockImages(targetBlock) : [];
+    const isReplacingSingle =
+      typeof replaceIndex === 'number' && replaceIndex >= 0 && replaceIndex < existingImages.length;
+
+    const filesToProcess = isReplacingSingle
+      ? files.slice(0, 1)
+      : files.slice(0, Math.max(0, MAX_IMAGES_PER_BLOCK - existingImages.length));
+
+    if (filesToProcess.length === 0) {
+      setImageErrorByBlock((prev) => ({
+        ...prev,
+        [blockId]: `Cada bloco de Figura comporta até ${MAX_IMAGES_PER_BLOCK} imagens juntas.`,
+      }));
+      return;
+    }
+
+    const projectBytesWithoutThisBlock = calculateProjectImageBytes(blocks, metadata, blockId);
+    const keptExistingBytes = existingImages.reduce((acc, item, idx) => {
+      if (isReplacingSingle && idx === replaceIndex) return acc;
+      return acc + getDataUrlByteSize(item.dataUrl);
+    }, 0);
+
+    const check = validateMultipleImageUploadsForProject(
+      filesToProcess,
+      projectBytesWithoutThisBlock + keptExistingBytes,
+      isReplacingSingle ? existingImages.length - 1 : existingImages.length,
+    );
+
     if (!check.valid) {
       setImageErrorByBlock((prev) => ({
         ...prev,
@@ -165,21 +196,76 @@ export const Editor: React.FC<EditorProps> = ({
     }
 
     setImageErrorByBlock((prev) => ({ ...prev, [blockId]: null }));
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
+
+    Promise.all(
+      filesToProcess.map(
+        (file) =>
+          new Promise<SubImageItem>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              if (typeof reader.result === 'string') {
+                resolve({
+                  id: crypto.randomUUID(),
+                  dataUrl: reader.result,
+                  mime: file.type,
+                  label: '',
+                });
+              } else {
+                reject(new Error('Falha ao ler imagem'));
+              }
+            };
+            reader.onerror = () => reject(new Error('Falha ao ler imagem'));
+            reader.readAsDataURL(file);
+          }),
+      ),
+    )
+      .then((loadedItems) => {
+        let nextImages: SubImageItem[];
+        if (isReplacingSingle && replaceIndex !== undefined) {
+          nextImages = existingImages.map((item, idx) =>
+            idx === replaceIndex
+              ? { ...loadedItems[0], id: item.id, label: item.label }
+              : item,
+          );
+        } else {
+          nextImages = [...existingImages, ...loadedItems].slice(0, MAX_IMAGES_PER_BLOCK);
+        }
+
         updateBlockMeta(blockId, {
-          imageDataUrl: reader.result,
-          imageMime: file.type,
+          subImages: nextImages,
+          imageDataUrl: nextImages[0]?.dataUrl,
+          imageMime: nextImages[0]?.mime,
         });
-      }
-    };
-    reader.readAsDataURL(file);
+      })
+      .catch(() => {
+        setImageErrorByBlock((prev) => ({
+          ...prev,
+          [blockId]: 'Não foi possível carregar uma das imagens selecionadas.',
+        }));
+      });
+  };
+
+  const handleImageUpload = (blockId: string, file: File) => {
+    handleUploadImages(blockId, [file]);
+  };
+
+  const handleRemoveSubImage = (blockId: string, removeIndex: number) => {
+    const targetBlock = blocks.find((b) => b.id === blockId);
+    if (!targetBlock) return;
+    const existingImages = getBlockImages(targetBlock);
+    const nextImages = existingImages.filter((_, idx) => idx !== removeIndex);
+    setImageErrorByBlock((prev) => ({ ...prev, [blockId]: null }));
+    updateBlockMeta(blockId, {
+      subImages: nextImages.length > 0 ? nextImages : undefined,
+      imageDataUrl: nextImages[0]?.dataUrl,
+      imageMime: nextImages[0]?.mime,
+    });
   };
 
   const handleClearImage = (blockId: string) => {
     setImageErrorByBlock((prev) => ({ ...prev, [blockId]: null }));
     updateBlockMeta(blockId, {
+      subImages: undefined,
       imageDataUrl: undefined,
       imageMime: undefined,
     });
@@ -247,6 +333,8 @@ export const Editor: React.FC<EditorProps> = ({
           isBlockReorderDragging={Boolean(draggedBlockId)}
           onUpdateMeta={updateBlockMeta}
           onUploadImage={handleImageUpload}
+          onUploadImages={handleUploadImages}
+          onRemoveSubImage={handleRemoveSubImage}
           onClearImage={handleClearImage}
         />
       );

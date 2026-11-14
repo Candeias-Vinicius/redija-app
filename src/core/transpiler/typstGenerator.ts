@@ -27,6 +27,7 @@ import {
   getSortedReferences,
   parseCitationAuthors,
   resolveCitationFormat,
+  splitAuthorEntries,
 } from './abntLinter';
 import { ConfigurableFieldId } from '@/core/templates/fieldRegistry';
 import {
@@ -37,6 +38,7 @@ import {
   getTypstFontStack,
   sanitizeCustomFontFamily,
 } from '@/core/typst/fontCatalog';
+import { getBlockImages } from '@/core/storage/imageQuota';
 import abntTemplate from '@/core/templates/abnt.typ?raw';
 import sbcTemplate from '@/core/templates/sbc.typ?raw';
 import ieeeTemplate from '@/core/templates/ieee.typ?raw';
@@ -209,20 +211,35 @@ export function extractBinaryAssets(project: DocumentProject): Record<string, Ui
   }
 
   for (const block of project.blocks) {
-    if (block.type === 'image' && block.meta?.imageDataUrl) {
-      const parsed = parseDataUrl(block.meta.imageDataUrl);
+    if (block.type !== 'image') continue;
+    const images = getBlockImages(block);
+    if (images.length === 1) {
+      const parsed = parseDataUrl(images[0].dataUrl);
       if (parsed) {
         const path = getVirtualImagePath(block.id, parsed.ext);
         assets[path] = parsed.bytes;
       }
+    } else if (images.length > 1) {
+      images.forEach((item, idx) => {
+        const parsed = parseDataUrl(item.dataUrl);
+        if (parsed) {
+          assets[getVirtualImagePath(block.id, parsed.ext, idx)] = parsed.bytes;
+          if (idx === 0) {
+            assets[getVirtualImagePath(block.id, parsed.ext)] = parsed.bytes;
+          }
+        }
+      });
     }
   }
 
   return assets;
 }
 
-export function getVirtualImagePath(blockId: string, ext: string): string {
+export function getVirtualImagePath(blockId: string, ext: string, index?: number): string {
   const safeId = blockId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (typeof index === 'number') {
+    return `/assets/img_${safeId}_${index + 1}.${ext}`;
+  }
   return `/assets/img_${safeId}.${ext}`;
 }
 
@@ -554,7 +571,7 @@ function generateSbcShowRule(
     skipAbntSpreadDefaults: cfg.preset === 'sbc',
   });
 
-  const sbcCols = Number(cfg.columns) === 2 ? 2 : 1;
+  const sbcCols = Math.min(3, Math.max(1, Math.round(Number(cfg.columns) || 1)));
   args.push(`colunas: ${sbcCols}`);
 
   return `#show: sbc-article.with(\n  ${args.join(',\n  ')},\n)`;
@@ -604,7 +621,7 @@ function generateIeeeShowRule(
     skipAbntSpreadDefaults: cfg.preset === 'ieee',
   });
 
-  const ieeeCols = Number(cfg.columns) === 1 ? 1 : 2;
+  const ieeeCols = Math.min(3, Math.max(1, Math.round(Number(cfg.columns) || 2)));
   args.push(`colunas: ${ieeeCols}`);
 
   return `#show: ieee-article.with(\n  ${args.join(',\n  ')},\n)`;
@@ -838,7 +855,7 @@ function generateAbntShowRule(
     args.push('romano-pre-textual: true');
   }
   if (cfg.columns !== DEFAULT_TEMPLATE_CONFIG.columns) {
-    const safeCols = Number(cfg.columns) === 2 ? 2 : 1;
+    const safeCols = Math.min(3, Math.max(1, Math.round(Number(cfg.columns) || 1)));
     args.push(`colunas: ${safeCols}`);
   }
   if (cfg.includeCoverPage !== DEFAULT_TEMPLATE_CONFIG.includeCoverPage) {
@@ -1000,10 +1017,54 @@ function transpileBlock(
       const caption = (block.meta?.caption?.trim() || 'Sem legenda').replace(/\.+$/, '');
       const source = (block.meta?.source?.trim() || 'do autor').replace(/\.+$/, '');
       const widthPct = Math.min(100, Math.max(10, Number(block.meta?.imageWidthPct) || 80));
-      if (includeBinaryImages && block.meta?.imageDataUrl) {
-        const parsed = parseDataUrl(block.meta.imageDataUrl);
+      const images = getBlockImages(block);
+
+      if (images.length > 1) {
+        const layout = block.meta?.imageLayout ?? 'auto';
+        const colCount =
+          layout === 'stack'
+            ? 1
+            : layout === 'grid_2x2'
+              ? 2
+              : layout === 'row'
+                ? images.length
+                : images.length === 3
+                  ? 3
+                  : 2;
+        const colsSpec = Array(colCount).fill('1fr').join(', ');
+        const cells = images.map((item, idx) => {
+          const letter = String.fromCharCode(97 + idx);
+          const rawSubLabel = item.label?.trim();
+          const subLabel = rawSubLabel
+            ? rawSubLabel.startsWith('(')
+              ? rawSubLabel
+              : `(${letter}) ${rawSubLabel}`
+            : '';
+          let imgExpr = `rect(width: 100%, height: 3.5cm, stroke: 0.5pt + luma(150), align(center + horizon, text(fill: luma(120), size: 0.85em)[Imagem ${idx + 1}]))`;
+          if (includeBinaryImages && item.dataUrl) {
+            const parsed = parseDataUrl(item.dataUrl);
+            if (parsed) {
+              const virtualPath = getVirtualImagePath(block.id, parsed.ext, idx);
+              imgExpr = `image(${typstString(virtualPath)}, width: 100%)`;
+            }
+          }
+          if (subLabel) {
+            return `[#${imgExpr}\n#v(0.15em)\n#text(size: 0.8em)[${escapeMarkup(subLabel)}]]`;
+          }
+          return `[#${imgExpr}]`;
+        });
+        const gridExpr = `block(width: ${widthPct}%, grid(columns: (${colsSpec}${colCount === 1 ? ',' : ''}), gutter: 8pt, align: center + horizon, ${cells.join(', ')}))`;
+        return `#figura(legenda: ${typstContent(caption)}, fonte: ${typstContent(source)}, imagem: ${gridExpr})`;
+      }
+
+      if (includeBinaryImages && images.length === 1) {
+        const parsed = parseDataUrl(images[0].dataUrl);
         if (parsed) {
           const virtualPath = getVirtualImagePath(block.id, parsed.ext);
+          const subLabel = images[0].label?.trim();
+          if (subLabel) {
+            return `#figura(legenda: ${typstContent(caption)}, fonte: ${typstContent(source)}, imagem: [#image(${typstString(virtualPath)}, width: ${widthPct}%)\n#v(0.15em)\n#text(size: 0.8em)[${escapeMarkup(subLabel)}]])`;
+          }
           return `#figura(legenda: ${typstContent(caption)}, fonte: ${typstContent(source)}, imagem: image(${typstString(virtualPath)}, width: ${widthPct}%))`;
         }
       }
@@ -1131,10 +1192,7 @@ export function formatAuthorCase(
     }
   }
 
-  const entries = cleaned
-    .split(';')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const entries = splitAuthorEntries(trimmed);
 
   if (entries.length >= 4 || hasEtAl) {
     const first = entries[0] || cleaned;

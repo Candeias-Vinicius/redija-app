@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  getCustomizerScope,
   getTemplateCapabilities,
   getPreservedHiddenFields,
   resolveEffectiveTemplateType,
@@ -217,6 +218,72 @@ describe('templateCapabilities: Matriz de Capacidades e Preservação de Metadad
       expect(hiddenIds).toContain('abstract');
       expect(hiddenIds).toContain('keywords');
       expect(hiddenIds).toContain('glossary');
+    });
+  });
+
+  describe('getCustomizerScope (Visibilidade Contextual por Layout, Sem Travas Artificiais)', () => {
+    it('habilita opções de monografia (capa, sumário, paginação, colunas, margens) para TCC sem travas', () => {
+      const scope = getCustomizerScope('tcc');
+      expect(scope.isFullyUnrestricted).toBe(true);
+      expect(scope.allowColumnChange).toBe(true);
+      expect(scope.allowMarginChange).toBe(true);
+      expect(scope.allowCoverToggle).toBe(true);
+      expect(scope.allowTocToggle).toBe(true);
+      expect(scope.showPosterSettings).toBe(false);
+      expect(scope.showPreTextualStructureToggles).toBe(true);
+      expect(scope.showTextColumnsControl).toBe(true);
+      expect(scope.showStandardPageSettings).toBe(true);
+      expect(scope.showPreTextualPaginationToggles).toBe(true);
+      expect(scope.allowedCitationFormats).toHaveLength(4);
+    });
+
+    it('oculta capa/sumário e opções de pôster para Artigo Científico (NBR 6022), permitindo configurar 1, 2 ou 3 colunas', () => {
+      const scope = getCustomizerScope('artigo');
+      expect(scope.isFullyUnrestricted).toBe(true);
+      expect(scope.allowColumnChange).toBe(true);
+      expect(scope.showTextColumnsControl).toBe(true);
+      expect(scope.showPreTextualStructureToggles).toBe(false);
+      expect(scope.showPreTextualPaginationToggles).toBe(false);
+      expect(scope.showPosterSettings).toBe(false);
+      expect(scope.showStandardPageSettings).toBe(true);
+    });
+
+    it('oculta elementos de capa e opções de pôster para SBC e IEEE, mantendo colunas e margens configuráveis', () => {
+      const sbcScope = getCustomizerScope('sbc');
+      expect(sbcScope.allowColumnChange).toBe(true);
+      expect(sbcScope.allowMarginChange).toBe(true);
+      expect(sbcScope.showPreTextualStructureToggles).toBe(false);
+      expect(sbcScope.showPosterSettings).toBe(false);
+      expect(sbcScope.showTextColumnsControl).toBe(true);
+
+      const ieeeScope = getCustomizerScope('ieee');
+      expect(ieeeScope.allowColumnChange).toBe(true);
+      expect(ieeeScope.allowMarginChange).toBe(true);
+      expect(ieeeScope.showPreTextualStructureToggles).toBe(false);
+      expect(ieeeScope.showPosterSettings).toBe(false);
+      expect(ieeeScope.showTextColumnsControl).toBe(true);
+      expect(ieeeScope.allowedCitationFormats).toHaveLength(4);
+    });
+
+    it('exibe configurações de Pôster A0/A1 e oculta controles de página A4 e capa para layout Pôster', () => {
+      const scope = getCustomizerScope('poster');
+      expect(scope.showPosterSettings).toBe(true);
+      expect(scope.showStandardPageSettings).toBe(false);
+      expect(scope.showPreTextualStructureToggles).toBe(false);
+      expect(scope.showPreTextualPaginationToggles).toBe(false);
+      expect(scope.showTextColumnsControl).toBe(false);
+    });
+
+    it('libera todas as opções para documento em branco (em_branco) e Typst Universe (universe_custom)', () => {
+      const blankScope = getCustomizerScope('em_branco');
+      expect(blankScope.isFullyUnrestricted).toBe(true);
+      expect(blankScope.showPreTextualStructureToggles).toBe(true);
+      expect(blankScope.showPosterSettings).toBe(false);
+
+      const universeScope = getCustomizerScope('universe_custom');
+      expect(universeScope.isFullyUnrestricted).toBe(true);
+      expect(universeScope.showStandardPageSettings).toBe(true);
+      expect(universeScope.showPosterSettings).toBe(false);
     });
   });
 });

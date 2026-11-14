@@ -1,11 +1,12 @@
 import React from 'react';
 import { Check, ExternalLink, Globe } from 'lucide-react';
-import { TemplateConfig } from '@/types/document';
+import { ProjectTemplateType, TemplateConfig } from '@/types/document';
 import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
-import { PRESETS, PresetInfo } from './presets';
+import { PRESETS, PresetInfo, resolveActiveLayoutPresetId } from './presets';
 
 interface CustomizerPresetsTabProps {
   config: TemplateConfig;
+  templateType?: ProjectTemplateType;
   isPosterActive: boolean;
   isUniverseSelected: boolean;
   showUniverseExplorer: boolean;
@@ -19,6 +20,7 @@ interface CustomizerPresetsTabProps {
 
 export const CustomizerPresetsTab: React.FC<CustomizerPresetsTabProps> = ({
   config,
+  templateType,
   isPosterActive,
   isUniverseSelected,
   showUniverseExplorer,
@@ -29,11 +31,13 @@ export const CustomizerPresetsTab: React.FC<CustomizerPresetsTabProps> = ({
   onUniversePackageInput,
   onSelectUniverseChip,
 }) => {
+  const activePresetId = resolveActiveLayoutPresetId(config, templateType);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500">
-          Escolha um Padrão de Norma
+          Escolha um Padrão de Layout
         </label>
         {isPosterActive && (
           <button
@@ -48,7 +52,7 @@ export const CustomizerPresetsTab: React.FC<CustomizerPresetsTabProps> = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {PRESETS.map((preset) => {
-          const isSelected = config.preset === preset.id;
+          const isSelected = !isUniverseSelected && activePresetId === preset.id;
           return (
             <button
               key={preset.id}
@@ -78,7 +82,7 @@ export const CustomizerPresetsTab: React.FC<CustomizerPresetsTabProps> = ({
           );
         })}
 
-        {/* 8º Card: Conector Typst Universe */}
+        {/* Card: Conector Typst Universe */}
         <button
           type="button"
           onClick={onToggleUniverseExplorer}

@@ -136,6 +136,7 @@ export const App: React.FC = () => {
     handleMoveToTrash,
     handleRestoreFromTrash,
     handlePermanentDelete,
+    reloadProjectLists,
     handleExportBackup,
     handleImportBackup,
   } = useProjectWorkspace({
@@ -150,6 +151,7 @@ export const App: React.FC = () => {
     onEmptyWorkspace: openProjectsModal,
     onProjectImported: closeProjectsModal,
     onReferenceUpdated: clearEditingReference,
+    getDriveAccessToken: isAuthenticated && user ? getValidAccessToken : null,
   });
 
   const {
@@ -167,6 +169,7 @@ export const App: React.FC = () => {
     user,
     login,
     getValidAccessToken,
+    onTrashStateChanged: reloadProjectLists,
   });
 
   const {

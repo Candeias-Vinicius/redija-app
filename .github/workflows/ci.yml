@@ -8,7 +8,10 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
 
 jobs:
   guardrail-main-source:
@@ -67,3 +70,53 @@ jobs:
           path: playwright-report/
           retention-days: 7
           if-no-files-found: ignore
+
+  release:
+    name: Criar Tag & GitHub Release (Main)
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Criar tag de release e publicar Release no GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(jq -r '.version // empty' package.json)
+          if [ -z "${VERSION}" ]; then
+            echo "::error::❌ Campo 'version' ausente ou inválido em package.json."
+            exit 1
+          fi
+
+          TAG="v${VERSION}"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "ℹ️ A tag ${TAG} já existe no repositório. Nenhuma nova release foi criada."
+            {
+              echo "### ℹ️ Release automática ignorada"
+              echo "A tag \`${TAG}\` (lida de \`package.json\`) já existe no repositório."
+              echo "Para gerar uma nova tag e release no próximo merge na \`main\`, atualize \`\"version\"\` em \`package.json\` e \`src/core/version.ts\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          FLAGS=(
+            --target "${GITHUB_SHA}"
+            --title "RedijaApp ${TAG}"
+            --generate-notes
+          )
+          if [[ "${VERSION}" == *-* ]]; then
+            FLAGS+=(--prerelease)
+          fi
+
+          gh release create "${TAG}" "${FLAGS[@]}"
+
+          {
+            echo "### 🚀 Release ${TAG} publicada"
+            echo "Tag e GitHub Release \`${TAG}\` criadas automaticamente para \`main\` (\`${GITHUB_SHA}\`)."
+          } >> "$GITHUB_STEP_SUMMARY"

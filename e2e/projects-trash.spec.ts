@@ -50,9 +50,31 @@ test.describe('RedijaApp: Gestão de Projetos e Lixeira de Segurança', () => {
     await expect(page.getByText('Artigo de Robótica 2026')).toBeVisible();
   });
 
-  test('move trabalho para a lixeira com confirmação digitada e restaura com segurança', async ({
-    page,
-  }) => {
+  test('move trabalho para a lixeira sem confirmação e desfaz pelo aviso', async ({ page }) => {
+    const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
+    await expect(modalHeading).toBeVisible();
+
+    const targetProjectName = 'Trabalho Para Desfazer';
+    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(targetProjectName);
+    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await expect(modalHeading).not.toBeVisible();
+
+    await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
+    await expect(modalHeading).toBeVisible();
+
+    await page.getByTitle('Mover para a Lixeira').first().click();
+
+    // Sem sub-modal de confirmação: vai direto para a lixeira com opção de desfazer
+    await expect(page.getByText(/Mover trabalho para a Lixeira\?/i)).not.toBeVisible();
+    const modal = page.locator('div.fixed.z-50');
+    await expect(modal.getByRole('status')).toContainText(targetProjectName);
+    await modal.getByRole('button', { name: 'Desfazer' }).click();
+
+    await expect(modal.getByRole('button', { name: /^Lixeira \(0\)/ })).toBeVisible();
+    await expect(modal.getByText(targetProjectName)).toBeVisible();
+  });
+
+  test('move trabalho para a lixeira e restaura com segurança', async ({ page }) => {
     const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
     await expect(modalHeading).toBeVisible();
 
@@ -68,16 +90,14 @@ test.describe('RedijaApp: Gestão de Projetos e Lixeira de Segurança', () => {
     await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
     await expect(modalHeading).toBeVisible();
 
-    // Clica no botão de lixeira do projeto alvo
+    // Clica no botão de lixeira do projeto alvo (move na hora, sem confirmação)
     await page.getByTitle('Mover para a Lixeira').first().click();
 
-    // Confirma digitando o nome exato no sub-modal
-    await expect(page.getByText(/Mover trabalho para a Lixeira\?/i)).toBeVisible();
-    await page.getByPlaceholder(targetProjectName).fill(targetProjectName);
-    await page.getByRole('button', { name: /Mover para Lixeira/i }).click();
+    // Fecha o aviso de "Desfazer" para validar só a lista da Lixeira
+    const modal = page.locator('div.fixed.z-50');
+    await modal.getByTitle('Fechar aviso').click();
 
     // Acessa a aba da Lixeira no modal (ex: "Lixeira (1)")
-    const modal = page.locator('div.fixed.z-50');
     await modal.getByRole('button', { name: /^Lixeira \(/ }).click();
 
     // Valida que o trabalho está na Lixeira com aviso de retenção de 30 dias

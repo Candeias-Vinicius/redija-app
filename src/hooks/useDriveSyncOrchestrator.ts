@@ -3,9 +3,26 @@ import { DocumentProject } from '@/types/document';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { compileProjectToPdf } from '@/core/typst/projectCompiler';
 import { autoMergeProjects } from '@/core/storage/projectMerger';
-import { getProject, listProjects, saveProject } from '@/core/storage/db';
 import {
+  getProject,
+  listAllProjectsForOwner,
+  listProjects,
+  moveProjectToTrash,
+  restoreProjectFromTrash,
+  saveProject,
+  setProjectDriveTrashSync,
+} from '@/core/storage/db';
+import {
+  planDriveTrashReconciliation,
+  readDriveTombstones,
+  removeDriveTombstone,
+  resolveRestoredProjectName,
+} from '@/core/storage/driveTrash';
+import { pushTrashStateToDrive } from '@/core/storage/driveTrashSync';
+import {
+  deleteDriveProject,
   listDriveProjects,
+  listTrashedDriveProjectIds,
   loadProjectFromDrive,
   saveProjectPdfToDrive,
   saveProjectToDrive,
@@ -46,6 +63,8 @@ interface UseDriveSyncOrchestratorOptions {
   user: GoogleUserProfile | null;
   login: (promptConsent?: boolean) => Promise<string | null>;
   getValidAccessToken: (interactive?: boolean) => Promise<string | null>;
+  /** Chamado quando a sincronização move projetos para dentro/fora da lixeira local. */
+  onTrashStateChanged?: () => void | Promise<void>;
 }
 
 export function useDriveSyncOrchestrator({
@@ -58,6 +77,7 @@ export function useDriveSyncOrchestrator({
   user,
   login,
   getValidAccessToken,
+  onTrashStateChanged,
 }: UseDriveSyncOrchestratorOptions) {
   const [rawDriveSyncStatus, setRawDriveSyncStatus] = useState<'synced' | 'syncing' | 'error'>(
     'synced',
@@ -92,6 +112,12 @@ export function useDriveSyncOrchestrator({
       const signature = getProjectContentSignature(project);
 
       if (knownFileId && lastSyncedSignatureRef.current[project.id] === signature) {
+        return;
+      }
+
+      // Projeto que acabou de ir para a lixeira não deve ser reenviado (nem recriado) no Drive.
+      const stored = await getProject(project.id);
+      if (stored?.deletedAt) {
         return;
       }
 
@@ -227,19 +253,107 @@ export function useDriveSyncOrchestrator({
         const token = await getValidAccessToken(interactive);
         if (!token) return;
 
-        const driveSummaries = await listDriveProjects(token);
-        const currentProjects = await listProjects(user.email);
+        const [driveSummaries, trashedDriveIds] = await Promise.all([
+          listDriveProjects(token),
+          listTrashedDriveProjectIds(token).catch((err) => {
+            console.warn('Não foi possível consultar a lixeira do Drive:', err);
+            return null;
+          }),
+        ]);
+        const activeDriveIds = new Set(driveSummaries.map((s) => s.id));
         let hasNewOrUpdated = false;
-        const seenNames = new Set<string>();
+        let hasTrashChanges = false;
 
-        for (const summary of driveSummaries) {
-          const normName = summary.name.trim().toLowerCase();
-          if (seenNames.has(normName)) {
+        // 1. Exclusões definitivas pendentes / arquivos compartilhados escondidos pelo usuário
+        const tombstones = readDriveTombstones(user.email);
+        for (const [fileId, tomb] of Object.entries(tombstones)) {
+          const isStillOnDrive = activeDriveIds.has(fileId) || Boolean(trashedDriveIds?.has(fileId));
+          if (!isStillOnDrive) {
+            if (trashedDriveIds) removeDriveTombstone(user.email, fileId);
             continue;
           }
-          seenNames.add(normName);
+          if (tomb.mode === 'delete') {
+            try {
+              await deleteDriveProject(fileId, token, tomb.projectId);
+              removeDriveTombstone(user.email, fileId);
+            } catch (err) {
+              console.warn('Exclusão definitiva no Drive ainda pendente:', err);
+            }
+          }
+        }
+        const tombstonedFileIds = new Set(Object.keys(tombstones));
 
-          const existsLocally = currentProjects.find((p) => p.driveFileId === summary.id);
+        // 2. Lixeira local × lixeira do Drive (pendências, exclusões/restaurações de outro dispositivo)
+        const localBeforeTrashSync = await listAllProjectsForOwner(user.email);
+        const trashPlan = planDriveTrashReconciliation(
+          localBeforeTrashSync,
+          activeDriveIds,
+          trashedDriveIds ?? new Set<string>(),
+        );
+        for (const action of trashPlan.actions) {
+          // Sem a lista da lixeira do Drive só é seguro reenviar exclusões pendentes.
+          if (!trashedDriveIds && action.kind !== 'retry-drive-trash') continue;
+          const target = action.project;
+          switch (action.kind) {
+            case 'retry-drive-trash':
+              await pushTrashStateToDrive(target, true, token);
+              break;
+            case 'retry-drive-restore':
+              await pushTrashStateToDrive(target, false, token);
+              break;
+            case 'mark-synced':
+              await setProjectDriveTrashSync(target.id, target.deletedAt ? 'synced' : null);
+              break;
+            case 'trash-locally':
+              await moveProjectToTrash(target.id, 'synced');
+              hasTrashChanges = true;
+              break;
+            case 'restore-locally': {
+              const activeNames = (await listProjects(user.email)).map((p) => p.name);
+              const freeName = resolveRestoredProjectName(target.name, activeNames);
+              await restoreProjectFromTrash(target.id, {
+                name: freeName !== target.name ? freeName : undefined,
+              });
+              hasTrashChanges = true;
+              break;
+            }
+          }
+        }
+
+        // 3. Importa/mescla os arquivos ativos do Drive, ignorando tudo que o usuário excluiu
+        const allLocal = await listAllProjectsForOwner(user.email);
+        const currentProjects = allLocal.filter((p) => !p.deletedAt);
+        const trashedLocal = allLocal.filter((p) => Boolean(p.deletedAt));
+        const seenKeys = new Set<string>();
+
+        for (const summary of driveSummaries) {
+          if (tombstonedFileIds.has(summary.id) || trashPlan.skipFileIds.has(summary.id)) {
+            continue;
+          }
+          if (
+            trashedLocal.some(
+              (p) => p.driveFileId === summary.id || p.id === summary.redijaProjectId,
+            )
+          ) {
+            continue;
+          }
+
+          const normName = summary.name.trim().toLowerCase();
+          // Arquivos com o mesmo `redijaProjectId` são o mesmo projeto (fica o mais recente).
+          // Só arquivos legados, sem esse vínculo, são deduplicados pelo nome.
+          const dedupeKey = summary.redijaProjectId
+            ? `id:${summary.redijaProjectId}`
+            : `name:${normName}`;
+          if (seenKeys.has(dedupeKey)) {
+            continue;
+          }
+          seenKeys.add(dedupeKey);
+
+          const existsLocally =
+            currentProjects.find((p) => p.driveFileId === summary.id) ??
+            (summary.redijaProjectId
+              ? currentProjects.find((p) => p.id === summary.redijaProjectId)
+              : undefined);
           if (existsLocally) {
             driveFileIdByProjectIdRef.current[existsLocally.id] = summary.id;
             const remoteTime = new Date(summary.modifiedTime).getTime();
@@ -263,9 +377,13 @@ export function useDriveSyncOrchestrator({
               }
             }
           } else {
-            const matchByName = currentProjects.find(
-              (p) => !p.driveFileId && p.name.trim().toLowerCase() === normName,
-            );
+            // Vínculo por nome só para arquivos legados: um arquivo que já pertence a outro
+            // projeto (`redijaProjectId`) nunca é "adotado" por um homônimo local.
+            const matchByName = summary.redijaProjectId
+              ? undefined
+              : currentProjects.find(
+                  (p) => !p.driveFileId && p.name.trim().toLowerCase() === normName,
+                );
             if (matchByName) {
               matchByName.driveFileId = summary.id;
               matchByName.driveSyncedAt = summary.modifiedTime;
@@ -276,7 +394,16 @@ export function useDriveSyncOrchestrator({
             } else {
               try {
                 const loaded = await loadProjectFromDrive(summary.id, token);
+                const existingRecord = await getProject(loaded.id);
+                if (existingRecord?.deletedAt) {
+                  // Mesmo projeto já está na lixeira local: nunca reimportar.
+                  continue;
+                }
                 loaded.ownerEmail = user.email;
+                loaded.deletedAt = null;
+                loaded.driveTrashSync = null;
+                loaded.isSharedWithMe = summary.isSharedWithMe;
+                if (summary.sharedBy) loaded.sharedBy = summary.sharedBy;
                 await saveProject(loaded, false);
                 driveFileIdByProjectIdRef.current[loaded.id] = summary.id;
                 hasNewOrUpdated = true;
@@ -295,13 +422,25 @@ export function useDriveSyncOrchestrator({
             setProject(activeUpdated);
           }
         }
+        if (hasTrashChanges) {
+          await onTrashStateChanged?.();
+        }
       } catch (err) {
         console.error('Erro ao listar projetos do Drive:', err);
       } finally {
         setIsSyncingDrive(false);
       }
     },
-    [isAuthenticated, getValidAccessToken, user, project.id, project.driveFileId, setProjects, setProject],
+    [
+      isAuthenticated,
+      getValidAccessToken,
+      user,
+      project.id,
+      project.driveFileId,
+      setProjects,
+      setProject,
+      onTrashStateChanged,
+    ],
   );
 
   // Sincroniza projetos do Google Drive automaticamente em segundo plano ao logar

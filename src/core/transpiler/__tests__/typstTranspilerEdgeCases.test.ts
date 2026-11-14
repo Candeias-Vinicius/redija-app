@@ -415,4 +415,82 @@ describe('Transpilador Typst: Novas Marcas Inline e Átomos (Links, Tachado, Có
     expect(typst).not.toContain('#link');
     expect(typst).not.toContain('javascript:');
   });
+
+  it('agrupa citações parentéticas consecutivas no Typst conforme NBR 10520', () => {
+    const references = [
+      {
+        id: 'r1',
+        authors: 'Técnicas',
+        title: 'Normas Técnicas',
+        city: '',
+        publisher: '',
+        year: '2011',
+      },
+      {
+        id: 'r2',
+        authors: 'SILVA, Ana; SOUZA, Bruno',
+        title: 'Compiladores',
+        city: '',
+        publisher: '',
+        year: '2023',
+      },
+      {
+        id: 'r3',
+        authors: 'ALMEIDA, Carla',
+        title: 'Outra',
+        city: '',
+        publisher: '',
+        year: '2020',
+      },
+    ];
+
+    const grouped = richTextToTypst(
+      '<p>Texto <cite data-cite-id="r1" data-cite-mode="parenthetical">(Técnicas, 2011)</cite> <cite data-cite-id="r2" data-cite-mode="parenthetical">(Silva; Souza, 2023)</cite>.</p>',
+      { references, citationFormat: 'abnt_titlecase' },
+    );
+    expect(grouped).toContain('(Técnicas, 2011; Silva; Souza, 2023)');
+    expect(grouped).not.toMatch(/\)\s*\(/);
+
+    // Narrativa ao lado de parentética não deve fundir
+    const mixed = richTextToTypst(
+      '<p><cite data-cite-id="r3" data-cite-mode="narrative">Almeida (2020)</cite> <cite data-cite-id="r1" data-cite-mode="parenthetical">(Técnicas, 2011)</cite></p>',
+      { references, citationFormat: 'abnt_titlecase' },
+    );
+    expect(mixed).toContain('Almeida (2020)');
+    expect(mixed).toContain('(Técnicas, 2011)');
+    expect(mixed).not.toContain('2011; Técnicas');
+    expect(mixed).not.toMatch(/Almeida \(2020\);/);
+
+    // IEEE numérico permanece separado
+    const ieee = richTextToTypst(
+      '<p><cite data-cite-id="r1" data-cite-mode="parenthetical">[1]</cite> <cite data-cite-id="r2" data-cite-mode="parenthetical">[2]</cite></p>',
+      {
+        references,
+        citationFormat: 'ieee_numeric',
+        refIndexMap: new Map([
+          ['r1', 1],
+          ['r2', 2],
+        ]),
+      },
+    );
+    expect(ieee).toContain('\\[1\\]');
+    expect(ieee).toContain('\\[2\\]');
+  });
+});
+
+describe('Parêntese literal após formatação', () => {
+  it('escapa "(" logo após uma função de marcação para não virar argumento', () => {
+    const out = richTextToTypst('<p>chama comandados.<em>append</em>(nome) e <strong>x</strong> (y)</p>');
+    expect(out).toContain('#emph[append]\\(nome)');
+    expect(out).toContain('#strong[x] (y)');
+    // Matemática inline continua intacta
+    const math = richTextToTypst('<p><span data-inline-math="true" data-math="f[x](y)">f</span></p>');
+    expect(math).not.toContain('\\(');
+
+    const compiler = NodeCompiler.create();
+    const result = compiler.compile({ mainFileContent: out });
+    const err = result.takeError();
+    if (err) throw new Error(JSON.stringify(compiler.fetchDiagnostics(err)));
+    expect(result.result).toBeTruthy();
+  });
 });

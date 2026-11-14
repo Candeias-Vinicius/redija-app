@@ -443,4 +443,43 @@ describe('ABNT Linter: Tokens <cite>, citation_order e EffectiveType', () => {
     };
     expect(runAbntLinter(sbcInsideTcc300).some((w) => w.id === 'abstract-length')).toBe(true);
   });
+
+  it('emite alerta de norma revogada se o projeto estiver configurado com citação em caixa alta (NBR 10520:2002)', () => {
+    const legacyProj = createMockProject({
+      templateConfig: {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        citationFormat: 'abnt_upper',
+        citationStyle: 'uppercase',
+      },
+    });
+
+    const warnings = runAbntLinter(legacyProj);
+    const deprecatedWarning = warnings.find((w) => w.id === 'citation-deprecated-nbr10520');
+    expect(deprecatedWarning).toBeDefined();
+    expect(deprecatedWarning?.severity).toBe('warning');
+    expect(deprecatedWarning?.title).toContain('NBR 10520:2002 revogada');
+  });
+
+  it('detecta citação digitada em caixa alta no texto sob NBR 10520:2023 e sugere caixa mista', () => {
+    const projWithUppercaseInText = createMockProject({
+      templateConfig: {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        citationFormat: 'abnt_titlecase',
+        citationStyle: 'titlecase',
+      },
+      blocks: [
+        {
+          id: 'b1',
+          type: 'paragraph',
+          content: '<p>Conforme demonstrado anteriormente (SILVA, 2023), o sistema é reativo.</p>',
+        },
+      ],
+    });
+
+    const warnings = runAbntLinter(projWithUppercaseInText);
+    const uppercaseWarning = warnings.find((w) => w.id.startsWith('citation-uppercase-nbr10520'));
+    expect(uppercaseWarning).toBeDefined();
+    expect(uppercaseWarning?.severity).toBe('info');
+    expect(uppercaseWarning?.description).toContain('(Silva, 2023)');
+  });
 });

@@ -13,11 +13,11 @@ import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
 export type CustomizerTabId = 'presets' | 'typography' | 'page' | 'citations' | 'structure';
 
 export const MODAL_TABS: Array<{ id: CustomizerTabId; label: string }> = [
-  { id: 'presets', label: 'Normas & Presets' },
+  { id: 'presets', label: 'Padrões de Layout' },
   { id: 'typography', label: 'Tipografia & Texto' },
   { id: 'page', label: 'Página & Cabeçalhos' },
   { id: 'citations', label: 'Citações & Referências' },
-  { id: 'structure', label: 'Capa & Pôster' },
+  { id: 'structure', label: 'Estrutura & Capa' },
 ];
 
 export const SAMPLE_PREVIEW_REF: AcademicReference = {
@@ -47,50 +47,12 @@ export interface PresetInfo {
 export const PRESETS: PresetInfo[] = [
   {
     id: 'abnt_classic',
-    title: 'ABNT Tradicional (TCC / Monografia)',
-    badge: 'NBR 14724 + 10520:2002',
+    title: 'Padrão ABNT (Monografia / TCC)',
+    badge: 'NBR 14724 + 10520:2023',
     description:
-      'Times New Roman 12pt, espaçamento 1,5, recuo 1,25 cm, margens 3/3/2/2 cm, citação (SILVA, 2023) em maiúsculas e títulos das referências em negrito.',
+      'Estrutura completa de monografia/TCC com capa, folha de rosto e sumário. Fonte 12pt, espaçamento 1,5, recuo 1,25 cm, margens 3/3/2/2 cm e 1 coluna por padrão (personalizável nas abas).',
     config: {
       fontFamily: 'serif',
-      fontSizePt: 12,
-      lineSpacing: '1.5',
-      paragraphIndentCm: 1.25,
-      marginTopCm: 3,
-      marginLeftCm: 3,
-      marginBottomCm: 2,
-      marginRightCm: 2,
-      columns: 1,
-      paperSize: 'a4',
-      pageOrientation: 'portrait',
-      documentLanguage: 'pt',
-      bodyAlignment: 'justify',
-      pageNumbering: 'top_right',
-      hideFirstPageNumber: true,
-      romanPreTextual: false,
-      headingNumbering: '1.1',
-      h1PageBreak: true,
-      includeCoverPage: true,
-      includeTitlePage: true,
-      includeToc: true,
-      citationStyle: 'uppercase',
-      citationFormat: 'abnt_upper',
-      bibliographyEngine: 'redija_custom',
-      referenceEntryFormat: 'abnt',
-      referenceOrdering: 'alphabetical',
-      referenceHighlight: 'bold',
-      referenceAlignment: 'left',
-      referenceSpacing: 'single_blank',
-    },
-  },
-  {
-    id: 'abnt_2023',
-    title: 'ABNT Atualizada (NBR 10520:2023)',
-    badge: 'Nova NBR 10520',
-    description:
-      'Segue a atualização de julho/2023 da ABNT: citações entre parênteses com apenas a inicial maiúscula (Silva, 2023) e opção de fonte sem serifa (Arial/Arimo).',
-    config: {
-      fontFamily: 'sans',
       fontSizePt: 12,
       lineSpacing: '1.5',
       paragraphIndentCm: 1.25,
@@ -122,21 +84,21 @@ export const PRESETS: PresetInfo[] = [
     },
   },
   {
-    id: 'article_2col',
-    title: 'Artigo Científico / Congresso (2 Colunas)',
-    badge: 'NBR 6022 / Congresso',
+    id: 'article_1col',
+    title: 'Artigo Científico (ABNT)',
+    badge: 'NBR 6022',
     description:
-      'Sem capa nem folha de rosto (inicia direto com título, autores e resumo na página 1) e corpo do texto diagramado em 2 colunas com fonte 10pt.',
+      'Inicia direto na página 1 com título, autores e resumo (sem capa nem folha de rosto). Padrão com 1 coluna, fonte 12pt e entrelinha 1,5, permitindo configurar 2 ou mais colunas nas abas.',
     config: {
       fontFamily: 'serif',
-      fontSizePt: 10,
-      lineSpacing: '1.0',
-      paragraphIndentCm: 0.75,
-      marginTopCm: 2.5,
-      marginLeftCm: 2,
+      fontSizePt: 12,
+      lineSpacing: '1.5',
+      paragraphIndentCm: 1.25,
+      marginTopCm: 3,
+      marginLeftCm: 3,
       marginBottomCm: 2,
       marginRightCm: 2,
-      columns: 2,
+      columns: 1,
       paperSize: 'a4',
       pageOrientation: 'portrait',
       documentLanguage: 'pt',
@@ -154,9 +116,9 @@ export const PRESETS: PresetInfo[] = [
       bibliographyEngine: 'redija_custom',
       referenceEntryFormat: 'abnt',
       referenceOrdering: 'alphabetical',
-      referenceHighlight: 'italic',
+      referenceHighlight: 'bold',
       referenceAlignment: 'left',
-      referenceSpacing: 'compact',
+      referenceSpacing: 'single_blank',
     },
   },
   {
@@ -225,8 +187,8 @@ export const PRESETS: PresetInfo[] = [
       includeCoverPage: false,
       includeTitlePage: false,
       includeToc: false,
-      citationStyle: 'uppercase',
-      citationFormat: 'abnt_upper',
+      citationStyle: 'titlecase',
+      citationFormat: 'abnt_titlecase',
       bibliographyEngine: 'redija_custom',
       referenceEntryFormat: 'abnt',
       referenceOrdering: 'alphabetical',
@@ -301,8 +263,8 @@ export const PRESETS: PresetInfo[] = [
       includeCoverPage: false,
       includeTitlePage: false,
       includeToc: false,
-      citationStyle: 'uppercase',
-      citationFormat: 'abnt_upper',
+      citationStyle: 'titlecase',
+      citationFormat: 'abnt_titlecase',
       bibliographyEngine: 'redija_custom',
       referenceEntryFormat: 'abnt',
       referenceOrdering: 'alphabetical',
@@ -325,31 +287,42 @@ export function resolveDraftTemplateType(
   if (p === 'sbc' || p === 'ieee' || p === 'poster' || p === 'universe_custom') {
     return p;
   }
-  if (p === 'abnt_classic' || p === 'abnt_2023' || p === 'apa_7') {
-    if (
-      !baseType ||
-      baseType === 'sbc' ||
-      baseType === 'ieee' ||
-      baseType === 'poster' ||
-      baseType === 'universe_custom'
-    ) {
-      return 'tcc';
-    }
-    return baseType;
+  if (p === 'article_1col' || p === 'article_2col') {
+    return 'artigo';
   }
-  if (p === 'article_2col') {
-    if (
-      !baseType ||
-      baseType === 'sbc' ||
-      baseType === 'ieee' ||
-      baseType === 'poster' ||
-      baseType === 'universe_custom'
-    ) {
-      return 'artigo';
+  if (p === 'abnt_classic' || p === 'abnt_2023' || p === 'apa_7') {
+    if (baseType === 'relatorio' || baseType === 'projeto_pesquisa') {
+      return baseType;
     }
-    return baseType;
+    return 'tcc';
   }
   return baseType ?? 'tcc';
+}
+
+export function resolveActiveLayoutPresetId(
+  cfg: TemplateConfig,
+  templateType?: ProjectTemplateType,
+): NormPresetId {
+  const p = cfg.preset;
+  if (p === 'abnt_2023') return 'abnt_classic';
+  if (p === 'article_2col') return 'article_1col';
+  if (p !== 'custom') return p;
+
+  if (
+    templateType === 'sbc' ||
+    templateType === 'ieee' ||
+    templateType === 'poster' ||
+    templateType === 'universe_custom'
+  ) {
+    return templateType;
+  }
+  if (templateType === 'artigo') {
+    return 'article_1col';
+  }
+  if (cfg.referenceEntryFormat === 'apa' || cfg.citationFormat === 'author_date') {
+    return 'apa_7';
+  }
+  return 'abnt_classic';
 }
 
 export function resolveEffectiveCslStyle(

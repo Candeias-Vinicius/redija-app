@@ -11,6 +11,7 @@ import {
   ReferenceSpacing,
   TemplateConfig,
 } from '@/types/document';
+import { CustomizerScope } from '@/core/templates/templateCapabilities';
 import { formatShortCitation, resolveCitationFormat } from '@/core/transpiler/abntLinter';
 import {
   resolveEffectiveCslStyle,
@@ -20,6 +21,7 @@ import {
 
 interface CustomizerCitationsTabProps {
   config: TemplateConfig;
+  scope?: CustomizerScope;
   onUpdateField: <K extends keyof TemplateConfig>(key: K, value: TemplateConfig[K]) => void;
   onCitationFormatChange: (format: CitationFormat) => void;
 }
@@ -79,8 +81,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
             onChange={(e) => onCitationFormatChange(e.target.value as CitationFormat)}
             className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
           >
-            <option value="abnt_upper">ABNT Maiúsculas: (SILVA, 2023) [NBR 10520:2002]</option>
-            <option value="abnt_titlecase">ABNT Caixa Mista: (Silva, 2023) [NBR 10520:2023]</option>
+            <option value="abnt_titlecase">ABNT Autor-Data: (Silva, 2023) [NBR 10520:2023]</option>
             <option value="ieee_numeric">Numérico Colchetes: [1] (IEEE / Vancouver)</option>
             <option value="superscript">Sobrescrito Numérico: ¹ (Nature / ABNT Numérico)</option>
             <option value="author_date">Autor-Data Internacional: (Silva, 2023) [APA 7ª]</option>

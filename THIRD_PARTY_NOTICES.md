@@ -25,6 +25,7 @@ Como aplicação web executada diretamente no navegador do usuário (*local-firs
 | :--- | :--- | :--- |
 | **Tinos** (`Regular`, `Bold`, `Italic`, `BoldItalic`) | Steve Matteson / Google Fonts | `Apache-2.0` |
 | **Arimo** (`Regular`, `Italic`) | Steve Matteson / Google Fonts | `Apache-2.0` |
+| **New Computer Modern Math** (`NewCMMath-Regular.otf`, fonte matemática padrão do Typst) | Antonis Tsolomitis / distribuída via [typst-assets](https://github.com/typst/typst-assets) v0.14.0 | `GUST Font License` (equivalente à LPPL) |
 
 ---
 

@@ -2,7 +2,14 @@
 // RedijaApp — Matriz de Capacidades por Template & Campos Preservados
 // =====================================================================
 
-import { DocumentMetadata, DocumentProject, ProjectTemplateType } from '@/types/document';
+import {
+  CitationFormat,
+  DocumentMetadata,
+  DocumentProject,
+  NormPresetId,
+  ProjectTemplateType,
+  TemplateConfig,
+} from '@/types/document';
 import {
   ConfigurableFieldId,
   IdentificacaoFieldId,
@@ -64,6 +71,49 @@ export interface PreservedFieldInfo {
   label: string;
   preview: string;
   kind: 'text' | 'boolean' | 'list';
+}
+
+export interface CustomizerScope {
+  effectiveType: ProjectTemplateType;
+  isFullyUnrestricted: boolean;
+  isManuallyUnlocked: boolean;
+
+  // Visibilidade contextual por Padrão de Layout (exibe apenas o que faz sentido no layout ativo)
+  showPosterSettings: boolean;
+  showPreTextualStructureToggles: boolean;
+  showTextColumnsControl: boolean;
+  showStandardPageSettings: boolean;
+  showPreTextualPaginationToggles: boolean;
+
+  // Colunas
+  allowColumnChange: boolean;
+  fixedColumns?: 1 | 2 | 3;
+  columnLockedReason?: string;
+
+  // Margens e Página
+  allowMarginChange: boolean;
+  marginLockedReason?: string;
+  allowPaperSizeChange: boolean;
+  paperSizeLockedReason?: string;
+  allowOrientationChange: boolean;
+  orientationLockedReason?: string;
+
+  // Estrutura pré-textual (Capa, Folha de Rosto, Sumário)
+  allowCoverToggle: boolean;
+  allowTitlePageToggle: boolean;
+  allowTocToggle: boolean;
+  structureLockedReason?: string;
+
+  // Quebra de página em H1 & numeração
+  allowH1PageBreakToggle: boolean;
+  h1PageBreakLockedReason?: string;
+
+  // Citações
+  allowedCitationFormats: CitationFormat[];
+  citationLockedReason?: string;
+
+  // Presets compatíveis
+  allowedPresetIds: NormPresetId[];
 }
 
 /**
@@ -383,4 +433,61 @@ export function getPreservedHiddenFields(
   checkText('annexes', 'annexes', 'Anexos', m.annexes);
 
   return hidden;
+}
+
+/**
+ * Retorna o escopo contextual de opções do Customizador de acordo com o Padrão de Layout ativo.
+ * Exibe apenas as seções que fazem sentido para o layout escolhido (ex.: opções de Pôster apenas
+ * em Pôster; Capa/Folha de Rosto/Sumário apenas em Monografias/Documentos), sem travas artificiais
+ * nas configurações visíveis.
+ */
+export function getCustomizerScope(
+  effectiveType: ProjectTemplateType,
+  _config?: TemplateConfig,
+  isManuallyUnlocked = false,
+): CustomizerScope {
+  const isPoster = effectiveType === 'poster';
+  const isCompactArticle =
+    effectiveType === 'artigo' || effectiveType === 'sbc' || effectiveType === 'ieee';
+  const hasPreTextualStructure = !isPoster && !isCompactArticle;
+
+  const allCitations: CitationFormat[] = [
+    'abnt_titlecase',
+    'ieee_numeric',
+    'superscript',
+    'author_date',
+  ];
+
+  const allLayoutPresets: NormPresetId[] = [
+    'abnt_classic',
+    'article_1col',
+    'apa_7',
+    'sbc',
+    'ieee',
+    'poster',
+  ];
+
+  return {
+    effectiveType,
+    isFullyUnrestricted: true,
+    isManuallyUnlocked,
+    showPosterSettings: isPoster,
+    showPreTextualStructureToggles: hasPreTextualStructure,
+    showTextColumnsControl: !isPoster,
+    showStandardPageSettings: !isPoster,
+    showPreTextualPaginationToggles: hasPreTextualStructure,
+    allowColumnChange: !isPoster,
+    allowMarginChange: true,
+    allowPaperSizeChange: !isPoster,
+    allowOrientationChange: !isPoster,
+    allowCoverToggle: hasPreTextualStructure,
+    allowTitlePageToggle: hasPreTextualStructure,
+    allowTocToggle: hasPreTextualStructure,
+    allowH1PageBreakToggle: hasPreTextualStructure,
+    allowedCitationFormats: allCitations,
+    allowedPresetIds:
+      effectiveType === 'universe_custom'
+        ? [...allLayoutPresets, 'universe_custom']
+        : allLayoutPresets,
+  };
 }

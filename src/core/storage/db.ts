@@ -7,6 +7,7 @@ import { DocumentProject, RedijaBackupFile } from '@/types/document';
 import { validateProjectQuota } from './imageQuota';
 import { normalizeProject } from './schemaNormalizer';
 import { saveEmergencySnapshot } from './emergencyBackup';
+import { addDriveTombstone } from './driveTrash';
 
 const ACTIVE_PROJECT_KEY = 'redija:activeProjectId';
 export const TRASH_RETENTION_DAYS = 30;
@@ -134,6 +135,15 @@ export async function purgeExpiredTrash(): Promise<number> {
   for (const proj of trashed) {
     const deletedTime = new Date(proj.deletedAt!).getTime();
     if (!Number.isNaN(deletedTime) && now - deletedTime >= TRASH_RETENTION_MS) {
+      // Se o Drive nunca confirmou a lixeira, deixa uma marca para o arquivo não voltar.
+      if (proj.driveFileId && proj.ownerEmail && proj.driveTrashSync !== 'synced') {
+        addDriveTombstone(
+          proj.ownerEmail,
+          proj.driveFileId,
+          proj.driveTrashSync === 'local-only' || proj.isSharedWithMe ? 'hide' : 'delete',
+          proj.id,
+        );
+      }
       await db.projects.delete(proj.id);
       purgedCount++;
     }
@@ -185,14 +195,27 @@ export async function duplicateProject(id: string): Promise<DocumentProject | un
 }
 
 /**
+ * Lista TODOS os projetos de um proprietário (ativos e na lixeira). Usado pela sincronização
+ * com o Drive, que precisa saber o que o usuário excluiu para nunca reimportar.
+ */
+export async function listAllProjectsForOwner(ownerEmail: string): Promise<DocumentProject[]> {
+  const all = await db.projects.toArray();
+  return all.filter((p) => p.ownerEmail === ownerEmail).map(normalizeProject);
+}
+
+/**
  * Move um projeto para a Lixeira (retenção de 30 dias).
  */
-export async function moveProjectToTrash(id: string): Promise<DocumentProject | undefined> {
+export async function moveProjectToTrash(
+  id: string,
+  driveTrashSync: DocumentProject['driveTrashSync'] = null,
+): Promise<DocumentProject | undefined> {
   const target = await db.projects.get(id);
   if (!target) return undefined;
   const trashed: DocumentProject = {
     ...target,
     deletedAt: new Date().toISOString(),
+    driveTrashSync,
   };
   await db.projects.put(trashed);
   return trashed;
@@ -200,17 +223,35 @@ export async function moveProjectToTrash(id: string): Promise<DocumentProject | 
 
 /**
  * Restaura um projeto da Lixeira para a lista principal.
+ * `name` permite renomear na restauração (ex.: para evitar conflito com outro projeto ativo).
  */
-export async function restoreProjectFromTrash(id: string): Promise<DocumentProject | undefined> {
+export async function restoreProjectFromTrash(
+  id: string,
+  options: { name?: string; driveTrashSync?: DocumentProject['driveTrashSync'] } = {},
+): Promise<DocumentProject | undefined> {
   const target = await db.projects.get(id);
   if (!target) return undefined;
   const restored: DocumentProject = {
     ...target,
+    ...(options.name ? { name: options.name } : {}),
     deletedAt: null,
+    driveTrashSync: options.driveTrashSync ?? null,
     updatedAt: new Date().toISOString(),
   };
   await db.projects.put(restored);
   return restored;
+}
+
+/**
+ * Atualiza apenas a marcação de sincronização da lixeira com o Drive (sem tocar em `updatedAt`).
+ */
+export async function setProjectDriveTrashSync(
+  id: string,
+  driveTrashSync: DocumentProject['driveTrashSync'],
+): Promise<void> {
+  const target = await db.projects.get(id);
+  if (!target) return;
+  await db.projects.put({ ...target, driveTrashSync });
 }
 
 /**

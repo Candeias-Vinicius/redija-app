@@ -7,6 +7,8 @@ export default mergeConfig(
     test: {
       include: ['src/**/*.{test,spec}.{ts,tsx}'],
       exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
+      // Testes nunca chamam o serviço de importação real, mesmo com VITE_IMPORT_API_URL no .env.local
+      env: { VITE_IMPORT_API_URL: '' },
     },
   }),
 );

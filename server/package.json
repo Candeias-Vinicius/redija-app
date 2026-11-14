@@ -1,0 +1,26 @@
+{
+  "name": "redija-import-service",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Serviço de conversão de documentos (.docx, .tex, .md, .typ, .zip) para o AST JSON do Pandoc, consumido pelo RedijaApp.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/index.ts",
+    "dev": "node --watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.0",
+    "fflate": "^0.8.2",
+    "hono": "^4.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.8.0"
+  }
+}

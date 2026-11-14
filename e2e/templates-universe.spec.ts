@@ -121,9 +121,9 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
     await expect(modalHeading).not.toBeVisible();
 
-    // Abre o Template Customizer
+    // Abre o Template Customizer pelo cabeçalho da barra lateral
     const customizerBtn = page.getByRole('button', {
-      name: 'Layout das Referências e Citações (Norma & Layout)',
+      name: 'Norma & Layout',
       exact: true,
     });
     await expect(customizerBtn).toBeVisible();
@@ -144,8 +144,8 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     // Seleciona o preset Pôster Acadêmico A0
     await page.getByRole('button', { name: /Pôster Acadêmico A0 \(Banner\)/i }).click();
 
-    // Vai para a aba Capa & Pôster para validar as opções de Pôster (sem conector Universe)
-    await page.getByRole('tab', { name: /^Capa & Pôster$/i }).click();
+    // Vai para a aba Banner & Pôster para validar as opções de Pôster (sem conector Universe)
+    await page.getByRole('tab', { name: /Banner & Pôster|Estrutura & Capa/i }).click();
     await expect(page.getByText(/Conector Typst Universe/i)).not.toBeVisible();
 
     // Valida que as opções de Pôster estão visíveis
@@ -191,11 +191,11 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     // Personaliza a capa para mudar preset de abnt_classic -> custom
     await sidebar
       .getByRole('button', {
-        name: 'Layout das Referências e Citações (Norma & Layout)',
+        name: 'Norma & Layout',
         exact: true,
       })
       .click();
-    await page.getByRole('tab', { name: /^Capa & Pôster$/i }).click();
+    await page.getByRole('tab', { name: /Estrutura & Capa/i }).click();
     await page.getByLabel(/Gerar Capa \(NBR 14724\)/i).uncheck();
     await page.getByRole('button', { name: /Aplicar e Atualizar PDF/i }).click();
 
@@ -244,7 +244,7 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
 
     await page
       .getByRole('button', {
-        name: 'Layout das Referências e Citações (Norma & Layout)',
+        name: 'Norma & Layout',
         exact: true,
       })
       .click();
@@ -290,17 +290,17 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     await page.keyboard.press('End');
     await page.keyboard.type(' @');
 
-    // Picker de referências abre e permite escolher SILVA; SOUZA
+    // Picker de referências abre e permite escolher SILVA; SOUZA (NBR 10520:2023)
     await expect(page.getByText('Selecionar Referência')).toBeVisible();
-    await page.getByRole('button', { name: /^\(SILVA; SOUZA, 2023\)/i }).click();
+    await page.getByRole('button', { name: /^\(Silva; Souza, 2023\)/i }).click();
 
-    // Pill reativo inserido no editor em formato ABNT
-    await expect(firstParagraph.getByRole('button', { name: '(SILVA; SOUZA, 2023)' })).toBeVisible();
+    // Pill reativo inserido no editor em formato ABNT NBR 10520:2023
+    await expect(firstParagraph.getByRole('button', { name: '(Silva; Souza, 2023)' })).toBeVisible();
 
     // Troca o formato para IEEE Numérico e ordenação por ordem de citação
     await page
       .getByRole('button', {
-        name: 'Layout das Referências e Citações (Norma & Layout)',
+        name: 'Norma & Layout',
         exact: true,
       })
       .click();
@@ -311,7 +311,7 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
 
     // O mesmo pill no texto deve atualizar retroativamente para [1]
     await expect(firstParagraph.getByRole('button', { name: '[1]' })).toBeVisible();
-    await expect(firstParagraph.getByRole('button', { name: '(SILVA; SOUZA, 2023)' })).not.toBeVisible();
+    await expect(firstParagraph.getByRole('button', { name: '(Silva; Souza, 2023)' })).not.toBeVisible();
 
     // Valida no código Typst gerado
     await page.getByRole('button', { name: /Ver Typst/i }).click();
@@ -319,7 +319,7 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     await expect(codeViewer).toContainText('\\[1\\]');
   });
 
-  test('seleciona Explorar no Typst Universe na aba Normas & Presets sem texto ou personalize nas abas', async ({
+  test('seleciona Explorar no Typst Universe na aba Padrões de Layout sem texto ou personalize nas abas', async ({
     page,
   }) => {
     const modalHeading = await ensureProjectsModal(page);
@@ -329,13 +329,13 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
 
     await page
       .getByRole('button', {
-        name: 'Layout das Referências e Citações (Norma & Layout)',
+        name: 'Norma & Layout',
         exact: true,
       })
       .click();
 
-    // Título da aba Normas & Presets sem "(ou personalize nas abas)"
-    await expect(page.getByText('Escolha um Padrão de Norma', { exact: true })).toBeVisible();
+    // Título da aba Padrões de Layout sem "(ou personalize nas abas)"
+    await expect(page.getByText('Escolha um Padrão de Layout', { exact: true })).toBeVisible();
     await expect(page.getByText(/personalize nas abas/i)).not.toBeVisible();
 
     // Conector fica oculto até clicar em Explorar no Typst Universe
@@ -374,7 +374,7 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     // Abre o Personalizador e clica apenas em "Explorar no Typst Universe" sem selecionar pacote
     await page
       .getByRole('button', {
-        name: 'Layout das Referências e Citações (Norma & Layout)',
+        name: 'Norma & Layout',
         exact: true,
       })
       .click();
@@ -405,7 +405,7 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     await page.getByRole('button', { name: /Ver PDF/i }).click();
     await page
       .getByRole('button', {
-        name: 'Layout das Referências e Citações (Norma & Layout)',
+        name: 'Norma & Layout',
         exact: true,
       })
       .click();

@@ -253,4 +253,72 @@ describe('schemaNormalizer: Regressão e Integridade de Dados', () => {
     expect(low.templateConfig?.paperSize).toBeUndefined();
     expect(low.templateConfig?.cslStyle).toBe('harvard-cite-them-right');
   });
+
+  it('migra o autor do documento de exemplo legado de Vinícius Candeias para Nome do Autor', () => {
+    const demoTitle =
+      'Desenvolvimento de uma Plataforma Automatizada para Redação Científica em Conformidade com as Normas da ABNT';
+
+    const migrated = normalizeProject({
+      name: 'Meu Trabalho Acadêmico ABNT',
+      metadata: {
+        title: demoTitle,
+        author: 'Vinícius Candeias',
+      },
+      blocks: [],
+    });
+    expect(migrated.metadata.author).toBe('Nome do Autor');
+
+    const preserved = normalizeProject({
+      name: 'TCC Pessoal',
+      metadata: {
+        title: 'Outro Título Qualquer',
+        author: 'Vinícius Candeias',
+      },
+      blocks: [],
+    });
+    expect(preserved.metadata.author).toBe('Vinícius Candeias');
+  });
+
+  it('preserva subImages (até 4 imagens), imageLayout e columns: 3 com validação segura', () => {
+    const projectWithMultiImages = normalizeProject({
+      name: 'Projeto Múltiplas Imagens',
+      metadata: { title: 'Figuras Compostas' },
+      templateConfig: {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        columns: 3,
+      },
+      blocks: [
+        {
+          id: 'fig-multi',
+          type: 'image',
+          content: '',
+          meta: {
+            caption: 'Comparativo de 4 amostras',
+            source: 'Os autores (2026)',
+            imageLayout: 'grid_2x2',
+            subImages: [
+              { dataUrl: 'data:image/png;base64,AAA=', label: 'Amostra 1' },
+              { dataUrl: 'data:image/png;base64,BBB=', label: 'Amostra 2' },
+              { dataUrl: 'data:image/png;base64,CCC=', label: 'Amostra 3' },
+              { dataUrl: 'data:image/png;base64,DDD=', label: 'Amostra 4' },
+              { dataUrl: 'data:image/png;base64,EEE=', label: 'Excedente ignorada' },
+            ],
+          },
+        },
+      ],
+    });
+
+    expect(projectWithMultiImages.templateConfig?.columns).toBe(3);
+    const meta = projectWithMultiImages.blocks[0].meta;
+    expect(meta?.imageLayout).toBe('grid_2x2');
+    expect(meta?.subImages).toHaveLength(4);
+    expect(meta?.subImages?.[0]).toMatchObject({
+      dataUrl: 'data:image/png;base64,AAA=',
+      label: 'Amostra 1',
+    });
+    expect(meta?.subImages?.[3]).toMatchObject({
+      dataUrl: 'data:image/png;base64,DDD=',
+      label: 'Amostra 4',
+    });
+  });
 });
