@@ -279,7 +279,7 @@ const WelcomeModalContent: React.FC<{
         </div>
 
         {/* Rodapé */}
-        <div className="px-6 py-3.5 border-t border-neutral-200 bg-neutral-50 flex items-center justify-between gap-3 shrink-0">
+        <div className="px-4 sm:px-6 py-3.5 border-t border-neutral-200 bg-neutral-50 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
           <a
             href="/docs"
             onClick={(e) => {
@@ -289,14 +289,14 @@ const WelcomeModalContent: React.FC<{
                 onOpenFullDocs();
               }
             }}
-            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline text-center sm:text-left"
           >
             Abrir Documentação Completa (/docs) &rarr;
           </a>
 
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-colors"
+            className="flex items-center justify-center gap-1.5 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-colors w-full sm:w-auto"
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>Fechar</span>

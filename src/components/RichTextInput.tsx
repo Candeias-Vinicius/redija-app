@@ -437,7 +437,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
 
         {/* Popover de Hyperlink */}
         {showLinkInput && (
-          <div className="absolute left-0 top-8 z-40 w-80 bg-white border border-neutral-200 rounded-xl shadow-xl p-2.5 text-xs space-y-2">
+          <div className="absolute left-0 top-8 z-40 w-[min(20rem,calc(100vw-2rem))] max-w-full bg-white border border-neutral-200 rounded-xl shadow-xl p-2.5 text-xs space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase text-neutral-500">
                 Inserir Link Clicável
@@ -496,7 +496,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
 
         {/* Popover de Matemática Inline */}
         {showMathInput && (
-          <div className="absolute left-0 top-8 z-40 w-80 bg-white border border-neutral-200 rounded-xl shadow-xl p-2.5 text-xs space-y-2">
+          <div className="absolute left-0 top-8 z-40 w-[min(20rem,calc(100vw-2rem))] max-w-full bg-white border border-neutral-200 rounded-xl shadow-xl p-2.5 text-xs space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase text-indigo-700 flex items-center gap-1">
                 <Sigma className="w-3 h-3" />
@@ -538,38 +538,36 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
           </div>
         )}
 
-        <div className="flex items-start gap-1.5 group/cite">
-          <div className="flex-1 min-w-0">
-            <EditorContent editor={editor} />
-          </div>
+        <div className="relative w-full group/cite">
+          <EditorContent editor={editor} />
 
-          <div className="opacity-0 group-hover/cite:opacity-100 focus-within:opacity-100 shrink-0 flex items-center gap-1 transition-all select-none">
+          {/* Botões flutuantes: position absolute para não roubar largura do texto no mobile */}
+          <div className="absolute right-0 -top-7 lg:top-0 opacity-0 group-hover/cite:opacity-100 focus-within:opacity-100 flex items-center gap-1 transition-opacity select-none z-20">
             <button
               type="button"
               onClick={openMathPopover}
-              className="flex items-center px-1.5 py-0.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-indigo-50 hover:border-indigo-300 text-[11px] font-medium text-neutral-500 hover:text-indigo-700 transition-colors"
+              className="flex items-center px-1.5 py-0.5 rounded-md border border-neutral-200 bg-white shadow-xs hover:bg-indigo-50 hover:border-indigo-300 text-[11px] font-medium text-neutral-500 hover:text-indigo-700 transition-colors"
               title="Inserir expressão matemática inline no texto ($...$)"
               aria-label="Inserir matemática inline"
             >
               <Sigma className="w-3 h-3" />
             </button>
 
-            {/* Botão rápido "+ Referência" que aparece discretamente à direita do parágrafo ao passar o mouse */}
             <button
               type="button"
               onClick={() => setShowCitationPicker((prev) => !prev)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-emerald-50 hover:border-emerald-300 text-[11px] font-medium text-neutral-500 hover:text-emerald-700 transition-colors"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md border border-neutral-200 bg-white shadow-xs hover:bg-emerald-50 hover:border-emerald-300 text-[11px] font-medium text-neutral-500 hover:text-emerald-700 transition-colors"
               title="Chamar uma referência bibliográfica no final ou meio do texto (ou digite @)"
             >
               <Bookmark className="w-3 h-3 text-emerald-600" />
-              <span>+ Referência</span>
+              <span className="hidden sm:inline">+ Referência</span>
             </button>
           </div>
         </div>
 
         {/* Seletor de Chamada de Referência (abre com @, pelo menu / ou pelo botão "+ Referência") */}
         {showCitationPicker && (
-          <div className="absolute left-0 top-7 z-30 w-80 bg-white border border-neutral-200 rounded-xl shadow-xl py-2 text-xs">
+          <div className="absolute left-0 top-7 z-30 w-[min(20rem,calc(100vw-2rem))] max-w-full bg-white border border-neutral-200 rounded-xl shadow-xl py-2 text-xs">
             <div className="px-3 pb-1.5 text-[10px] font-bold uppercase text-neutral-400 flex items-center justify-between border-b border-neutral-100">
               <span className="flex items-center gap-1">
                 <Bookmark className="w-3 h-3 text-emerald-600" />

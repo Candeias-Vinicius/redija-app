@@ -156,13 +156,14 @@ export const LandingNav: React.FC<LandingNavProps> = ({
             <button
               onClick={onOpenLogin}
               disabled={isLoading}
-              className={`inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl font-semibold text-xs transition-all shadow-xs active:scale-95 ${
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl font-semibold text-xs transition-all shadow-xs active:scale-95 ${
                 isDark
                   ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white'
               }`}
             >
-              <span>Entrar com Google</span>
+              <span className="sm:hidden">Entrar</span>
+              <span className="hidden sm:inline">Entrar com Google</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
 
