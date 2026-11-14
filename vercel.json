@@ -49,7 +49,7 @@
       ]
     },
     {
-      "source": "/fonts/(.*)\\.ttf",
+      "source": "/fonts/(.*)\\.(ttf|otf)",
       "headers": [
         {
           "key": "Cache-Control",
