@@ -1,5 +1,5 @@
 // =====================================================================
-// RedijaApp — Controle de Quota de Imagens por Projeto (150 MB)
+// RedijaApp — Controle de Quota de Imagens por Projeto (250 MB)
 // =====================================================================
 
 import { Block, DocumentMetadata, DocumentProject, SubImageItem } from '@/types/document';
@@ -10,10 +10,10 @@ import { Block, DocumentMetadata, DocumentProject, SubImageItem } from '@/types/
 export const MAX_IMAGES_PER_BLOCK = 4;
 
 /**
- * Limite máximo de armazenamento de imagens por projeto: 150 MB (150 * 1024 * 1024 bytes).
+ * Limite máximo de armazenamento de imagens por projeto: 250 MB (250 * 1024 * 1024 bytes).
  * Não há limite de quantidade de imagens — apenas o peso total acumulado no projeto.
  */
-export const MAX_PROJECT_IMAGE_BYTES = 150 * 1024 * 1024; // 157.286.400 bytes
+export const MAX_PROJECT_IMAGE_BYTES = 250 * 1024 * 1024; // 262.144.000 bytes
 
 /**
  * Limite de tamanho para o relato de problemas (Bug Report):
@@ -135,7 +135,7 @@ export function formatBytes(bytes: number): string {
 }
 
 /**
- * Valida se um arquivo de imagem pode ser adicionado ao projeto respeitando o teto de 150 MB.
+ * Valida se um arquivo de imagem pode ser adicionado ao projeto respeitando o teto de 250 MB.
  */
 export function validateImageUploadForProject(
   file: File,
@@ -153,11 +153,11 @@ export function validateImageUploadForProject(
     const availableBytes = Math.max(0, MAX_PROJECT_IMAGE_BYTES - currentProjectBytes);
     return {
       valid: false,
-      error: `Limite de 150 MB de imagens por projeto excedido! Esta imagem tem ${formatBytes(
+      error: `Limite de 250 MB de imagens por projeto excedido! Esta imagem tem ${formatBytes(
         file.size,
       )}, mas o projeto possui apenas ${formatBytes(availableBytes)} livres (uso atual: ${formatBytes(
         currentProjectBytes,
-      )} / 150 MB).`,
+      )} / 250 MB).`,
     };
   }
 
@@ -166,7 +166,7 @@ export function validateImageUploadForProject(
 
 /**
  * Valida o upload de um ou vários arquivos de imagem para um bloco de figura,
- * garantindo até 4 imagens por bloco e o teto de 150 MB do projeto.
+ * garantindo até 4 imagens por bloco e o teto de 250 MB do projeto.
  */
 export function validateMultipleImageUploadsForProject(
   files: File[],
@@ -195,14 +195,14 @@ export function validateMultipleImageUploadsForProject(
 }
 
 /**
- * Valida se o projeto inteiro (ex.: ao importar backup .redija) respeita o limite de 150 MB de imagens.
+ * Valida se o projeto inteiro (ex.: ao importar backup .redija) respeita o limite de 250 MB de imagens.
  */
 export function validateProjectQuota(project: DocumentProject): { valid: boolean; error?: string } {
   const totalBytes = calculateProjectImageBytes(project.blocks, project.metadata);
   if (totalBytes > MAX_PROJECT_IMAGE_BYTES) {
     return {
       valid: false,
-      error: `O projeto excede o limite máximo de 150 MB de imagens (${formatBytes(totalBytes)}).`,
+      error: `O projeto excede o limite máximo de 250 MB de imagens (${formatBytes(totalBytes)}).`,
     };
   }
   return { valid: true };

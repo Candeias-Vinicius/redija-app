@@ -102,13 +102,13 @@ describe('Persistência IndexedDB (Dexie) e Backup .redija', () => {
     expect(await listTrashedProjects()).toHaveLength(0);
   });
 
-  it('controla a quota de 150 MB de imagens por projeto sem limitar a quantidade de figuras', () => {
+  it('controla a quota de 250 MB de imagens por projeto sem limitar a quantidade de figuras', () => {
     const sampleDataUrl =
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     const byteSize = getDataUrlByteSize(sampleDataUrl);
     expect(byteSize).toBeGreaterThan(40);
 
-    // Simula 50 figuras leves no mesmo projeto (permitido pois depende apenas do peso total <= 150 MB)
+    // Simula 50 figuras leves no mesmo projeto (permitido pois depende apenas do peso total <= 250 MB)
     const blocks = Array.from({ length: 50 }, (_, idx) => ({
       id: `img_${idx}`,
       type: 'image' as const,
@@ -123,13 +123,13 @@ describe('Persistência IndexedDB (Dexie) e Backup .redija', () => {
     const smallFile = new File([new Uint8Array(1024)], 'figura.png', { type: 'image/png' });
     expect(validateImageUploadForProject(smallFile, usedBytes).valid).toBe(true);
 
-    // Bloqueia quando a soma ultrapassa 150 MB
+    // Bloqueia quando a soma ultrapassa 250 MB
     const nearLimitCheck = validateImageUploadForProject(
       smallFile,
       MAX_PROJECT_IMAGE_BYTES - 500,
     );
     expect(nearLimitCheck.valid).toBe(false);
-    expect(nearLimitCheck.error).toContain('150 MB');
+    expect(nearLimitCheck.error).toContain('250 MB');
   });
 
   it('isola estritamente os projetos do Perfil Local dos projetos de contas Google', async () => {
