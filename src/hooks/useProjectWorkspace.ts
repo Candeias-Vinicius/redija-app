@@ -15,6 +15,7 @@ import { importDocumentFile } from '@/core/storage/documentImporter';
 import { triggerBlobDownload } from '@/core/typst/projectCompiler';
 import {
   loadInitialActiveProject,
+  getProject,
   saveProject,
   listProjects,
   listTrashedProjects,
@@ -25,6 +26,8 @@ import {
   setActiveProjectId,
   serializeBackup,
 } from '@/core/storage/db';
+import { resolveRestoredProjectName } from '@/core/storage/driveTrash';
+import { pushTrashStateToDrive, purgeProjectFromDrive } from '@/core/storage/driveTrashSync';
 
 export const FALLBACK_INITIAL_PROJECT = createProjectFromTemplate('tcc');
 
@@ -156,6 +159,11 @@ interface UseProjectWorkspaceOptions {
   onEmptyWorkspace: () => void;
   onProjectImported: () => void;
   onReferenceUpdated: () => void;
+  /**
+   * Fornece um token do Google Drive quando o usuário está logado com Google.
+   * `null`/ausente no Perfil Local: a lixeira fica só no IndexedDB.
+   */
+  getDriveAccessToken?: (() => Promise<string | null>) | null;
 }
 
 export function useProjectWorkspace({
@@ -170,6 +178,7 @@ export function useProjectWorkspace({
   onEmptyWorkspace,
   onProjectImported,
   onReferenceUpdated,
+  getDriveAccessToken = null,
 }: UseProjectWorkspaceOptions) {
   const [projects, setProjects] = useState<DocumentProject[]>([FALLBACK_INITIAL_PROJECT]);
   const [trashedProjects, setTrashedProjects] = useState<DocumentProject[]>([]);
@@ -228,6 +237,13 @@ export function useProjectWorkspace({
     setSaveStatus('saving');
     const timer = setTimeout(async () => {
       try {
+        // Nunca ressuscita um projeto que foi para a lixeira enquanto estava aberto
+        // (ex.: excluído em outro dispositivo e propagado pela sincronização do Drive).
+        const stored = await getProject(project.id);
+        if (stored?.deletedAt) {
+          setSaveStatus('saved');
+          return;
+        }
         const toSave: DocumentProject = {
           ...project,
           ownerEmail: project.ownerEmail || activeOwner,
@@ -499,9 +515,42 @@ export function useProjectWorkspace({
     [projects, activeOwner, setProject],
   );
 
+  const isDriveLinked = Boolean(getDriveAccessToken) && activeOwner !== 'local';
+
+  /**
+   * Recarrega as listas (ativos/lixeira) a partir do IndexedDB. Se o projeto aberto foi para a
+   * lixeira (ex.: excluído em outro dispositivo), abre outro projeto no lugar.
+   */
+  const reloadProjectLists = useCallback(async () => {
+    const all = await listProjects(activeOwner);
+    const trashed = await listTrashedProjects(activeOwner);
+    setProjects(all);
+    setTrashedProjects(trashed);
+    if (trashed.some((p) => p.id === project.id)) {
+      if (all.length > 0) {
+        skipNextAutoSaveRef.current = true;
+        setProject(all[0]);
+        setActiveProjectId(all[0].id, activeOwner);
+      } else {
+        onEmptyWorkspace();
+      }
+    }
+  }, [activeOwner, project.id, setProject, onEmptyWorkspace]);
+
   const handleMoveToTrash = useCallback(
     async (id: string) => {
-      await moveProjectToTrash(id);
+      const target = await getProject(id);
+      if (!target) return;
+
+      // A lixeira local vale na hora; o Drive é atualizado em seguida (e re-tentado no sync).
+      const usesDrive = isDriveLinked && Boolean(target.driveFileId);
+      const initialState = !usesDrive
+        ? null
+        : target.isSharedWithMe
+          ? 'local-only'
+          : 'pending-trash';
+      await moveProjectToTrash(id, initialState);
+
       const all = await listProjects(activeOwner);
       const trashed = await listTrashedProjects(activeOwner);
       setProjects(all);
@@ -515,13 +564,30 @@ export function useProjectWorkspace({
       } else {
         onEmptyWorkspace();
       }
+
+      if (initialState === 'pending-trash' && getDriveAccessToken) {
+        const token = await getDriveAccessToken().catch(() => null);
+        await pushTrashStateToDrive(target, true, token);
+      }
     },
-    [activeOwner, project.id, setProject, onEmptyWorkspace],
+    [activeOwner, project.id, setProject, onEmptyWorkspace, isDriveLinked, getDriveAccessToken],
   );
 
   const handleRestoreFromTrash = useCallback(
     async (id: string) => {
-      const restored = await restoreProjectFromTrash(id);
+      const target = await getProject(id);
+      if (!target) return;
+
+      // Evita dois projetos ativos com o mesmo nome (e, no Drive, dois arquivos homônimos).
+      const activeNames = (await listProjects(activeOwner)).map((p) => p.name);
+      const freeName = resolveRestoredProjectName(target.name, activeNames);
+      const needsDrive =
+        isDriveLinked && Boolean(target.driveFileId) && target.driveTrashSync !== 'local-only';
+
+      const restored = await restoreProjectFromTrash(id, {
+        name: freeName !== target.name ? freeName : undefined,
+        driveTrashSync: needsDrive ? 'pending-restore' : null,
+      });
       if (!restored) return;
       const all = await listProjects(activeOwner);
       const trashed = await listTrashedProjects(activeOwner);
@@ -530,19 +596,30 @@ export function useProjectWorkspace({
       skipNextAutoSaveRef.current = true;
       setProject(restored);
       setActiveProjectId(restored.id, activeOwner);
+
+      if (needsDrive && getDriveAccessToken) {
+        const token = await getDriveAccessToken().catch(() => null);
+        await pushTrashStateToDrive(restored, false, token);
+      }
     },
-    [activeOwner, setProject],
+    [activeOwner, setProject, isDriveLinked, getDriveAccessToken],
   );
 
   const handlePermanentDelete = useCallback(
     async (id: string) => {
+      const target = await getProject(id);
       await deleteProject(id);
       const all = await listProjects(activeOwner);
       const trashed = await listTrashedProjects(activeOwner);
       setProjects(all);
       setTrashedProjects(trashed);
+
+      if (target?.driveFileId && isDriveLinked && getDriveAccessToken) {
+        const token = await getDriveAccessToken().catch(() => null);
+        await purgeProjectFromDrive(activeOwner, target, token);
+      }
     },
-    [activeOwner],
+    [activeOwner, isDriveLinked, getDriveAccessToken],
   );
 
   const handleExportBackup = useCallback((targetProject: DocumentProject) => {
@@ -593,6 +670,7 @@ export function useProjectWorkspace({
     handleMoveToTrash,
     handleRestoreFromTrash,
     handlePermanentDelete,
+    reloadProjectLists,
     handleExportBackup,
     handleImportBackup,
   };

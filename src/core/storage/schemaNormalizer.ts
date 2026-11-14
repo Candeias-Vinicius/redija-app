@@ -536,6 +536,12 @@ export function normalizeProject(raw: unknown): DocumentProject {
     references,
     updatedAt,
     deletedAt,
+    ...(data.driveTrashSync === 'pending-trash' ||
+    data.driveTrashSync === 'pending-restore' ||
+    data.driveTrashSync === 'local-only' ||
+    data.driveTrashSync === 'synced'
+      ?{ driveTrashSync: data.driveTrashSync }
+      : {}),
     ownerEmail: typeof data.ownerEmail === 'string' ? data.ownerEmail : undefined,
     driveFileId: typeof data.driveFileId === 'string' ? data.driveFileId : undefined,
     driveSyncedAt: typeof data.driveSyncedAt === 'string' ? data.driveSyncedAt : undefined,

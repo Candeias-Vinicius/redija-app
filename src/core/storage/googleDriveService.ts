@@ -12,11 +12,38 @@ export interface DriveProjectSummary {
   name: string;
   modifiedTime: string;
   isSharedWithMe: boolean;
+  /** ID do projeto RedijaApp gravado em `appProperties` (ausente em arquivos legados). */
+  redijaProjectId?: string;
   sharedBy?: {
     name?: string;
     email?: string;
     photoLink?: string;
   };
+}
+
+/**
+ * Erro de chamada à API do Drive que preserva o status HTTP e o motivo informado pelo Google
+ * (ex.: 403 + `insufficientFilePermissions` vs. 403 + `userRateLimitExceeded`).
+ */
+export class DriveRequestError extends Error {
+  readonly status: number;
+  readonly reason?: string;
+  constructor(fallbackMessage: string, status: number, body?: unknown) {
+    const apiError = (body as { error?: { message?: string; errors?: { reason?: string }[] } })
+      ?.error;
+    super(apiError?.message || fallbackMessage);
+    this.name = 'DriveRequestError';
+    this.status = status;
+    this.reason = apiError?.errors?.[0]?.reason;
+  }
+
+  /** O usuário não tem permissão para alterar o arquivo (ex.: compartilhado por outra pessoa). */
+  get isPermissionDenied(): boolean {
+    return (
+      this.status === 403 &&
+      (this.reason === 'insufficientFilePermissions' || this.reason === 'forbidden')
+    );
+  }
 }
 
 export interface Collaborator {
@@ -34,6 +61,7 @@ interface GoogleDriveApiFile {
   sharedWithMeTime?: string;
   sharingUser?: { displayName?: string; emailAddress?: string; photoLink?: string };
   owners?: { displayName?: string; emailAddress?: string; photoLink?: string }[];
+  appProperties?: Record<string, string>;
 }
 
 interface GoogleDrivePermissionApi {
@@ -84,22 +112,28 @@ export async function findDriveFileForProject(
     console.warn('Erro ao consultar Drive por appProperties:', err);
   }
 
-  // 2. Se não encontrou por appProperties, busca pelo nome exato do arquivo
+  // 2. Se não encontrou por appProperties, busca pelo nome exato do arquivo.
+  // Só reaproveita arquivos legados (sem `redijaProjectId`): um arquivo homônimo que já pertence
+  // a OUTRO projeto nunca pode ser sobrescrito só porque os nomes coincidem.
   try {
     const safeName = fileName.replace(/'/g, "\\'");
     const nameQuery = encodeURIComponent(`name = '${safeName}' and trashed = false`);
     const nameRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${nameQuery}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc`,
+      `https://www.googleapis.com/drive/v3/files?q=${nameQuery}&fields=files(id,modifiedTime,appProperties)&orderBy=modifiedTime desc`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
       }
     );
     if (nameRes.ok) {
       const data = await nameRes.json();
-      if (data.files && data.files.length > 0) {
+      const legacyMatch = ((data.files || []) as GoogleDriveApiFile[]).find((f) => {
+        const ownerProjectId = f.appProperties?.redijaProjectId;
+        return !ownerProjectId || ownerProjectId === project.id;
+      });
+      if (legacyMatch) {
         return {
-          id: data.files[0].id,
-          modifiedTime: data.files[0].modifiedTime || new Date().toISOString(),
+          id: legacyMatch.id,
+          modifiedTime: legacyMatch.modifiedTime || new Date().toISOString(),
         };
       }
     }
@@ -289,10 +323,13 @@ export async function saveProjectToDrive(
     };
   }
 
+  // O estado da lixeira é local + lixeira nativa do Drive; não vai dentro do conteúdo do arquivo.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { deletedAt: _deletedAt, driveTrashSync: _driveTrashSync, ...projectContent } = project;
   const backupPayload: RedijaBackupFile = {
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    project,
+    project: projectContent,
   };
 
   const fileContent = JSON.stringify(backupPayload, null, 2);
@@ -566,7 +603,7 @@ export async function listDriveProjects(accessToken: string): Promise<DriveProje
 
   const query = encodeURIComponent("name contains '.redija' and trashed = false");
   const fields = encodeURIComponent(
-    'files(id, name, modifiedTime, sharedWithMeTime, sharingUser, owners)'
+    'files(id, name, modifiedTime, sharedWithMeTime, sharingUser, owners, appProperties)'
   );
 
   const response = await fetch(
@@ -593,6 +630,9 @@ export async function listDriveProjects(accessToken: string): Promise<DriveProje
       name: f.name.replace(/\.redija$/i, ''),
       modifiedTime: f.modifiedTime,
       isSharedWithMe: isShared,
+      ...(f.appProperties?.redijaProjectId
+        ? { redijaProjectId: f.appProperties.redijaProjectId }
+        : {}),
       sharedBy: isShared
         ? {
             name: sharing?.displayName || owner?.displayName || 'Outro usuário',
@@ -602,6 +642,34 @@ export async function listDriveProjects(accessToken: string): Promise<DriveProje
         : undefined,
     };
   });
+}
+
+/**
+ * Lista os IDs dos arquivos `.redija` do usuário que estão na lixeira do Google Drive.
+ * Usado para propagar exclusões feitas em outro dispositivo (ou direto no Drive).
+ */
+export async function listTrashedDriveProjectIds(accessToken: string): Promise<Set<string>> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    return new Set();
+  }
+
+  const query = encodeURIComponent("name contains '.redija' and trashed = true");
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id)&pageSize=1000`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new DriveRequestError(
+      'Erro ao consultar a lixeira do Google Drive.',
+      response.status,
+      err,
+    );
+  }
+
+  const data = await response.json();
+  return new Set(((data.files || []) as { id: string }[]).map((f) => f.id));
 }
 
 /**
@@ -635,48 +703,101 @@ export async function loadProjectFromDrive(
   return loadedProject;
 }
 
-/**
- * Move um arquivo para a lixeira do Google Drive.
- */
-export async function trashDriveProject(fileId: string, accessToken: string): Promise<void> {
+async function setDriveFileTrashed(
+  fileId: string,
+  trashed: boolean,
+  accessToken: string,
+): Promise<void> {
   const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
     method: 'PATCH',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ trashed: true }),
+    body: JSON.stringify({ trashed }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message || 'Erro ao mover arquivo para a lixeira no Drive.');
+    throw new DriveRequestError(
+      trashed
+        ? 'Erro ao mover arquivo para a lixeira no Drive.'
+        : 'Erro ao restaurar arquivo da lixeira no Drive.',
+      res.status,
+      err,
+    );
   }
+}
+
+/**
+ * Lista os IDs das cópias em PDF geradas para um projeto (identificadas por `appProperties`).
+ */
+async function listProjectPdfCopyIds(
+  projectId: string,
+  trashed: boolean,
+  accessToken: string,
+): Promise<string[]> {
+  const q = encodeURIComponent(
+    `appProperties has { key='redijaProjectId' and value='${projectId}' } and appProperties has { key='isRedijaPdf' and value='true' } and trashed = ${trashed}`,
+  );
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return [];
+  const data = await res.json().catch(() => ({}));
+  return ((data.files || []) as { id: string }[]).map((f) => f.id);
+}
+
+/**
+ * Move (ou restaura) um projeto na lixeira nativa do Google Drive.
+ * O arquivo `.redija` é obrigatório (lança `DriveRequestError` em caso de falha);
+ * a cópia em PDF acompanha o projeto em regime de melhor esforço.
+ */
+export async function setDriveProjectTrashed(
+  target: { projectId: string; fileId: string },
+  trashed: boolean,
+  accessToken: string,
+): Promise<void> {
+  if (accessToken.startsWith('mock_dev_token')) {
+    await new Promise((r) => setTimeout(r, 150));
+    return;
+  }
+
+  await setDriveFileTrashed(target.fileId, trashed, accessToken);
+
+  try {
+    const pdfIds = await listProjectPdfCopyIds(target.projectId, !trashed, accessToken);
+    await Promise.all(
+      pdfIds.map((id) => setDriveFileTrashed(id, trashed, accessToken).catch(() => undefined)),
+    );
+  } catch (err) {
+    console.warn('Não foi possível atualizar a cópia PDF na lixeira do Drive:', err);
+  }
+}
+
+/**
+ * Move um arquivo para a lixeira do Google Drive.
+ */
+export async function trashDriveProject(fileId: string, accessToken: string): Promise<void> {
+  await setDriveFileTrashed(fileId, true, accessToken);
 }
 
 /**
  * Restaura um arquivo da lixeira do Google Drive.
  */
 export async function restoreDriveProject(fileId: string, accessToken: string): Promise<void> {
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ trashed: false }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message || 'Erro ao restaurar arquivo da lixeira no Drive.');
-  }
+  await setDriveFileTrashed(fileId, false, accessToken);
 }
 
 /**
  * Exclui permanentemente um arquivo .redija do Google Drive.
+ * Quando `projectId` é informado, também remove (melhor esforço) as cópias em PDF do projeto.
  */
-export async function deleteDriveProject(fileId: string, accessToken: string): Promise<void> {
+export async function deleteDriveProject(
+  fileId: string,
+  accessToken: string,
+  projectId?: string,
+): Promise<void> {
   if (accessToken.startsWith('mock_dev_token')) {
     await new Promise((r) => setTimeout(r, 150));
     return;
@@ -688,7 +809,22 @@ export async function deleteDriveProject(fileId: string, accessToken: string): P
 
   if (!res.ok && res.status !== 404) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message || 'Erro ao excluir arquivo no Google Drive.');
+    throw new DriveRequestError('Erro ao excluir arquivo no Google Drive.', res.status, err);
+  }
+
+  if (projectId) {
+    const pdfIds = [
+      ...(await listProjectPdfCopyIds(projectId, true, accessToken).catch(() => [])),
+      ...(await listProjectPdfCopyIds(projectId, false, accessToken).catch(() => [])),
+    ];
+    await Promise.all(
+      pdfIds.map((id) =>
+        fetch(`https://www.googleapis.com/drive/v3/files/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }).catch(() => undefined),
+      ),
+    );
   }
 }
 
