@@ -68,11 +68,16 @@ export function pickMainFile(files: string[], readText: (f: string) => string): 
     files.filter((f) => exts.includes(path.extname(f).toLowerCase())).sort(byDepth);
 
   const texFiles = ofExt(['.tex', '.latex']);
-  const texWithClass = texFiles.filter((f) => /\\documentclass\b/.test(readText(f)));
-  if (texWithClass.length > 0) {
-    const preferred = texWithClass.find((f) => /^(main|documento|tese|tcc|monografia|dissertacao)\.tex$/i.test(path.basename(f)));
-    return preferred ?? texWithClass[0];
+  const preferName = (list: string[]) =>
+    list.find((f) => /^(main|documento|tese|tcc|monografia|dissertacao)\.tex$/i.test(path.basename(f))) ?? list[0];
+  // O principal é quem tem \begin{document}; o \documentclass pode estar num preâmbulo incluído via \input
+  const texWithBody = texFiles.filter((f) => /^[^%\n]*\\begin\s*\{document\}/m.test(readText(f)));
+  if (texWithBody.length > 0) {
+    const withClass = texWithBody.filter((f) => /\\documentclass\b/.test(readText(f)));
+    return preferName(withClass.length > 0 ? withClass : texWithBody);
   }
+  const texWithClass = texFiles.filter((f) => /\\documentclass\b/.test(readText(f)));
+  if (texWithClass.length > 0) return preferName(texWithClass);
 
   const typFiles = ofExt(['.typ']);
   if (typFiles.length > 0) {
@@ -136,21 +141,116 @@ export const LATEX_PRELUDE = [
 
 const BRACED_ARG = String.raw`\{(?:[^{}]|\{[^{}]*\})*\}`;
 const TABLE_ENV = /\\begin\{table\*?\}[\s\S]*?\\end\{table\*?\}/g;
-const TABLE_NOTE = new RegExp(String.raw`\\(?:fonte|legend|nota)\s*${BRACED_ARG}`, 'g');
+const TABLE_NOTE = new RegExp(String.raw`\\(?:fonte|legend|nota)\s*(?:\[[^\]]*\])?\s*${BRACED_ARG}`, 'g');
+
+/**
+ * Reescreve ambientes do abntex2 que o Pandoc não entende para equivalentes que ele entende,
+ * envolvidos num ambiente marcador que vira `Div` com a classe correspondente no AST:
+ * - `siglas`/`simbolos` (listas com `\item[SIGLA]`) → `description` dentro de `redijasiglas`/`redijasimbolos`
+ * - `quadro` → `table` dentro de `redijaquadro` (o front marca a tabela como Quadro)
+ * - `longtable` dentro de floats → `tabular`, para a legenda (`\caption`) não se perder
+ */
+export function normalizeAbntexEnvironments(source: string): string {
+  let out = source
+    .replace(/\\begin\{(siglas|simbolos)\}/g, '\\begin{redija$1}\\begin{description}')
+    .replace(/\\end\{(siglas|simbolos)\}/g, '\\end{description}\\end{redija$1}')
+    .replace(/\\begin\{quadro\}(\s*\[[^\]]*\])?/g, '\\begin{redijaquadro}\\begin{table}$1')
+    .replace(/\\end\{quadro\}/g, '\\end{table}\\end{redijaquadro}')
+    // \setlength antes do primeiro \item impede o Pandoc de reconhecer a lista
+    .replace(/\\setlength\s*\{\\(?:parskip|itemsep|parsep|topsep)\}\s*\{[^}]*\}/g, '')
+    // Linha-modelo de tabulação (`xxxx \= xxxx \kill`) do ambiente tabbing não é conteúdo
+    .replace(/^[^\n%]*\\kill[ \t]*$/gm, '');
+
+  out = out.replace(TABLE_ENV, (env) =>
+    env
+      .replace(/\\(begin|end)\{longtable\}/g, '\\$1{tabular}')
+      .replace(/\\end(?:firsthead|head|foot|lastfoot)\b/g, ''),
+  );
+  return out;
+}
+
+/** Nomes pelos quais os .sty enviados no upload podem ser carregados (`style/ucsal` e `ucsal`). */
+export function localPackageNames(files: string[]): Set<string> {
+  const names = new Set<string>();
+  for (const f of files) {
+    if (!/\.sty$/i.test(f)) continue;
+    const withoutExt = f.replace(/\.sty$/i, '');
+    names.add(withoutExt.toLowerCase());
+    names.add(path.posix.basename(withoutExt).toLowerCase());
+  }
+  return names;
+}
+
+/** Remove `\usepackage`/`\RequirePackage` de pacotes locais, mantendo os demais da mesma lista. */
+export function removeLocalPackages(source: string, localNames: Set<string>): string {
+  if (localNames.size === 0) return source;
+  return source.replace(
+    /\\(usepackage|RequirePackage)\s*(\[[^\]]*\])?\s*\{([^}]*)\}/g,
+    (whole, cmd: string, opts: string | undefined, list: string) => {
+      const kept = list
+        .split(',')
+        .map((n) => n.trim())
+        .filter((n) => n && !localNames.has(n.replace(/\.sty$/i, '').toLowerCase()));
+      if (kept.length === list.split(',').filter((n) => n.trim()).length) return whole;
+      return kept.length > 0 ? `\\${cmd}${opts ?? ''}{${kept.join(',')}}` : '';
+    },
+  );
+}
+
+/** Remove comentários LaTeX (`% …` até o fim da linha), preservando `\%`. */
+export function stripLatexComments(source: string): string {
+  return source.replace(/(^|[^\\])%.*$/gm, '$1');
+}
 
 /**
  * O leitor LaTeX do Pandoc só aproveita o `tabular` e a legenda de um ambiente `table`.
  * Move `\fonte{}`, `\legend{}` e `\nota{}` para logo depois do `\end{table}` para não perdê-los.
+ * Tabelas comentadas (`%\begin{table}`) ficam intocadas.
  */
 export function moveTableNotesOutside(source: string): string {
-  return source.replace(TABLE_ENV, (env) => {
-    const notes = env.match(TABLE_NOTE);
+  return source.replace(TABLE_ENV, (env, offset: number) => {
+    const lineStart = source.lastIndexOf('\n', offset - 1) + 1;
+    if (source.slice(lineStart, offset).includes('%')) return env;
+    const clean = stripLatexComments(env);
+    const notes = clean.match(TABLE_NOTE);
     if (!notes) return env;
-    return `${env.replace(TABLE_NOTE, '')}\n${notes.join('\n')}\n`;
+    return `${clean.replace(TABLE_NOTE, '')}\n${notes.join('\n')}\n`;
   });
 }
 
 type JsonNode ={ t?: string; c?: unknown } & Record<string, unknown>;
+
+/**
+ * Monta o preâmbulo do documento principal com os `\input`/`\include` expandidos (sem comentários),
+ * para que o front encontre \titulo, \autor, \orientador… mesmo quando estão em arquivos separados
+ * (ex.: `configuracoes/metadados.tex`). Só o trecho antes de `\begin{document}` é expandido.
+ */
+export function expandLatexPreamble(mainFile: string, readText: (f: string) => string | undefined): string {
+  const mainDir = path.posix.dirname(mainFile);
+  const stripComments = stripLatexComments;
+  const resolve = (name: string): string | undefined => {
+    const clean = name.trim().replace(/^"|"$/g, '');
+    const base = path.posix.normalize(path.posix.join(mainDir === '.' ? '' : mainDir, clean));
+    for (const candidate of [base, `${base}.tex`]) {
+      if (readText(candidate) !== undefined) return candidate;
+    }
+    return undefined;
+  };
+
+  const seen = new Set<string>();
+  const expand = (text: string, depth: number): string =>
+    stripComments(text).replace(/\\(?:input|include)\s*\{([^}]+)\}/g, (_whole, name: string) => {
+      const target = resolve(name);
+      if (!target || seen.has(target) || depth > 8) return '';
+      seen.add(target);
+      return `\n${expand(readText(target) ?? '', depth + 1)}\n`;
+    });
+
+  const main = readText(mainFile) ?? '';
+  const bodyStart = main.search(/\\begin\s*\{document\}/);
+  const preamble = bodyStart >= 0 ? main.slice(0, bodyStart) : main;
+  return `${expand(preamble, 0)}\n${bodyStart >= 0 ? main.slice(bodyStart) : ''}`;
+}
 
 /** Percorre o AST e chama `visit` em cada nó `{t, c}`. */
 function walkAst(node: unknown, visit: (n: JsonNode) => void): void {
@@ -363,17 +463,23 @@ export async function convertUpload(fileName: string, bytes: Uint8Array): Promis
     const mainDir = path.dirname(mainAbs);
     let inputName = path.basename(mainFile);
 
-    if (format === 'latex') {
-      // As cópias no tmp podem ser ajustadas: o upload original não é tocado
+    // As cópias no tmp podem ser ajustadas: o upload original não é tocado
+    const writeLatexCopies = async (ignoreLocalPackages: boolean) => {
+      const localPackages = ignoreLocalPackages ? localPackageNames(files) : new Set<string>();
       let mainAdjusted = textCache.get(mainFile) ?? '';
       for (const f of files.filter((name) => /\.(tex|latex)$/i.test(name))) {
         const original = textCache.get(f) ?? '';
-        const adjusted = moveTableNotesOutside(original);
+        let adjusted = moveTableNotesOutside(normalizeAbntexEnvironments(original));
+        if (ignoreLocalPackages) adjusted = removeLocalPackages(adjusted, localPackages);
         if (adjusted !== original) await writeFile(path.join(root, f), adjusted, 'utf8');
         if (f === mainFile) mainAdjusted = adjusted;
       }
+      await writeFile(path.join(mainDir, '.redija-main.tex'), `${LATEX_PRELUDE}\n${mainAdjusted}`, 'utf8');
+    };
+
+    if (format === 'latex') {
       inputName = '.redija-main.tex';
-      await writeFile(path.join(mainDir, inputName), `${LATEX_PRELUDE}\n${mainAdjusted}`, 'utf8');
+      await writeLatexCopies(false);
     }
 
     if (format === 'typst') {
@@ -385,7 +491,19 @@ export async function convertUpload(fileName: string, bytes: Uint8Array): Promis
     const args = ['-f', PANDOC_READER[format], '-t', 'json', inputName];
     if (format === 'docx') args.push('--extract-media=.redija-media');
 
-    const astJson = await runPandoc(args, { cwd: mainDir });
+    let astJson: string;
+    try {
+      astJson = await runPandoc(args, { cwd: mainDir });
+    } catch (err) {
+      // Pacotes .sty próprios da instituição costumam usar programação TeX (\if, \@empty, …) que o
+      // Pandoc não consegue expandir. Nova tentativa ignorando-os: os comandos desconhecidos são
+      // descartados e os metadados continuam vindo de `mainSource` no front.
+      const hasLocalPackages = localPackageNames(files).size > 0;
+      if (format !== 'latex' || !hasLocalPackages || !(err instanceof ImportError) || err.status !== 422) throw err;
+      await writeLatexCopies(true);
+      astJson = await runPandoc(args, { cwd: mainDir });
+      warnings.push('Os pacotes .sty do próprio projeto foram ignorados para conseguir ler o documento.');
+    }
     const ast = JSON.parse(astJson) as { 'pandoc-api-version'?: unknown };
 
     const { math, images } = collectMathAndImages(ast);
@@ -402,10 +520,12 @@ export async function convertUpload(fileName: string, bytes: Uint8Array): Promis
     const bibFiles = files.filter((f) => /\.bib$/i.test(f));
     const bibliography = await convertBibliographies(bibFiles, root, warnings);
 
-    const mainSource =
-      format === 'latex' || format === 'typst'
-        ? (textCache.get(mainFile) ?? '').slice(0, config.maxSourceEchoBytes)
-        : undefined;
+    let mainSource: string | undefined;
+    if (format === 'latex') {
+      mainSource = expandLatexPreamble(mainFile, (f) => textCache.get(f)).slice(0, config.maxSourceEchoBytes);
+    } else if (format === 'typst') {
+      mainSource = (textCache.get(mainFile) ?? '').slice(0, config.maxSourceEchoBytes);
+    }
 
     return {
       format,

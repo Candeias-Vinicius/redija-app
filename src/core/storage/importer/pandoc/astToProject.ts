@@ -333,6 +333,55 @@ const DIV_SECTIONS: Record<string, SpecialSection> = {
   epigrafe: 'epigraph',
 };
 
+/** Linhas "TERMO: definição" de listas de siglas/símbolos (DefinitionList ou parágrafos soltos). */
+function definitionEntries(blocks: PandocBlock[]): string[] {
+  const entries: string[] = [];
+  for (const b of blocks) {
+    if (b.t === 'DefinitionList') {
+      for (const [term, defs] of b.c) {
+        const t = inlinesToText(term);
+        const d = defs.map(blocksToText).join(' ').replace(/\s+/g, ' ').trim();
+        if (t || d) entries.push(t && d ? `${t}: ${d}` : t || d);
+      }
+    } else if (b.t === 'Div') {
+      entries.push(...definitionEntries(b.c[1]));
+    } else {
+      const text = blocksToText([b]);
+      if (text) entries.push(text);
+    }
+  }
+  return entries;
+}
+
+/** Linhas "SIGLA: descrição" de um ambiente tabbing (linhas separadas por `\\`). */
+function tabbingEntries(blocks: PandocBlock[]): string[] {
+  const entries: string[] = [];
+  for (const b of blocks) {
+    if (b.t !== 'Para' && b.t !== 'Plain') continue;
+    let line: PandocInline[] = [];
+    const flush = () => {
+      const m = inlinesToText(line).match(/^(\S+)\s+(.+)$/);
+      if (m) entries.push(`${m[1]}: ${m[2]}`);
+      line = [];
+    };
+    for (const node of b.c) {
+      if (node.t === 'LineBreak') flush();
+      else line.push(node);
+    }
+    flush();
+  }
+  return entries;
+}
+
+/** Linhas de cabeçalho que alguns modelos repetem dentro do Resumo (título, autor, orientador). */
+function isAbstractHeaderLine(text: string): boolean {
+  if (/^(autor|autora|autores|author|authors|orientador|orientadora|coorientador|advisor|supervisor)\s*:/i.test(text)) {
+    return true;
+  }
+  const letters = text.replace(/[^A-Za-zÀ-ÿ]/g, '');
+  return letters.length > 20 && letters === letters.toUpperCase();
+}
+
 /**
  * `\begin{otherlanguage*}{english}` chega como Div cujo primeiro parágrafo começa com um Span
  * contendo o nome do idioma ("english"). Remove esse marcador.
@@ -371,7 +420,10 @@ function parseReferenceParagraph(text: string): AcademicReference | null {
   };
 }
 
-const CAPTION_RE = /^(figura|imagem|gr[aá]fico|ilustra[cç][aã]o|fotografia|tabela|quadro)\s+\d+[a-z]?\s*[-–—:.]\s*(.+)$/i;
+/** Blocos que recebem legenda e fonte ABNT. */
+const isFloat = (b: Block) => b.type === 'image' || b.type === 'table' || b.type === 'box';
+
+const CAPTION_RE =/^(figura|imagem|gr[aá]fico|ilustra[cç][aã]o|fotografia|tabela|quadro)\s+\d+[a-z]?\s*[-–—:.]\s*(.+)$/i;
 const SOURCE_RE = /^fonte\s*:\s*(.+)$/i;
 const QUOTE_TAIL_RE = /\(([A-ZÀ-Ý][^,()]{1,80}),\s*(\d{4}[a-z]?)(?:,\s*p{1,2}\.\s*([\d\s–-]+))?\)\s*\.?\s*$/;
 
@@ -388,11 +440,15 @@ interface ExtractedSections {
   dedicatory: string[];
   epigraph: string[];
   referenceParagraphs: string[];
+  abbreviations: string[];
+  symbols: string[];
 }
 
 class BlockMapper {
   private readonly out: Block[] = [];
   private section: SpecialSection = 'none';
+  /** Antes do primeiro título estamos na parte pré-textual (listas, resumo…). */
+  private seenHeading = false;
   readonly sections: ExtractedSections = {
     resumo: [],
     abstract: [],
@@ -402,6 +458,8 @@ class BlockMapper {
     dedicatory: [],
     epigraph: [],
     referenceParagraphs: [],
+    abbreviations: [],
+    symbols: [],
   };
   private readonly ctx: MapContext;
 
@@ -440,15 +498,15 @@ class BlockMapper {
 
     switch (this.section) {
       case 'resumo': {
-        const kw = this.parseKeywords(text, /^palavras[- ]chave\s*:\s*(.+)$/i);
+        const kw = this.parseKeywords(text, /^palavras[- ]chaves?\s*:\s*(.+)$/i);
         if (kw) this.sections.keywords = kw;
-        else this.sections.resumo.push(text);
+        else if (!isAbstractHeaderLine(text)) this.sections.resumo.push(text);
         return true;
       }
       case 'abstract': {
-        const kw = this.parseKeywords(text, /^(?:keywords|key-words|index terms|palabras clave)\s*:\s*(.+)$/i);
+        const kw = this.parseKeywords(text, /^(?:key[- ]?words?|index terms|palabras clave)\s*:\s*(.+)$/i);
         if (kw) this.sections.foreignKeywords = kw;
-        else this.sections.abstract.push(text);
+        else if (!isAbstractHeaderLine(text)) this.sections.abstract.push(text);
         return true;
       }
       case 'references':
@@ -501,7 +559,7 @@ class BlockMapper {
           const before = this.out.length;
           this.processBlock(next);
           const produced = this.out.slice(before);
-          const target = produced.find((b) => b.type === 'image' || b.type === 'table');
+          const target = produced.find(isFloat);
           if (target) {
             target.meta = { ...target.meta, caption: captionMatch[2].trim() };
             if (target.type === 'table' && /^quadro/i.test(captionMatch[1])) target.type = 'box';
@@ -516,19 +574,41 @@ class BlockMapper {
 
       const before = this.out.length;
       this.processBlock(block);
-      const last = this.out.slice(before).find((b) => b.type === 'image' || b.type === 'table');
+      const last = this.out.slice(before).find(isFloat);
       if (last) i = this.consumeSourceLine(blocks, i, last);
     }
   }
 
+  /** Texto de uma linha "Fonte: …" com citações escritas como "Sobrenome (ano)". */
+  private inlinesToSourceText(inlines: PandocInline[]): string {
+    const withCites = inlines.map((node): PandocInline => {
+      if (node.t !== 'Cite') return node;
+      const labels = node.c[0].map((cit) => {
+        const ref = this.ctx.citeKeyToRef.get(cit.citationId);
+        if (!ref) return cit.citationId;
+        const pretty = firstAuthorSurname(ref)
+          .toLowerCase()
+          .replace(/(^|[\s-])(\p{L})/gu, (_m, sep: string, ch: string) => sep + ch.toUpperCase());
+        return `${pretty} (${ref.year})`;
+      });
+      return { t: 'Str', c: labels.join('; ') };
+    });
+    return inlinesToText(withCites);
+  }
+
   /** Se o próximo parágrafo for "Fonte: ...", grava na figura/tabela e o consome. */
   private consumeSourceLine(blocks: PandocBlock[], index: number, target: Block): number {
-    const next = blocks[index + 1];
+    // Pula parágrafos vazios (ex.: `\label{}` solto entre a tabela e a fonte)
+    let j = index + 1;
+    while (j < blocks.length && (blocks[j].t === 'Para' || blocks[j].t === 'Plain') && !blocksToText([blocks[j]])) {
+      j++;
+    }
+    const next = blocks[j];
     if (next && (next.t === 'Para' || next.t === 'Plain')) {
-      const m = inlinesToText(next.c).match(SOURCE_RE);
+      const m = this.inlinesToSourceText(next.c).match(SOURCE_RE);
       if (m) {
         target.meta = { ...target.meta, source: m[1].replace(/\.$/, '').trim() };
-        return index + 1;
+        return j;
       }
     }
     return index;
@@ -542,6 +622,7 @@ class BlockMapper {
       ? 'unnumbered_heading'
       : (`h${Math.min(Math.max(level, 1), 5)}` as Block['type']);
     // Títulos guardam texto puro no Redija
+    this.seenHeading = true;
     this.emit({ id: newId(), type, content: plain });
   }
 
@@ -692,7 +773,7 @@ class BlockMapper {
         const captionText = blocksToText(caption[1]);
         const before = this.out.length;
         this.processBlocks(content);
-        const img = this.out.slice(before).find((b) => b.type === 'image' || b.type === 'table');
+        const img = this.out.slice(before).find(isFloat);
         if (img && captionText) {
           const m = captionText.match(CAPTION_RE);
           img.meta = { ...img.meta, caption: m ? m[2] : captionText };
@@ -703,6 +784,26 @@ class BlockMapper {
         const classes = block.c[0][1];
         if (classes.includes('citacao')) {
           this.processQuote(block.c[1]);
+          return;
+        }
+        if (classes.includes('redijaquadro') || classes.includes('quadro')) {
+          const before = this.out.length;
+          this.processBlocks(block.c[1]);
+          for (const b of this.out.slice(before)) if (b.type === 'table') b.type = 'box';
+          return;
+        }
+        const listTarget = classes.includes('redijasiglas') || classes.includes('siglas')
+          ? this.sections.abbreviations
+          : classes.includes('redijasimbolos') || classes.includes('simbolos')
+            ? this.sections.symbols
+            : null;
+        if (listTarget) {
+          listTarget.push(...definitionEntries(block.c[1]));
+          return;
+        }
+        // Lista de siglas montada com `tabbing` (SIGLA \> descrição) antes do primeiro capítulo
+        if (classes.includes('tabbing') && !this.seenHeading) {
+          this.sections.abbreviations.push(...tabbingEntries(block.c[1]));
           return;
         }
         const divSection = classes.map((c) => DIV_SECTIONS[c]).find(Boolean);
@@ -856,6 +957,8 @@ const CONTENT_PLACEHOLDER_FIELDS = [
   'acknowledgments',
   'epigraph',
   'epigraphAuthor',
+  'abbreviations',
+  'symbols',
 ] as const;
 
 function clearTemplatePlaceholders(metadata: DocumentMetadata, template?: ProjectTemplateType): void {
@@ -915,6 +1018,8 @@ export function pandocResponseToProject(response: ConvertResponse, projectName: 
   if (sections.acknowledgments.length > 0) metadata.acknowledgments = sections.acknowledgments.join('\n');
   if (sections.dedicatory.length > 0) metadata.dedicatory = sections.dedicatory.join('\n');
   if (sections.epigraph.length > 0) metadata.epigraph = sections.epigraph.join('\n');
+  if (sections.abbreviations.length > 0) metadata.abbreviations = sections.abbreviations.join('\n');
+  if (sections.symbols.length > 0) metadata.symbols = sections.symbols.join('\n');
 
   // Word/Markdown sem estilo "Título": usa o primeiro h1 como título do trabalho
   if (!astMeta.fields.title && (response.format === 'docx' || response.format === 'markdown')) {

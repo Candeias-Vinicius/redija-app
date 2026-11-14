@@ -250,6 +250,104 @@ describe('pandocResponseToProject', () => {
   });
 });
 
+describe('ambientes do abntex2 reescritos pelo servidor', () => {
+  const cell = (text: string) =>
+    [A, { t: 'AlignDefault' }, 1, 1, [{ t: 'Plain', c: txt(text) }]] as [typeof A, unknown, number, number, PandocBlock[]];
+  const table = (caption: string): PandocBlock => ({
+    t: 'Table',
+    c: [A, [null, [{ t: 'Plain', c: txt(caption) }]], [], [A, [[A, [cell('A'), cell('B')]]]], [[A, 0, [], [[A, [cell('1'), cell('2')]]]]], [A, []]],
+  });
+  const cite = (id: string): PandocInline => ({
+    t: 'Cite',
+    c: [[{ citationId: id, citationPrefix: [], citationSuffix: [], citationMode: { t: 'NormalCitation' } }], [{ t: 'RawInline', c: ['latex', `\\cite{${id}}`] }]],
+  });
+
+  const project = pandocResponseToProject(
+    response(
+      [
+        { t: 'Div', c: [['', ['redijasiglas'], []], [{ t: 'DefinitionList', c: [[txt('AMAN'), [[para(txt('Academia Militar'))]]]] }]] },
+        {
+          t: 'Div',
+          c: [['', ['resumo'], []], [
+            para(txt('TÍTULO DO TRABALHO EM CAIXA ALTA')),
+            para(txt('AUTOR: Fulano')),
+            para(txt('O resumo de verdade.')),
+            para(txt('Palavras-chaves: a; b.')),
+          ]],
+        },
+        { t: 'Div', c: [['', ['redijaquadro'], []], [{ t: 'Div', c: [['tab:x', [], []], [table('Meu quadro')]] }]] },
+        { t: 'Para', c: [{ t: 'Span', c: [['tab:x', [], [['label', 'tab:x']]], []] }] },
+        para(txt('Fonte:'), [{ t: 'Space' }, cite('liduario2023')]),
+      ],
+      {
+        format: 'latex',
+        bibliography: [{ id: 'liduario2023', author: [{ family: 'Villaça Liduário', given: 'Ruy' }], title: 'Gephi', issued: { 'date-parts': [[2023]] } }],
+      },
+    ),
+    'x',
+  );
+
+  it('leva siglas para os metadados e limpa o cabeçalho do resumo', () => {
+    expect(project.metadata.abbreviations).toBe('AMAN: Academia Militar');
+    expect(project.metadata.abstract).toBe('O resumo de verdade.');
+    expect(project.metadata.keywords).toEqual(['a', 'b']);
+  });
+
+  it('marca quadro como box e acha a fonte com citação mesmo após \\label solto', () => {
+    expect(project.blocks).toHaveLength(1);
+    expect(project.blocks[0]).toMatchObject({
+      type: 'box',
+      meta: { caption: 'Meu quadro', source: 'Villaça Liduário (2023)' },
+    });
+  });
+});
+
+describe('modelos institucionais com comandos próprios (ex.: UCSAL)', () => {
+  const source = [
+    '\\titulo{Ensino de matemática}',
+    '\\palavraschave{1. Gamification.',
+    '2. Mathematics Education.}',
+    '\\DEELautor{ Ana Lima\\\\Beto Reis \\\\}{}',
+    '% \\DEELresumo{comentado}',
+    '\\begin{document}',
+    '\\DEELresumo{',
+    'Primeiro parágrafo.',
+    '',
+    'Segundo \\textbf{parágrafo}.}',
+    '\\DEELdedicatoria{Dedico a todos. \\\\}',
+  ].join('\n');
+
+  const project = pandocResponseToProject(
+    response(
+      [
+        {
+          t: 'Div',
+          c: [['', ['tabbing'], []], [{ t: 'Para', c: [{ t: 'SmallCaps', c: txt('API') }, { t: 'Space' }, { t: 'Emph', c: txt('Application Interface') }, { t: 'LineBreak' }, ...txt('BES Engenharia de Software')] }]],
+        },
+        header(1, 'Introdução'),
+        para(txt('Corpo.')),
+      ],
+      { format: 'latex', mainSource: source },
+    ),
+    'x',
+  );
+
+  it('lê autores, resumo com parágrafos, palavras-chave numeradas e dedicatória', () => {
+    expect(project.metadata).toMatchObject({
+      title: 'Ensino de matemática',
+      author: 'Ana Lima; Beto Reis',
+      abstract: 'Primeiro parágrafo.\nSegundo parágrafo.',
+      keywords: ['Gamification', 'Mathematics Education'],
+      dedicatory: 'Dedico a todos.',
+    });
+  });
+
+  it('usa o tabbing pré-textual como lista de siglas', () => {
+    expect(project.metadata.abbreviations).toBe('API: Application Interface\nBES: Engenharia de Software');
+    expect(project.blocks.map((b) => b.type)).toEqual(['h1', 'paragraph']);
+  });
+});
+
 describe('cslToReference', () => {
   it('mapeia artigo de periódico com DOI e páginas', () => {
     const ref = cslToReference({

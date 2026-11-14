@@ -5,7 +5,13 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { zipSync, strToU8 } from 'fflate';
 import { isOriginAllowed } from './app.ts';
-import { moveTableNotesOutside, pickMainFile, stripTypstTemplateWrappers } from './convert.ts';
+import {
+  expandLatexPreamble,
+  localPackageNames,
+  moveTableNotesOutside,
+  removeLocalPackages,
+  normalizeAbntexEnvironments,
+  pickMainFile, stripTypstTemplateWrappers } from './convert.ts';
 import { findUnsafeLatexIncludes, findUnsafeTypstIncludes, isSafeRelativePath } from './pathSafety.ts';
 import { ImportError, safeUnzip } from './zip.ts';
 
@@ -51,6 +57,73 @@ test('moveTableNotesOutside tira \\fonte{} de dentro do ambiente table', () => {
   const out = moveTableNotesOutside(src);
   assert.ok(out.includes('\\begin{figure}\\legend{Fonte: A}\\end{figure}'), 'figura intacta');
   assert.match(out, /\\end\{table\}\n\\fonte\{Dados \{IBGE\}\.\}/);
+});
+
+test('moveTableNotesOutside ignora tabelas comentadas e notas que atravessam comentários', () => {
+  const commented = '%%\\begin{table}\n%%\\nota{texto que\n%%continua.}\n%%\\end{table}\nCorpo.';
+  assert.equal(moveTableNotesOutside(commented), commented);
+
+  const live = '\\begin{table}\n\\nota[Anotação]{A nota.} % comentário }\n\\end{table}';
+  const out = moveTableNotesOutside(live);
+  assert.match(out, /\\end\{table\}\n\\nota\[Anotação\]\{A nota\.\}/);
+  assert.ok(!out.includes('comentário'));
+});
+
+test('normalizeAbntexEnvironments converte siglas, quadro e longtable', () => {
+  const src = [
+    '\\begin{siglas}',
+    '\\setlength{\\itemsep}{0pt}',
+    '\\item[AMAN] Academia Militar',
+    '\\end{siglas}',
+    '\\begin{quadro}[H]',
+    '\\caption{Q}',
+    '\\begin{longtable}{ll}',
+    'a & b \\\\ \\endhead',
+    '\\end{longtable}',
+    '\\end{quadro}',
+  ].join('\n');
+  const out = normalizeAbntexEnvironments(src);
+  assert.match(out, /\\begin\{redijasiglas\}\\begin\{description\}/);
+  assert.ok(!out.includes('\\setlength'));
+  assert.match(out, /\\begin\{redijaquadro\}\\begin\{table\}\[H\]/);
+  assert.match(out, /\\begin\{tabular\}\{ll\}/);
+  assert.ok(!out.includes('longtable') && !out.includes('\\endhead'));
+  assert.match(out, /\\end\{table\}\\end\{redijaquadro\}/);
+
+  const tabbing = normalizeAbntexEnvironments('\\begin{tabbing}\nxxxx \\= xxxx \\kill\nAPI \\> Interface\\\\\n\\end{tabbing}');
+  assert.ok(!tabbing.includes('\\kill'));
+  assert.match(tabbing, /API \\> Interface/);
+});
+
+test('removeLocalPackages tira só os pacotes .sty enviados no projeto', () => {
+  const names = localPackageNames(['style/ucsal.sty', 'main.tex']);
+  const src = '\\usepackage[portuguese]{style/ucsal}\n\\usepackage{graphicx,ucsal}\n\\usepackage{longtable}';
+  const out = removeLocalPackages(src, names);
+  assert.ok(!out.includes('ucsal'));
+  assert.match(out, /\\usepackage\{graphicx\}/);
+  assert.match(out, /\\usepackage\{longtable\}/);
+});
+
+test('expandLatexPreamble segue \\input do preâmbulo e ignora os comentados', () => {
+  const files: Record<string, string> = {
+    'documento.tex': '\\input{estrutura/preambulo}\n%\\input{estrutura/velho}\n\\begin{document}\nCorpo\n\\end{document}',
+    'estrutura/preambulo.tex': '\\documentclass{abntex2}\n\\input{configuracoes/metadados}',
+    'configuracoes/metadados.tex': '\\titulo{Sociometria}\n\\autor{Fulano}',
+    'estrutura/velho.tex': '\\titulo{Antigo}',
+  };
+  const out = expandLatexPreamble('documento.tex', (f) => files[f]);
+  assert.match(out, /\\titulo\{Sociometria\}/);
+  assert.match(out, /\\autor\{Fulano\}/);
+  assert.ok(!out.includes('Antigo'));
+  assert.match(out, /\\begin\{document\}/);
+});
+
+test('pickMainFile escolhe o arquivo com \\begin{document} mesmo sem \\documentclass', () => {
+  const texts: Record<string, string> = {
+    'documento.tex': '\\input{estrutura/preambulo}\n\\begin{document}\n\\end{document}',
+    'estrutura/preambulo.tex': '\\documentclass{abntex2}',
+  };
+  assert.equal(pickMainFile(Object.keys(texts), (f) => texts[f] ?? ''), 'documento.tex');
 });
 
 test('pickMainFile prefere .tex com \\documentclass', () => {
