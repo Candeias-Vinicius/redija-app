@@ -64,14 +64,14 @@ export const LandingNav: React.FC<LandingNavProps> = ({
         {/* Esquerda: Logotipo Compacto */}
         <a
           href="#"
-          className="flex items-center gap-2 group transition-transform active:scale-95"
+          className="flex shrink-0 items-center gap-2 group transition-transform active:scale-95"
           aria-label="Ir para o início do RedijaApp"
         >
           <Logo size="sm" variant={isDark ? 'dark' : 'light'} />
         </a>
 
         {/* Direita: Links de Navegação e Ações alinhados */}
-        <div className="flex items-center gap-3 sm:gap-6">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-6">
           {/* Navegação Desktop Enxuta */}
           <nav className="hidden md:flex items-center gap-1 lg:gap-2">
             {navLinks.map((link) => (
@@ -127,7 +127,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
               href={GITHUB_REPO_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className={`p-1.5 sm:p-2 rounded-xl border transition-colors ${
+              className={`hidden sm:inline-flex p-2 rounded-xl border transition-colors ${
                 isDark
                   ? 'border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white'
                   : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900'
