@@ -29,10 +29,51 @@ updates:
         patterns:
           - "tailwindcss"
           - "@tailwindcss/*"
+      # Demais atualizações minor/patch num único PR semanal (majors seguem em PRs separados)
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
     ignore:
       # Aguardar typescript-eslint suportar TypeScript >= 7 (peerDependency atual < 6.1.0)
       - dependency-name: "typescript"
         versions: [">= 7.0.0"]
+
+  # Serviço de importação (Pandoc no Railway)
+  - package-ecosystem: "npm"
+    directory: "/server"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(server)"
+    labels:
+      - "dependencies"
+      - "server"
+      - "automated"
+    groups:
+      server-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "docker"
+    directory: "/server"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 1
+    commit-message:
+      prefix: "chore(server)"
+    labels:
+      - "dependencies"
+      - "server"
+      - "automated"
+    ignore:
+      # Manter a linha LTS do Node (24); só aceitar patches/minors da imagem
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
