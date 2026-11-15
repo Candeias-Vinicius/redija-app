@@ -1,0 +1,48 @@
+name: Responsável do Épico → Histórias
+
+# Quem é dono do épico (label `epic`) passa a ser dono das histórias abertas dele.
+# Lógica em .github/scripts/sync-epic-assignees.cjs
+
+on:
+  issues:
+    types: [assigned, unassigned]
+  workflow_dispatch:
+    inputs:
+      epic:
+        description: 'Número do épico (ex.: 71). Vazio = todos os épicos abertos.'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Só simular, sem alterar nada'
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  group: epic-assignees-${{ github.event.issue.number || 'manual' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync:
+    name: Sincronizar responsáveis
+    # Em eventos de issue, só roda para épicos.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.issue.labels.*.name, 'epic')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Copiar responsável do épico para as histórias
+        uses: actions/github-script@v9
+        env:
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        with:
+          script: |
+            const run = require('./.github/scripts/sync-epic-assignees.cjs');
+            await run({ github, context, core });
