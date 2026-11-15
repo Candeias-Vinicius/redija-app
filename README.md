@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.3.0--beta-059669?style=flat-square" alt="Versão 0.3.0-beta" />
+  <img src="https://img.shields.io/badge/version-0.4.0--beta-059669?style=flat-square" alt="Versão 0.4.0-beta" />
   <a href="https://github.com/project-rev/redija-app/actions/workflows/ci.yml"><img src="https://github.com/project-rev/redija-app/actions/workflows/ci.yml/badge.svg?branch=develop" alt="CI & Guardrails" /></a>
   <img src="https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react&logoColor=white" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript 6.0" />
@@ -36,15 +36,25 @@ O **RedijaApp** combina uma interface visual em blocos (estilo Notion, baseada e
 
 ---
 
-## Novidades da versão 0.3.0-beta
+## Novidades da versão 0.4.0-beta
 
-- **Importação via Pandoc:** novo serviço de conversão ([`server/`](server/README.md)) que transforma `.docx`, `.tex`, `.md`, `.typ` e `.zip` (Overleaf/Typst) em projetos `.redija`, preservando títulos, listas, tabelas/quadros, figuras com legenda e fonte ABNT, notas, equações, resumo/abstract e referências do `.bib`. Projetos LaTeX reais (abnTeX2 e modelos institucionais) agora são importados corretamente. Sem o serviço, o app volta aos importadores locais.
+- **Layout responsivo:** a partir de 1024 px, Estrutura, Texto e PDF ficam lado a lado com larguras ajustáveis. Em telas menores, um painel por vez, alternado por abas. Cabeçalho, modais, editor, preview e landing também foram ajustados para celular.
+- **Importação só via Pandoc:** `.docx`, `.tex`, `.md`, `.typ` e `.zip` (Overleaf/Typst) passam apenas pelo serviço de conversão ([`server/`](server/README.md)). Os importadores antigos por regex foram removidos; sem o serviço, o app mostra uma mensagem clara. Arquivos `.redija` e `.zip` exportados pelo Redija continuam sendo importados localmente.
+- **Arquivos maiores na importação:** upload de até 250 MB (600 MB descompactado), imagens de até 50 MB cada e cota de imagens por projeto de 250 MB.
+- **Nova casa no GitHub:** o repositório agora é [`project-rev/redija-app`](https://github.com/project-rev/redija-app), com template de PR, fluxo de branches documentado no [CONTRIBUTING](CONTRIBUTING.md) e um [Project](https://github.com/orgs/project-rev/projects/2) com o roadmap em épicos e histórias.
+
+<details>
+<summary>Novidades da versão 0.3.0-beta</summary>
+
+- **Importação via Pandoc:** novo serviço de conversão ([`server/`](server/README.md)) que transforma `.docx`, `.tex`, `.md`, `.typ` e `.zip` (Overleaf/Typst) em projetos `.redija`, preservando títulos, listas, tabelas/quadros, figuras com legenda e fonte ABNT, notas, equações, resumo/abstract e referências do `.bib`. Projetos LaTeX reais (abnTeX2 e modelos institucionais) agora são importados corretamente.
 - **Normas atualizadas:** ABNT **NBR 10520:2023** (citações) e **NBR 6028:2021** (resumos), com avisos contextuais no Customizer quando uma alteração foge da norma.
 - **Figuras com até 4 imagens:** um único bloco de figura agrupa até quatro imagens (em linha, grade 2×2 ou empilhadas), com legenda e fonte compartilhadas.
 - **Norma & Layout simplificado:** abas do Customizer reorganizadas e com menos opções redundantes.
 - **Equações no PDF:** a fonte matemática *New Computer Modern Math* agora vem embutida, então blocos de equação e matemática inline compilam no WASM.
 - **Lixeira sincronizada com o Google Drive:** mover um projeto para a Lixeira também o envia para a lixeira do Drive; restaurar e excluir de vez são refletidos lá e em outros dispositivos.
 - **Release automático:** cada merge na `main` cria a tag e a Release no GitHub a partir da versão do `package.json`.
+
+</details>
 
 ---
 
@@ -72,7 +82,7 @@ O projeto adota processamento *local-first* e separação clara entre thread de 
 
 - **Worker WASM Dedicado (`src/core/typst/typst.worker.ts`):** compilador e renderizador Typst operam fora da *main thread*, rasterizando páginas em `OffscreenCanvas` e transferindo `ImageBitmap` *zero-copy* para o preview.
 - **Transpilador & Verificadores Plurais (`src/core/transpiler/`):** gera código `.typ` multi-normas e valida regras via estratégias desacopladas (`linters/`).
-- **Persistência & Importadores (`src/core/storage/`):** IndexedDB (Dexie.js) com lixeira de 30 dias sincronizada com a lixeira do Google Drive, sincronização BYOS via Google Drive v3 API e *Auto-Merge* não destrutivo. A importação usa o mapper `importer/pandoc/astToProject.ts` (AST do Pandoc → `.redija`), com os parsers locais (`.docx`, `.tex`/`.zip`, `.typ`, `.redija`) como fallback.
+- **Persistência & Importadores (`src/core/storage/`):** IndexedDB (Dexie.js) com lixeira de 30 dias sincronizada com a lixeira do Google Drive, sincronização BYOS via Google Drive v3 API e *Auto-Merge* não destrutivo. A importação usa o mapper `importer/pandoc/astToProject.ts` (AST do Pandoc → `.redija`). Só `.redija` e `.zip` exportados pelo Redija são lidos localmente (`importer/redijaZip.ts`).
 - **Serviço de Importação (`server/`):** API Node ([Hono](https://hono.dev)) + Pandoc 3.6 empacotada em Docker e publicada no Railway. Não guarda arquivos e tem limites de upload, proteção contra *zip bomb*/*zip slip*, CORS restrito e *rate limit*. Infraestrutura descrita como código em [`.railway/railway.ts`](.railway/railway.ts).
 - **Layout Responsivo (`src/hooks/usePaneLayout.ts`):** em telas a partir de 1024px, Estrutura, Texto e PDF ficam lado a lado com larguras ajustáveis. Em telas menores, um painel por vez, alternado por abas.
 - **Colaboração P2P (`src/core/collaboration/`):** troca de diffs e presença em blocos via WebRTC (PeerJS) e BroadcastChannel, sem banco de dados central.
@@ -83,7 +93,7 @@ O projeto adota processamento *local-first* e separação clara entre thread de 
 | **Interface & Editor** | React 19, Tailwind CSS v4, TipTap 3, Lucide Icons |
 | **Motor Tipográfico** | Typst WASM (`typst-ts ^0.7.0`: `typst-ts-web-compiler` + `typst-ts-renderer`) |
 | **Linguagem & Build** | TypeScript 6.0, Vite 8 |
-| **Armazenamento & P2P** | Dexie 4 (IndexedDB), Google Identity Services / Drive API, PeerJS, JSZip, Mammoth |
+| **Armazenamento & P2P** | Dexie 4 (IndexedDB), Google Identity Services / Drive API, PeerJS, JSZip |
 | **Importação (servidor)** | Node 24, Hono 4, Pandoc 3.6, Docker, Railway (Infrastructure as Code) |
 | **Qualidade & Testes** | ESLint 10 (`--max-warnings 0`), Prettier 3, Vitest 5, Playwright Chromium |
 
@@ -148,7 +158,7 @@ Detalhes de endpoints, Docker e deploy em [`server/README.md`](server/README.md)
 | Variável | Obrigatória? | Finalidade |
 | :--- | :---: | :--- |
 | `VITE_GOOGLE_CLIENT_ID` | Opcional | Client ID OAuth 2.0 (Google Cloud Console) para habilitar login e sync real com Google Drive. |
-| `VITE_IMPORT_API_URL` | Opcional | URL do serviço de importação (ex.: `http://localhost:8080`). Sem ela, a importação usa os conversores locais, que não aceitam `.md`. |
+| `VITE_IMPORT_API_URL` | Opcional | URL do serviço de importação (ex.: `http://localhost:8080`). Sem ela, só `.redija` e `.zip` exportados pelo Redija podem ser importados; os demais formatos mostram uma mensagem de serviço indisponível. |
 | `RESEND_API_KEY` | Opcional *(prod)* | Chave do Resend usada pela Vercel Serverless Function em `/api/feedback`. |
 | `RESEND_FROM_EMAIL` | Opcional *(prod)* | Remetente configurado no serviço Resend. |
 | `RESEND_TO_EMAIL` | Opcional *(prod)* | Caixa de destino para relatos de bug/contato (padrão: `contato.redija@gmail.com`). |
