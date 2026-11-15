@@ -21,7 +21,7 @@ test.describe('RedijaApp: Documentação Integrada (/docs) & Links GitHub', () =
     const githubLink = page.getByRole('link', { name: /Ver Código no GitHub/i });
     await expect(githubLink).toHaveAttribute(
       'href',
-      'https://github.com/Candeias-Vinicius/redija-app',
+      'https://github.com/project-rev/redija-app',
     );
     await expect(page.getByText(/Código aberto sob licença AGPL-3\.0/i)).toBeVisible();
     await expect(page.getByRole('link', { name: /Créditos & Typst \(Apache-2\.0\)/i })).toBeVisible();
@@ -169,7 +169,7 @@ test.describe('RedijaApp: Documentação Integrada (/docs) & Links GitHub', () =
 
     await expect(page.locator('a[href="/docs"]').first()).toBeVisible();
     await expect(
-      page.locator('a[href="https://github.com/Candeias-Vinicius/redija-app"]').first(),
+      page.locator('a[href="https://github.com/project-rev/redija-app"]').first(),
     ).toBeVisible();
 
     // Navega para /docs pelo link do topo

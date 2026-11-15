@@ -6,7 +6,7 @@ Obrigado pelo interesse em contribuir com o **RedijaApp**! Contribuições envol
 
 ## Reportando Bugs e Sugerindo Melhorias
 
-Antes de abrir uma nova issue, verifique se o tema já não foi relatado nas [Issues do repositório](https://github.com/Candeias-Vinicius/redija-app/issues).
+Antes de abrir uma nova issue, verifique se o tema já não foi relatado nas [Issues do repositório](https://github.com/project-rev/redija-app/issues).
 
 Ao abrir uma **Bug Issue**, procure incluir:
 - Passos exatos para reproduzir o problema;
@@ -27,7 +27,7 @@ Ao abrir uma **Bug Issue**, procure incluir:
 ### Passo a passo
 
 ```bash
-git clone https://github.com/Candeias-Vinicius/redija-app.git
+git clone https://github.com/project-rev/redija-app.git
 cd redija-app
 npm install
 cp .env.example .env
