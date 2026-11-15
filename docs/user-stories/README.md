@@ -21,10 +21,13 @@ O comentário `<!-- issue: {...} -->` antes de cada título guarda os metadados 
 | Nota de conformidade (RDJ-05) | Começa em 100. Item estrutural obrigatório ausente −15, `warning` −5, `info` −1, mínimo 0. Verde ≥ 90, amarelo 70–89, vermelho < 70. |
 | Modelos iniciais (RDJ-02) | USP, UNICAMP, UFMG, IFSP e uma instituição particular de grande porte (a definir por quem assumir a issue). |
 | Dia ativo (RDJ-06/RDJ-11) | Pelo menos 50 palavras líquidas (adicionadas − removidas) no dia, no fuso horário local. |
+| Compartilhamento e colaboração (RDJ-03) | O épico segue as 3 fases de [`arquitetura-compartilhamento-colaboracao.md`](../arquitetura-compartilhamento-colaboracao.md): base Yjs e Drive, tempo real com servidor no Railway e revisão (comentários, histórico e sugestões). O link de leitura sem login continua separado (RDJ-08). |
 
 ## Regra de ouro
 
-Nenhuma funcionalidade pode exigir banco de dados próprio nem armazenar dados do usuário em servidor do projeto. Quando precisar de "nuvem", usar o Google Drive do usuário (BYOS). Quando precisar de serviço pago, usar a chave do próprio usuário (BYOK).
+Nenhuma funcionalidade pode exigir banco de dados próprio nem armazenar dados do usuário em servidor do projeto. Quando precisar de "nuvem", usar o Google Drive do usuário (BYOS). Quando precisar de serviço pago de terceiros, usar a chave do próprio usuário (BYOK).
+
+Os serviços próprios rodam só no Railway já contratado (importação via Pandoc e, a partir do RDJ-03, colaboração em tempo real), sem banco e sem guardar conteúdo: o que passa por eles fica só em memória ou em pasta temporária.
 
 ## Ciclo 1 · Aquisição (P1)
 
@@ -47,13 +50,22 @@ Nenhuma funcionalidade pode exigir banco de dados próprio nem armazenar dados d
 | [#85](https://github.com/project-rev/redija-app/issues/85) | RDJ-02.9 | Modelo institucional: UFMG | História | P1 | P | [RDJ-02-modelos-por-instituicao.md](RDJ-02-modelos-por-instituicao.md) |
 | [#86](https://github.com/project-rev/redija-app/issues/86) | RDJ-02.10 | Modelo institucional: IFSP | História | P1 | P | [RDJ-02-modelos-por-instituicao.md](RDJ-02-modelos-por-instituicao.md) |
 | [#87](https://github.com/project-rev/redija-app/issues/87) | RDJ-02.11 | Modelo institucional: instituição particular de grande porte | História | P1 | P | [RDJ-02-modelos-por-instituicao.md](RDJ-02-modelos-por-instituicao.md) |
-| [#88](https://github.com/project-rev/redija-app/issues/88) | RDJ-03 | **Épico: Comentários do orientador no texto** | **Épico** | P1 | G | [RDJ-03-comentarios-do-orientador.md](RDJ-03-comentarios-do-orientador.md) |
-| [#89](https://github.com/project-rev/redija-app/issues/89) | RDJ-03.1 | Comentar um trecho selecionado do texto | História | P1 | M | [RDJ-03-comentarios-do-orientador.md](RDJ-03-comentarios-do-orientador.md) |
-| [#90](https://github.com/project-rev/redija-app/issues/90) | RDJ-03.2 | Responder, editar, excluir e resolver comentários | História | P1 | M | [RDJ-03-comentarios-do-orientador.md](RDJ-03-comentarios-do-orientador.md) |
-| [#91](https://github.com/project-rev/redija-app/issues/91) | RDJ-03.3 | Ver e navegar pelos comentários no painel lateral | História | P1 | M | [RDJ-03-comentarios-do-orientador.md](RDJ-03-comentarios-do-orientador.md) |
-| [#92](https://github.com/project-rev/redija-app/issues/92) | RDJ-03.4 | Manter os comentários no projeto e no arquivo .redija, fora do PDF | História | P1 | P | [RDJ-03-comentarios-do-orientador.md](RDJ-03-comentarios-do-orientador.md) |
-| [#93](https://github.com/project-rev/redija-app/issues/93) | RDJ-03.5 | Sincronizar comentários pelo Google Drive sem perder dados | História | P1 | M | [RDJ-03-comentarios-do-orientador.md](RDJ-03-comentarios-do-orientador.md) |
-| [#94](https://github.com/project-rev/redija-app/issues/94) | RDJ-03.6 | Ver comentários em tempo real numa sessão colaborativa | História | P1 | M | [RDJ-03-comentarios-do-orientador.md](RDJ-03-comentarios-do-orientador.md) |
+| [#88](https://github.com/project-rev/redija-app/issues/88) | RDJ-03 | **Épico: Compartilhamento e colaboração (Drive, tempo real e revisão)** | **Épico** | P1 | G | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#154](https://github.com/project-rev/redija-app/issues/154) | RDJ-03.7 | Converter meus trabalhos para o formato colaborativo sem perder nada | História | P1 | G | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#155](https://github.com/project-rev/redija-app/issues/155) | RDJ-03.8 | Editar com o editor preparado para colaboração | História | P1 | G | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#93](https://github.com/project-rev/redija-app/issues/93) | RDJ-03.5 | Salvar no Drive juntando versões, sem perder edições | História | P1 | M | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#156](https://github.com/project-rev/redija-app/issues/156) | RDJ-03.9 | Abrir um trabalho que compartilharam comigo | História | P1 | M | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#157](https://github.com/project-rev/redija-app/issues/157) | RDJ-03.10 | Salvar alterações num trabalho de outra pessoa | História | P1 | P | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#158](https://github.com/project-rev/redija-app/issues/158) | RDJ-03.11 | Abrir em modo somente leitura quando só tenho permissão de leitura | História | P1 | P | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#159](https://github.com/project-rev/redija-app/issues/159) | RDJ-03.12 | Conectar à colaboração em tempo real com segurança, em qualquer rede | História | P1 | G | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#94](https://github.com/project-rev/redija-app/issues/94) | RDJ-03.6 | Editar ao mesmo tempo, vendo quem está no documento | História | P1 | M | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#160](https://github.com/project-rev/redija-app/issues/160) | RDJ-03.13 | Remover a colaboração P2P antiga | História | P1 | P | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#89](https://github.com/project-rev/redija-app/issues/89) | RDJ-03.1 | Comentar um trecho selecionado do texto | História | P1 | M | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#90](https://github.com/project-rev/redija-app/issues/90) | RDJ-03.2 | Responder, editar, excluir e resolver comentários | História | P1 | M | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#91](https://github.com/project-rev/redija-app/issues/91) | RDJ-03.3 | Ver e navegar pelos comentários no painel lateral | História | P1 | M | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#92](https://github.com/project-rev/redija-app/issues/92) | RDJ-03.4 | Manter os comentários salvos, sincronizados e fora do PDF | História | P1 | P | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#161](https://github.com/project-rev/redija-app/issues/161) | RDJ-03.14 | Ver e restaurar versões anteriores do trabalho | História | P2 | M | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
+| [#162](https://github.com/project-rev/redija-app/issues/162) | RDJ-03.15 | Sugerir alterações no texto (modo sugestão) | História | P2 | G | [RDJ-03-compartilhamento-e-colaboracao.md](RDJ-03-compartilhamento-e-colaboracao.md) |
 | [#95](https://github.com/project-rev/redija-app/issues/95) | RDJ-04 | **Épico: App instalável e offline (PWA)** | **Épico** | P1 | P | [RDJ-04-pwa-offline.md](RDJ-04-pwa-offline.md) |
 | [#96](https://github.com/project-rev/redija-app/issues/96) | RDJ-04.1 | Instalar o Redija no computador e no celular | História | P1 | P | [RDJ-04-pwa-offline.md](RDJ-04-pwa-offline.md) |
 | [#97](https://github.com/project-rev/redija-app/issues/97) | RDJ-04.2 | Abrir o app e compilar o PDF sem internet | História | P1 | M | [RDJ-04-pwa-offline.md](RDJ-04-pwa-offline.md) |
