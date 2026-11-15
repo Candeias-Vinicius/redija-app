@@ -14,12 +14,12 @@
   <a href="https://app.redija.com.br"><strong>Acessar Aplicação</strong></a> •
   <a href="https://app.redija.com.br/docs"><strong>Documentação</strong></a> •
   <a href="CONTRIBUTING.md"><strong>Contribuir</strong></a> •
-  <a href="https://github.com/Candeias-Vinicius/redija-app/issues"><strong>Issues</strong></a>
+  <a href="https://github.com/project-rev/redija-app/issues"><strong>Issues</strong></a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.3.0--beta-059669?style=flat-square" alt="Versão 0.3.0-beta" />
-  <a href="https://github.com/Candeias-Vinicius/redija-app/actions/workflows/ci.yml"><img src="https://github.com/Candeias-Vinicius/redija-app/actions/workflows/ci.yml/badge.svg?branch=develop" alt="CI & Guardrails" /></a>
+  <a href="https://github.com/project-rev/redija-app/actions/workflows/ci.yml"><img src="https://github.com/project-rev/redija-app/actions/workflows/ci.yml/badge.svg?branch=develop" alt="CI & Guardrails" /></a>
   <img src="https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react&logoColor=white" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript 6.0" />
   <img src="https://img.shields.io/badge/Engine-Typst_WASM-239dad?style=flat-square" alt="Typst WASM" />
@@ -120,7 +120,7 @@ redija-app/
 ### Instalação e Execução
 
 ```bash
-git clone https://github.com/Candeias-Vinicius/redija-app.git
+git clone https://github.com/project-rev/redija-app.git
 cd redija-app
 npm install
 cp .env.example .env

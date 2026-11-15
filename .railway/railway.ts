@@ -12,7 +12,7 @@
  */
 import { defineRailway, github, project, service } from 'railway/iac';
 
-const REPO = 'Candeias-Vinicius/redija-app';
+const REPO = 'project-rev/redija-app';
 
 /** Origens do front liberadas no CORS de cada ambiente. */
 const FRONT_ORIGINS = {
