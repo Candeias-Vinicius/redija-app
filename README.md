@@ -181,7 +181,7 @@ Detalhes de endpoints, Docker e deploy em [`server/README.md`](server/README.md)
 Contribuições são muito bem-vindas! Antes de abrir um Pull Request:
 
 1. Leia o guia completo em **[`CONTRIBUTING.md`](CONTRIBUTING.md)**.
-2. Crie sua branch a partir de **`develop`** (PRs diretos para `main` são restritos).
+2. Crie sua branch a partir da **`main`** e abra o PR para **`develop`** (PRs diretos para `main` são restritos).
 3. Rode `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e` e `npm run build` antes de submeter.
 
 ---

@@ -44,10 +44,18 @@ A aplicação ficará disponível em **`http://localhost:3000`**.
 
 O repositório segue o fluxo de integração contínua baseado em duas branches principais:
 
-1. **`develop`**: branch padrão de integração para novas funcionalidades, correções e refatorações.
-2. **`main`**: branch estável de produção.
+1. **`main`**: branch estável de produção (`app.redija.com.br`). É o ponto de partida de todo trabalho novo.
+2. **`develop`**: branch de integração e homologação (`dev.redija.com.br`), onde as mudanças são testadas juntas antes de irem para produção.
 
-> **Importante:** Sempre crie sua branch a partir de **`develop`** e abra o Pull Request tendo **`develop`** como base (`base: develop`). O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) bloqueia automaticamente PRs para `main` cuja origem não seja estritamente `develop`.
+> **Importante:** Crie sua branch a partir da **`main`** (base estável) e abra o Pull Request tendo **`develop`** como base (`base: develop`) — atenção, o GitHub sugere `main` por padrão. O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) bloqueia automaticamente PRs para `main` cuja origem não seja estritamente `develop`.
+
+```bash
+git fetch origin
+git switch -c feat/minha-funcionalidade origin/main
+# ... commits ...
+# antes de abrir o PR, traga as mudanças recentes da develop e resolva conflitos localmente
+git merge origin/develop
+```
 
 Sugestão de nomenclatura para branches:
 - `feat/nome-da-funcionalidade`
