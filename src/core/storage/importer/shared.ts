@@ -54,7 +54,3 @@ export function sanitizeHtml(html: string): string {
 
   return cleaned.replace(/\s+/g, ' ').trim();
 }
-
-export function cleanInlineFormatting(html: string): string {
-  return sanitizeHtml(html);
-}

@@ -6,13 +6,11 @@ export function getImportApiUrl(): string {
   return raw.trim().replace(/\/+$/, '');
 }
 
-export function isRemoteImportEnabled(): boolean {
-  return getImportApiUrl() !== '';
-}
-
 /** Erro de rede (serviço fora do ar / offline), distinto de erro de conversão do documento. */
 export class ImportServiceUnavailableError extends Error {
-  constructor(message = 'O serviço de importação não respondeu.') {
+  constructor(
+    message = 'Não foi possível contatar o serviço de importação de documentos. Verifique sua conexão e tente novamente em instantes.',
+  ) {
     super(message);
     this.name = 'ImportServiceUnavailableError';
   }
@@ -29,7 +27,11 @@ export async function convertWithImportService(
   data: ArrayBuffer,
 ): Promise<ConvertResponse> {
   const baseUrl = getImportApiUrl();
-  if (!baseUrl) throw new ImportServiceUnavailableError('Serviço de importação não configurado.');
+  if (!baseUrl) {
+    throw new ImportServiceUnavailableError(
+      'A importação de documentos .docx, .tex, .md, .typ e .zip (Overleaf/Typst) precisa do serviço de importação, que não está configurado neste ambiente. Arquivos .redija continuam sendo importados normalmente.',
+    );
+  }
 
   const form = new FormData();
   form.append('file', new Blob([data]), fileName);
@@ -50,7 +52,7 @@ export async function convertWithImportService(
   }
 
   if (response.status === 502 || response.status === 503 || response.status === 504) {
-    let message = 'O serviço de importação está indisponível no momento.';
+    let message = 'O serviço de importação de documentos está fora do ar no momento. Tente novamente em instantes.';
     try {
       const body = (await response.json()) as { error?: string };
       if (body.error) message = body.error;
