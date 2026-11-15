@@ -2,50 +2,32 @@ import JSZip from 'jszip';
 import { DocumentProject } from '@/types/document';
 import { parseBackup } from '../db';
 import { DocumentImporterStrategy, ImportFileInput } from './types';
-import { importFromDocx } from './docxParser';
-import { parseLatexToProject } from './latexParser';
-import { parseTypstToProject } from './typstParser';
-import { importFromZip } from './zipOrchestrator';
+import { findRedijaEntry, importFromRedijaZip } from './redijaZip';
 import { pandocResponseToProject } from './pandoc/astToProject';
-import {
-  convertWithImportService,
-  ImportServiceUnavailableError,
-  isRemoteImportEnabled,
-} from './pandoc/client';
+import { convertWithImportService } from './pandoc/client';
 
 const projectNameFrom = (fileName: string, fallback: string) =>
   fileName.replace(/\.[^.]+$/, '').trim() || fallback;
 
 /**
- * Importa via serviço Pandoc (Railway). Se o serviço não estiver configurado ou estiver fora do ar,
- * usa o parser local legado quando houver um para o formato.
+ * Converte o documento pelo serviço de importação (Pandoc, no Railway). Sem o serviço configurado
+ * ou no ar, o erro (`ImportServiceUnavailableError`) chega ao usuário com a explicação.
  */
-async function importRemoteOrLegacy(
-  file: ImportFileInput,
-  legacy: ((buffer: ArrayBuffer) => Promise<DocumentProject>) | null,
-): Promise<DocumentProject> {
-  const buffer = await file.arrayBuffer();
-  if (isRemoteImportEnabled()) {
-    try {
-      const response = await convertWithImportService(file.name, buffer);
-      if (response.warnings?.length) {
-        console.warn('[importação] avisos do conversor:', response.warnings);
-      }
-      return pandocResponseToProject(response, projectNameFrom(file.name, 'Projeto Importado'));
-    } catch (err) {
-      if (!(err instanceof ImportServiceUnavailableError) || !legacy) throw err;
-      console.warn('[importação] serviço indisponível, usando conversor local:', err.message);
-    }
+async function importRemote(fileName: string, buffer: ArrayBuffer): Promise<DocumentProject> {
+  const response = await convertWithImportService(fileName, buffer);
+  if (response.warnings?.length) {
+    console.warn('[importação] avisos do conversor:', response.warnings);
   }
-  if (!legacy) {
-    throw new Error(
-      'A importação deste formato precisa do serviço de importação, que está indisponível no momento. Tente novamente em instantes.',
-    );
-  }
-  return legacy(buffer);
+  return pandocResponseToProject(response, projectNameFrom(fileName, 'Projeto Importado'));
 }
 
 const decode = (buffer: ArrayBuffer) => new TextDecoder('utf-8').decode(buffer);
+
+const remoteStrategy = (id: string, extensions: string[]): DocumentImporterStrategy => ({
+  id,
+  matches: (lowerName) => extensions.some((ext) => lowerName.endsWith(ext)),
+  importFile: async (file) => importRemote(file.name, await file.arrayBuffer()),
+});
 
 export const IMPORTER_STRATEGIES: DocumentImporterStrategy[] = [
   {
@@ -53,11 +35,7 @@ export const IMPORTER_STRATEGIES: DocumentImporterStrategy[] = [
     matches: (lowerName) => lowerName.endsWith('.redija'),
     importFile: async (file) => parseBackup(decode(await file.arrayBuffer())),
   },
-  {
-    id: 'docx',
-    matches: (lowerName) => lowerName.endsWith('.docx'),
-    importFile: (file) => importRemoteOrLegacy(file, (buffer) => importFromDocx(buffer, file.name)),
-  },
+  remoteStrategy('docx', ['.docx']),
   {
     id: 'zip',
     matches: (lowerName) => lowerName.endsWith('.zip'),
@@ -65,37 +43,15 @@ export const IMPORTER_STRATEGIES: DocumentImporterStrategy[] = [
       const buffer = await file.arrayBuffer();
       // Pacotes exportados pelo próprio Redija continuam 100% locais
       const zip = await JSZip.loadAsync(buffer);
-      const hasRedijaBackup = Object.keys(zip.files).some((n) => n.toLowerCase().endsWith('.redija'));
-      if (hasRedijaBackup || !isRemoteImportEnabled()) {
-        return importFromZip(buffer, file.name);
-      }
-      return importRemoteOrLegacy(
-        { name: file.name, arrayBuffer: async () => buffer },
-        (b) => importFromZip(b, file.name),
-      );
+      const redijaEntry = findRedijaEntry(zip);
+      if (redijaEntry) return importFromRedijaZip(zip, redijaEntry);
+      // Overleaf (.tex) e projetos Typst (.typ) vão para o serviço de importação
+      return importRemote(file.name, buffer);
     },
   },
-  {
-    id: 'typst',
-    matches: (lowerName) => lowerName.endsWith('.typ'),
-    importFile: (file) =>
-      importRemoteOrLegacy(file, async (buffer) =>
-        parseTypstToProject(decode(buffer), projectNameFrom(file.name, 'Projeto Typst'), new Map()),
-      ),
-  },
-  {
-    id: 'latex',
-    matches: (lowerName) => lowerName.endsWith('.tex'),
-    importFile: (file) =>
-      importRemoteOrLegacy(file, async (buffer) =>
-        parseLatexToProject(decode(buffer), projectNameFrom(file.name, 'Projeto LaTeX'), new Map()),
-      ),
-  },
-  {
-    id: 'markdown',
-    matches: (lowerName) => lowerName.endsWith('.md') || lowerName.endsWith('.markdown'),
-    importFile: (file) => importRemoteOrLegacy(file, null),
-  },
+  remoteStrategy('typst', ['.typ']),
+  remoteStrategy('latex', ['.tex']),
+  remoteStrategy('markdown', ['.md', '.markdown']),
 ];
 
 /**
@@ -114,8 +70,11 @@ export async function importDocumentFile(file: ImportFileInput): Promise<Documen
 
 export type { ImportFileInput, DocumentImporterStrategy } from './types';
 export { sanitizeHtml } from './shared';
-export { detectLatexTemplate, parseLatexToProject } from './latexParser';
-export { importFromDocx, detectDocxTemplate, parseDocxHtmlToProject } from './docxParser';
-export { detectTypstTemplate, parseTypstToProject } from './typstParser';
-export { importFromZip } from './zipOrchestrator';
+export {
+  detectDocxTemplate,
+  detectLatexTemplate,
+  detectTypstTemplate,
+} from './pandoc/templateDetection';
+export { importFromRedijaZip } from './redijaZip';
 export { pandocResponseToProject } from './pandoc/astToProject';
+export { ImportServiceUnavailableError } from './pandoc/client';

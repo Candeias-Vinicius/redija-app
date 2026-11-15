@@ -6,11 +6,15 @@ import {
   ProjectTemplateType,
 } from '@/types/document';
 import { createProjectFromTemplate } from '../../projectTemplates';
-import { detectDocxTemplate } from '../docxParser';
-import { detectLatexTemplate, parseLatexToProject } from '../latexParser';
-import { detectTypstTemplate, parseTypstToProject } from '../typstParser';
 import { cslToReference } from './cslToReference';
 import { extractLatexMetadata } from './latexMetadata';
+import {
+  detectDocxTemplate,
+  detectLatexTemplate,
+  detectTypstTemplate,
+  extractTypstMetadata,
+  extractTypstUniverseInfo,
+} from './templateDetection';
 import {
   ConvertResponse,
   PandocBlock,
@@ -921,23 +925,26 @@ function metadataFromAst(meta: Record<string, PandocMetaValue>): {
 
 function baseProjectFor(response: ConvertResponse, projectName: string, plainText: string): DocumentProject {
   const source = response.mainSource ?? '';
-  try {
-    if (response.format === 'latex' && source) {
-      // Reaproveita a extração de metadados do abntex2 (\orientador, \instituicao, …) do parser legado
-      return parseLatexToProject(source, projectName, new Map());
-    }
-    if (response.format === 'typst' && source) {
-      return parseTypstToProject(source, projectName, new Map());
-    }
-  } catch {
-    // Cai para a detecção simples abaixo
-  }
-
   let template: ProjectTemplateType;
   if (response.format === 'latex') template = detectLatexTemplate(source);
   else if (response.format === 'typst') template = detectTypstTemplate(source);
   else template = detectDocxTemplate(plainText);
-  return createProjectFromTemplate(template, projectName);
+
+  const base = createProjectFromTemplate(template, projectName);
+  if (template === 'universe_custom' && base.templateConfig) {
+    const { pkg, entrypoint } = extractTypstUniverseInfo(source);
+    if (pkg) base.templateConfig.universePackage = pkg;
+    if (entrypoint) base.templateConfig.universeEntrypoint = entrypoint;
+  }
+  return base;
+}
+
+/** Metadados lidos direto do fonte (preâmbulo LaTeX ou parâmetros do `#show:` do Typst). */
+function sourceMetadataFor(response: ConvertResponse): Partial<DocumentMetadata> {
+  if (!response.mainSource) return {};
+  if (response.format === 'latex') return extractLatexMetadata(response.mainSource);
+  if (response.format === 'typst') return extractTypstMetadata(response.mainSource);
+  return {};
 }
 
 /**
@@ -1001,8 +1008,7 @@ export function pandocResponseToProject(response: ConvertResponse, projectName: 
   const astMeta = metadataFromAst(response.ast.meta ?? {});
   const plainText = [astMeta.fields.title ?? '', blocksToText(response.ast.blocks ?? [])].join('\n');
   const base = baseProjectFor(response, projectName, plainText);
-  const sourceMeta =
-    response.format === 'latex' && response.mainSource ? extractLatexMetadata(response.mainSource) : {};
+  const sourceMeta = sourceMetadataFor(response);
 
   const metadata: DocumentMetadata = { ...base.metadata, ...sourceMeta, ...astMeta.fields };
   if (sections.resumo.length > 0) {
