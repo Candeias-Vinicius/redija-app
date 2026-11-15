@@ -208,7 +208,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
         </div>
       </div>
 
-      {/* Barra de Quota de Armazenamento de Imagens do Projeto (150 MB) */}
+      {/* Barra de Quota de Armazenamento de Imagens do Projeto (250 MB) */}
       <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-lg bg-white border border-neutral-200 text-[11px]">
         <span className="text-neutral-500">
           Uso de imagens no projeto:{' '}
@@ -322,7 +322,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
             Clique para selecionar até 4 imagens juntas, arraste os arquivos aqui ou cole (Ctrl+V)
           </span>
           <span className="text-[11px] text-neutral-400 mt-0.5">
-            Suporta PNG, JPG, WebP, GIF • Lado a lado ou em grade 2×2 (limite do projeto: 150 MB)
+            Suporta PNG, JPG, WebP, GIF • Lado a lado ou em grade 2×2 (limite do projeto: 250 MB)
           </span>
           <input
             type="file"

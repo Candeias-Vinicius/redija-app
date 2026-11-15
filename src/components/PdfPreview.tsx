@@ -37,6 +37,7 @@ import {
 interface PdfPreviewProps {
   widthPx?: number;
   isFullWidth?: boolean;
+  isCompact?: boolean;
   project: DocumentProject;
   showCode: boolean;
   onToggleCode?: () => void;
@@ -50,6 +51,7 @@ interface PdfPreviewProps {
 export const PdfPreview: React.FC<PdfPreviewProps> = ({
   widthPx = 500,
   isFullWidth = false,
+  isCompact = false,
   project,
   showCode,
   onToggleCode,
@@ -197,16 +199,16 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
     };
   }, [pages, showCode, compileTimeMs]);
 
-  const basePageWidthPx = isFullWidth
-    ? 680
+  const basePageWidthPx = isFullWidth || isCompact
+    ? Math.min(680, typeof window !== 'undefined' ? Math.max(260, window.innerWidth - 48) : 680)
     : Math.max(260, widthPx - 64);
   const scaledWidthPx = Math.round((basePageWidthPx * zoom) / 100);
 
   return (
     <aside
-      style={isFullWidth ? undefined : { width: `${widthPx}px` }}
+      style={isFullWidth || isCompact ? undefined : { width: `${widthPx}px` }}
       className={`${
-        isFullWidth ? 'flex-1' : 'shrink-0'
+        isFullWidth || isCompact ? 'flex-1 w-full min-w-0' : 'shrink-0'
       } border-l border-neutral-200 bg-neutral-100 flex flex-col h-full overflow-hidden`}
     >
       {/* Top Bar do Preview */}
@@ -263,7 +265,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
                 )}
               </button>
 
-              <div className="hidden sm:flex items-center gap-0.5 mr-0.5">
+              <div className="flex items-center gap-0.5 mr-0.5">
                 <button
                   onClick={() => setZoom((z) => Math.max(70, z - 15))}
                   className="p-1 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/60 rounded"

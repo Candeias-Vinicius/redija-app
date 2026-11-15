@@ -103,7 +103,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
 
   if (block.type === 'quote_long') {
     return (
-      <div className="border-l-4 border-emerald-500 bg-neutral-50/90 p-3.5 rounded-r-lg ml-8 text-xs text-neutral-700 space-y-2">
+      <div className="border-l-4 border-emerald-500 bg-neutral-50/90 p-3 sm:p-3.5 rounded-r-lg ml-0 sm:ml-8 text-xs text-neutral-700 space-y-2">
         <div className="flex items-center justify-between text-emerald-700 font-semibold">
           <span className="flex items-center gap-1.5">
             <Quote className="w-3.5 h-3.5" />
@@ -123,7 +123,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           placeholder="Digite ou cole o trecho de mais de 3 linhas (sem aspas)..."
           className="text-xs leading-normal text-neutral-700"
         />
-        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-neutral-200/70">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-neutral-200/70">
           <input
             type="text"
             value={block.meta?.author || ''}

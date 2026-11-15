@@ -12,7 +12,7 @@
  */
 import { defineRailway, github, project, service } from 'railway/iac';
 
-const REPO = 'Candeias-Vinicius/redija-app';
+const REPO = 'project-rev/redija-app';
 
 /** Origens do front liberadas no CORS de cada ambiente. */
 const FRONT_ORIGINS = {
@@ -39,7 +39,7 @@ export default defineRailway((ctx) => {
       // App Sleeping: dorme sem tráfego e acorda na próxima importação (alguns segundos a mais)
       sleepApplication: true,
       // Teto de memória para um documento gigante não estourar o custo
-      limitOverride: { containers: { memoryBytes: 1024 * 1024 * 1024 } },
+      limitOverride: { containers: { memoryBytes: 2 * 1024 * 1024 * 1024 } },
     },
     // Exigem um CNAME no DNS de redija.com.br apontando para o alvo que o Railway mostrar
     domains: [prod ? 'api.redija.com.br' : 'api-dev.redija.com.br'],

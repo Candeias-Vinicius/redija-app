@@ -4,6 +4,8 @@ import { Menu, Move, Plus, Trash2 } from 'lucide-react';
 interface BlockControlsGutterProps {
   blockId: string;
   isMenuOpen: boolean;
+  isCompact?: boolean;
+  isActive?: boolean;
   canDelete: boolean;
   onAddBelow: (blockId: string) => void;
   onToggleMenu: (blockId: string) => void;
@@ -15,6 +17,8 @@ interface BlockControlsGutterProps {
 export const BlockControlsGutter: React.FC<BlockControlsGutterProps> = ({
   blockId,
   isMenuOpen,
+  isCompact = false,
+  isActive = false,
   canDelete,
   onAddBelow,
   onToggleMenu,
@@ -22,13 +26,73 @@ export const BlockControlsGutter: React.FC<BlockControlsGutterProps> = ({
   onDragStart,
   onDragEnd,
 }) => {
+  if (isCompact) {
+    const visible = isMenuOpen || isActive;
+    return (
+      <div
+        className={`w-full mb-1.5 ${
+          visible ? 'flex' : 'hidden'
+        } items-center gap-0.5 text-neutral-400 select-none`}
+      >
+        <button
+          type="button"
+          onClick={() => onAddBelow(blockId)}
+          className="p-1.5 hover:text-emerald-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md transition-colors"
+          title="Inserir bloco abaixo"
+          aria-label="Inserir bloco abaixo"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onToggleMenu(blockId)}
+          className={`p-1.5 rounded-md transition-colors ${
+            isMenuOpen
+              ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50'
+              : 'hover:text-neutral-800 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+          }`}
+          title="Opções do bloco"
+          aria-label="Opções do bloco"
+        >
+          <Menu className="w-4 h-4" />
+        </button>
+
+        {canDelete && (
+          <button
+            type="button"
+            onClick={() => onRemove(blockId)}
+            className="p-1.5 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md transition-colors"
+            title="Excluir bloco"
+            aria-label="Excluir bloco"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+
+        <div
+          draggable
+          onDragStart={(e) => {
+            onDragStart(blockId, e);
+            e.dataTransfer.effectAllowed = 'move';
+          }}
+          onDragEnd={onDragEnd}
+          className="ml-auto p-1.5 cursor-grab active:cursor-grabbing rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+          title="Arrastar para reordenar"
+          aria-label="Arrastar para reordenar bloco"
+        >
+          <Move className="w-4 h-4" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`absolute left-1 top-1.5 bottom-1.5 w-22 ${
         isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
       } flex flex-col items-center text-neutral-400 transition-opacity select-none z-10`}
     >
-      {/* Linha superior: Ações rápidas (Inserir, Opções do bloco com 3 traços, Excluir) */}
       <div className="flex items-center gap-0.5 shrink-0">
         <button
           type="button"
@@ -67,7 +131,6 @@ export const BlockControlsGutter: React.FC<BlockControlsGutterProps> = ({
         )}
       </div>
 
-      {/* Área vertical selecionável para arrastar: ocupa toda a altura do bloco, centralizada vertical e horizontalmente */}
       <div
         draggable
         onDragStart={(e) => {
