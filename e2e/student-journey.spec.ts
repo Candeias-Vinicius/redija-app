@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { modelsPanel, openNewProjectDialog } from './helpers';
 
 test.describe('RedijaApp: Jornada Completa do Estudante', () => {
   test.beforeEach(async ({ page }) => {
@@ -25,20 +26,13 @@ test.describe('RedijaApp: Jornada Completa do Estudante', () => {
     // 2. Confirma que o cabeçalho carregou
     await expect(page.getByText('Redija', { exact: true })).toBeVisible();
 
-    // 3. Aguarda o modal de projetos ou abre pelo cabeçalho se não abrir automaticamente
-    const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
-    try {
-      await modalHeading.waitFor({ state: 'visible', timeout: 3500 });
-    } catch {
-      await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
-      await expect(modalHeading).toBeVisible();
-    }
+    // 3. Na Home, abre o diálogo "Novo trabalho acadêmico"
+    await openNewProjectDialog(page);
 
     // 4. Cria trabalho com modelo TCC (NBR 14724)
-    await page.getByText('Trabalho de Conclusão de Curso (TCC)').click();
     const nameInput = page.getByPlaceholder(/Ex: TCC Engenharia/i);
     await nameInput.fill('TCC de Inteligência Artificial 2026');
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await modelsPanel(page).getByRole('button', { name: /Trabalho de Conclusão de Curso/ }).click();
 
     // 5. Confirma que o novo trabalho está ativo no cabeçalho
     await expect(page.getByText('TCC de Inteligência Artificial 2026')).toBeVisible();
@@ -72,10 +66,14 @@ test.describe('RedijaApp: Jornada Completa do Estudante', () => {
     await page.getByRole('button', { name: 'Mostrar painel Estrutura' }).click();
     await expect(page.getByPlaceholder(/Ex: Nome do Autor/i)).toBeVisible();
 
-    // 10. Testa o botão de Baixar PDF
-    const downloadBtn = page.getByRole('button', { name: /Baixar PDF/i });
+    // 10. Testa o botão Baixar: só o ícone, abre o menu com os formatos
+    const downloadBtn = page.getByRole('button', { name: 'Baixar trabalho' });
     await expect(downloadBtn).toBeVisible();
-    await expect(downloadBtn).toBeEnabled();
+    await downloadBtn.click();
+    await expect(downloadBtn).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByRole('button', { name: /PDF \(\.pdf\)/ })).toBeEnabled();
+    await expect(page.getByRole('button', { name: /Projeto completo \(\.zip\)/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Código Typst \(\.typ\)/ })).toBeVisible();
   });
 
   test('abre modal de personalização de normas (Template Customizer)', async ({ page }) => {
@@ -83,12 +81,11 @@ test.describe('RedijaApp: Jornada Completa do Estudante', () => {
     await page.getByRole('button', { name: /Experimentar como Convidado/i }).first().click();
 
     // Aguarda o modal inicial de projetos carregar
-    const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
-    await expect(modalHeading).toBeVisible();
+    const modalHeading = await openNewProjectDialog(page);
 
     // Cria um trabalho com nome único para inicializar a sessão
     await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Projeto Customizer ${Date.now()}`);
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await modelsPanel(page).getByRole('button', { name: /Trabalho de Conclusão de Curso/ }).click();
 
     // Garante que o modal fechou completamente e o cabeçalho está ativo
     await expect(modalHeading).not.toBeVisible();

@@ -20,12 +20,15 @@
   --color-brand-900: oklch(37.8% 0.077 168.94);
   --color-brand-950: oklch(26.2% 0.051 172.552);
 
+  /* Tema claro em "andares", espelhando o escuro: caixas brancas sobre a página
+     (surface-muted), e áreas rebaixadas (surface-sunken) para capas, prévia do PDF
+     e fundo do app. fg-muted mantém >= 5:1 em todos esses fundos. */
   --color-surface: #ffffff;
-  --color-surface-muted: #f8fafc;
-  --color-surface-sunken: #f1f5f9;
+  --color-surface-muted: #eef2f6;
+  --color-surface-sunken: #e3e8ef;
   --color-fg: #1e293b;
-  --color-fg-muted: #64748b;
-  --color-line: #e2e8f0;
+  --color-fg-muted: #526074;
+  --color-line: #d5dde7;
   /* Borda de campos de formulário: >= 3:1 contra o fundo (WCAG 1.4.11) */
   --color-line-strong: #7f8ca3;
 
@@ -154,6 +157,42 @@
   select {
     font-size: max(16px, 1em);
   }
+}
+
+/* =====================================================================
+   Hierarquia do tema claro no app
+   Os componentes antigos usam slate-50/100/200 (quase brancos), o que deixava
+   tudo no mesmo tom. Dentro do app ([data-theme-compat]) essas classes passam
+   a seguir os tokens em "andares", como no tema escuro.
+   ===================================================================== */
+html:not(.dark) [data-theme-compat]
+  :is(.bg-slate-50, .bg-slate-50\/60, .bg-slate-50\/70, .bg-slate-50\/80, .bg-slate-50\/90) {
+  background-color: var(--color-surface-muted);
+}
+
+html:not(.dark) [data-theme-compat] :is(.bg-slate-100, .bg-slate-100\/70, .bg-slate-100\/80) {
+  background-color: var(--color-surface-sunken);
+}
+
+html:not(.dark) [data-theme-compat]
+  :is(.border-slate-100, .border-slate-200, .border-slate-200\/70, .border-slate-200\/80) {
+  border-color: var(--color-line);
+}
+
+html:not(.dark) [data-theme-compat] :is(.divide-slate-50, .divide-slate-100, .divide-slate-200) > :not(:last-child) {
+  border-color: var(--color-line);
+}
+
+html:not(.dark) [data-theme-compat] :is(.text-slate-500, .text-slate-400) {
+  color: var(--color-fg-muted);
+}
+
+html:not(.dark) [data-theme-compat] :is(.hover\:bg-slate-50, .hover\:bg-slate-50\/80):hover {
+  background-color: var(--color-surface-muted);
+}
+
+html:not(.dark) [data-theme-compat] :is(.hover\:bg-slate-100, .hover\:bg-slate-200\/60):hover {
+  background-color: var(--color-surface-sunken);
 }
 
 /* =====================================================================

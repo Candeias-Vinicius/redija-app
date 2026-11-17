@@ -1,7 +1,13 @@
-import React, { useSyncExternalStore } from 'react';
+import React, { useEffect, useReducer, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
-import { dismissToast, getToasts, subscribeToasts, type ToastKind } from './toastStore';
+import {
+  dismissToast,
+  getToasts,
+  MODAL_CHANGE_EVENT,
+  subscribeToasts,
+  type ToastKind,
+} from './toastStore';
 
 const KIND_STYLES: Record<ToastKind, string> = {
   error: 'border-red-200 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-100',
@@ -23,6 +29,13 @@ const KIND_ICONS: Record<ToastKind, React.ReactNode> = {
  */
 export const Toaster: React.FC = () => {
   const toasts = useSyncExternalStore(subscribeToasts, getToasts, getToasts);
+  // Re-renderiza quando um modal abre/fecha, para não deixar notificações presas
+  // dentro de um diálogo que acabou de ser fechado.
+  const [, refresh] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    window.addEventListener(MODAL_CHANGE_EVENT, refresh);
+    return () => window.removeEventListener(MODAL_CHANGE_EVENT, refresh);
+  }, []);
   if (typeof document === 'undefined') return null;
 
   const openDialogs = document.querySelectorAll('dialog[open]');
@@ -42,6 +55,18 @@ export const Toaster: React.FC = () => {
         >
           {KIND_ICONS[t.kind]}
           <p className="flex-1 leading-relaxed whitespace-pre-line select-text">{t.message}</p>
+          {t.action && (
+            <button
+              type="button"
+              onClick={() => {
+                t.action?.onClick();
+                dismissToast(t.id);
+              }}
+              className="touch-target -my-1 px-2 py-1 rounded-md text-sm font-semibold text-brand-800 dark:text-brand-300 hover:bg-black/5 dark:hover:bg-white/10 shrink-0"
+            >
+              {t.action.label}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => dismissToast(t.id)}

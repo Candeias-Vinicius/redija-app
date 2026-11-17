@@ -1,11 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { FileEdit, FolderOpen, PanelLeftOpen, PanelRightOpen, Plus, Upload } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { FileEdit, Loader2, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Editor } from '@/components/Editor';
 import { PdfPreview } from '@/components/PdfPreview';
 import { ReferenceModal } from '@/components/ReferenceModal';
-import { ProjectsModal } from '@/components/ProjectsModal';
+import { HomePage } from '@/components/home/HomePage';
+import {
+  DeleteForeverDialog,
+  RenameProjectDialog,
+  StorageInfoDialog,
+} from '@/components/home/ProjectDialogs';
+import { toast } from '@/components/ui/toastStore';
 import { WelcomeModal } from '@/components/WelcomeModal';
 import { TemplateCustomizerModal } from '@/components/TemplateCustomizerModal';
 import { BugReportModal } from '@/components/BugReportModal';
@@ -20,7 +26,12 @@ import { PaneRestoreRail } from '@/components/ui/PaneRestoreRail';
 import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
 import { isBetaNoticeDismissed } from '@/core/version';
 import { dismissBackupNotice, isBackupNoticeDismissed } from '@/core/backupNotice';
-import { AcademicReference, DEFAULT_TEMPLATE_CONFIG, DocumentProject } from '@/types/document';
+import {
+  AcademicReference,
+  DEFAULT_TEMPLATE_CONFIG,
+  DocumentProject,
+  ProjectTemplateType,
+} from '@/types/document';
 import { type ContextualGuideMode } from '@/core/templates/templateCapabilities';
 import { useAppRoute } from '@/hooks/useAppRoute';
 import { MIN_PREVIEW_WIDTH, MIN_SIDEBAR_WIDTH, usePaneLayout } from '@/hooks/usePaneLayout';
@@ -31,7 +42,9 @@ import {
   useProjectWorkspace,
 } from '@/hooks/useProjectWorkspace';
 import { useDriveSyncOrchestrator } from '@/hooks/useDriveSyncOrchestrator';
-import { useDocumentExport } from '@/hooks/useDocumentExport';
+import { downloadProjectPdf, useDocumentExport } from '@/hooks/useDocumentExport';
+import { useCustomTemplates } from '@/hooks/useCustomTemplates';
+import { uniqueProjectName } from '@/components/home/homeUtils';
 import { readInitialGuestMode, useAuthSession } from '@/hooks/useAuthSession';
 
 export const App: React.FC = () => {
@@ -41,7 +54,12 @@ export const App: React.FC = () => {
   const [showCode, setShowCode] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingReference, setEditingReference] = useState<AcademicReference | null>(null);
-  const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
+  // Home (lista de trabalhos) e seus diálogos
+  const [renameTarget, setRenameTarget] = useState<DocumentProject | null>(null);
+  const [storageTarget, setStorageTarget] = useState<DocumentProject | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DocumentProject | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [welcomeInitialTab, setWelcomeInitialTab] = useState<'overview' | ContextualGuideMode>(
     'overview',
@@ -73,7 +91,7 @@ export const App: React.FC = () => {
 
   const activeOwner = isAuthenticated && user ? user.email : 'local';
   const isSessionActive = isAuthenticated || isGuestMode;
-  const { route, sectionId, navigateTo } = useAppRoute();
+  const { route, sectionId, projectId, navigateTo, openProjectRoute, goHomeRoute } = useAppRoute();
   const handleOpenFullDocs = useCallback(
     (targetSectionId?: string) => navigateTo('/docs', targetSectionId),
     [navigateTo],
@@ -123,8 +141,14 @@ export const App: React.FC = () => {
     setProject,
   });
 
-  const openProjectsModal = useCallback(() => setIsProjectsModalOpen(true), []);
-  const closeProjectsModal = useCallback(() => setIsProjectsModalOpen(false), []);
+  // Sem trabalhos, a própria Home mostra o estado vazio (não há modal para abrir)
+  const handleEmptyWorkspace = useCallback(() => {}, []);
+  const handleProjectImported = useCallback(
+    (imported: DocumentProject) => {
+      openProjectRoute(imported.id);
+    },
+    [openProjectRoute],
+  );
   const clearEditingReference = useCallback(() => setEditingReference(null), []);
 
   const {
@@ -161,8 +185,8 @@ export const App: React.FC = () => {
     clearHistory,
     onBroadcastBlocksSync: broadcastBlocksSync,
     onBroadcastBlockUpdate: broadcastBlockUpdate,
-    onEmptyWorkspace: openProjectsModal,
-    onProjectImported: closeProjectsModal,
+    onEmptyWorkspace: handleEmptyWorkspace,
+    onProjectImported: handleProjectImported,
     onReferenceUpdated: clearEditingReference,
     getDriveAccessToken: isAuthenticated && user ? getValidAccessToken : null,
   });
@@ -221,10 +245,9 @@ export const App: React.FC = () => {
     onResetWorkspace: handleResetSessionWorkspace,
   });
 
-  // Aviso do Beta no primeiro acesso: não modal e somente depois que o modal de
-  // projetos fechou, para não empilhar interrupções na entrada.
+  // Aviso do Beta no primeiro acesso: não modal, para não interromper a entrada.
   useEffect(() => {
-    if (route !== 'docs' && isSessionActive && !isProjectsModalOpen && !isBetaNoticeDismissed()) {
+    if (route !== 'docs' && isSessionActive && !isBetaNoticeDismissed()) {
       const timer = setTimeout(() => {
         if (!isBetaNoticeDismissed()) {
           setIsBetaToastVisible(true);
@@ -232,9 +255,99 @@ export const App: React.FC = () => {
       }, 700);
       return () => clearTimeout(timer);
     }
-  }, [isSessionActive, route, isProjectsModalOpen]);
+  }, [isSessionActive, route]);
 
   const showBackupNotice = !isAuthenticated && isBackupNoticeVisible;
+
+  // Editor = URL com ?p=<id>; sem ele, a Home é a tela inicial
+  const isEditorView = route === 'app' && Boolean(projectId);
+  const isEditorReady = isEditorView && project.id === projectId;
+
+  // Sincroniza o trabalho aberto com a URL (links diretos, voltar/avançar do navegador)
+  useEffect(() => {
+    if (!isSessionActive || !isStorageReady || !projectId || project.id === projectId) return;
+    const target = projects.find((p) => p.id === projectId);
+    if (target) {
+      handleSelectProject(target);
+    } else {
+      goHomeRoute({ replace: true });
+      toast.info('Esse trabalho não está mais disponível.');
+    }
+  }, [isSessionActive, isStorageReady, projectId, project.id, projects, handleSelectProject, goHomeRoute]);
+
+  const openProject = useCallback(
+    (target: DocumentProject) => {
+      handleSelectProject(target);
+      openProjectRoute(target.id);
+    },
+    [handleSelectProject, openProjectRoute],
+  );
+
+  const goHome = useCallback(() => goHomeRoute(), [goHomeRoute]);
+
+  const createAndOpenProject = useCallback(
+    async (templateType: ProjectTemplateType, name?: string, universePackage?: string) => {
+      const created = await handleCreateProject(templateType, name, universePackage);
+      if (created) openProjectRoute(created.id);
+    },
+    [handleCreateProject, openProjectRoute],
+  );
+
+  const customTemplates = useCustomTemplates(activeOwner);
+
+  const createFromCustomTemplate = useCallback(
+    (template: { name: string; packageId: string }, name?: string) =>
+      void createAndOpenProject(
+        'universe_custom',
+        name || uniqueProjectName(template.name, projects.map((p) => p.name)),
+        template.packageId,
+      ),
+    [projects, createAndOpenProject],
+  );
+
+  const openImportPicker = useCallback(() => importInputRef.current?.click(), []);
+
+  const handleDownloadFromHome = useCallback(
+    async (target: DocumentProject) => {
+      if (downloadingId) return;
+      setDownloadingId(target.id);
+      try {
+        await downloadProjectPdf(target, { isAuthenticated, getValidAccessToken });
+      } finally {
+        setDownloadingId(null);
+      }
+    },
+    [downloadingId, isAuthenticated, getValidAccessToken],
+  );
+
+  const handleDuplicateFromHome = useCallback(
+    async (target: DocumentProject) => {
+      const copy = await handleDuplicateProject(target.id, { activate: false });
+      if (copy) toast.success(`Cópia criada: "${copy.name}".`);
+    },
+    [handleDuplicateProject],
+  );
+
+  const handleMoveToTrashFromHome = useCallback(
+    async (target: DocumentProject) => {
+      await handleMoveToTrash(target.id);
+      toast.info(`"${target.name}" foi movido para a Lixeira.`, {
+        action: {
+          label: 'Desfazer',
+          onClick: () => void handleRestoreFromTrash(target.id, { activate: false }),
+        },
+      });
+    },
+    [handleMoveToTrash, handleRestoreFromTrash],
+  );
+
+  const handleRestoreFromHome = useCallback(
+    async (target: DocumentProject) => {
+      await handleRestoreFromTrash(target.id, { activate: false });
+      toast.success(`"${target.name}" voltou para Meus trabalhos.`);
+    },
+    [handleRestoreFromTrash],
+  );
 
   const handleResizerKeyDown = (pane: 'sidebar' | 'preview') => (e: React.KeyboardEvent) => {
     const step = e.shiftKey ? 64 : 16;
@@ -315,7 +428,8 @@ export const App: React.FC = () => {
         showPreview={showPreview}
         onSelectPane={selectPane}
         hasProject={projects.length > 0}
-        onOpenProjectsModal={openProjectsModal}
+        view={isEditorView ? 'editor' : 'home'}
+        onGoHome={goHome}
         onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
         onOpenBugReportModal={() => setIsBugReportOpen(true)}
         onOpenBetaNoticeModal={() => setIsBetaNoticeOpen(true)}
@@ -344,33 +458,41 @@ export const App: React.FC = () => {
         showLoginButton={!showBackupNotice}
       />
 
-      {projects.length === 0 ? (
-        <main className="flex-1 flex flex-col items-center justify-center p-8 bg-surface-muted text-center">
-          <div className="w-16 h-16 rounded-3xl bg-brand-100 dark:bg-brand-950/60 text-brand-700 dark:text-brand-400 flex items-center justify-center mb-4 shadow-xs">
-            <FolderOpen className="w-8 h-8" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-            Nenhum trabalho criado ainda
-          </h2>
-          <p className="text-sm text-fg-muted max-w-sm mb-6 leading-relaxed">
-            Comece escolhendo um modelo com estrutura ABNT pré-configurada ou importe um arquivo existente.
-          </p>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full max-w-sm sm:max-w-none">
-            <button
-              onClick={openProjectsModal}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Criar Primeiro Trabalho</span>
-            </button>
-            <button
-              onClick={openProjectsModal}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-xs font-semibold rounded-xl transition-colors"
-            >
-              <Upload className="w-4 h-4 text-brand-700" />
-              <span>Importar Trabalho</span>
-            </button>
-          </div>
+      {!isEditorView ? (
+        <HomePage
+          projects={projects}
+          trashedProjects={trashedProjects}
+          lastOpenedProjectId={project.id}
+          isStorageReady={isStorageReady}
+          isAuthenticated={isAuthenticated}
+          downloadingId={downloadingId}
+          isSyncingDrive={isSyncingDrive}
+          onSyncFromDrive={() => void handleSyncFromDrive(true)}
+          onQuickCreate={(type, name) => void createAndOpenProject(type, name)}
+          customTemplates={customTemplates.templates}
+          onAddCustomTemplate={customTemplates.add}
+          onRemoveCustomTemplate={(template) => {
+            customTemplates.remove(template.id);
+            toast.info(`Modelo "${template.name}" removido.`, {
+              action: { label: 'Desfazer', onClick: () => customTemplates.restore(template) },
+            });
+          }}
+          onCreateFromCustom={createFromCustomTemplate}
+          onImport={openImportPicker}
+          onOpen={openProject}
+          onDownloadPdf={(p) => void handleDownloadFromHome(p)}
+          onDuplicate={(p) => void handleDuplicateFromHome(p)}
+          onRename={setRenameTarget}
+          onShowStorage={setStorageTarget}
+          onMoveToTrash={(p) => void handleMoveToTrashFromHome(p)}
+          onRestore={(p) => void handleRestoreFromHome(p)}
+          onDeleteForever={setDeleteTarget}
+          onConnectGoogle={handleLoginClick}
+        />
+      ) : !isEditorReady ? (
+        <main className="flex-1 flex items-center justify-center gap-2 text-sm text-fg-muted" aria-busy="true">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Abrindo trabalho…
         </main>
       ) : (
         <main className="flex-1 flex overflow-hidden min-h-0" aria-label="Área de trabalho">
@@ -566,24 +688,50 @@ export const App: React.FC = () => {
         onAddMultipleReferences={handleAddMultipleReferences}
       />
 
-      <ProjectsModal
-        isOpen={isProjectsModalOpen}
-        onClose={closeProjectsModal}
-        projects={projects}
-        trashedProjects={trashedProjects}
-        activeProjectId={project.id}
-        onSelectProject={handleSelectProject}
-        onCreateProject={handleCreateProject}
-        onRenameProject={handleRenameProject}
-        onDuplicateProject={handleDuplicateProject}
-        onMoveToTrash={handleMoveToTrash}
-        onRestoreFromTrash={handleRestoreFromTrash}
-        onPermanentDelete={handlePermanentDelete}
-        onExportBackup={handleExportBackup}
-        onImportBackup={handleImportBackup}
+      {/* Importação (Home e diálogo de novo trabalho) */}
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".redija,.docx,.zip,.typ,.tex,.md,.markdown,.json"
+        className="hidden"
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleImportBackup(file);
+          e.target.value = '';
+        }}
+      />
+
+      <RenameProjectDialog
+        project={renameTarget}
+        existingNames={projects.map((p) => p.name)}
+        onClose={() => setRenameTarget(null)}
+        onRename={(target, newName) => {
+          void handleRenameProject(target.id, newName);
+          setRenameTarget(null);
+        }}
+      />
+
+      <StorageInfoDialog
+        project={storageTarget}
+        ownerLabel={isAuthenticated && user ? `conta ${user.email}` : 'perfil local'}
         isAuthenticated={isAuthenticated}
-        onSyncFromDrive={() => handleSyncFromDrive(true)}
-        isSyncingDrive={isSyncingDrive}
+        onClose={() => setStorageTarget(null)}
+        onExportBackup={handleExportBackup}
+      />
+
+      <DeleteForeverDialog
+        project={deleteTarget}
+        removesFromDrive={Boolean(
+          isAuthenticated && deleteTarget?.driveFileId && !deleteTarget?.isSharedWithMe,
+        )}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={(target) => {
+          void handlePermanentDelete(target.id);
+          setDeleteTarget(null);
+          toast.info(`"${target.name}" foi excluído permanentemente.`);
+        }}
       />
 
       <ShareModal

@@ -33,7 +33,6 @@ import {
   Code2,
   Terminal,
   Download,
-  ChevronDown,
 } from 'lucide-react';
 
 interface PdfPreviewProps {
@@ -284,19 +283,18 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
                 onClick={() => setNightPaper(!nightPaper)}
                 aria-pressed={nightPaper}
                 aria-label="Papel noturno"
-                className={`touch-target flex items-center justify-center gap-1 px-2 py-1 rounded-md text-xs font-medium border transition-colors ${
+                className={`touch-target flex items-center justify-center p-1.5 rounded-md border transition-colors ${
                   nightPaper
                     ? 'bg-slate-800 text-amber-300 border-slate-700'
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                 }`}
-                title="Alternar folha A4 entre Papel Branco e Papel Noturno"
+                title={nightPaper ? 'Voltar para o papel claro' : 'Papel noturno (folha escura para ler à noite)'}
               >
                 {nightPaper ? (
                   <Sun className="w-3.5 h-3.5 text-amber-400" />
                 ) : (
                   <Moon className="w-3.5 h-3.5" />
                 )}
-                <span className="hidden @lg:inline">{nightPaper ? 'Claro' : 'Noturno'}</span>
               </button>
 
               <div className="flex items-center gap-0.5" role="group" aria-label="Zoom da prévia">
@@ -333,62 +331,68 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
               type="button"
               onClick={onToggleCode}
               aria-label={showCode ? 'Ver PDF' : 'Ver Typst (código gerado)'}
-              className={`touch-target flex items-center justify-center gap-1 px-2 py-1 rounded-md text-xs font-medium border transition-colors ${
+              className={`touch-target flex items-center justify-center gap-1 rounded-md text-xs font-medium border transition-colors ${
                 showCode
-                  ? 'bg-brand-50 border-brand-300 text-brand-800 font-semibold'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                  ? 'px-2 py-1 bg-brand-50 border-brand-300 text-brand-800 font-semibold'
+                  : 'p-1.5 bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
               }`}
-              title={showCode ? 'Retornar para a visualização do PDF diagramado' : 'Visualizar código Typst gerado'}
+              title={showCode ? 'Retornar para a visualização do PDF diagramado' : 'Ver o código Typst gerado'}
             >
               {showCode ? (
                 <Eye className="w-3.5 h-3.5 text-brand-700" />
               ) : (
                 <Code2 className="w-3.5 h-3.5 text-slate-500" />
               )}
-              <span className={showCode ? '' : 'hidden @lg:inline'}>
-                {showCode ? 'Ver PDF' : 'Ver Typst'}
-              </span>
+              {/* No código, "Ver PDF" fica escrito: é o caminho de volta */}
+              {showCode && <span>Ver PDF</span>}
             </button>
           )}
 
-          {/* Exportar: uma única ação primária (Baixar PDF) + menu com os demais formatos */}
+          {/* Baixar: só o ícone (ação principal da barra, em destaque). Com outros formatos,
+              abre o menu com PDF, projeto completo e código Typst; sem eles, baixa o PDF direto. */}
           {onDownloadPdf && (
-            <div className="relative flex items-stretch" ref={exportMenuRef}>
+            <div className="relative" ref={exportMenuRef}>
               <button
                 type="button"
-                onClick={onDownloadPdf}
-                disabled={isExportingPdf}
-                className={`touch-target flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-semibold bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-white shadow-xs transition-colors ${
-                  hasExtraExports ? 'rounded-l-md' : 'rounded-md'
-                }`}
-                title="Compilar e baixar o PDF final nas normas ABNT"
+                onClick={hasExtraExports ? () => setIsExportMenuOpen((open) => !open) : onDownloadPdf}
+                disabled={!hasExtraExports && isExportingPdf}
+                aria-label={hasExtraExports ? 'Baixar trabalho' : 'Baixar PDF'}
+                aria-expanded={hasExtraExports ? isExportMenuOpen : undefined}
+                aria-controls={hasExtraExports ? exportMenuId : undefined}
+                title={hasExtraExports ? 'Baixar: PDF, projeto completo ou código Typst' : 'Baixar o PDF'}
+                className="touch-target flex items-center justify-center p-1.5 rounded-md border border-transparent bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-white shadow-xs transition-colors"
               >
-                {isExportingPdf ? (
+                {isExportingPdf || isExportingProject ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <Download className="w-3.5 h-3.5" />
                 )}
-                <span>{isExportingPdf ? 'Gerando...' : 'Baixar PDF'}</span>
               </button>
-              {hasExtraExports && (
-                <button
-                  type="button"
-                  onClick={() => setIsExportMenuOpen((open) => !open)}
-                  aria-expanded={isExportMenuOpen}
-                  aria-controls={exportMenuId}
-                  aria-label="Mais opções de exportação"
-                  title="Mais opções de exportação"
-                  className="touch-target flex items-center justify-center px-1.5 rounded-r-md bg-brand-700 hover:bg-brand-800 text-white border-l border-brand-600 transition-colors"
-                >
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </button>
-              )}
 
               {isExportMenuOpen && (
                 <div
                   id={exportMenuId}
                   className="absolute right-0 top-full mt-1.5 w-64 z-40 rounded-xl border border-slate-200 bg-white shadow-xl py-1.5 text-sm animate-in fade-in zoom-in-95 duration-100"
                 >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsExportMenuOpen(false);
+                      onDownloadPdf();
+                    }}
+                    disabled={isExportingPdf}
+                    className="touch-target w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {isExportingPdf ? (
+                      <Loader2 className="w-4 h-4 mt-0.5 animate-spin text-brand-700" />
+                    ) : (
+                      <FileText className="w-4 h-4 mt-0.5 text-brand-700" />
+                    )}
+                    <span>
+                      <span className="block font-medium text-slate-800">PDF (.pdf)</span>
+                      <span className="block text-xs text-slate-500">Documento final nas normas, pronto para entregar</span>
+                    </span>
+                  </button>
                   {onExportProjectZip && (
                     <button
                       type="button"

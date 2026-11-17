@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useRef } from 'react';
+import { MODAL_CHANGE_EVENT } from './toastStore';
 
 interface ModalProps {
   /** Chamado ao pressionar Esc, ao clicar no fundo (se habilitado) ou quando o navegador fecha o diálogo. */
@@ -68,11 +69,15 @@ export const Modal: React.FC<ModalProps> = ({
         dialog.setAttribute('open', '');
       }
     }
+    window.dispatchEvent(new Event(MODAL_CHANGE_EVENT));
 
     return () => {
       dialog.removeEventListener('cancel', handleCancel);
       dialog.removeEventListener('close', handleClose);
       if (dialog.open && typeof dialog.close === 'function') dialog.close();
+      else dialog.removeAttribute('open');
+      // Avisa o Toaster para tirar as notificações de dentro do diálogo que está fechando
+      window.dispatchEvent(new Event(MODAL_CHANGE_EVENT));
       if (previouslyFocused?.isConnected) previouslyFocused.focus({ preventScroll: true });
     };
   }, []);

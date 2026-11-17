@@ -1,9 +1,24 @@
 export type ToastKind = 'error' | 'success' | 'info';
 
+/** Disparado quando um modal abre ou fecha: o Toaster reposiciona as notificações. */
+export const MODAL_CHANGE_EVENT = 'redija:modalchange';
+
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface ToastItem {
   id: number;
   kind: ToastKind;
   message: string;
+  action?: ToastAction;
+}
+
+export interface ToastOptions {
+  durationMs?: number;
+  /** Botão de ação na notificação (ex.: "Desfazer"). */
+  action?: ToastAction;
 }
 
 const DEFAULT_DURATION_MS: Record<ToastKind, number> = {
@@ -11,6 +26,9 @@ const DEFAULT_DURATION_MS: Record<ToastKind, number> = {
   success: 4000,
   info: 5000,
 };
+
+/** Notificações com ação ficam mais tempo na tela para dar chance de reagir. */
+const ACTION_DURATION_MS = 8000;
 
 let toasts: ToastItem[] = [];
 let nextId = 1;
@@ -38,13 +56,19 @@ export function dismissToast(id: number) {
   emit();
 }
 
-function pushToast(kind: ToastKind, message: string, durationMs?: number): number {
+function pushToast(kind: ToastKind, message: string, options?: number | ToastOptions): number {
+  const opts: ToastOptions = typeof options === 'number' ? { durationMs: options } : (options ?? {});
   const id = nextId++;
   // Evita empilhar a mesma mensagem repetida
-  toasts = [...toasts.filter((t) => t.message !== message), { id, kind, message }].slice(-4);
+  toasts = [
+    ...toasts.filter((t) => t.message !== message),
+    { id, kind, message, action: opts.action },
+  ].slice(-4);
+  const duration =
+    opts.durationMs ?? (opts.action ? ACTION_DURATION_MS : DEFAULT_DURATION_MS[kind]);
   timers.set(
     id,
-    setTimeout(() => dismissToast(id), durationMs ?? DEFAULT_DURATION_MS[kind]),
+    setTimeout(() => dismissToast(id), duration),
   );
   emit();
   return id;
@@ -55,7 +79,8 @@ function pushToast(kind: ToastKind, message: string, durationMs?: number): numbe
  * de componentes React, por exemplo em hooks e serviços.
  */
 export const toast = {
-  error: (message: string, durationMs?: number) => pushToast('error', message, durationMs),
-  success: (message: string, durationMs?: number) => pushToast('success', message, durationMs),
-  info: (message: string, durationMs?: number) => pushToast('info', message, durationMs),
+  error: (message: string, options?: number | ToastOptions) => pushToast('error', message, options),
+  success: (message: string, options?: number | ToastOptions) =>
+    pushToast('success', message, options),
+  info: (message: string, options?: number | ToastOptions) => pushToast('info', message, options),
 };

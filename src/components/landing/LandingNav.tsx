@@ -2,14 +2,19 @@ import React, { useState, useEffect } from 'react';
 import {
   Sun,
   Moon,
-  ArrowRight,
+  Loader2,
   Menu,
   X,
   FileCheck2,
 } from 'lucide-react';
 import { Logo } from '../Logo';
 import { GitHubIcon } from '../GitHubIcon';
+import { GoogleLogo } from '../GoogleLogo';
 import { GITHUB_REPO_URL } from '@/core/links';
+import { LANDING_LOGIN_ATTR } from './landingLogin';
+
+/** Altura aproximada do topo fixo: um botão escondido atrás dele não conta como visível. */
+const NAV_OFFSET_PX = 72;
 
 interface LandingNavProps {
   isDark: boolean;
@@ -38,6 +43,31 @@ export const LandingNav: React.FC<LandingNavProps> = ({
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Começa oculto (o cartão de login do topo está na tela ao abrir a página)
+  const [pageLoginVisible, setPageLoginVisible] = useState(true);
+  useEffect(() => {
+    const targets = Array.from(document.querySelectorAll(`[${LANDING_LOGIN_ATTR}]`));
+    if (targets.length === 0 || typeof IntersectionObserver === 'undefined') {
+      // Sem outros botões para observar: o do topo fica sempre visível
+      const frame = requestAnimationFrame(() => setPageLoginVisible(false));
+      return () => cancelAnimationFrame(frame);
+    }
+    const visible = new Set<Element>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) visible.add(entry.target);
+          else visible.delete(entry.target);
+        }
+        setPageLoginVisible(visible.size > 0);
+      },
+      { rootMargin: `-${NAV_OFFSET_PX}px 0px 0px 0px` },
+    );
+    targets.forEach((target) => observer.observe(target));
+    return () => observer.disconnect();
+  }, []);
+  const showNavLogin = !pageLoginVisible;
 
   const navLinks = [
     { label: 'Recursos', href: '#recursos' },
@@ -153,20 +183,28 @@ export const LandingNav: React.FC<LandingNavProps> = ({
               {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
             </button>
 
-            {/* Botão Único de Login no Topo */}
-            <button
-              onClick={onOpenLogin}
-              disabled={isLoading}
-              className={`touch-target inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl font-semibold text-sm whitespace-nowrap transition-all shadow-xs active:scale-95 ${
-                isDark
-                  ? 'bg-brand-500 hover:bg-brand-400 text-slate-950'
-                  : 'bg-brand-700 hover:bg-brand-800 text-white'
+            {/* Login no topo, no padrão visual do Google. Só aparece quando nenhum outro botão
+                de login da página está na tela (cartão do topo ou banner final), para não repetir. */}
+            <div
+              inert={!showNavLogin}
+              className={`flex overflow-hidden transition-[max-width,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${
+                showNavLogin ? 'max-w-60 opacity-100' : '-ml-2 max-w-0 opacity-0'
               }`}
             >
-              <span className="sm:hidden">Entrar</span>
-              <span className="hidden sm:inline">Entrar com Google</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+              <button
+                onClick={onOpenLogin}
+                disabled={isLoading}
+                className={`touch-target inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 rounded-full border text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-offset-[-4px] disabled:opacity-60 ${
+                  isDark
+                    ? 'border-[#8e918f] bg-[#131314] text-[#e3e3e3] hover:bg-[#1f1f20]'
+                    : 'border-[#747775] bg-[#ffffff] text-[#1f1f1f] hover:bg-[#f8f9fa]'
+                }`}
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" /> : <GoogleLogo />}
+                <span className="sm:hidden">Entrar</span>
+                <span className="hidden sm:inline">Entrar com Google</span>
+              </button>
+            </div>
 
             {/* Botão de Menu Mobile */}
             <button

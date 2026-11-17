@@ -178,7 +178,7 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
       isUniverse: true,
       elements: [
         'Conexão direta com pacotes comunitários do Typst Universe via typst.app/universe',
-        'Sugestões em 1 clique já prontas no seletor de projetos e no Customizer',
+        'Sugestões em 1 clique já prontas na criação de trabalhos e no Customizer',
         'Suporte a entrada personalizada de namespace, versão e entrypoint (#show)',
         'Compilação via pacote virtual local quando estiver trabalhando sem internet',
         'Importe também projetos prontos (.typ / .zip) que já utilizem #import "@preview/..."',

@@ -161,7 +161,8 @@ interface UseProjectWorkspaceOptions {
   onBroadcastBlocksSync?: (blocks: Block[]) => void;
   onBroadcastBlockUpdate?: (blockId: string, content: string, meta?: Block['meta']) => void;
   onEmptyWorkspace: () => void;
-  onProjectImported: () => void;
+  /** Chamado com o trabalho recém-importado (já salvo e definido como ativo). */
+  onProjectImported: (project: DocumentProject) => void;
   onReferenceUpdated: () => void;
   /**
    * Fornece um token do Google Drive quando o usuário está logado com Google.
@@ -432,7 +433,11 @@ export function useProjectWorkspace({
   );
 
   const handleCreateProject = useCallback(
-    async (templateType: ProjectTemplateType, customName?: string, universePackage?: string) => {
+    async (
+      templateType: ProjectTemplateType,
+      customName?: string,
+      universePackage?: string,
+    ): Promise<DocumentProject | null> => {
       let finalName = (customName || '').trim();
       if (finalName) {
         const alreadyExists = projects.some(
@@ -442,7 +447,7 @@ export function useProjectWorkspace({
           toast.error(
             `Já existe um trabalho ativo com o nome "${finalName}". Escolha um nome diferente para evitar substituição.`,
           );
-          return;
+          return null;
         }
       } else {
         finalName = generateDefaultProjectName(templateType, projects);
@@ -467,6 +472,7 @@ export function useProjectWorkspace({
       clearHistory();
       setProject(newProj);
       setActiveProjectId(newProj.id, activeOwner);
+      return newProj;
     },
     [projects, activeOwner, clearHistory, setProject],
   );
@@ -501,7 +507,7 @@ export function useProjectWorkspace({
   );
 
   const handleDuplicateProject = useCallback(
-    async (id: string) => {
+    async (id: string, options?: { activate?: boolean }) => {
       const original = projects.find((p) => p.id === id);
       if (!original) return;
       const cloned = await duplicateProject(id);
@@ -512,9 +518,13 @@ export function useProjectWorkspace({
       await saveProject(cloned, false);
       const all = await listProjects(activeOwner);
       setProjects(all);
-      skipNextAutoSaveRef.current = true;
-      setProject(cloned);
-      setActiveProjectId(cloned.id, activeOwner);
+      // Na Home, a cópia só aparece na lista; no editor, ela passa a ser o trabalho aberto
+      if (options?.activate !== false) {
+        skipNextAutoSaveRef.current = true;
+        setProject(cloned);
+        setActiveProjectId(cloned.id, activeOwner);
+      }
+      return cloned;
     },
     [projects, activeOwner, setProject],
   );
@@ -578,7 +588,7 @@ export function useProjectWorkspace({
   );
 
   const handleRestoreFromTrash = useCallback(
-    async (id: string) => {
+    async (id: string, options?: { activate?: boolean }) => {
       const target = await getProject(id);
       if (!target) return;
 
@@ -597,9 +607,11 @@ export function useProjectWorkspace({
       const trashed = await listTrashedProjects(activeOwner);
       setProjects(all);
       setTrashedProjects(trashed);
-      skipNextAutoSaveRef.current = true;
-      setProject(restored);
-      setActiveProjectId(restored.id, activeOwner);
+      if (options?.activate !== false) {
+        skipNextAutoSaveRef.current = true;
+        setProject(restored);
+        setActiveProjectId(restored.id, activeOwner);
+      }
 
       if (needsDrive && getDriveAccessToken) {
         const token = await getDriveAccessToken().catch(() => null);
@@ -644,7 +656,7 @@ export function useProjectWorkspace({
         clearHistory();
         setProject(imported);
         setActiveProjectId(imported.id, activeOwner);
-        onProjectImported();
+        onProjectImported(imported);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Erro ao importar documento.');
       }

@@ -101,7 +101,7 @@ export const BetaNoticeModal: React.FC<BetaNoticeModalProps> = ({
                 Encontrou um erro ou tem sugestões?
               </p>
               <p className="text-blue-900 dark:text-blue-300">
-                Use o botão com o ícone de <strong>besourinho (Bug)</strong> no topo da tela para nos enviar um relato direto, com print e diagnóstico automático. Sua opinião molda o futuro do aplicativo!
+                Abra o menu do seu perfil, no canto superior direito, e escolha <strong>Relatar problema ou sugestão</strong> para nos enviar um relato direto, com print e diagnóstico automático. Sua opinião molda o futuro do aplicativo!
               </p>
             </div>
           </div>

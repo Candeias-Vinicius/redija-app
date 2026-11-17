@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
 import {
+  ArrowLeft,
   CheckCircle2,
   FolderOpen,
   ChevronDown,
@@ -13,7 +14,6 @@ import {
   CloudCheck,
   Cloud,
   Share2,
-  LogIn,
   LogOut,
   Settings,
   User,
@@ -28,6 +28,7 @@ import { GITHUB_REPO_URL } from '@/core/links';
 import type { PaneId } from '@/hooks/usePaneLayout';
 import { Logo } from './Logo';
 import { GitHubIcon } from './GitHubIcon';
+import { GoogleLogo } from './GoogleLogo';
 import { InfoTooltip } from './ui/InfoTooltip';
 
 interface HeaderProps {
@@ -48,7 +49,12 @@ interface HeaderProps {
   onSelectPane?: (pane: PaneId) => void;
   /** Há um trabalho aberto (abas de painel e histórico só fazem sentido com projeto). */
   hasProject?: boolean;
-  onOpenProjectsModal: () => void;
+  /** "home": lista de trabalhos (com busca); "editor": trabalho aberto. */
+  view?: 'home' | 'editor';
+  /** Volta do editor para a Home. */
+  onGoHome?: () => void;
+  /** Campo de busca exibido no header da Home. */
+  homeSearch?: React.ReactNode;
   onOpenBugReportModal: () => void;
   onOpenBetaNoticeModal?: () => void;
   onOpenTemplateCustomizer?: () => void;
@@ -101,7 +107,9 @@ export const Header: React.FC<HeaderProps> = ({
   showPreview,
   onSelectPane,
   hasProject = true,
-  onOpenProjectsModal,
+  view = 'editor',
+  onGoHome,
+  homeSearch,
   onOpenBugReportModal,
   onOpenBetaNoticeModal,
   onOpenFullDocs,
@@ -325,6 +333,17 @@ export const Header: React.FC<HeaderProps> = ({
         <BookOpen className="w-4 h-4 text-brand-700 dark:text-brand-400" />
         <span>Documentação</span>
       </a>
+      <button
+        type="button"
+        onClick={() => {
+          setIsUserMenuOpen(false);
+          onOpenBugReportModal();
+        }}
+        className={MENU_ITEM}
+      >
+        <Bug className="w-4 h-4 text-slate-500" />
+        <span>Relatar problema ou sugestão</span>
+      </button>
       <a
         href={GITHUB_REPO_URL}
         target="_blank"
@@ -354,27 +373,35 @@ export const Header: React.FC<HeaderProps> = ({
             betaBadgeClassName="hidden md:inline-flex"
           />
 
-          <span className="text-slate-300 dark:text-slate-600 hidden md:inline" aria-hidden="true">
-            /
-          </span>
+          {view === 'home' ? (
+            homeSearch
+          ) : (
+            <>
+              {/* Voltar para a Home + nome do trabalho aberto */}
+              <button
+                type="button"
+                onClick={onGoHome}
+                className="touch-target flex items-center gap-1.5 px-1.5 sm:px-2 py-1 rounded-md hover:bg-surface-sunken text-sm font-medium text-slate-700 dark:text-slate-200 transition-colors shrink-0"
+                title={`Voltar para Meus trabalhos (${projectsCount})`}
+                aria-label="Voltar para Meus trabalhos"
+              >
+                <ArrowLeft className="w-4 h-4 shrink-0" />
+                <span className="hidden lg:inline">Meus trabalhos</span>
+              </button>
+              <span className="text-slate-300 dark:text-slate-600 hidden lg:inline" aria-hidden="true">
+                /
+              </span>
+              <p
+                className="min-w-0 flex items-center gap-1.5 text-sm font-medium text-fg"
+                title={projectName}
+              >
+                <FolderOpen className="w-4 h-4 text-brand-700 dark:text-brand-400 shrink-0 hidden sm:block" aria-hidden="true" />
+                <span className="truncate">{projectName}</span>
+              </p>
+            </>
+          )}
 
-          {/* Seletor de Projetos */}
-          <button
-            type="button"
-            onClick={onOpenProjectsModal}
-            className="touch-target flex items-center gap-1.5 px-1.5 sm:px-2 py-1 rounded-md hover:bg-surface-sunken text-sm font-medium text-fg transition-colors shrink-0 lg:shrink min-w-0 max-w-[45vw] sm:max-w-[220px] lg:max-w-xs"
-            title="Alternar ou criar trabalho acadêmico"
-            aria-label={`Trabalho atual: ${projectName}. Alternar ou criar trabalho (${projectsCount} no total)`}
-          >
-            <FolderOpen className="w-4 h-4 text-brand-700 dark:text-brand-400 shrink-0" />
-            <span className="truncate hidden sm:inline">{projectName}</span>
-            <span className="text-xs bg-surface-sunken text-slate-600 dark:text-slate-300 px-1.5 rounded-full shrink-0 hidden md:inline">
-              {projectsCount}
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-          </button>
-
-          {!isCompact && hasProject && undoRedo}
+          {!isCompact && hasProject && view === 'editor' && undoRedo}
         </div>
 
         {/* Lado Direito: Status, Ações e Perfil */}
@@ -414,7 +441,8 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
-          {/* Compartilhar */}
+          {/* Compartilhar (ação do trabalho aberto: só no editor) */}
+          {view === 'editor' && (
           <button
             type="button"
             onClick={onOpenShareModal}
@@ -425,21 +453,9 @@ export const Header: React.FC<HeaderProps> = ({
             <Share2 className="w-4 h-4 text-brand-700 dark:text-brand-400" />
             <span className="hidden md:inline">Compartilhar</span>
           </button>
+          )}
 
-          {/* Relatar Problema: ação secundária, sem disputar atenção com as ações principais */}
-          <button
-            type="button"
-            onClick={onOpenBugReportModal}
-            className={ICON_BUTTON}
-            title="Relatar problema ou sugestão"
-            aria-label="Relatar problema ou sugestão"
-          >
-            <Bug className="w-4 h-4" />
-          </button>
-
-          <div className="h-5 w-px bg-line mx-0.5" aria-hidden="true" />
-
-          {/* Perfil do Usuário / Login */}
+          {/* Perfil do Usuário / Login (o menu também traz Ajuda: documentação e relatar problema) */}
           {isAuthenticated && user ? (
             <div className="relative" ref={userMenuRef}>
               <button
@@ -508,20 +524,22 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <div className="flex items-center gap-1.5">
               {showLoginButton && (
+                // Botão no padrão visual do Google (cores e "G" oficiais) para deixar claro
+                // que a conexão é com a conta Google; no celular fica só o "G".
                 <button
                   type="button"
                   onClick={onLogin}
                   disabled={isAuthLoading}
-                  className="touch-target flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-sm font-semibold rounded-lg bg-surface hover:bg-surface-sunken text-fg border border-line-strong shadow-xs transition-all"
-                  title="Conectar com conta Google para sincronizar e colaborar"
-                  aria-label="Entrar com a conta Google"
+                  className="touch-target flex items-center justify-center gap-2 p-1.5 sm:px-3 sm:py-1.5 text-sm font-medium rounded-full border border-[#747775] bg-[#ffffff] text-[#1f1f1f] hover:bg-[#f8f9fa] dark:border-[#8e918f] dark:bg-[#131314] dark:text-[#e3e3e3] dark:hover:bg-[#1f1f20] disabled:opacity-60 transition-colors"
+                  title="Conectar sua conta Google para salvar no Drive e colaborar"
+                  aria-label="Conectar com a conta Google"
                 >
                   {isAuthLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-brand-700" />
+                    <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" />
                   ) : (
-                    <LogIn className="w-4 h-4 text-brand-700 dark:text-brand-400" />
+                    <GoogleLogo />
                   )}
-                  <span className="hidden sm:inline">Entrar</span>
+                  <span className="hidden sm:inline">Conectar</span>
                 </button>
               )}
 
@@ -574,8 +592,8 @@ export const Header: React.FC<HeaderProps> = ({
                           }}
                           className={MENU_ITEM}
                         >
-                          <LogIn className="w-4 h-4 text-brand-700 dark:text-brand-400" />
-                          <span>Entrar com Google</span>
+                          <GoogleLogo />
+                          <span>Conectar conta Google</span>
                         </button>
                       )}
                       {appearanceItem}
@@ -604,7 +622,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Segunda linha no compacto: abas Estrutura | Texto | PDF e histórico de edição */}
-      {isCompact && hasProject && (
+      {isCompact && hasProject && view === 'editor' && (
         <div className="px-2 pb-2 pt-0 flex items-center gap-1.5">
           {paneSwitcher}
           {undoRedo}
