@@ -47,13 +47,13 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
             </p>
 
             <div className="flex flex-wrap gap-2 pt-2">
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span className="px-2 py-0.5 rounded-md text-xs font-mono font-semibold bg-brand-500/10 text-brand-700 dark:text-brand-400 border border-brand-500/20">
                 Typst 0.12+ WASM
               </span>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+              <span className="px-2 py-0.5 rounded-md text-xs font-mono font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                 Google Drive BYOS
               </span>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+              <span className="px-2 py-0.5 rounded-md text-xs font-mono font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                 WebRTC P2P
               </span>
             </div>
@@ -80,7 +80,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
                     onOpenFullDocs();
                   }
                 }}
-                className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                className="font-semibold text-brand-700 dark:text-brand-400 hover:underline"
               >
                 Documentação (/docs) &rarr;
               </a>
@@ -95,37 +95,37 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
             </h4>
             <ul className="space-y-2">
               <li>
-                <a href="#recursos" className="hover:text-emerald-500 transition-colors">
+                <a href="#recursos" className="hover:text-brand-500 transition-colors">
                   Editor Visual Notion
                 </a>
               </li>
               <li>
-                <a href="#recursos" className="hover:text-emerald-500 transition-colors">
+                <a href="#recursos" className="hover:text-brand-500 transition-colors">
                   Motor Typst WASM
                 </a>
               </li>
               <li>
-                <a href="#recursos" className="hover:text-emerald-500 transition-colors">
+                <a href="#recursos" className="hover:text-brand-500 transition-colors">
                   Google Drive Pessoal
                 </a>
               </li>
               <li>
-                <a href="#recursos" className="hover:text-emerald-500 transition-colors">
+                <a href="#recursos" className="hover:text-brand-500 transition-colors">
                   Colaboração em Tempo Real
                 </a>
               </li>
               <li>
-                <a href="#modelos" className="hover:text-emerald-500 transition-colors">
+                <a href="#modelos" className="hover:text-brand-500 transition-colors">
                   Modelos &amp; Typst Universe
                 </a>
               </li>
               <li>
-                <a href="#linters" className="hover:text-emerald-500 transition-colors">
+                <a href="#linters" className="hover:text-brand-500 transition-colors">
                   Linters por Modelo
                 </a>
               </li>
               <li>
-                <a href="#recursos" className="hover:text-emerald-500 transition-colors">
+                <a href="#recursos" className="hover:text-brand-500 transition-colors">
                   Importador .docx / .tex / .typ
                 </a>
               </li>
@@ -141,7 +141,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenModal('docs', 'ABNT NBR 14724')}
-                  className="hover:text-emerald-500 transition-colors text-left"
+                  className="hover:text-brand-500 transition-colors text-left"
                 >
                   ABNT (9 NBRs)
                 </button>
@@ -155,7 +155,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
                       onOpenFullDocs('templates-internacionais');
                     }
                   }}
-                  className="hover:text-emerald-500 transition-colors"
+                  className="hover:text-brand-500 transition-colors"
                 >
                   Artigo SBC &amp; IEEE
                 </a>
@@ -169,7 +169,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
                       onOpenFullDocs('templates-internacionais');
                     }
                   }}
-                  className="hover:text-emerald-500 transition-colors"
+                  className="hover:text-brand-500 transition-colors"
                 >
                   Pôster A0/A1 &amp; APA 7ª
                 </a>
@@ -183,7 +183,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
                       onOpenFullDocs('templates-internacionais');
                     }
                   }}
-                  className="hover:text-emerald-500 transition-colors"
+                  className="hover:text-brand-500 transition-colors"
                 >
                   Typst Universe (@preview)
                 </a>
@@ -191,7 +191,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenModal('docs', 'ABNT NBR 10520:2023')}
-                  className="hover:text-emerald-500 transition-colors text-left"
+                  className="hover:text-brand-500 transition-colors text-left"
                 >
                   NBR 10520:2023 (Citações)
                 </button>
@@ -199,7 +199,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenModal('docs')}
-                  className="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline text-left"
+                  className="text-brand-700 dark:text-brand-400 font-semibold hover:underline text-left"
                 >
                   Resumo das 9 NBRs &rarr;
                 </button>
@@ -213,7 +213,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
                       onOpenFullDocs();
                     }
                   }}
-                  className="hover:text-emerald-500 transition-colors font-medium"
+                  className="hover:text-brand-500 transition-colors font-medium"
                 >
                   Documentação Completa
                 </a>
@@ -230,7 +230,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenModal('about')}
-                  className="hover:text-emerald-500 transition-colors text-left"
+                  className="hover:text-brand-500 transition-colors text-left"
                 >
                   A História do Redija
                 </button>
@@ -238,7 +238,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenModal('about')}
-                  className="hover:text-emerald-500 transition-colors text-left"
+                  className="hover:text-brand-500 transition-colors text-left"
                 >
                   Por que Criamos o App
                 </button>
@@ -246,7 +246,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenModal('contact')}
-                  className="hover:text-emerald-500 transition-colors text-left"
+                  className="hover:text-brand-500 transition-colors text-left"
                 >
                   Fale Conosco
                 </button>
@@ -254,7 +254,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenModal('contact')}
-                  className="hover:text-emerald-500 transition-colors text-left"
+                  className="hover:text-brand-500 transition-colors text-left"
                 >
                   Reportar um Problema
                 </button>
@@ -264,7 +264,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
                   href={GITHUB_REPO_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-emerald-500 transition-colors"
+                  className="hover:text-brand-500 transition-colors"
                 >
                   Repositório no GitHub
                 </a>
@@ -274,7 +274,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
                   href={GITHUB_ISSUES_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-emerald-500 transition-colors"
+                  className="hover:text-brand-500 transition-colors"
                 >
                   Issues & Sugestões
                 </a>
@@ -291,7 +291,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenModal('privacy')}
-                  className="hover:text-emerald-500 transition-colors text-left"
+                  className="hover:text-brand-500 transition-colors text-left"
                 >
                   Política de Privacidade
                 </button>
@@ -299,7 +299,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenModal('privacy')}
-                  className="hover:text-emerald-500 transition-colors text-left"
+                  className="hover:text-brand-500 transition-colors text-left"
                 >
                   Conformidade LGPD
                 </button>
@@ -307,7 +307,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenModal('terms')}
-                  className="hover:text-emerald-500 transition-colors text-left"
+                  className="hover:text-brand-500 transition-colors text-left"
                 >
                   Termos de Uso
                 </button>
@@ -315,7 +315,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenModal('terms')}
-                  className="hover:text-emerald-500 transition-colors text-left"
+                  className="hover:text-brand-500 transition-colors text-left"
                 >
                   Código Aberto (AGPL-3.0)
                 </button>
@@ -325,7 +325,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
                   href={GITHUB_THIRD_PARTY_NOTICES_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-emerald-500 transition-colors"
+                  className="hover:text-brand-500 transition-colors"
                 >
                   Créditos &amp; Typst (Apache-2.0)
                 </a>
@@ -338,7 +338,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
         <div className="pt-8 mt-8 border-t border-slate-200 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
           <p className="flex items-center gap-1.5 text-center sm:text-left">
             <span>RedijaApp v{APP_VERSION} © 2026 • Construído com</span>
-            <Heart className="w-3.5 h-3.5 text-emerald-500 inline fill-emerald-500" />
+            <Heart className="w-3.5 h-3.5 text-brand-500 inline fill-brand-500" />
             <span>para a comunidade acadêmica brasileira.</span>
           </p>
 
@@ -351,7 +351,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
                   onOpenFullDocs();
                 }
               }}
-              className="hover:text-emerald-500 transition-colors"
+              className="hover:text-brand-500 transition-colors"
             >
               Documentação
             </a>
@@ -359,25 +359,25 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
               href={GITHUB_REPO_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-emerald-500 transition-colors"
+              className="hover:text-brand-500 transition-colors"
             >
               GitHub
             </a>
             <button
               onClick={() => onOpenModal('privacy')}
-              className="hover:text-emerald-500 transition-colors"
+              className="hover:text-brand-500 transition-colors"
             >
               Privacidade
             </button>
             <button
               onClick={() => onOpenModal('terms')}
-              className="hover:text-emerald-500 transition-colors"
+              className="hover:text-brand-500 transition-colors"
             >
               Termos
             </button>
             <button
               onClick={onScrollToTop}
-              className="hover:text-emerald-500 transition-colors font-semibold"
+              className="hover:text-brand-500 transition-colors font-semibold"
             >
               Voltar ao Topo &uarr;
             </button>

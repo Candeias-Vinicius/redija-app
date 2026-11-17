@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { scrollBehavior } from '@/core/motion';
 
 export type AppRoute = 'app' | 'docs';
 
@@ -83,10 +84,10 @@ export function useAppRoute() {
 
       if (target === '/docs' && sectionId) {
         requestAnimationFrame(() => {
-          document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          document.getElementById(sectionId)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
         });
       } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: scrollBehavior() });
       }
     }
   }, []);

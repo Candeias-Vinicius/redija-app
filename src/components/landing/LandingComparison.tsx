@@ -10,7 +10,7 @@ export const LandingComparison: React.FC<LandingComparisonProps> = ({ isDark }) 
     <section className="py-16 sm:py-20 border-y border-slate-200/60 dark:border-slate-800/60 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-12 space-y-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-brand-700 dark:text-brand-400">
             Comparativo de Produtividade
           </span>
           <h2
@@ -63,7 +63,7 @@ export const LandingComparison: React.FC<LandingComparisonProps> = ({ isDark }) 
               </ul>
             </div>
 
-            <div className="pt-4 mt-6 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300">
+            <div className="pt-4 mt-6 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
               Resultado: Noites em claro consertando margens antes da entrega.
             </div>
           </div>
@@ -105,7 +105,7 @@ export const LandingComparison: React.FC<LandingComparisonProps> = ({ isDark }) 
               </ul>
             </div>
 
-            <div className="pt-4 mt-6 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300">
+            <div className="pt-4 mt-6 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
               Resultado: Mais tempo brigando com pacotes do que pesquisando.
             </div>
           </div>
@@ -114,16 +114,16 @@ export const LandingComparison: React.FC<LandingComparisonProps> = ({ isDark }) 
           <div
             className={`p-6 rounded-2xl border-2 transition-all flex flex-col justify-between relative shadow-xl ${
               isDark
-                ? 'bg-gradient-to-b from-emerald-950/40 via-slate-900 to-slate-950 border-emerald-500/80 shadow-emerald-950/50'
-                : 'bg-gradient-to-b from-emerald-50/80 via-white to-teal-50/40 border-emerald-500 shadow-emerald-600/10'
+                ? 'bg-gradient-to-b from-brand-950/40 via-slate-900 to-slate-950 border-brand-500/80 shadow-brand-950/50'
+                : 'bg-gradient-to-b from-brand-50/80 via-white to-teal-50/40 border-brand-500 shadow-brand-600/10'
             }`}
           >
-            <div className="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-bold text-[10px] tracking-wide uppercase shadow-sm">
+            <div className="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-brand-500 text-slate-950 font-bold text-xs tracking-wide uppercase shadow-sm">
               A Escolha Moderna
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-lg">
+              <div className="flex items-center gap-2 text-brand-700 dark:text-brand-400 font-bold text-lg">
                 <Sparkles className="w-5 h-5 shrink-0" />
                 <h3>RedijaApp com Typst</h3>
               </div>
@@ -133,25 +133,25 @@ export const LandingComparison: React.FC<LandingComparisonProps> = ({ isDark }) 
 
               <ul className="space-y-2.5 text-xs font-medium">
                 <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-4 h-4 text-brand-700 dark:text-brand-400 shrink-0 mt-0.5" />
                   <span className="text-slate-900 dark:text-white">
                     Interface em blocos estilo Notion: zero código obrigatório
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-4 h-4 text-brand-700 dark:text-brand-400 shrink-0 mt-0.5" />
                   <span className="text-slate-900 dark:text-white">
                     Compilação Typst em &lt;50ms direto na CPU via WebAssembly
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-4 h-4 text-brand-700 dark:text-brand-400 shrink-0 mt-0.5" />
                   <span className="text-slate-900 dark:text-white">
                     ABNT (9 NBRs), SBC, IEEE, APA 7ª, Pôsteres e Typst Universe com linters
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-4 h-4 text-brand-700 dark:text-brand-400 shrink-0 mt-0.5" />
                   <span className="text-slate-900 dark:text-white">
                     Seus arquivos no seu próprio Google Drive e offline-first
                   </span>
@@ -159,7 +159,7 @@ export const LandingComparison: React.FC<LandingComparisonProps> = ({ isDark }) 
               </ul>
             </div>
 
-            <div className="pt-4 mt-6 border-t border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold">
+            <div className="pt-4 mt-6 border-t border-brand-500/20 text-xs text-brand-700 dark:text-brand-300 font-semibold">
               Resultado: Concentração plena na sua pesquisa e aprovação sem sustos.
             </div>
           </div>

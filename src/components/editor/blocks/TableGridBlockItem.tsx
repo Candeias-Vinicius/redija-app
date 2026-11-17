@@ -12,9 +12,9 @@ export const TableGridBlockItem: React.FC<TableGridBlockItemProps> = ({ block, o
   const rows = block.meta?.rows ?? [['', '']];
 
   return (
-    <div className="border border-neutral-200 rounded-xl p-4 bg-neutral-50/70 space-y-3 text-xs">
+    <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/70 space-y-3 text-xs">
       <div className="flex items-center justify-between">
-        <span className="font-semibold text-neutral-700 flex items-center gap-1.5">
+        <span className="font-semibold text-slate-700 flex items-center gap-1.5">
           {block.type === 'box' ? (
             <>
               <LayoutGrid className="w-3.5 h-3.5 text-teal-600" />
@@ -35,7 +35,7 @@ export const TableGridBlockItem: React.FC<TableGridBlockItemProps> = ({ block, o
               const nextRows = rows.map((r) => [...r, '']);
               onUpdateMeta(block.id, { headers: nextHeaders, rows: nextRows });
             }}
-            className="px-2 py-1 bg-white border border-neutral-200 rounded hover:bg-neutral-100 text-[11px]"
+            className="px-2 py-1 bg-white border border-slate-200 rounded hover:bg-slate-100 text-xs"
           >
             + Coluna
           </button>
@@ -45,7 +45,7 @@ export const TableGridBlockItem: React.FC<TableGridBlockItemProps> = ({ block, o
               const nextRows = [...rows, Array(headers.length).fill('')];
               onUpdateMeta(block.id, { headers, rows: nextRows });
             }}
-            className="px-2 py-1 bg-white border border-neutral-200 rounded hover:bg-neutral-100 text-[11px]"
+            className="px-2 py-1 bg-white border border-slate-200 rounded hover:bg-slate-100 text-xs"
           >
             + Linha
           </button>
@@ -57,15 +57,15 @@ export const TableGridBlockItem: React.FC<TableGridBlockItemProps> = ({ block, o
         value={block.meta?.caption || ''}
         onChange={(e) => onUpdateMeta(block.id, { caption: e.target.value })}
         placeholder="Título da Tabela (acima)"
-        className="w-full text-xs px-2.5 py-1.5 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+        className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-brand-600"
       />
 
-      <div className="overflow-x-auto bg-white rounded-lg border border-neutral-200">
+      <div className="overflow-x-auto bg-white rounded-lg border border-slate-200">
         <table className="w-full border-collapse text-xs">
           <thead>
-            <tr className="bg-neutral-100 border-b border-neutral-300">
+            <tr className="bg-slate-100 border-b border-slate-300">
               {headers.map((h, cIdx) => (
-                <th key={cIdx} className="p-1.5 border-r last:border-r-0 border-neutral-200">
+                <th key={cIdx} className="p-1.5 border-r last:border-r-0 border-slate-200">
                   <input
                     type="text"
                     value={h}
@@ -82,9 +82,9 @@ export const TableGridBlockItem: React.FC<TableGridBlockItemProps> = ({ block, o
           </thead>
           <tbody>
             {rows.map((row, rIdx) => (
-              <tr key={rIdx} className="border-b last:border-b-0 border-neutral-200">
+              <tr key={rIdx} className="border-b last:border-b-0 border-slate-200">
                 {headers.map((_, cIdx) => (
-                  <td key={cIdx} className="p-1.5 border-r last:border-r-0 border-neutral-200">
+                  <td key={cIdx} className="p-1.5 border-r last:border-r-0 border-slate-200">
                     <input
                       type="text"
                       value={row[cIdx] ?? ''}
@@ -109,7 +109,7 @@ export const TableGridBlockItem: React.FC<TableGridBlockItemProps> = ({ block, o
         value={block.meta?.source || ''}
         onChange={(e) => onUpdateMeta(block.id, { source: e.target.value })}
         placeholder="Fonte da Tabela (abaixo)"
-        className="w-full text-xs px-2.5 py-1.5 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+        className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-brand-600"
       />
     </div>
   );

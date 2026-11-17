@@ -219,7 +219,8 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     // Abre Personalizar Campos e oculta Coorientador(a)
     await sidebar.getByRole('button', { name: /Personalizar Campos/i }).click();
     await expect(page.getByText('Personalizar Campos da Barra Lateral')).toBeVisible();
-    await page.getByLabel(/Coorientador\(a\)/).uncheck();
+    // O campo da sidebar agora também tem rótulo associado: restringe a busca ao modal
+    await page.getByRole('dialog').getByLabel(/Coorientador\(a\)/).uncheck();
     await page.getByRole('button', { name: /Salvar Campos/i }).click();
 
     await expect(sidebar.getByText('ABNT Modificado', { exact: true })).toBeVisible();

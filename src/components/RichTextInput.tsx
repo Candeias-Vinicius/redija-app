@@ -59,7 +59,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
   refIndexMap: externalRefIndexMap,
   citationStyle = 'titlecase',
   citationFormat,
-  placeholder = 'Digite seu texto, "/" para comandos ou "@" para citar referência...',
+  placeholder = 'Escreva aqui. Use "/" para blocos ABNT, "@" para citar ou selecione o texto para formatar.',
   className = '',
   autoFocus = false,
   openCitationTrigger = 0,
@@ -331,102 +331,111 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
         {hasSelection && (
           <div
             onMouseDown={(e) => e.preventDefault()}
-            className="absolute -top-9 left-0 z-30 flex items-center gap-0.5 bg-neutral-900 text-white rounded-lg shadow-lg px-1.5 py-1 text-xs animate-in fade-in duration-100"
+            className="absolute -top-9 left-0 z-30 flex items-center gap-0.5 bg-slate-900 text-white rounded-lg shadow-lg px-1.5 py-1 text-xs animate-in fade-in duration-100"
           >
             <button
+              aria-label="Negrito (Ctrl+B)"
               type="button"
               onClick={() => editor.chain().focus().toggleBold().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('bold') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+              className={`p-1 rounded hover:bg-slate-700 ${
+                editor.isActive('bold') ? 'bg-brand-700 text-white' : 'text-slate-200'
               }`}
               title="Negrito (Ctrl+B)"
             >
               <Bold className="w-3.5 h-3.5" />
             </button>
             <button
+              aria-label="Itálico (Ctrl+I)"
               type="button"
               onClick={() => editor.chain().focus().toggleItalic().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('italic') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+              className={`p-1 rounded hover:bg-slate-700 ${
+                editor.isActive('italic') ? 'bg-brand-700 text-white' : 'text-slate-200'
               }`}
               title="Itálico (Ctrl+I)"
             >
               <Italic className="w-3.5 h-3.5" />
             </button>
             <button
+              aria-label="Sublinhado (Ctrl+U)"
               type="button"
               onClick={() => editor.chain().focus().toggleUnderline().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('underline') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+              className={`p-1 rounded hover:bg-slate-700 ${
+                editor.isActive('underline') ? 'bg-brand-700 text-white' : 'text-slate-200'
               }`}
               title="Sublinhado (Ctrl+U)"
             >
               <UnderlineIcon className="w-3.5 h-3.5" />
             </button>
             <button
+              aria-label="Tachado"
               type="button"
               onClick={() => editor.chain().focus().toggleStrike().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('strike') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+              className={`p-1 rounded hover:bg-slate-700 ${
+                editor.isActive('strike') ? 'bg-brand-700 text-white' : 'text-slate-200'
               }`}
               title="Tachado"
             >
               <Strikethrough className="w-3.5 h-3.5" />
             </button>
             <button
+              aria-label="Código Inline"
               type="button"
               onClick={() => editor.chain().focus().toggleCode().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('code') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+              className={`p-1 rounded hover:bg-slate-700 ${
+                editor.isActive('code') ? 'bg-brand-700 text-white' : 'text-slate-200'
               }`}
               title="Código Inline"
             >
               <Code className="w-3.5 h-3.5" />
             </button>
             <button
+              aria-label="Inserir ou editar Link (URL)"
               type="button"
               onClick={openLinkPopover}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('link') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+              className={`p-1 rounded hover:bg-slate-700 ${
+                editor.isActive('link') ? 'bg-brand-700 text-white' : 'text-slate-200'
               }`}
               title="Inserir ou editar Link (URL)"
             >
               <Link2 className="w-3.5 h-3.5" />
             </button>
             <button
+              aria-label="Converter em fórmula matemática inline ($...$)"
               type="button"
               onClick={openMathPopover}
-              className="p-1 rounded hover:bg-neutral-700 text-indigo-300"
+              className="p-1 rounded hover:bg-slate-700 text-indigo-300"
               title="Converter em fórmula matemática inline ($...$)"
             >
               <Sigma className="w-3.5 h-3.5" />
             </button>
-            <div className="w-px h-3.5 bg-neutral-700 mx-0.5" />
+            <div className="w-px h-3.5 bg-slate-700 mx-0.5" />
             <button
+              aria-label="Sobrescrito"
               type="button"
               onClick={() => editor.chain().focus().toggleSuperscript().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('superscript') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+              className={`p-1 rounded hover:bg-slate-700 ${
+                editor.isActive('superscript') ? 'bg-brand-700 text-white' : 'text-slate-200'
               }`}
               title="Sobrescrito"
             >
               <SupIcon className="w-3.5 h-3.5" />
             </button>
             <button
+              aria-label="Subscrito"
               type="button"
               onClick={() => editor.chain().focus().toggleSubscript().run()}
-              className={`p-1 rounded hover:bg-neutral-700 ${
-                editor.isActive('subscript') ? 'bg-emerald-600 text-white' : 'text-neutral-200'
+              className={`p-1 rounded hover:bg-slate-700 ${
+                editor.isActive('subscript') ? 'bg-brand-700 text-white' : 'text-slate-200'
               }`}
               title="Subscrito"
             >
               <SubIcon className="w-3.5 h-3.5" />
             </button>
-            <div className="w-px h-3.5 bg-neutral-700 mx-0.5" />
+            <div className="w-px h-3.5 bg-slate-700 mx-0.5" />
             <button
               type="button"
               onClick={() => setShowCitationPicker(true)}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-neutral-700 text-emerald-300 font-medium"
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-slate-700 text-brand-300 font-medium"
               title="Inserir chamada de referência"
             >
               <Bookmark className="w-3 h-3" />
@@ -437,15 +446,16 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
 
         {/* Popover de Hyperlink */}
         {showLinkInput && (
-          <div className="absolute left-0 top-8 z-40 w-[min(20rem,calc(100vw-2rem))] max-w-full bg-white border border-neutral-200 rounded-xl shadow-xl p-2.5 text-xs space-y-2">
+          <div className="absolute left-0 top-8 z-40 w-[min(20rem,calc(100vw-2rem))] max-w-full bg-white border border-slate-200 rounded-xl shadow-xl p-2.5 text-xs space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase text-neutral-500">
+              <span className="text-xs font-bold uppercase text-slate-500">
                 Inserir Link Clicável
               </span>
               <button
+                aria-label="Fechar"
                 type="button"
                 onClick={() => setShowLinkInput(false)}
-                className="text-neutral-400 hover:text-neutral-600"
+                className="text-slate-500 hover:text-slate-600"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -468,12 +478,12 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                 }}
                 autoFocus
                 placeholder="https://exemplo.org"
-                className="flex-1 min-w-0 px-2 py-1 text-[11px] bg-neutral-50 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+                className="flex-1 min-w-0 px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded focus:outline-none focus:border-brand-600"
               />
               <button
                 type="button"
                 onClick={applyLink}
-                className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold"
+                className="px-2.5 py-1 rounded bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold"
               >
                 Aplicar
               </button>
@@ -484,28 +494,29 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                     editor.chain().focus().unsetLink().run();
                     setShowLinkInput(false);
                   }}
-                  className="px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50 text-[11px]"
+                  className="px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50 text-xs"
                 >
                   Remover
                 </button>
               )}
             </div>
-            {linkError && <p className="text-[10px] text-red-600">{linkError}</p>}
+            {linkError && <p className="text-xs text-red-600">{linkError}</p>}
           </div>
         )}
 
         {/* Popover de Matemática Inline */}
         {showMathInput && (
-          <div className="absolute left-0 top-8 z-40 w-[min(20rem,calc(100vw-2rem))] max-w-full bg-white border border-neutral-200 rounded-xl shadow-xl p-2.5 text-xs space-y-2">
+          <div className="absolute left-0 top-8 z-40 w-[min(20rem,calc(100vw-2rem))] max-w-full bg-white border border-slate-200 rounded-xl shadow-xl p-2.5 text-xs space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase text-indigo-700 flex items-center gap-1">
+              <span className="text-xs font-bold uppercase text-indigo-700 flex items-center gap-1">
                 <Sigma className="w-3 h-3" />
                 Matemática Inline (Typst)
               </span>
               <button
+                aria-label="Fechar"
                 type="button"
                 onClick={() => setShowMathInput(false)}
-                className="text-neutral-400 hover:text-neutral-600"
+                className="text-slate-500 hover:text-slate-600"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -525,12 +536,12 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                 }}
                 autoFocus
                 placeholder="Ex: x^2 + sqrt(y) = alpha"
-                className="flex-1 min-w-0 font-mono px-2 py-1 text-[11px] bg-neutral-50 border border-neutral-200 rounded focus:outline-none focus:border-indigo-600"
+                className="flex-1 min-w-0 font-mono px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded focus:outline-none focus:border-indigo-600"
               />
               <button
                 type="button"
                 onClick={applyMathNode}
-                className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold"
+                className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold"
               >
                 Inserir
               </button>
@@ -546,7 +557,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
             <button
               type="button"
               onClick={openMathPopover}
-              className="flex items-center px-1.5 py-0.5 rounded-md border border-neutral-200 bg-white shadow-xs hover:bg-indigo-50 hover:border-indigo-300 text-[11px] font-medium text-neutral-500 hover:text-indigo-700 transition-colors"
+              className="flex items-center px-1.5 py-0.5 rounded-md border border-slate-200 bg-white shadow-xs hover:bg-indigo-50 hover:border-indigo-300 text-xs font-medium text-slate-500 hover:text-indigo-700 transition-colors"
               title="Inserir expressão matemática inline no texto ($...$)"
               aria-label="Inserir matemática inline"
             >
@@ -556,10 +567,10 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
             <button
               type="button"
               onClick={() => setShowCitationPicker((prev) => !prev)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-md border border-neutral-200 bg-white shadow-xs hover:bg-emerald-50 hover:border-emerald-300 text-[11px] font-medium text-neutral-500 hover:text-emerald-700 transition-colors"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md border border-slate-200 bg-white shadow-xs hover:bg-brand-50 hover:border-brand-300 text-xs font-medium text-slate-500 hover:text-brand-800 transition-colors"
               title="Chamar uma referência bibliográfica no final ou meio do texto (ou digite @)"
             >
-              <Bookmark className="w-3 h-3 text-emerald-600" />
+              <Bookmark className="w-3 h-3 text-brand-700" />
               <span className="hidden sm:inline">+ Referência</span>
             </button>
           </div>
@@ -567,10 +578,10 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
 
         {/* Seletor de Chamada de Referência (abre com @, pelo menu / ou pelo botão "+ Referência") */}
         {showCitationPicker && (
-          <div className="absolute left-0 top-7 z-30 w-[min(20rem,calc(100vw-2rem))] max-w-full bg-white border border-neutral-200 rounded-xl shadow-xl py-2 text-xs">
-            <div className="px-3 pb-1.5 text-[10px] font-bold uppercase text-neutral-400 flex items-center justify-between border-b border-neutral-100">
+          <div className="absolute left-0 top-7 z-30 w-[min(20rem,calc(100vw-2rem))] max-w-full bg-white border border-slate-200 rounded-xl shadow-xl py-2 text-xs">
+            <div className="px-3 pb-1.5 text-xs font-bold uppercase text-slate-500 flex items-center justify-between border-b border-slate-100">
               <span className="flex items-center gap-1">
-                <Bookmark className="w-3 h-3 text-emerald-600" />
+                <Bookmark className="w-3 h-3 text-brand-700" />
                 Selecionar Referência
               </span>
               <button
@@ -579,15 +590,15 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                   setShowCitationPicker(false);
                   setCitationSearch('');
                 }}
-                className="text-neutral-400 hover:text-neutral-600"
+                className="text-slate-500 hover:text-slate-600"
               >
                 Fechar
               </button>
             </div>
 
             {references.length === 0 ? (
-              <div className="p-3 text-center text-neutral-500 space-y-2">
-                <p className="text-[11px]">Nenhuma referência cadastrada neste projeto ainda.</p>
+              <div className="p-3 text-center text-slate-500 space-y-2">
+                <p className="text-xs">Nenhuma referência cadastrada neste projeto ainda.</p>
                 {onOpenNewReferenceModal && (
                   <button
                     type="button"
@@ -595,7 +606,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                       setShowCitationPicker(false);
                       onOpenNewReferenceModal();
                     }}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand-700 text-white font-semibold text-xs hover:bg-brand-800"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Cadastrar Referência (DOI/ISBN/.bib)</span>
@@ -605,15 +616,15 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
             ) : (
               <>
                 {/* Controles de Modo (Parentética / Narrativa) + Página Opcional */}
-                <div className="px-2.5 py-1.5 border-b border-neutral-100 space-y-1.5">
+                <div className="px-2.5 py-1.5 border-b border-slate-100 space-y-1.5">
                   <div className="grid grid-cols-2 gap-1">
                     <button
                       type="button"
                       onClick={() => setCiteModeDraft('parenthetical')}
-                      className={`px-2 py-1 rounded text-[11px] font-medium border ${
+                      className={`px-2 py-1 rounded text-xs font-medium border ${
                         citeModeDraft === 'parenthetical'
-                          ? 'bg-emerald-600 text-white border-emerald-600'
-                          : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100'
+                          ? 'bg-brand-700 text-white border-brand-600'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
                       Parentética
@@ -621,10 +632,10 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                     <button
                       type="button"
                       onClick={() => setCiteModeDraft('narrative')}
-                      className={`px-2 py-1 rounded text-[11px] font-medium border ${
+                      className={`px-2 py-1 rounded text-xs font-medium border ${
                         citeModeDraft === 'narrative'
-                          ? 'bg-emerald-600 text-white border-emerald-600'
-                          : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100'
+                          ? 'bg-brand-700 text-white border-brand-600'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
                       Narrativa
@@ -633,20 +644,21 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
 
                   <div className="flex items-center gap-1.5">
                     <div className="relative flex-1">
-                      <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <input
                         type="text"
                         value={citationSearch}
                         onChange={(e) => setCitationSearch(e.target.value)}
                         placeholder="Buscar autor, título..."
                         autoFocus
-                        className="w-full pl-6 pr-5 py-1 text-[11px] bg-neutral-50 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                        className="w-full pl-6 pr-5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:border-brand-600"
                       />
                       {citationSearch && (
                         <button
+                          aria-label="Fechar"
                           type="button"
                           onClick={() => setCitationSearch('')}
-                          className="absolute right-1.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -658,14 +670,14 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                       onChange={(e) => setCitePageDraft(e.target.value)}
                       placeholder="p. (opc)"
                       title="Página citada (ex: 42 ou 10-12)"
-                      className="w-20 px-2 py-1 text-[11px] bg-neutral-50 border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+                      className="w-20 px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:border-brand-600"
                     />
                   </div>
                 </div>
 
-                <div className="max-h-56 overflow-y-auto divide-y divide-neutral-100">
+                <div className="max-h-56 overflow-y-auto divide-y divide-slate-100">
                   {filteredReferences.length === 0 ? (
-                    <div className="p-3 text-center text-[11px] text-neutral-400">
+                    <div className="p-3 text-center text-xs text-slate-500">
                       Nenhuma referência encontrada para &ldquo;{citationSearch}&rdquo;.
                     </div>
                   ) : (
@@ -684,20 +696,20 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                             e.preventDefault();
                             insertReferenceCitation(ref);
                           }}
-                          className="w-full px-3 py-2 text-left hover:bg-emerald-50/70 transition-colors flex flex-col gap-0.5 group"
+                          className="w-full px-3 py-2 text-left hover:bg-brand-50/70 transition-colors flex flex-col gap-0.5 group"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-bold text-emerald-700 group-hover:text-emerald-800 text-[11px]">
+                            <span className="font-bold text-brand-700 group-hover:text-brand-800 text-xs">
                               {formattedCall}
                             </span>
-                            <span className="text-[10px] text-neutral-400 shrink-0">
+                            <span className="text-xs text-slate-500 shrink-0">
                               {ref.year}
                             </span>
                           </div>
-                          <div className="text-[11px] font-medium text-neutral-800 truncate">
+                          <div className="text-xs font-medium text-slate-800 truncate">
                             {ref.title}
                           </div>
-                          <div className="text-[10px] text-neutral-500 truncate">
+                          <div className="text-xs text-slate-500 truncate">
                             {ref.authors}
                           </div>
                         </button>
@@ -712,7 +724,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                         setShowCitationPicker(false);
                         onOpenNewReferenceModal();
                       }}
-                      className="w-full px-3 py-2 text-center text-emerald-600 hover:bg-emerald-50 font-semibold text-[11px] flex items-center justify-center gap-1"
+                      className="w-full px-3 py-2 text-center text-brand-700 hover:bg-brand-50 font-semibold text-xs flex items-center justify-center gap-1"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Cadastrar nova referência...</span>

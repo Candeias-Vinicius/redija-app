@@ -20,6 +20,7 @@ import { SidebarAbstractSection } from './sidebar/SidebarAbstractSection';
 import { SidebarReferencesSection } from './sidebar/SidebarReferencesSection';
 import { SidebarPostTextualsSection } from './sidebar/SidebarPostTextualsSection';
 import { PanelLeftClose, Sliders, SlidersHorizontal } from 'lucide-react';
+import { PaneWindowControls } from '@/components/ui/PaneWindowControls';
 
 interface SidebarProps {
   widthPx?: number;
@@ -36,6 +37,12 @@ interface SidebarProps {
   onOpenGuide?: (mode: ContextualGuideMode) => void;
   onRemoveReference: (id: string) => void;
   onMinimize?: () => void;
+  /** Deixa só este painel visível (desktop). */
+  onMaximize?: () => void;
+  /** Volta a exibir todos os painéis (quando este está maximizado). */
+  onRestoreLayout?: () => void;
+  /** Este é o único painel visível. */
+  isMaximized?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -53,6 +60,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenGuide,
   onRemoveReference,
   onMinimize,
+  onMaximize,
+  onRestoreLayout,
+  isMaximized = false,
 }) => {
   const isFullBleed = isCompact || widthPx == null;
   const [isFieldCustomizerOpen, setIsFieldCustomizerOpen] = useState(false);
@@ -77,40 +87,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       <aside
+        aria-label="Estrutura do documento"
         style={isFullBleed ? undefined : { width: `${widthPx}px` }}
-        className={`border-r border-neutral-200 bg-white flex flex-col h-full overflow-y-auto min-w-0 ${
+        className={`border-r border-slate-200 bg-white flex flex-col h-full overflow-y-auto min-w-0 ${
           isFullBleed ? 'flex-1 w-full' : 'shrink-0'
         }`}
       >
-        <div className="p-3.5 border-b border-neutral-100 flex items-start justify-between gap-2 sticky top-0 bg-white z-10">
+        <div className="p-3.5 border-b border-slate-100 flex items-start justify-between gap-2 sticky top-0 bg-white z-10">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 {capabilities.headerTitle}
               </h2>
               <span
-                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${
+                className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold border ${
                   capabilities.isModified
                     ? 'bg-amber-50 text-amber-800 border-amber-200'
                     : capabilities.isAbntFamily
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-neutral-100 text-neutral-700 border-neutral-200'
+                      ? 'bg-brand-50 text-brand-700 border-brand-200'
+                      : 'bg-slate-100 text-slate-700 border-slate-200'
                 }`}
               >
                 {capabilities.badgeLabel}
               </span>
             </div>
-            <p className="text-[11px] text-neutral-500 mt-0.5">{capabilities.headerSubtitle}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{capabilities.headerSubtitle}</p>
             {(onOpenTemplateCustomizer || onChangeSidebarConfig) && (
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 {onOpenTemplateCustomizer && (
                   <button
                     type="button"
                     onClick={onOpenTemplateCustomizer}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-emerald-50 hover:border-emerald-300 text-[10px] font-medium text-neutral-600 hover:text-emerald-700 transition-colors"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 hover:bg-brand-50 hover:border-brand-300 text-xs font-medium text-slate-600 hover:text-brand-800 transition-colors"
                     title="Escolher padrão de layout e configurar norma, tipografia, página e citações"
                   >
-                    <Sliders className="w-3 h-3 text-emerald-600" />
+                    <Sliders className="w-3 h-3 text-brand-700" />
                     <span>Norma &amp; Layout</span>
                   </button>
                 )}
@@ -118,29 +129,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsFieldCustomizerOpen(true)}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-neutral-200 bg-neutral-50 hover:bg-emerald-50 hover:border-emerald-300 text-[10px] font-medium text-neutral-600 hover:text-emerald-700 transition-colors"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 hover:bg-brand-50 hover:border-brand-300 text-xs font-medium text-slate-600 hover:text-brand-800 transition-colors"
                     title="Escolher quais campos de metadados ficam visíveis nesta barra lateral"
                   >
-                    <SlidersHorizontal className="w-3 h-3 text-emerald-600" />
+                    <SlidersHorizontal className="w-3 h-3 text-brand-700" />
                     <span>Personalizar Campos</span>
                   </button>
                 )}
               </div>
             )}
           </div>
-          {onMinimize && (
-            <button
-              type="button"
-              onClick={onMinimize}
-              className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors shrink-0"
-              title="Minimizar aba lateral esquerda"
-            >
-              <PanelLeftClose className="w-4 h-4" />
-            </button>
-          )}
+          <PaneWindowControls
+            label="Estrutura"
+            isMaximized={isMaximized}
+            onMaximize={onMaximize}
+            onRestore={onRestoreLayout}
+            onMinimize={onMinimize}
+            minimizeIcon={<PanelLeftClose className="w-4 h-4" />}
+          />
         </div>
 
-        <div className="divide-y divide-neutral-100 flex-1 pb-12">
+        <div className="divide-y divide-slate-100 flex-1 pb-12">
           <SidebarIdentificationSection
             metadata={metadata}
             templateConfig={project.templateConfig}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Modal } from '@/components/ui/Modal';
 import {
   Bug,
   X,
@@ -185,8 +186,9 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+    <Modal
+      onClose={onClose}
+      labelledBy="bug-report-title"
       onPaste={(e) => {
         const items = e.clipboardData?.items;
         if (!items) return;
@@ -203,25 +205,26 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
         }
       }}
     >
-      <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-neutral-200 overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Cabeçalho */}
-        <div className="p-4 border-b border-neutral-200 flex items-center justify-between bg-neutral-50">
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-amber-100 text-amber-800">
               <Bug className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-neutral-900 text-sm">
+              <h2 id="bug-report-title" className="font-bold text-slate-900 text-sm">
                 Relatar Problema ou Sugestão
-              </h3>
-              <p className="text-xs text-neutral-500">
+              </h2>
+              <p className="text-xs text-slate-500">
                 Envie uma descrição e até 5 capturas de tela para nossa equipe técnica
               </p>
             </div>
           </div>
           <button
+            aria-label="Fechar"
             onClick={handleResetAndClose}
-            className="p-1.5 text-neutral-400 hover:text-neutral-700 rounded-lg hover:bg-neutral-200/60"
+            className="p-1.5 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-200/60"
           >
             <X className="w-4 h-4" />
           </button>
@@ -229,36 +232,36 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
 
         {submittedProtocol ? (
           <div className="p-6 text-center space-y-4">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-7 h-7" />
             </div>
             <div className="space-y-1">
-              <h4 className="font-bold text-base text-neutral-900">
+              <h4 className="font-bold text-base text-slate-900">
                 Relato recebido com sucesso!
               </h4>
-              <p className="text-xs text-neutral-600 max-w-md mx-auto">
+              <p className="text-xs text-slate-600 max-w-md mx-auto">
                 Seu relato foi enviado diretamente para{' '}
-                <strong className="text-neutral-800">{COMPANY_SUPPORT_EMAIL}</strong>.
+                <strong className="text-slate-800">{COMPANY_SUPPORT_EMAIL}</strong>.
               </p>
             </div>
 
-            <div className="inline-block px-3.5 py-2 rounded-lg bg-neutral-100 border border-neutral-200 text-xs">
-              <span className="text-neutral-500">Protocolo de atendimento: </span>
-              <strong className="font-mono text-emerald-700">{submittedProtocol}</strong>
+            <div className="inline-block px-3.5 py-2 rounded-lg bg-slate-100 border border-slate-200 text-xs">
+              <span className="text-slate-500">Protocolo de atendimento: </span>
+              <strong className="font-mono text-brand-700">{submittedProtocol}</strong>
             </div>
 
             <div className="pt-2 flex justify-center gap-2">
               <button
                 type="button"
                 onClick={() => setSubmittedProtocol(null)}
-                className="px-4 py-2 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50"
               >
                 Enviar outro relato
               </button>
               <button
                 type="button"
                 onClick={handleResetAndClose}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold"
+                className="px-4 py-2 rounded-lg bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold"
               >
                 Concluir e Fechar
               </button>
@@ -276,13 +279,13 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
             {/* Categoria e E-mail */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Categoria do Relato
                 </label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as ReportCategory)}
-                  className="w-full px-2.5 py-2 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+                  className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
                 >
                   <option value="bug">Bug / Erro na Aplicação</option>
                   <option value="abnt_pdf">Problema na Formatação ABNT / PDF</option>
@@ -292,17 +295,17 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Seu E-mail para Retorno (Opcional)
                 </label>
                 <div className="relative">
-                  <Mail className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Mail className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="email"
                     value={userEmail}
                     onChange={(e) => setUserEmail(e.target.value)}
                     placeholder="voce@universidade.edu.br"
-                    className="w-full pl-8 pr-2.5 py-2 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+                    className="w-full pl-8 pr-2.5 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
                   />
                 </div>
               </div>
@@ -311,10 +314,10 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
             {/* Assunto */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-semibold text-neutral-700">
+                <label className="text-xs font-semibold text-slate-700">
                   Resumo / Assunto *
                 </label>
-                <span className="text-[10px] text-neutral-400">
+                <span className="text-xs text-slate-500">
                   {subject.length} / {MAX_SUBJECT_LENGTH}
                 </span>
               </div>
@@ -324,21 +327,21 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="Ex: A tabela ultrapassa a margem direita quando tem 8 colunas"
-                className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
               />
             </div>
 
             {/* Descrição */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-semibold text-neutral-700">
+                <label className="text-xs font-semibold text-slate-700">
                   Descrição detalhada (o que aconteceu e como reproduzir) *
                 </label>
                 <span
-                  className={`text-[10px] ${
+                  className={`text-xs ${
                     description.length > MAX_DESCRIPTION_LENGTH * 0.9
                       ? 'text-amber-600 font-semibold'
-                      : 'text-neutral-400'
+                      : 'text-slate-500'
                   }`}
                 >
                   {description.length} / {MAX_DESCRIPTION_LENGTH} caracteres
@@ -350,17 +353,17 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Descreva os passos até o erro acontecer..."
-                className="w-full p-3 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600 leading-relaxed"
+                className="w-full p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600 leading-relaxed"
               />
             </div>
 
             {/* Upload de até 5 imagens */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[11px] font-semibold text-neutral-700">
+                <label className="text-xs font-semibold text-slate-700">
                   Capturas de Tela / Imagens (Opcional, máx. {MAX_BUG_REPORT_IMAGES} imagens)
                 </label>
-                <span className="text-[10px] text-neutral-500">
+                <span className="text-xs text-slate-500">
                   {screenshots.length}/{MAX_BUG_REPORT_IMAGES} anexos •{' '}
                   {formatBytes(totalScreenshotsBytes)} / 15 MB
                 </span>
@@ -382,15 +385,15 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
                   }}
                   className={`w-full py-4 px-3 border border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors text-center ${
                     isDraggingOver
-                      ? 'border-emerald-500 bg-emerald-50/40'
-                      : 'border-neutral-300 bg-neutral-50 hover:bg-neutral-100'
+                      ? 'border-brand-500 bg-brand-50/40'
+                      : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
                   }`}
                 >
-                  <Upload className="w-5 h-5 text-emerald-600 mb-1" />
-                  <span className="font-medium text-neutral-700">
+                  <Upload className="w-5 h-5 text-brand-700 mb-1" />
+                  <span className="font-medium text-slate-700">
                     Clique para fazer upload, arraste imagens ou cole um print com Ctrl+V
                   </span>
-                  <span className="text-[10px] text-neutral-400 mt-0.5">
+                  <span className="text-xs text-slate-500 mt-0.5">
                     Até {MAX_BUG_REPORT_IMAGES} imagens (máx. 5 MB por imagem • PNG, JPG, WebP)
                   </span>
                   <input
@@ -413,7 +416,7 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
                   {screenshots.map((shot) => (
                     <div
                       key={shot.id}
-                      className="relative group border border-neutral-200 rounded-lg overflow-hidden bg-neutral-100 aspect-square flex flex-col"
+                      className="relative group border border-slate-200 rounded-lg overflow-hidden bg-slate-100 aspect-square flex flex-col"
                     >
                       <img
                         src={shot.dataUrl}
@@ -421,6 +424,7 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
                         className="w-full h-full object-cover"
                       />
                       <button
+                        aria-label="Remover esta captura de tela"
                         type="button"
                         onClick={() => handleRemoveScreenshot(shot.id)}
                         className="absolute top-1 right-1 p-1 rounded-md bg-black/70 text-white hover:bg-red-600 transition-colors"
@@ -428,7 +432,7 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
-                      <div className="absolute bottom-0 inset-x-0 bg-black/65 text-white text-[9px] px-1 py-0.5 truncate">
+                      <div className="absolute bottom-0 inset-x-0 bg-black/65 text-white text-xs px-1 py-0.5 truncate">
                         {formatBytes(shot.size)}
                       </div>
                     </div>
@@ -438,12 +442,12 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
             </div>
 
             {/* Checkbox Diagnóstico */}
-            <label className="flex items-center gap-2 pt-1 cursor-pointer text-[11px] text-neutral-600">
+            <label className="flex items-center gap-2 pt-1 cursor-pointer text-xs text-slate-600">
               <input
                 type="checkbox"
                 checked={includeDiagnostics}
                 onChange={(e) => setIncludeDiagnostics(e.target.checked)}
-                className="rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500"
+                className="rounded border-slate-300 text-brand-700 focus:ring-brand-500"
               />
               <span>
                 Incluir dados técnicos básicos do navegador (resolução, tema e versão) para ajudar no diagnóstico
@@ -451,22 +455,22 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
             </label>
 
             {/* Rodapé de Ações */}
-            <div className="pt-3 border-t border-neutral-200 flex items-center justify-between">
-              <span className="text-[10px] text-neutral-400">
+            <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
+              <span className="text-xs text-slate-500">
                 Destino: {COMPANY_SUPPORT_EMAIL}
               </span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleResetAndClose}
-                  className="px-3.5 py-2 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-100 font-medium"
+                  className="px-3.5 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 font-medium"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSending}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold shadow-xs transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-white font-semibold shadow-xs transition-colors"
                 >
                   {isSending ? (
                     <>
@@ -485,6 +489,6 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
           </form>
         )}
       </div>
-    </div>
+    </Modal>
   );
 };

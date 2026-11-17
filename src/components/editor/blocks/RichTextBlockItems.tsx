@@ -51,8 +51,8 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
         onEnter={() => onAddBlock(block.id, 'paragraph')}
         onBackspaceEmpty={() => onRemoveBlock(block.id)}
         onSlashCommand={() => onOpenSlashMenu(block.id)}
-        placeholder='Digite seu parágrafo, "/" para comandos ou "@" para citar referência...'
-        className="text-sm leading-relaxed text-neutral-800"
+        placeholder='Escreva aqui. Use "/" para blocos ABNT, "@" para citar ou selecione o texto para formatar.'
+        className="text-sm leading-relaxed text-slate-800"
       />
     );
   }
@@ -60,7 +60,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
   if (block.type === 'bullet') {
     return (
       <div className="flex items-start gap-2.5 pl-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-neutral-500 mt-2 shrink-0" />
+        <span className="w-1.5 h-1.5 rounded-full bg-slate-500 mt-2 shrink-0" />
         <RichTextInput
           value={block.content}
           references={references}
@@ -73,7 +73,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           onEnter={() => onAddBlock(block.id, 'bullet')}
           onBackspaceEmpty={() => onChangeBlockType(block.id, 'paragraph')}
           placeholder="Item de lista..."
-          className="text-sm leading-relaxed text-neutral-800"
+          className="text-sm leading-relaxed text-slate-800"
         />
       </div>
     );
@@ -82,7 +82,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
   if (block.type === 'numbered') {
     return (
       <div className="flex items-start gap-2.5 pl-2">
-        <span className="text-xs font-bold text-neutral-500 mt-1 shrink-0">1.</span>
+        <span className="text-xs font-bold text-slate-500 mt-1 shrink-0">1.</span>
         <RichTextInput
           value={block.content}
           references={references}
@@ -95,7 +95,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           onEnter={() => onAddBlock(block.id, 'numbered')}
           onBackspaceEmpty={() => onChangeBlockType(block.id, 'paragraph')}
           placeholder="Item numerado..."
-          className="text-sm leading-relaxed text-neutral-800"
+          className="text-sm leading-relaxed text-slate-800"
         />
       </div>
     );
@@ -103,8 +103,8 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
 
   if (block.type === 'quote_long') {
     return (
-      <div className="border-l-4 border-emerald-500 bg-neutral-50/90 p-3 sm:p-3.5 rounded-r-lg ml-0 sm:ml-8 text-xs text-neutral-700 space-y-2">
-        <div className="flex items-center justify-between text-emerald-700 font-semibold">
+      <div className="border-l-4 border-brand-500 bg-slate-50/90 p-3 sm:p-3.5 rounded-r-lg ml-0 sm:ml-8 text-xs text-slate-700 space-y-2">
+        <div className="flex items-center justify-between text-brand-700 font-semibold">
           <span className="flex items-center gap-1.5">
             <Quote className="w-3.5 h-3.5" />
             Citação Direta Longa
@@ -121,29 +121,32 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           onChange={(html) => onUpdateContent(block.id, html)}
           onEnter={() => onAddBlock(block.id, 'paragraph')}
           placeholder="Digite ou cole o trecho de mais de 3 linhas (sem aspas)..."
-          className="text-xs leading-normal text-neutral-700"
+          className="text-xs leading-normal text-slate-700"
         />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-neutral-200/70">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-200/70">
           <input
             type="text"
             value={block.meta?.author || ''}
             onChange={(e) => onUpdateMeta(block.id, { author: e.target.value })}
             placeholder="Autor (ex: SILVA)"
-            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+            aria-label="Autor da citação"
+            className="px-2 py-1 text-xs bg-white border border-slate-200 rounded focus:outline-none focus:border-brand-600"
           />
           <input
             type="text"
             value={block.meta?.year || ''}
             onChange={(e) => onUpdateMeta(block.id, { year: e.target.value })}
             placeholder="Ano (ex: 2024)"
-            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+            aria-label="Ano da citação"
+            className="px-2 py-1 text-xs bg-white border border-slate-200 rounded focus:outline-none focus:border-brand-600"
           />
           <input
             type="text"
             value={block.meta?.page || ''}
             onChange={(e) => onUpdateMeta(block.id, { page: e.target.value })}
             placeholder="Página (ex: 42)"
-            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+            aria-label="Página da citação"
+            className="px-2 py-1 text-xs bg-white border border-slate-200 rounded focus:outline-none focus:border-brand-600"
           />
         </div>
       </div>
@@ -154,7 +157,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
     <div className="flex items-start gap-2 bg-amber-50/70 border border-amber-200/80 rounded-lg p-2.5 text-xs">
       <MessageSquareQuote className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
       <div className="flex-1">
-        <span className="text-[10px] font-bold uppercase text-amber-700 block mb-0.5">
+        <span className="text-xs font-bold uppercase text-amber-700 block mb-0.5">
           Nota de Rodapé
         </span>
         <RichTextInput
@@ -168,7 +171,7 @@ export const RichTextBlockItems: React.FC<RichTextBlockItemsProps> = ({
           onChange={(html) => onUpdateContent(block.id, html)}
           onEnter={() => onAddBlock(block.id, 'paragraph')}
           placeholder="Texto explicativo que aparecerá no rodapé da página..."
-          className="text-xs text-neutral-700"
+          className="text-xs text-slate-700"
         />
       </div>
     </div>

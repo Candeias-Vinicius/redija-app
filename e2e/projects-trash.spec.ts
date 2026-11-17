@@ -66,7 +66,7 @@ test.describe('RedijaApp: Gestão de Projetos e Lixeira de Segurança', () => {
 
     // Sem sub-modal de confirmação: vai direto para a lixeira com opção de desfazer
     await expect(page.getByText(/Mover trabalho para a Lixeira\?/i)).not.toBeVisible();
-    const modal = page.locator('div.fixed.z-50');
+    const modal = page.getByRole('dialog');
     await expect(modal.getByRole('status')).toContainText(targetProjectName);
     await modal.getByRole('button', { name: 'Desfazer', exact: true }).click();
 
@@ -94,7 +94,7 @@ test.describe('RedijaApp: Gestão de Projetos e Lixeira de Segurança', () => {
     await page.getByTitle('Mover para a Lixeira').first().click();
 
     // Fecha o aviso de "Desfazer" para validar só a lista da Lixeira
-    const modal = page.locator('div.fixed.z-50');
+    const modal = page.getByRole('dialog');
     await modal.getByTitle('Fechar aviso').click();
 
     // Acessa a aba da Lixeira no modal (ex: "Lixeira (1)")

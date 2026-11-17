@@ -38,8 +38,8 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
       <div
         className={`absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[550px] rounded-full blur-3xl pointer-events-none opacity-40 ${
           isDark
-            ? 'bg-gradient-to-b from-emerald-600/30 via-teal-700/10 to-transparent'
-            : 'bg-gradient-to-b from-emerald-200/70 via-teal-100/30 to-transparent'
+            ? 'bg-gradient-to-b from-brand-600/30 via-teal-700/10 to-transparent'
+            : 'bg-gradient-to-b from-brand-200/70 via-teal-100/30 to-transparent'
         }`}
       />
 
@@ -49,14 +49,14 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
           {/* Tagline / Eyebrow Badge */}
           <button
             onClick={onOpenDoc}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 sm:px-3.5 rounded-full text-[11px] sm:text-xs font-semibold backdrop-blur-md border transition-all animate-fade-in shadow-xs cursor-pointer hover:opacity-90 max-w-[calc(100vw-2rem)] ${
+            className={`inline-flex items-center gap-2 px-3 py-1.5 sm:px-3.5 rounded-full text-xs sm:text-xs font-semibold backdrop-blur-md border transition-all animate-fade-in shadow-xs cursor-pointer hover:opacity-90 max-w-[calc(100vw-2rem)] ${
               isDark
-                ? 'text-emerald-300 border-emerald-500/30 bg-emerald-950/40'
-                : 'text-emerald-800 border-emerald-200 bg-emerald-50'
+                ? 'text-brand-300 border-brand-500/30 bg-brand-950/40'
+                : 'text-brand-800 border-brand-200 bg-brand-50'
             }`}
             title="Clique para explorar normas e padrões suportados"
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse shrink-0" />
             <span className="sm:hidden truncate">ABNT • SBC • IEEE • APA • Typst</span>
             <span className="hidden sm:inline">ABNT • SBC • IEEE • APA 7ª • Pôsteres • Typst Universe</span>
           </button>
@@ -68,7 +68,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
             }`}
           >
             Foque nas suas ideias.{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 via-teal-500 to-brand-400">
               O Redija cuida das normas por você.
             </span>
           </h1>
@@ -97,6 +97,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
               {/* Mensagem de Erro, se houver */}
               {error && (
                 <div
+                  role="alert"
                   className={`p-3 rounded-xl border text-xs space-y-1 text-left ${
                     isDark
                       ? 'bg-red-950/60 border-red-800 text-red-300'
@@ -107,12 +108,12 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                     <AlertTriangle className="w-4 h-4 shrink-0" />
                     <span>Falha na Autenticação</span>
                   </p>
-                  <p className="text-[11px] leading-relaxed">{error}</p>
+                  <p className="text-xs leading-relaxed">{error}</p>
                 </div>
               )}
 
-              {/* Alerta de Modo Dev se .env não configurado */}
-              {!isConfigured && (
+              {/* Alerta de Modo Dev se .env não configurado (somente em desenvolvimento) */}
+              {!isConfigured && import.meta.env.DEV && (
                 <div
                   className={`p-3 rounded-xl border text-xs space-y-2 text-left ${
                     isDark
@@ -134,6 +135,20 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                 </div>
               )}
 
+              {/* Em produção, sem Client ID: mensagem para o usuário final (sem detalhes internos) */}
+              {!isConfigured && !import.meta.env.DEV && (
+                <p
+                  role="status"
+                  className={`p-3 rounded-xl border text-sm text-left ${
+                    isDark
+                      ? 'bg-amber-950/50 border-amber-800 text-amber-200'
+                      : 'bg-amber-50 border-amber-200 text-amber-900'
+                  }`}
+                >
+                  O login com Google está indisponível no momento. Você pode usar o modo convidado.
+                </p>
+              )}
+
               {/* Botão Oficial Google */}
               <button
                 onClick={() => onLogin()}
@@ -146,7 +161,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                    <Loader2 className="w-4 h-4 animate-spin text-brand-500" />
                     <span>Conectando ao Google...</span>
                   </>
                 ) : (
@@ -189,9 +204,9 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
               </div>
 
               {/* Garantias de Confiança */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 text-left">
                 <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-brand-500 shrink-0" />
                   <span>100% Gratuito e Aberto</span>
                 </span>
                 <span className="flex items-center gap-1.5">

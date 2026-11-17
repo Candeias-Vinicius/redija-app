@@ -48,7 +48,7 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
       badge: 'Graduação & Pós',
       description:
         'Estrutura acadêmica completa para monografias, dissertações de mestrado e teses de doutorado com margens 3-3-2-2 cm e pré-textuais completos.',
-      icon: <GraduationCap className="w-5 h-5 text-emerald-500" />,
+      icon: <GraduationCap className="w-5 h-5 text-brand-500" />,
       tags: ['Capa e Folha de Rosto', 'Banca & Coorientador', 'Sumário Dinâmico'],
       elements: [
         'Capa, folha de rosto, folha de aprovação e dedicatória/agradecimentos',
@@ -120,7 +120,7 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
       badge: 'Mostras & Congressos',
       description:
         'Banner de grande formato configurável em 2 ou 3 colunas, orientação retrato ou paisagem e paletas institucionais prontas.',
-      icon: <Presentation className="w-5 h-5 text-emerald-500" />,
+      icon: <Presentation className="w-5 h-5 text-brand-500" />,
       tags: ['A0 / A1 / A2', '2 ou 3 Colunas', 'Verificador Pôster'],
       elements: [
         'Cabeçalho superior de alto contraste com título, autores e afiliação',
@@ -195,7 +195,7 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         <div className="text-center max-w-3xl mx-auto space-y-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-brand-700 dark:text-brand-400">
             Galeria de Modelos Prontos &amp; Typst Universe
           </span>
           <h2
@@ -220,8 +220,8 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
               className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 activeTemplateId === tpl.id
                   ? isDark
-                    ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                    : 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                    ? 'bg-brand-500 text-slate-950 shadow-md shadow-brand-500/20'
+                    : 'bg-brand-700 text-white shadow-md shadow-brand-600/20'
                   : isDark
                     ? 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
                     : 'bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50'
@@ -229,7 +229,7 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
             >
               <span>{tpl.title}</span>
               <span
-                className={`text-[10px] px-2 py-0.5 rounded-full font-mono ${
+                className={`text-xs px-2 py-0.5 rounded-full font-mono ${
                   activeTemplateId === tpl.id
                     ? isDark
                       ? 'bg-black/20 text-slate-950 font-bold'
@@ -255,11 +255,11 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
             {/* Lado Esquerdo: Resumo do Modelo */}
             <div className="md:col-span-7 space-y-5">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <div className="p-2.5 rounded-xl bg-brand-500/10 text-brand-700 dark:text-brand-400">
                   {current.icon}
                 </div>
                 <div>
-                  <span className="text-[11px] font-mono font-semibold uppercase text-emerald-600 dark:text-emerald-400">
+                  <span className="text-xs font-mono font-semibold uppercase text-brand-700 dark:text-brand-400">
                     {current.norm} • {current.badge}
                   </span>
                   <h3
@@ -301,7 +301,7 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
                       : 'bg-sky-50/70 border-sky-200'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2 text-[11px] font-semibold">
+                  <div className="flex items-center justify-between gap-2 text-xs font-semibold">
                     <span className={isDark ? 'text-sky-300' : 'text-sky-900'}>
                       Pacotes populares disponíveis direto no seletor:
                     </span>
@@ -309,7 +309,7 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
                       href="https://typst.app/universe"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:underline shrink-0"
+                      className="inline-flex items-center gap-1 text-brand-700 dark:text-brand-400 hover:underline shrink-0"
                     >
                       <span>typst.app/universe</span>
                       <ExternalLink className="w-3 h-3" />
@@ -319,7 +319,7 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
                     {POPULAR_UNIVERSE_TEMPLATES.map((pkg) => (
                       <span
                         key={pkg.id}
-                        className={`text-[10.5px] font-mono px-2 py-0.5 rounded border ${
+                        className={`text-xs font-mono px-2 py-0.5 rounded border ${
                           isDark
                             ? 'bg-slate-900 border-slate-800 text-slate-200'
                             : 'bg-white border-sky-200 text-slate-700'
@@ -339,8 +339,8 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
                   onClick={onSelectTemplate}
                   className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm ${
                     isDark
-                      ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      ? 'bg-brand-500 hover:bg-brand-400 text-slate-950'
+                      : 'bg-brand-700 hover:bg-brand-800 text-white'
                   }`}
                 >
                   <span>
@@ -358,7 +358,7 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
                         onOpenFullDocs('templates-internacionais');
                       }
                     }}
-                    className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                    className="text-xs font-semibold text-brand-700 dark:text-brand-400 hover:underline"
                   >
                     Ver documentação de modelos &rarr;
                   </a>
@@ -373,14 +373,14 @@ export const LandingTemplates: React.FC<LandingTemplatesProps> = ({
               }`}
             >
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+                <Sparkles className="w-3.5 h-3.5 text-brand-500" />
                 <span>{current.isUniverse ? 'Recursos da Integração:' : 'Estrutura Inclusa:'}</span>
               </h4>
 
               <ul className="space-y-2 text-xs">
                 {current.elements.map((el, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-slate-700 dark:text-slate-300">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-brand-500 shrink-0 mt-0.5" />
                     <span>{el}</span>
                   </li>
                 ))}

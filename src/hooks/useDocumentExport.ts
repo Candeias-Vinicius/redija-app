@@ -4,6 +4,7 @@ import { compileProjectToPdf, triggerBlobDownload } from '@/core/typst/projectCo
 import { generateStandaloneTypst } from '@/core/transpiler/typstGenerator';
 import { exportTypstProjectZip, getCleanProjectSlug } from '@/core/transpiler/projectExporter';
 import { saveProjectPdfToDrive } from '@/core/storage/googleDriveService';
+import { toast } from '@/components/ui/toastStore';
 
 interface UseDocumentExportOptions {
   project: DocumentProject;
@@ -28,7 +29,7 @@ export function useDocumentExport({
           result.error ||
           result.diagnostics.map((d) => `${d.location}: ${d.message}`).join('\n') ||
           'Não foi possível gerar o PDF.';
-        alert(`Erro ao gerar PDF:\n${msg}`);
+        toast.error(`Erro ao gerar PDF:\n${msg}`);
         return;
       }
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Modal } from '@/components/ui/Modal';
 import {
   X,
   SlidersHorizontal,
@@ -76,33 +77,31 @@ const SidebarFieldCustomizerInner: React.FC<SidebarFieldCustomizerInnerProps> = 
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4"
-      onClick={onClose}
-    >
+    <Modal onClose={onClose} labelledBy="field-customizer-title" closeOnBackdrop>
       <div
-        className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-neutral-200 overflow-hidden flex flex-col max-h-[88vh]"
+        className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[88vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho */}
-        <div className="p-4 border-b border-neutral-200 flex items-center justify-between bg-neutral-50">
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
+            <div className="p-2 rounded-lg bg-brand-100 text-brand-700">
               <SlidersHorizontal className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-neutral-900 text-sm">
+              <h2 id="field-customizer-title" className="font-bold text-slate-900 text-sm">
                 Personalizar Campos da Barra Lateral
-              </h3>
-              <p className="text-xs text-neutral-500">
+              </h2>
+              <p className="text-xs text-slate-500">
                 Inclua ou oculte campos conforme a exigência da sua faculdade, edital ou congresso
               </p>
             </div>
           </div>
           <button
+            aria-label="Fechar"
             type="button"
             onClick={onClose}
-            className="p-1.5 text-neutral-400 hover:text-neutral-700 rounded-lg hover:bg-neutral-200/60"
+            className="p-1.5 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-200/60"
             title="Fechar"
           >
             <X className="w-4 h-4" />
@@ -116,15 +115,15 @@ const SidebarFieldCustomizerInner: React.FC<SidebarFieldCustomizerInnerProps> = 
             className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
               willCustomize && capabilities.isAbntFamily
                 ? 'bg-amber-50/80 border-amber-200 text-amber-900'
-                : 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+                : 'bg-brand-50/70 border-brand-200 text-brand-900'
             }`}
           >
             {willCustomize && capabilities.isAbntFamily ? (
               <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             ) : (
-              <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <Info className="w-4 h-4 text-brand-700 shrink-0 mt-0.5" />
             )}
-            <div className="space-y-1 text-[11px] leading-relaxed">
+            <div className="space-y-1 text-xs leading-relaxed">
               <p>
                 <strong>Zero perda de dados:</strong> ocultar um campo aqui nunca apaga o conteúdo já
                 digitado. Se houver texto salvo em campos ocultos, ele fica protegido na gaveta{' '}
@@ -150,10 +149,10 @@ const SidebarFieldCustomizerInner: React.FC<SidebarFieldCustomizerInnerProps> = 
           </div>
 
           {/* Aviso específico de template fixo vs flexível (Q3 PDF Sync) */}
-          <div className="p-2.5 rounded-lg bg-neutral-50 border border-neutral-200 text-[11px] text-neutral-600 flex items-start gap-2">
+          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-start gap-2">
             {capabilities.supportsSidebarFieldPdfSync ? (
               <>
-                <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                <Check className="w-3.5 h-3.5 text-brand-700 shrink-0 mt-0.5" />
                 <span>
                   <strong>Sincronizado com o PDF:</strong> neste modelo flexível, campos ocultados
                   também são omitidos na compilação do PDF e campos adicionados passam a aparecer no
@@ -162,7 +161,7 @@ const SidebarFieldCustomizerInner: React.FC<SidebarFieldCustomizerInnerProps> = 
               </>
             ) : (
               <>
-                <Lock className="w-3.5 h-3.5 text-neutral-500 shrink-0 mt-0.5" />
+                <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
                 <span>
                   <strong>Layout de conferência/pacote ({capabilities.badgeLabel}):</strong>{' '}
                   personalizar os campos altera apenas os formulários da barra lateral para consulta e
@@ -179,43 +178,43 @@ const SidebarFieldCustomizerInner: React.FC<SidebarFieldCustomizerInnerProps> = 
               return (
                 <div
                   key={category}
-                  className="border border-neutral-200 rounded-xl overflow-hidden bg-white"
+                  className="border border-slate-200 rounded-xl overflow-hidden bg-white"
                 >
-                  <div className="px-3.5 py-2 bg-neutral-50 border-b border-neutral-200 flex items-center justify-between">
-                    <span className="text-xs font-bold text-neutral-700">
+                  <div className="px-3.5 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700">
                       {FIELD_CATEGORY_LABELS[category]}
                     </span>
-                    <span className="text-[10px] text-neutral-500 font-medium">
+                    <span className="text-xs text-slate-500 font-medium">
                       {fields.filter((f) => selectedIds.has(f.id)).length} / {fields.length} ativos
                     </span>
                   </div>
-                  <div className="divide-y divide-neutral-100">
+                  <div className="divide-y divide-slate-100">
                     {fields.map((field) => {
                       const checked = selectedIds.has(field.id);
                       const isDefault = baseSet.has(field.id);
                       return (
                         <label
                           key={field.id}
-                          className="flex items-start gap-3 px-3.5 py-2.5 cursor-pointer hover:bg-neutral-50 transition-colors"
+                          className="flex items-start gap-3 px-3.5 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors"
                         >
                           <input
                             type="checkbox"
                             checked={checked}
                             onChange={() => toggleField(field.id)}
-                            className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
+                            className="mt-0.5 rounded text-brand-700 focus:ring-brand-500"
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-xs font-semibold text-neutral-800">
+                              <span className="text-xs font-semibold text-slate-800">
                                 {field.label}
                               </span>
                               {isDefault && (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200">
                                   Padrão
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-neutral-500 leading-snug mt-0.5">
+                            <p className="text-xs text-slate-500 leading-snug mt-0.5">
                               {field.description}
                             </p>
                           </div>
@@ -230,11 +229,11 @@ const SidebarFieldCustomizerInner: React.FC<SidebarFieldCustomizerInnerProps> = 
         </div>
 
         {/* Rodapé */}
-        <div className="p-4 border-t border-neutral-200 bg-neutral-50 flex flex-wrap items-center justify-between gap-2">
+        <div className="p-4 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
           <button
             type="button"
             onClick={handleRestoreDefaults}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-lg transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Restaurar Padrão do Modelo</span>
@@ -244,14 +243,14 @@ const SidebarFieldCustomizerInner: React.FC<SidebarFieldCustomizerInnerProps> = 
             <button
               type="button"
               onClick={onClose}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-neutral-600 hover:bg-neutral-200/60 transition-colors"
+              className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-200/60 transition-colors"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-brand-700 hover:bg-brand-800 text-white shadow-xs transition-colors"
             >
               <Check className="w-3.5 h-3.5" />
               <span>Salvar Campos</span>
@@ -259,7 +258,7 @@ const SidebarFieldCustomizerInner: React.FC<SidebarFieldCustomizerInnerProps> = 
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

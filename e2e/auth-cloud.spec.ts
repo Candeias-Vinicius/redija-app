@@ -50,7 +50,7 @@ test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
     await shareBtn.click();
 
     // 6. Valida que o modal de compartilhamento abriu
-    const shareModal = page.locator('div.fixed.z-50');
+    const shareModal = page.getByRole('dialog');
     await expect(shareModal.getByText('Compartilhar Trabalho')).toBeVisible();
     await expect(shareModal.getByPlaceholder('exemplo@gmail.com')).toBeVisible();
 
@@ -93,7 +93,7 @@ test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
       await expect(page.getByRole('heading', { name: 'Configurações da Conta' })).toBeVisible();
 
       // 5. Fecha o modal de configurações
-      const closeSettingsBtn = page.locator('div.fixed.z-50 button').filter({ has: page.locator('svg.lucide-x') }).first();
+      const closeSettingsBtn = page.getByRole('dialog').locator('button').filter({ has: page.locator('svg.lucide-x') }).first();
       await closeSettingsBtn.click();
 
       // 6. Reabre o menu do usuário e realiza Logout

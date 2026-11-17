@@ -12,7 +12,7 @@ export const LandingWorkflow: React.FC<LandingWorkflowProps> = ({ isDark }) => {
       title: 'Escolha um Padrão ou Importe',
       description:
         'Crie com 1 clique em ABNT, SBC, IEEE, APA 7ª, Pôster A0/A1 ou pacotes @preview/... do Typst Universe — ou importe rascunhos do Word (.docx), LaTeX/Overleaf (.tex/.zip) e Typst (.typ).',
-      icon: <MousePointerClick className="w-6 h-6 text-emerald-500" />,
+      icon: <MousePointerClick className="w-6 h-6 text-brand-500" />,
       detail: 'Zero configuração inicial necessária',
     },
     {
@@ -37,7 +37,7 @@ export const LandingWorkflow: React.FC<LandingWorkflowProps> = ({ isDark }) => {
     <section id="como-funciona" className="py-20 sm:py-28 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
         <div className="text-center max-w-3xl mx-auto space-y-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-brand-700 dark:text-brand-400">
             Fluxo de Trabalho Descomplicado
           </span>
           <h2
@@ -64,10 +64,10 @@ export const LandingWorkflow: React.FC<LandingWorkflowProps> = ({ isDark }) => {
             >
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <div className="p-3 rounded-2xl bg-brand-500/10 text-brand-700 dark:text-brand-400">
                     {step.icon}
                   </div>
-                  <span className="font-mono text-3xl font-extrabold text-slate-300 dark:text-slate-700 group-hover:text-emerald-500/50 transition-colors">
+                  <span className="font-mono text-3xl font-extrabold text-slate-300 dark:text-slate-700 group-hover:text-brand-500/50 transition-colors">
                     {step.number}
                   </span>
                 </div>
@@ -85,7 +85,7 @@ export const LandingWorkflow: React.FC<LandingWorkflowProps> = ({ isDark }) => {
                 </p>
               </div>
 
-              <div className="pt-4 mt-6 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+              <div className="pt-4 mt-6 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 text-xs font-semibold text-brand-700 dark:text-brand-400">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>{step.detail}</span>
               </div>

@@ -28,6 +28,7 @@ import {
 } from '@/core/storage/db';
 import { resolveRestoredProjectName } from '@/core/storage/driveTrash';
 import { pushTrashStateToDrive, purgeProjectFromDrive } from '@/core/storage/driveTrashSync';
+import { toast } from '@/components/ui/toastStore';
 
 export const FALLBACK_INITIAL_PROJECT = createProjectFromTemplate('tcc');
 
@@ -438,7 +439,7 @@ export function useProjectWorkspace({
           (p) => p.name.trim().toLowerCase() === finalName.toLowerCase(),
         );
         if (alreadyExists) {
-          alert(
+          toast.error(
             `Já existe um trabalho ativo com o nome "${finalName}". Escolha um nome diferente para evitar substituição.`,
           );
           return;
@@ -482,7 +483,7 @@ export function useProjectWorkspace({
         (p) => p.id !== id && p.name.trim().toLowerCase() === trimmed.toLowerCase(),
       );
       if (alreadyExists) {
-        alert(
+        toast.error(
           `Já existe outro trabalho com o nome "${trimmed}". Escolha um nome diferente para evitar substituição.`,
         );
         return;
@@ -645,7 +646,7 @@ export function useProjectWorkspace({
         setActiveProjectId(imported.id, activeOwner);
         onProjectImported();
       } catch (err) {
-        alert(err instanceof Error ? err.message : 'Erro ao importar documento.');
+        toast.error(err instanceof Error ? err.message : 'Erro ao importar documento.');
       }
     },
     [activeOwner, clearHistory, setProject, onProjectImported],

@@ -66,10 +66,10 @@ test.describe('RedijaApp: Jornada Completa do Estudante', () => {
     // 9. Volta para o preview visual e testa alternadores de painéis (Estrutura, Texto, PDF)
     await page.getByRole('button', { name: /Ver PDF/i }).click();
 
-    // Testa ocultar e reabrir barra de estrutura com exact match
-    await page.getByRole('button', { name: 'Estrutura', exact: true }).click();
+    // Testa minimizar a Estrutura pelo próprio painel e restaurá-la pela barra lateral
+    await page.getByRole('button', { name: 'Minimizar painel Estrutura' }).click();
     await expect(page.getByPlaceholder(/Ex: Nome do Autor/i)).not.toBeVisible();
-    await page.getByRole('button', { name: 'Estrutura', exact: true }).click();
+    await page.getByRole('button', { name: 'Mostrar painel Estrutura' }).click();
     await expect(page.getByPlaceholder(/Ex: Nome do Autor/i)).toBeVisible();
 
     // 10. Testa o botão de Baixar PDF

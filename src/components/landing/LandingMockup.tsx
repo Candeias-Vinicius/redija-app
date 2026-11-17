@@ -22,8 +22,8 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
       <div
         className={`absolute -inset-4 rounded-3xl blur-2xl opacity-50 pointer-events-none transition-all ${
           isDark
-            ? 'bg-gradient-to-r from-emerald-600/20 via-teal-500/15 to-cyan-600/20'
-            : 'bg-gradient-to-r from-emerald-200/50 via-teal-100/30 to-emerald-100/50'
+            ? 'bg-gradient-to-r from-brand-600/20 via-teal-500/15 to-cyan-600/20'
+            : 'bg-gradient-to-r from-brand-200/50 via-teal-100/30 to-brand-100/50'
         }`}
       />
 
@@ -45,7 +45,7 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-red-400/80 inline-block" />
             <span className="w-2.5 h-2.5 rounded-full bg-amber-400/80 inline-block" />
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/80 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-brand-400/80 inline-block" />
             <span
               className={`ml-2 text-xs font-mono font-medium truncate max-w-[200px] sm:max-w-none ${
                 isDark ? 'text-slate-400' : 'text-slate-600'
@@ -66,7 +66,7 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
               className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg transition-all shrink-0 ${
                 activeTab === 'realApp'
                   ? isDark
-                    ? 'bg-emerald-500 text-slate-950 font-bold shadow-xs'
+                    ? 'bg-brand-500 text-slate-950 font-bold shadow-xs'
                     : 'bg-[#ffffff] text-slate-900 font-bold shadow-xs'
                   : isDark
                     ? 'text-slate-300 hover:text-white'
@@ -83,7 +83,7 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
               className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg transition-all shrink-0 ${
                 activeTab === 'split'
                   ? isDark
-                    ? 'bg-emerald-500 text-slate-950 font-bold shadow-xs'
+                    ? 'bg-brand-500 text-slate-950 font-bold shadow-xs'
                     : 'bg-[#ffffff] text-slate-900 font-bold shadow-xs'
                   : isDark
                     ? 'text-slate-300 hover:text-white'
@@ -100,7 +100,7 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
               className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg transition-all shrink-0 ${
                 activeTab === 'typst'
                   ? isDark
-                    ? 'bg-emerald-500 text-slate-950 font-bold shadow-xs'
+                    ? 'bg-brand-500 text-slate-950 font-bold shadow-xs'
                     : 'bg-[#ffffff] text-slate-900 font-bold shadow-xs'
                   : isDark
                     ? 'text-slate-300 hover:text-white'
@@ -116,11 +116,11 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
           {/* Badge Indicativo */}
           <div className="hidden sm:flex items-center gap-2">
             <span
-              className={`flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 ${
-                isDark ? 'text-emerald-400' : 'text-emerald-700'
+              className={`flex items-center gap-1.5 text-xs font-mono px-2 py-0.5 rounded-md bg-brand-500/10 border border-brand-500/20 ${
+                isDark ? 'text-brand-400' : 'text-brand-700'
               }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" />
               WASM Ativo
             </span>
           </div>
@@ -170,13 +170,13 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
                 }`}
               >
                 <div
-                  className={`flex items-center justify-between pb-2 border-b text-[11px] ${
+                  className={`flex items-center justify-between pb-2 border-b text-xs ${
                     isDark ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-500'
                   }`}
                 >
                   <span
                     className={`font-semibold flex items-center gap-1.5 ${
-                      isDark ? 'text-emerald-400' : 'text-emerald-700'
+                      isDark ? 'text-brand-400' : 'text-brand-700'
                     }`}
                   >
                     <FileText className="w-3.5 h-3.5" />
@@ -213,8 +213,8 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
 
                   {/* Citação Longa ABNT com Recuo Real de 4cm */}
                   <div
-                    className={`pl-6 border-l-2 border-emerald-500 py-1.5 rounded-r text-[11px] space-y-1 ${
-                      isDark ? 'bg-emerald-950/20' : 'bg-emerald-50/80'
+                    className={`pl-6 border-l-2 border-brand-500 py-1.5 rounded-r text-xs space-y-1 ${
+                      isDark ? 'bg-brand-950/20' : 'bg-brand-50/80'
                     }`}
                   >
                     <p
@@ -225,8 +225,8 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
                       &ldquo;A capacidade de um sistema distribuído manter sua responsividade sob condições adversas não depende unicamente do provisionamento de recursos elásticos, mas da descentralização inteligente de seu fluxo de controle e da minimização do estado compartilhado entre os nós de processamento.&rdquo;
                     </p>
                     <p
-                      className={`text-right text-[10px] font-semibold ${
-                        isDark ? 'text-emerald-400' : 'text-emerald-700'
+                      className={`text-right text-xs font-semibold ${
+                        isDark ? 'text-brand-400' : 'text-brand-700'
                       }`}
                     >
                       (SILVA; PEREIRA, 2024, p. 87)
@@ -243,14 +243,14 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
                 </div>
 
                 <div
-                  className={`pt-2 border-t text-[10px] text-slate-500 flex items-center justify-between ${
+                  className={`pt-2 border-t text-xs text-slate-500 flex items-center justify-between ${
                     isDark ? 'border-slate-800' : 'border-slate-200'
                   }`}
                 >
                   <span>Digite &apos;/&apos; para inserir blocos</span>
                   <span
                     className={`font-mono font-medium ${
-                      isDark ? 'text-emerald-400' : 'text-emerald-700'
+                      isDark ? 'text-brand-400' : 'text-brand-700'
                     }`}
                   >
                     Sincronizado
@@ -268,14 +268,14 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
               >
                 {/* Barra do Preview */}
                 <div
-                  className={`flex items-center justify-between pb-2 border-b text-[10px] mb-2 ${
+                  className={`flex items-center justify-between pb-2 border-b text-xs mb-2 ${
                     isDark ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-500'
                   }`}
                 >
-                  <span className={`font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                  <span className={`font-medium ${isDark ? 'text-brand-400' : 'text-brand-700'}`}>
                     Prévia PDF • NBR 14724
                   </span>
-                  <div className="flex items-center gap-1 font-mono text-[9px]">
+                  <div className="flex items-center gap-1 font-mono text-xs">
                     <span
                       className={`px-1.5 py-0.5 rounded ${
                         isDark
@@ -300,10 +300,10 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
                 {/* Folha A4 com Margens 3-3-2-2 e Recuo 4cm (sempre papel claro, inclusive no modo escuro) */}
                 <div
                   data-testid="mockup-a4-sheet"
-                  className="bg-[#ffffff] text-slate-950 p-6 rounded border border-slate-200/80 shadow-md font-serif text-[10.5px] leading-relaxed space-y-2.5 my-auto"
+                  className="bg-[#ffffff] text-slate-950 p-6 rounded border border-slate-200/80 shadow-md font-serif text-xs leading-relaxed space-y-2.5 my-auto"
                 >
                   {/* Cabeçalho ABNT: Número no Canto Superior Direito */}
-                  <div className="text-right text-[9px] font-sans font-bold text-slate-800 pb-1 border-b border-slate-200/70">
+                  <div className="text-right text-xs font-sans font-bold text-slate-800 pb-1 border-b border-slate-200/70">
                     15
                   </div>
 
@@ -311,16 +311,16 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
                     1 INTRODUÇÃO
                   </h5>
 
-                  <p className="text-justify indent-6 text-[10px] leading-relaxed text-slate-800">
+                  <p className="text-justify indent-6 text-xs leading-relaxed text-slate-800">
                     A evolução das arquiteturas computacionais distribuídas e a crescente demanda por processamento de dados em tempo real transformaram profundamente o paradigma de desenvolvimento de software contemporâneo. Historicamente, os sistemas corporativos operavam sobre modelos monolíticos e síncronos, cujas limitações de escalabilidade vertical tornaram-se progressivamente evidentes.
                   </p>
 
-                  <p className="text-justify indent-6 text-[10px] leading-relaxed text-slate-800">
+                  <p className="text-justify indent-6 text-xs leading-relaxed text-slate-800">
                     Nesse cenário de transição paradigmática, as abordagens orientadas a eventos e os protocolos descentralizados emergiram como alternativas essenciais para garantir elasticidade, resiliência e baixa latência sob cargas extremas.
                   </p>
 
                   {/* Citação Recuada na Folha A4 */}
-                  <div className="ml-8 text-[9px] leading-snug text-slate-700 text-justify">
+                  <div className="ml-8 text-xs leading-snug text-slate-700 text-justify">
                     A capacidade de um sistema distribuído manter sua responsividade sob condições adversas não depende unicamente do provisionamento de recursos elásticos, mas da descentralização inteligente de seu fluxo de controle e da minimização do estado compartilhado entre os nós de processamento. (SILVA; PEREIRA, 2024, p. 87).
                   </div>
                 </div>
@@ -330,13 +330,13 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
                     isDark ? 'text-slate-400 border-slate-800' : 'text-slate-500 border-slate-200'
                   }`}
                 >
-                  <span className="flex items-center gap-1.5 text-[10px]">
+                  <span className="flex items-center gap-1.5 text-xs">
                     <Zap className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-500'}`} />
                     <span>Typst WASM: 28ms</span>
                   </span>
                   <span
-                    className={`text-[10px] font-mono ${
-                      isDark ? 'text-emerald-400' : 'text-emerald-700'
+                    className={`text-xs font-mono ${
+                      isDark ? 'text-brand-400' : 'text-brand-700'
                     }`}
                   >
                     Margens 3-3-2-2 cm
@@ -357,18 +357,18 @@ export const LandingMockup: React.FC<LandingMockupProps> = ({ isDark }) => {
               }`}
             >
               <div
-                className={`flex items-center justify-between pb-2 border-b text-[11px] ${
+                className={`flex items-center justify-between pb-2 border-b text-xs ${
                   isDark ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-500'
                 }`}
               >
-                <span className={`font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                <span className={`font-bold ${isDark ? 'text-brand-400' : 'text-brand-700'}`}>
                   main.typ (Gerado em tempo real pelo RedijaApp)
                 </span>
                 <span>Typst 0.12+ Syntax</span>
               </div>
 
               <pre
-                className={`leading-relaxed text-[11px] ${
+                className={`leading-relaxed text-xs ${
                   isDark ? 'text-slate-300' : 'text-slate-800'
                 }`}
               >
@@ -417,7 +417,7 @@ emergiram como alternativas essenciais para garantir elasticidade e resiliência
         >
           <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-brand-500" />
                 <span>ABNT, SBC, IEEE, APA 7ª &amp; Typst Universe</span>
               </span>
             <span className="hidden sm:flex items-center gap-1.5">
@@ -427,7 +427,7 @@ emergiram como alternativas essenciais para garantir elasticidade e resiliência
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono text-emerald-500 font-semibold">
+            <span className="text-xs font-mono text-brand-500 font-semibold">
               Fiel à interface do RedijaApp • 100% Client-Side
             </span>
           </div>
