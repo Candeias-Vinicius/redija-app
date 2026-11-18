@@ -193,6 +193,8 @@ export const GENERAL_GUIDELINES_DOCS: StandardDocSection[] = [
     summary:
       'Conecte qualquer pacote público do Typst Universe informando identificador e entrypoint na barra lateral.',
     rulesApplied: [
+      'Compilador Typst 0.15: pacotes que exigem a versão 0.15 (como o @preview/abntly) compilam direto no navegador.',
+      '@preview/abntly (ABNT): título, autor, orientador, instituição, curso, local e ano preenchem os dados do trabalho; capa, folha de rosto e sumário seguem a aba Estrutura do Customizer.',
       'Se o compilador estiver offline, o RedijaApp utiliza automaticamente um layout fallback seguro para não perder seu rascunho.',
     ],
   },
