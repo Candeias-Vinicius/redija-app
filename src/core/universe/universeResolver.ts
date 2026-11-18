@@ -5,9 +5,11 @@
 // =====================================================================
 
 import { db, CachedUniversePackage } from '@/core/storage/db';
+import { extractTemplateThumbnail } from './packageThumbnail';
 import {
   buildVirtualUniversePackageFiles,
   isValidTarGzBytes,
+  knownUniverseEntrypoint,
   parsePackageId,
   POPULAR_UNIVERSE_TEMPLATES,
   type ParsedPackageId,
@@ -17,6 +19,7 @@ import {
 export {
   buildVirtualUniversePackageFiles,
   isValidTarGzBytes,
+  knownUniverseEntrypoint,
   parsePackageId,
   POPULAR_UNIVERSE_TEMPLATES,
   type ParsedPackageId,
@@ -97,8 +100,8 @@ export async function resolveUniversePackage(
     }
   }
 
-  const known = POPULAR_UNIVERSE_TEMPLATES.find((t) => t.name === parsed.name);
-  const entrypoint = known?.entrypoint || parsed.name.replace(/[^a-zA-Z0-9_-]/g, '') || 'article';
+  const entrypoint =
+    knownUniverseEntrypoint(parsed.name) || parsed.name.replace(/[^a-zA-Z0-9_-]/g, '') || 'article';
 
   // 2. Tenta baixar o pacote .tar.gz real da rede oficial do Typst Universe
   let isDefiniteNotFound = false;
@@ -156,6 +159,60 @@ export async function resolveUniversePackage(
   }
 
   return { files: virtualFiles, entrypoint };
+}
+
+export interface PackageThumbnail {
+  bytes: Uint8Array;
+  mime: string;
+}
+
+const thumbnailRequests = new Map<string, Promise<PackageThumbnail | null>>();
+
+async function loadPackageThumbnail(fullId: string): Promise<PackageThumbnail | null> {
+  let cached = await getCachedPackage(fullId);
+  if (cached && cached.thumbnail !== undefined) return cached.thumbnail;
+
+  if (!cached?.tarGzBytes) {
+    // Pacote virtual (não existe no Universe): não há capa para mostrar.
+    if (cached) return null;
+    // Ainda não baixado: baixa o pacote (fica em cache, pronto para compilar offline depois).
+    await resolveUniversePackage(fullId);
+    cached = await getCachedPackage(fullId);
+    // Sem rede, nada é guardado e uma próxima abertura tenta de novo.
+    if (!cached?.tarGzBytes) return null;
+  }
+
+  let thumbnail: PackageThumbnail | null = null;
+  try {
+    thumbnail = await extractTemplateThumbnail(cached.tarGzBytes);
+  } catch (err) {
+    console.warn(`Não foi possível ler a capa do pacote ${fullId}:`, err);
+  }
+  try {
+    await db.universePackages.update(fullId, { thumbnail });
+  } catch (err) {
+    console.warn('Não foi possível guardar a capa do pacote no cache:', err);
+  }
+  return thumbnail;
+}
+
+/**
+ * Capa real de um modelo do Typst Universe (`[template] thumbnail`), guardada junto do cache
+ * do pacote. Baixa o pacote se ainda não estiver em cache. Retorna `null` quando não há capa
+ * (pacote sem thumbnail, inexistente ou sem conexão).
+ */
+export function getUniversePackageThumbnail(packageId: string): Promise<PackageThumbnail | null> {
+  const { fullId } = parsePackageId(packageId);
+  const pending = thumbnailRequests.get(fullId);
+  if (pending) return pending;
+  const request = loadPackageThumbnail(fullId)
+    .catch((err) => {
+      console.warn(`Não foi possível obter a capa do pacote ${fullId}:`, err);
+      return null;
+    })
+    .finally(() => thumbnailRequests.delete(fullId));
+  thumbnailRequests.set(fullId, request);
+  return request;
 }
 
 const SAFE_UNIVERSE_PKG_REGEX = /^@[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+:[0-9.]+$/;

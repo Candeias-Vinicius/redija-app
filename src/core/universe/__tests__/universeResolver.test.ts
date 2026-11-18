@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db } from '@/core/storage/db';
 import {
   buildVirtualUniversePackageFiles,
+  knownUniverseEntrypoint,
   parsePackageId,
   POPULAR_UNIVERSE_TEMPLATES,
   resolveProjectUniverseAssets,
@@ -36,6 +37,21 @@ describe('Typst Universe Resolver & Virtual Packages', () => {
     });
     expect(parsePackageId('charged-ieee').fullId).toBe('@preview/charged-ieee:0.1.4');
     expect(POPULAR_UNIVERSE_TEMPLATES[0].id).toBe('@preview/charged-ieee:0.1.4');
+  });
+
+  it('sugere só pacotes que existem no Typst Universe, sem quebrar projetos antigos', () => {
+    const ids = POPULAR_UNIVERSE_TEMPLATES.map((t) => t.id);
+    expect(ids).toEqual(['@preview/charged-ieee:0.1.4', '@preview/touying:0.5.3']);
+    for (const removed of ['modern-sbc', 'poster-template', 'academic-cv']) {
+      expect(ids.some((id) => id.includes(removed))).toBe(false);
+    }
+
+    // Projetos criados com os pacotes removidos continuam com a função de entrada que já usavam
+    expect(knownUniverseEntrypoint('modern-sbc')).toBe('sbc-article');
+    expect(knownUniverseEntrypoint('poster-template')).toBe('poster');
+    expect(knownUniverseEntrypoint('academic-cv')).toBe('cv');
+    const legacy = buildVirtualUniversePackageFiles({ namespace: 'preview', name: 'modern-sbc', version: '0.1.0' });
+    expect(legacy['lib.typ']).toContain('#let sbc-article(');
   });
 
   it('gera pacote virtual completo com typst.toml e suporte offline a autores dicionário e touying', () => {

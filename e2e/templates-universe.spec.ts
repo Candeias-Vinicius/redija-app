@@ -343,14 +343,14 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     await expect(universeLink).toHaveAttribute('href', 'https://typst.app/universe');
     await expect(page.locator('#template-universe-package')).toBeVisible();
 
-    // Seleciona pacote popular modern-sbc e aplica
-    await page.getByRole('button', { name: '@preview/modern-sbc:0.1.0', exact: true }).click();
+    // Seleciona pacote popular charged-ieee e aplica
+    await page.getByRole('button', { name: '@preview/charged-ieee:0.1.4', exact: true }).click();
     await page.getByRole('button', { name: /Aplicar e Atualizar PDF/i }).click();
 
     await page.getByRole('button', { name: /Ver Typst/i }).click();
     const codeViewer = page.locator('pre');
-    await expect(codeViewer).toContainText('#import "@preview/modern-sbc:0.1.0": *');
-    await expect(codeViewer).toContainText('#show: sbc-article.with');
+    await expect(codeViewer).toContainText('#import "@preview/charged-ieee:0.1.4": *');
+    await expect(codeViewer).toContainText('#show: ieee.with');
   });
 
   test('mantém edições do Customizer apenas em rascunho até Aplicar, não gera erro ao clicar em Typst Universe num SBC e compila PDF sem Dummy Registry', async ({
