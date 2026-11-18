@@ -2,14 +2,19 @@ import React, { useState, useEffect } from 'react';
 import {
   Sun,
   Moon,
-  ArrowRight,
+  Loader2,
   Menu,
   X,
   FileCheck2,
 } from 'lucide-react';
 import { Logo } from '../Logo';
 import { GitHubIcon } from '../GitHubIcon';
+import { GoogleLogo } from '../GoogleLogo';
 import { GITHUB_REPO_URL } from '@/core/links';
+import { LANDING_LOGIN_ATTR } from './landingLogin';
+
+/** Altura aproximada do topo fixo: um botão escondido atrás dele não conta como visível. */
+const NAV_OFFSET_PX = 72;
 
 interface LandingNavProps {
   isDark: boolean;
@@ -38,6 +43,31 @@ export const LandingNav: React.FC<LandingNavProps> = ({
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Começa oculto (o cartão de login do topo está na tela ao abrir a página)
+  const [pageLoginVisible, setPageLoginVisible] = useState(true);
+  useEffect(() => {
+    const targets = Array.from(document.querySelectorAll(`[${LANDING_LOGIN_ATTR}]`));
+    if (targets.length === 0 || typeof IntersectionObserver === 'undefined') {
+      // Sem outros botões para observar: o do topo fica sempre visível
+      const frame = requestAnimationFrame(() => setPageLoginVisible(false));
+      return () => cancelAnimationFrame(frame);
+    }
+    const visible = new Set<Element>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) visible.add(entry.target);
+          else visible.delete(entry.target);
+        }
+        setPageLoginVisible(visible.size > 0);
+      },
+      { rootMargin: `-${NAV_OFFSET_PX}px 0px 0px 0px` },
+    );
+    targets.forEach((target) => observer.observe(target));
+    return () => observer.disconnect();
+  }, []);
+  const showNavLogin = !pageLoginVisible;
 
   const navLinks = [
     { label: 'Recursos', href: '#recursos' },
@@ -73,12 +103,12 @@ export const LandingNav: React.FC<LandingNavProps> = ({
         {/* Direita: Links de Navegação e Ações alinhados */}
         <div className="flex min-w-0 items-center gap-2 sm:gap-6">
           {/* Navegação Desktop Enxuta */}
-          <nav className="hidden md:flex items-center gap-1 lg:gap-2">
+          <nav className="hidden xl:flex items-center gap-1 2xl:gap-2" aria-label="Navegação principal">
             {navLinks.map((link) => (
               <a
                 key={link.label}
                 href={link.href}
-                className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-colors ${
+                className={`px-2.5 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                   isDark
                     ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
@@ -91,10 +121,10 @@ export const LandingNav: React.FC<LandingNavProps> = ({
             {/* Link para o Guia Técnico de Normas com Modal */}
             <button
               onClick={() => onOpenDoc()}
-              className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-colors ${
+              className={`px-2.5 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                 isDark
-                  ? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/30'
-                  : 'text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50'
+                  ? 'text-brand-400 hover:text-brand-300 hover:bg-brand-950/30'
+                  : 'text-brand-700 hover:text-brand-800 hover:bg-brand-50'
               }`}
             >
               Normas &amp; Guias
@@ -108,7 +138,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
                   onOpenFullDocs();
                 }
               }}
-              className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-colors ${
+              className={`px-2.5 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                 isDark
                   ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
@@ -119,7 +149,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
           </nav>
 
           {/* Divisor vertical sutil no desktop */}
-          <div className="hidden md:block w-px h-5 bg-slate-200 dark:bg-slate-800" />
+          <div className="hidden xl:block w-px h-5 bg-slate-200 dark:bg-slate-800" aria-hidden="true" />
 
           {/* Ações da Extrema Direita: GitHub + Tema + Entrar */}
           <div className="flex items-center gap-2">
@@ -127,7 +157,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
               href={GITHUB_REPO_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className={`hidden sm:inline-flex p-2 rounded-xl border transition-colors ${
+              className={`touch-target hidden sm:inline-flex items-center justify-center p-2 rounded-xl border transition-colors ${
                 isDark
                   ? 'border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white'
                   : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -141,41 +171,52 @@ export const LandingNav: React.FC<LandingNavProps> = ({
             {/* Alternar Tema (Dark/Light) */}
             <button
               onClick={onToggleTheme}
-              className={`p-1.5 sm:p-2 rounded-xl border transition-colors ${
+              className={`touch-target flex items-center justify-center p-1.5 sm:p-2 rounded-xl border transition-colors ${
                 isDark
                   ? 'border-slate-800 bg-slate-900 text-amber-400 hover:bg-slate-800'
                   : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
               }`}
               title={isDark ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
               aria-label="Alternar tema"
+              aria-pressed={isDark}
             >
               {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
             </button>
 
-            {/* Botão Único de Login no Topo */}
-            <button
-              onClick={onOpenLogin}
-              disabled={isLoading}
-              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl font-semibold text-xs transition-all shadow-xs active:scale-95 ${
-                isDark
-                  ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            {/* Login no topo, no padrão visual do Google. Só aparece quando nenhum outro botão
+                de login da página está na tela (cartão do topo ou banner final), para não repetir. */}
+            <div
+              inert={!showNavLogin}
+              className={`flex overflow-hidden transition-[max-width,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${
+                showNavLogin ? 'max-w-60 opacity-100' : '-ml-2 max-w-0 opacity-0'
               }`}
             >
-              <span className="sm:hidden">Entrar</span>
-              <span className="hidden sm:inline">Entrar com Google</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+              <button
+                onClick={onOpenLogin}
+                disabled={isLoading}
+                className={`touch-target inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 rounded-full border text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-offset-[-4px] disabled:opacity-60 ${
+                  isDark
+                    ? 'border-[#8e918f] bg-[#131314] text-[#e3e3e3] hover:bg-[#1f1f20]'
+                    : 'border-[#747775] bg-[#ffffff] text-[#1f1f1f] hover:bg-[#f8f9fa]'
+                }`}
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" /> : <GoogleLogo />}
+                <span className="sm:hidden">Entrar</span>
+                <span className="hidden sm:inline">Entrar com Google</span>
+              </button>
+            </div>
 
             {/* Botão de Menu Mobile */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className={`md:hidden p-1.5 rounded-xl border transition-colors ${
+              className={`xl:hidden touch-target flex items-center justify-center p-1.5 rounded-xl border transition-colors ${
                 isDark
                   ? 'border-slate-800 bg-slate-900 text-slate-300'
                   : 'border-slate-200 bg-white text-slate-700'
               }`}
-              aria-label="Menu"
+              aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="landing-mobile-menu"
             >
               {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
@@ -185,8 +226,10 @@ export const LandingNav: React.FC<LandingNavProps> = ({
 
       {/* Menu Mobile Retrátil */}
       {mobileMenuOpen && (
-        <div
-          className={`md:hidden border-b px-4 py-4 space-y-2.5 transition-colors ${
+        <nav
+          id="landing-mobile-menu"
+          aria-label="Navegação principal"
+          className={`xl:hidden border-b px-4 py-4 space-y-2.5 transition-colors ${
             isDark
               ? 'bg-[#0b1220] border-slate-800 text-slate-200'
               : 'bg-white border-slate-200 text-slate-800'
@@ -198,7 +241,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
                 key={link.label}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`px-3 py-2 rounded-lg text-xs font-medium ${
+                className={`touch-target flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
                   isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
                 }`}
               >
@@ -212,7 +255,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
               setMobileMenuOpen(false);
               onOpenDoc();
             }}
-            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 text-xs font-semibold"
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-brand-500/40 text-brand-700 dark:text-brand-400 text-xs font-semibold"
           >
             <FileCheck2 className="w-3.5 h-3.5" />
             <span>Guia de Normas (ABNT, SBC, IEEE, APA)</span>
@@ -252,7 +295,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({
               <span>GitHub</span>
             </a>
           </div>
-        </div>
+        </nav>
       )}
     </header>
   );

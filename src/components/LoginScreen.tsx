@@ -10,6 +10,7 @@ import { LandingFaq } from './landing/LandingFaq';
 import { LandingCtaBanner } from './landing/LandingCtaBanner';
 import { LandingFooter } from './landing/LandingFooter';
 import { LandingModals, LandingModalType } from './landing/LandingModals';
+import { scrollBehavior } from '@/core/motion';
 
 export interface LoginScreenProps {
   onLogin: () => Promise<string | null>;
@@ -72,13 +73,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   };
 
   const handleScrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
   };
 
   const handleScrollToAuth = () => {
     const el = document.getElementById('auth-card');
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
     } else {
       handleScrollToTop();
     }
@@ -88,8 +89,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     <div
       className={`min-h-screen flex flex-col transition-colors duration-300 ${
         isDark
-          ? 'bg-[#080d19] text-slate-100 selection:bg-emerald-950 selection:text-emerald-200'
-          : 'bg-slate-50 text-slate-800 selection:bg-emerald-200 selection:text-emerald-900'
+          ? 'bg-[#080d19] text-slate-100 selection:bg-brand-950 selection:text-brand-200'
+          : 'bg-slate-50 text-slate-800 selection:bg-brand-200 selection:text-brand-900'
       }`}
     >
       {/* 1. Barra de Navegação Superior Fixa */}
@@ -102,6 +103,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         isLoading={isLoading}
       />
 
+      <main className="flex flex-col">
       {/* 2. Hero Section com Headline, Auth Card e Mockup Interativo do App */}
       <LandingHero
         isDark={isDark}
@@ -146,6 +148,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         onLogin={onLogin}
         onContinueAsGuest={onContinueAsGuest}
       />
+      </main>
 
       {/* 9. Rodapé Completo com Abas de Documentação, Sobre Nós, Contato e Privacidade */}
       <LandingFooter

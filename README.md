@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.4.0--beta-059669?style=flat-square" alt="Versão 0.4.0-beta" />
+  <img src="https://img.shields.io/badge/version-0.5.0--beta-059669?style=flat-square" alt="Versão 0.5.0-beta" />
   <a href="https://github.com/project-rev/redija-app/actions/workflows/ci.yml"><img src="https://github.com/project-rev/redija-app/actions/workflows/ci.yml/badge.svg?branch=develop" alt="CI & Guardrails" /></a>
   <img src="https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react&logoColor=white" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript 6.0" />
@@ -36,12 +36,24 @@ O **RedijaApp** combina uma interface visual em blocos (estilo Notion, baseada e
 
 ---
 
-## Novidades da versão 0.4.0-beta
+## Novidades da versão 0.5.0-beta
+
+- **Nova tela inicial:** substitui a lista de projetos em modal. Traz o cartão "Continuar de onde parou", os trabalhos em grade ou lista com capas ilustradas, ações rápidas (abrir, baixar PDF, duplicar, renomear, mover para a Lixeira) e busca com Ctrl/⌘K. O endereço `/` abre a tela inicial e `/?p=<id>` abre o trabalho direto no editor.
+- **Modelos do Typst Universe na tela inicial:** "Mais modelos" mostra todos os modelos sem sair da tela, e "Buscar novos modelos" explica o Typst Universe, valida o pacote e o guarda em "Seus modelos", neste navegador e por perfil.
+- **Painéis mais flexíveis:** abaixo de 1280 px, Estrutura, Texto e PDF viram abas. Cada painel pode ser maximizado, minimizado (vira uma barra lateral) e restaurado, e as larguras acompanham o tamanho da janela.
+- **Cabeçalho e barra do PDF mais enxutos:** "Relatar problema ou sugestão" passa para o menu do perfil, o login segue o padrão do Google ("Conectar") e a barra do PDF fica só com ícones. "Baixar" oferece PDF, projeto completo (`.zip`) e código Typst (`.typ`).
+- **Acessibilidade:** modais com foco preso e Esc, contraste AA, alvos de toque de 44 px, divisores ajustáveis pelo teclado, mover blocos com Ctrl+Shift+↑/↓ e respeito a `prefers-reduced-motion` e ao tema do sistema, sem piscar ao abrir.
+- **Menos interrupções:** avisos e confirmações em dois passos no lugar de `alert()`/`confirm()`, e o tema claro ganhou a mesma hierarquia de tons do escuro.
+
+<details>
+<summary>Novidades da versão 0.4.0-beta</summary>
 
 - **Layout responsivo:** a partir de 1024 px, Estrutura, Texto e PDF ficam lado a lado com larguras ajustáveis. Em telas menores, um painel por vez, alternado por abas. Cabeçalho, modais, editor, preview e landing também foram ajustados para celular.
 - **Importação só via Pandoc:** `.docx`, `.tex`, `.md`, `.typ` e `.zip` (Overleaf/Typst) passam apenas pelo serviço de conversão ([`server/`](server/README.md)). Os importadores antigos por regex foram removidos; sem o serviço, o app mostra uma mensagem clara. Arquivos `.redija` e `.zip` exportados pelo Redija continuam sendo importados localmente.
 - **Arquivos maiores na importação:** upload de até 250 MB (600 MB descompactado), imagens de até 50 MB cada e cota de imagens por projeto de 250 MB.
 - **Nova casa no GitHub:** o repositório agora é [`project-rev/redija-app`](https://github.com/project-rev/redija-app), com template de PR, fluxo de branches documentado no [CONTRIBUTING](CONTRIBUTING.md) e um [Project](https://github.com/orgs/project-rev/projects/2) com o roadmap em épicos e histórias.
+
+</details>
 
 <details>
 <summary>Novidades da versão 0.3.0-beta</summary>
@@ -84,7 +96,7 @@ O projeto adota processamento *local-first* e separação clara entre thread de 
 - **Transpilador & Verificadores Plurais (`src/core/transpiler/`):** gera código `.typ` multi-normas e valida regras via estratégias desacopladas (`linters/`).
 - **Persistência & Importadores (`src/core/storage/`):** IndexedDB (Dexie.js) com lixeira de 30 dias sincronizada com a lixeira do Google Drive, sincronização BYOS via Google Drive v3 API e *Auto-Merge* não destrutivo. A importação usa o mapper `importer/pandoc/astToProject.ts` (AST do Pandoc → `.redija`). Só `.redija` e `.zip` exportados pelo Redija são lidos localmente (`importer/redijaZip.ts`).
 - **Serviço de Importação (`server/`):** API Node ([Hono](https://hono.dev)) + Pandoc 3.6 empacotada em Docker e publicada no Railway. Não guarda arquivos e tem limites de upload, proteção contra *zip bomb*/*zip slip*, CORS restrito e *rate limit*. Infraestrutura descrita como código em [`.railway/railway.ts`](.railway/railway.ts).
-- **Layout Responsivo (`src/hooks/usePaneLayout.ts`):** em telas a partir de 1024px, Estrutura, Texto e PDF ficam lado a lado com larguras ajustáveis. Em telas menores, um painel por vez, alternado por abas.
+- **Layout Responsivo (`src/hooks/usePaneLayout.ts`):** em telas a partir de 1280px, Estrutura, Texto e PDF ficam lado a lado, com larguras proporcionais à janela e cada painel podendo ser maximizado ou minimizado. Em telas menores, um painel por vez, alternado por abas.
 - **Colaboração P2P (`src/core/collaboration/`):** troca de diffs e presença em blocos via WebRTC (PeerJS) e BroadcastChannel, sem banco de dados central.
 - **Feedback Serverless (`api/feedback.ts`):** endpoint Vercel compatível com Resend estruturado via injeção de dependência (`EmailProvider`).
 

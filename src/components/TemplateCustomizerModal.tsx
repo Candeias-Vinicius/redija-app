@@ -1,4 +1,6 @@
 import React, { useRef, useState } from 'react';
+import { Modal } from '@/components/ui/Modal';
+import { toast } from '@/components/ui/toastStore';
 import {
   Block,
   CitationFormat,
@@ -26,6 +28,7 @@ import { CustomizerTypographyTab } from './customizer/CustomizerTypographyTab';
 import { CustomizerPageTab } from './customizer/CustomizerPageTab';
 import { CustomizerCitationsTab } from './customizer/CustomizerCitationsTab';
 import { CustomizerStructureTab } from './customizer/CustomizerStructureTab';
+import { scrollBehavior } from '@/core/motion';
 
 export type { TemplateCustomizerApplyPayload };
 
@@ -122,7 +125,7 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
     if (!showUniverseExplorer) {
       setShowUniverseExplorer(true);
       requestAnimationFrame(() => {
-        universeConnectorRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+        universeConnectorRef.current?.scrollIntoView?.({ behavior: scrollBehavior(), block: 'nearest' });
       });
     } else if (!isUniverseSelected) {
       setShowUniverseExplorer(false);
@@ -189,7 +192,7 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
     });
     const check = validateImageUploadForProject(file, projectBytesWithoutLogo);
     if (!check.valid) {
-      alert(check.error);
+      toast.error(check.error ?? 'Imagem inválida para este projeto.');
       return;
     }
 
@@ -244,26 +247,26 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl border border-neutral-200 overflow-hidden flex flex-col max-h-[90vh]">
+    <Modal onClose={onClose} labelledBy="customizer-modal-title">
+      <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Cabeçalho */}
-        <div className="p-4 border-b border-neutral-200 flex items-center justify-between bg-neutral-50">
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
+            <div className="p-2 rounded-lg bg-brand-100 text-brand-700">
               <Sliders className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-neutral-900 text-sm">
+              <h2 id="customizer-modal-title" className="font-bold text-slate-900 text-sm">
                 Personalizar Norma, Template e Layout da Faculdade
-              </h3>
-              <p className="text-xs text-neutral-500">
+              </h2>
+              <p className="text-xs text-slate-500">
                 Escolha um modelo base e personalize tipografia, página, cabeçalhos e bibliografia
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-neutral-400 hover:text-neutral-700 rounded-lg hover:bg-neutral-200/60"
+            className="p-1.5 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-200/60"
             aria-label="Fechar"
           >
             <X className="w-4 h-4" />
@@ -274,7 +277,7 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
         <div
           role="tablist"
           aria-label="Seções de configuração do template"
-          className="px-4 pt-2 border-b border-neutral-200 bg-neutral-50/70 flex flex-wrap items-center justify-between gap-2 shrink-0"
+          className="px-4 pt-2 border-b border-slate-200 bg-slate-50/70 flex flex-wrap items-center justify-between gap-2 shrink-0"
         >
           <div className="flex flex-wrap items-center gap-1">
             {MODAL_TABS.map((tab) => {
@@ -290,8 +293,8 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
                   onClick={() => setActiveTab(tab.id)}
                   className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap rounded-t-lg ${
                     selected
-                      ? 'border-emerald-600 text-emerald-700 bg-white'
-                      : 'border-transparent text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100/80'
+                      ? 'border-brand-600 text-brand-700 bg-white'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/80'
                   }`}
                 >
                   {tabLabel}
@@ -357,11 +360,11 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
         </div>
 
         {/* Rodapé */}
-        <div className="p-3 sm:p-4 border-t border-neutral-200 bg-neutral-50 flex flex-col-reverse sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2 shrink-0">
+        <div className="p-3 sm:p-4 border-t border-slate-200 bg-slate-50 flex flex-col-reverse sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2 shrink-0">
           <button
             type="button"
             onClick={handleRestoreDefaults}
-            className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60 rounded-lg transition-colors"
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-lg transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Restaurar Padrão ABNT
@@ -371,20 +374,20 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/70 transition-colors"
+              className="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 transition-colors"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={handleApply}
-              className="flex-1 sm:flex-none px-5 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors"
+              className="flex-1 sm:flex-none px-5 py-2 rounded-lg text-xs font-semibold bg-brand-700 hover:bg-brand-800 text-white shadow-xs transition-colors"
             >
               Aplicar e Atualizar PDF
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

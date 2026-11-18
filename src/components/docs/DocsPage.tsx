@@ -29,6 +29,7 @@ import {
 } from '@/core/links';
 import { APP_VERSION } from '@/core/version';
 import { DOCS_SECTIONS, filterDocsSections } from '@/core/docs/documentationCatalog';
+import { scrollBehavior } from '@/core/motion';
 
 interface DocsPageProps {
   isDark: boolean;
@@ -39,12 +40,12 @@ interface DocsPageProps {
 }
 
 const SECTION_ICONS: Record<string, React.ReactNode> = {
-  'primeiros-passos': <Sparkles className="w-4 h-4 text-emerald-500 shrink-0" />,
-  'normas-abnt': <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />,
+  'primeiros-passos': <Sparkles className="w-4 h-4 text-brand-500 shrink-0" />,
+  'normas-abnt': <ShieldCheck className="w-4 h-4 text-brand-500 shrink-0" />,
   'templates-internacionais': <Globe className="w-4 h-4 text-teal-500 shrink-0" />,
   'importacao-exportacao': <FileCode2 className="w-4 h-4 text-sky-500 shrink-0" />,
   'nuvem-colaboracao': <HardDrive className="w-4 h-4 text-indigo-500 shrink-0" />,
-  'codigo-aberto': <GitBranch className="w-4 h-4 text-emerald-500 shrink-0" />,
+  'codigo-aberto': <GitBranch className="w-4 h-4 text-brand-500 shrink-0" />,
 };
 
 export const DocsPage: React.FC<DocsPageProps> = ({
@@ -73,7 +74,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
       requestAnimationFrame(() => {
         document
           .getElementById(initialSectionId)
-          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          ?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
       });
     }
   }, [initialSectionId]);
@@ -83,7 +84,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
     if (typeof window !== 'undefined') {
       window.history.replaceState({}, '', `/docs#${id}`);
     }
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
   };
 
   return (
@@ -115,10 +116,10 @@ export const DocsPage: React.FC<DocsPageProps> = ({
             </a>
 
             <span
-              className={`hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold border ${
+              className={`hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono font-semibold border ${
                 isDark
-                  ? 'bg-emerald-950/50 text-emerald-300 border-emerald-500/30'
-                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  ? 'bg-brand-950/50 text-brand-300 border-brand-500/30'
+                  : 'bg-brand-50 text-brand-800 border-brand-200'
               }`}
             >
               <BookOpen className="w-3 h-3" />
@@ -138,8 +139,8 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                 aria-label="Buscar na documentação"
                 className={`w-full pl-8 pr-7 py-1.5 rounded-xl border text-xs outline-hidden transition-colors ${
                   isDark
-                    ? 'bg-slate-900 border-slate-800 text-slate-100 placeholder-slate-500 focus:border-emerald-500'
-                    : 'bg-slate-100/80 border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-emerald-600'
+                    ? 'bg-slate-900 border-slate-800 text-slate-100 placeholder-slate-500 focus:border-brand-500'
+                    : 'bg-slate-100/80 border-slate-200 text-slate-900 placeholder-slate-500 focus:bg-white focus:border-brand-600'
                 }`}
               />
               {searchQuery && (
@@ -188,8 +189,8 @@ export const DocsPage: React.FC<DocsPageProps> = ({
               onClick={onNavigateApp}
               className={`inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-xl text-xs font-semibold transition-all shadow-xs active:scale-95 ${
                 isDark
-                  ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  ? 'bg-brand-500 hover:bg-brand-400 text-slate-950'
+                  : 'bg-brand-700 hover:bg-brand-800 text-white'
               }`}
             >
               {isSessionActive ? (
@@ -224,7 +225,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
             className={`w-full pl-9 pr-8 py-2 rounded-xl border text-xs outline-hidden ${
               isDark
                 ? 'bg-slate-900 border-slate-800 text-slate-100 placeholder-slate-500'
-                : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+                : 'bg-white border-slate-200 text-slate-900 placeholder-slate-500'
             }`}
           />
         </div>
@@ -240,7 +241,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                   : 'bg-white border-slate-200 shadow-xs'
               }`}
             >
-              <p className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              <p className="px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-slate-400">
                 Índice do Guia
               </p>
               {DOCS_SECTIONS.map((section) => {
@@ -253,8 +254,8 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                     className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium text-left transition-colors ${
                       isActive
                         ? isDark
-                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                          : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                          ? 'bg-brand-500/15 text-brand-300 border border-brand-500/30'
+                          : 'bg-brand-50 text-brand-800 border border-brand-200'
                         : isDark
                           ? 'text-slate-300 hover:bg-slate-800/80 border border-transparent'
                           : 'text-slate-600 hover:bg-slate-100 border border-transparent'
@@ -274,7 +275,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
               }`}
             >
               <div className="flex items-center gap-2 font-bold">
-                <GitHubIcon className="w-4 h-4 text-emerald-500" />
+                <GitHubIcon className="w-4 h-4 text-brand-500" />
                 <span>Projeto Open Source</span>
               </div>
               <p className={isDark ? 'text-slate-400 leading-relaxed' : 'text-slate-600 leading-relaxed'}>
@@ -286,7 +287,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                     href={GITHUB_REPO_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:underline"
+                    className="inline-flex items-center gap-1.5 text-brand-700 dark:text-brand-400 hover:underline"
                   >
                     <span>Repositório GitHub</span>
                     <ExternalLink className="w-3 h-3" />
@@ -297,7 +298,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                     href={GITHUB_CONTRIBUTING_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:underline"
+                    className="inline-flex items-center gap-1.5 text-brand-700 dark:text-brand-400 hover:underline"
                   >
                     <span>Guia de Contribuição</span>
                     <ExternalLink className="w-3 h-3" />
@@ -308,7 +309,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                     href={GITHUB_ISSUES_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:underline"
+                    className="inline-flex items-center gap-1.5 text-brand-700 dark:text-brand-400 hover:underline"
                   >
                     <span>Reportar Problema (Issues)</span>
                     <ExternalLink className="w-3 h-3" />
@@ -319,7 +320,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                     href={GITHUB_THIRD_PARTY_NOTICES_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:underline"
+                    className="inline-flex items-center gap-1.5 text-brand-700 dark:text-brand-400 hover:underline"
                   >
                     <span>Créditos &amp; Typst (Apache-2.0)</span>
                     <ExternalLink className="w-3 h-3" />
@@ -335,12 +336,12 @@ export const DocsPage: React.FC<DocsPageProps> = ({
             <section
               className={`p-6 sm:p-8 rounded-3xl border space-y-4 ${
                 isDark
-                  ? 'bg-gradient-to-br from-slate-900 via-[#0d1526] to-emerald-950/30 border-slate-800'
-                  : 'bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/40 border-slate-200 shadow-xs'
+                  ? 'bg-gradient-to-br from-slate-900 via-[#0d1526] to-brand-950/30 border-slate-800'
+                  : 'bg-gradient-to-br from-white via-brand-50/40 to-teal-50/40 border-slate-200 shadow-xs'
               }`}
             >
-              <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                <span className="px-2.5 py-0.5 rounded-full bg-brand-500/15 text-brand-700 dark:text-brand-300 border border-brand-500/30">
                   Documentação Oficial
                 </span>
                 <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>
@@ -366,7 +367,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                 <button
                   type="button"
                   onClick={onNavigateApp}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-colors"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-700 hover:bg-brand-800 text-white font-semibold transition-colors"
                 >
                   <span>{isSessionActive ? 'Retornar ao Editor' : 'Acessar Aplicação'}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -400,7 +401,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-brand-700 text-white hover:bg-brand-800"
                 >
                   Limpar filtro de busca
                 </button>
@@ -439,7 +440,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                           }`}
                         >
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/25">
+                            <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-brand-500/15 text-brand-700 dark:text-brand-300 border border-brand-500/25">
                               {article.badge}
                             </span>
                             <h3 className="text-base font-bold">{article.title}</h3>
@@ -461,7 +462,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                                   isDark ? 'text-slate-300' : 'text-slate-700'
                                 }`}
                               >
-                                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                                <CheckCircle2 className="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />
                                 <span>{bullet}</span>
                               </li>
                             ))}
@@ -471,8 +472,8 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                             <div
                               className={`mt-2 p-3.5 rounded-xl border font-mono text-xs overflow-x-auto flex items-start gap-2 ${
                                 isDark
-                                  ? 'bg-slate-950 border-slate-800 text-emerald-300'
-                                  : 'bg-slate-900 border-slate-800 text-emerald-300'
+                                  ? 'bg-slate-950 border-slate-800 text-brand-300'
+                                  : 'bg-slate-900 border-slate-800 text-brand-300'
                               }`}
                             >
                               <Terminal className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
@@ -497,7 +498,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                           }`}
                         >
                           <div>
-                            <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            <span className="text-xs font-mono font-bold text-brand-700 dark:text-brand-400">
                               {std.code}
                             </span>
                             <h3 className="text-sm sm:text-base font-bold mt-0.5">{std.title}</h3>
@@ -518,7 +519,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
                                   isDark ? 'text-slate-300' : 'text-slate-700'
                                 }`}
                               >
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                                <CheckCircle2 className="w-3.5 h-3.5 text-brand-500 shrink-0 mt-0.5" />
                                 <span>{rule}</span>
                               </li>
                             ))}
@@ -547,7 +548,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
             RedijaApp v{APP_VERSION} •{' '}
             <a
               href={APP_PUBLIC_URL}
-              className="hover:text-emerald-500 font-medium underline-offset-2 hover:underline"
+              className="hover:text-brand-500 font-medium underline-offset-2 hover:underline"
             >
               {APP_PUBLIC_URL.replace('https://', '')}
             </a>
@@ -557,7 +558,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
               href={GITHUB_REPO_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-emerald-500 transition-colors"
+              className="hover:text-brand-500 transition-colors"
             >
               GitHub
             </a>
@@ -565,7 +566,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
               href={GITHUB_CONTRIBUTING_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-emerald-500 transition-colors"
+              className="hover:text-brand-500 transition-colors"
             >
               Contribuir
             </a>
@@ -573,7 +574,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
               href={GITHUB_ISSUES_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-emerald-500 transition-colors"
+              className="hover:text-brand-500 transition-colors"
             >
               Issues
             </a>
@@ -581,7 +582,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
               href={GITHUB_LICENSE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-emerald-500 transition-colors"
+              className="hover:text-brand-500 transition-colors"
             >
               Licença AGPL-3.0
             </a>
@@ -589,7 +590,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({
               href={GITHUB_THIRD_PARTY_NOTICES_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-emerald-500 transition-colors"
+              className="hover:text-brand-500 transition-colors"
             >
               Créditos &amp; Typst
             </a>

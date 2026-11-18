@@ -1,44 +1,25 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Cloud, X, Sparkles, Loader2 } from 'lucide-react';
 
 interface BackupNoticeBannerProps {
-  isAuthenticated: boolean;
   onLogin: () => Promise<string | null>;
   onLoginDevMock?: () => void;
   isConfigured?: boolean;
   isLoading: boolean;
+  onDismiss: () => void;
 }
 
-const DISMISS_KEY = 'redija:dismissBackupNoticeUntil';
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
+/**
+ * Aviso para quem usa o perfil local. Enquanto ele estiver visível, é o único
+ * convite para conectar a conta Google (o botão "Entrar" do header fica oculto).
+ */
 export const BackupNoticeBanner: React.FC<BackupNoticeBannerProps> = ({
-  isAuthenticated,
   onLogin,
   onLoginDevMock,
   isConfigured = true,
   isLoading,
+  onDismiss,
 }) => {
-  const [isDismissed, setIsDismissed] = useState<boolean>(() => {
-    try {
-      const dismissUntil = localStorage.getItem(DISMISS_KEY);
-      return Boolean(dismissUntil && Number(dismissUntil) > Date.now());
-    } catch {
-      return false;
-    }
-  });
-
-  if (isAuthenticated || isDismissed) return null;
-
-  const handleDismiss = () => {
-    try {
-      localStorage.setItem(DISMISS_KEY, String(Date.now() + SEVEN_DAYS_MS));
-    } catch {
-      // Ignora
-    }
-    setIsDismissed(true);
-  };
-
   const handleClickConnect = async () => {
     if (!isConfigured && onLoginDevMock) {
       onLoginDevMock();
@@ -48,37 +29,43 @@ export const BackupNoticeBanner: React.FC<BackupNoticeBannerProps> = ({
   };
 
   return (
-    <div className="bg-gradient-to-r from-emerald-900 via-neutral-900 to-emerald-950 text-white px-3 sm:px-4 py-2 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm relative z-20 animate-in slide-in-from-top-2 duration-200">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2.5 mx-auto max-w-5xl w-full min-w-0 pr-6 sm:pr-0">
-        <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-          <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
-            <Cloud className="w-3.5 h-3.5" />
-          </div>
-          <p className="text-neutral-200 leading-snug min-w-0">
-            <span className="font-semibold text-white">Seus trabalhos estão salvos apenas neste navegador.</span>{' '}
-            <span className="hidden sm:inline text-neutral-300">
-              Conecte sua conta Google para salvar com segurança no seu Drive e continuar no celular ou notebook.
-            </span>
-          </p>
-        </div>
+    <div
+      role="region"
+      aria-label="Aviso de backup"
+      className="bg-gradient-to-r from-brand-900 via-slate-900 to-brand-950 text-white px-2 sm:px-4 py-1.5 text-xs sm:text-sm flex items-center gap-2 shadow-sm relative z-20 animate-in slide-in-from-top-2 duration-200"
+    >
+      <div className="flex items-center gap-2 sm:gap-2.5 mx-auto max-w-5xl w-full min-w-0">
+        <Cloud className="w-4 h-4 text-brand-300 shrink-0" aria-hidden="true" />
+        <p className="text-slate-200 leading-snug min-w-0 flex-1">
+          <span className="font-semibold text-white">
+            <span className="sm:hidden">Salvo só neste navegador.</span>
+            <span className="hidden sm:inline">Seus trabalhos estão salvos apenas neste navegador.</span>
+          </span>{' '}
+          <span className="hidden md:inline text-slate-300">
+            Conecte sua conta Google para salvar no seu Drive e continuar no celular ou notebook.
+          </span>
+        </p>
         <button
+          type="button"
           onClick={handleClickConnect}
           disabled={isLoading}
-          className="sm:ml-2 flex items-center justify-center gap-1.5 px-3 py-1.5 sm:py-1 rounded-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-neutral-950 font-semibold text-[11px] shadow-sm transition-colors shrink-0 cursor-pointer w-full sm:w-auto"
+          className="touch-target flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-brand-400 hover:bg-brand-300 disabled:opacity-50 text-slate-950 font-semibold text-xs shadow-sm transition-colors shrink-0 whitespace-nowrap"
         >
           {isLoading ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : (
-            <Sparkles className="w-3 h-3" />
+            <Sparkles className="w-3.5 h-3.5" />
           )}
           <span>Conectar Google</span>
         </button>
       </div>
 
       <button
-        onClick={handleDismiss}
-        className="absolute top-2 right-2 sm:static p-1 text-neutral-400 hover:text-white rounded transition-colors shrink-0 cursor-pointer"
+        type="button"
+        onClick={onDismiss}
+        className="touch-target p-1 text-slate-300 hover:text-white rounded transition-colors shrink-0 flex items-center justify-center"
         title="Lembrar mais tarde (7 dias)"
+        aria-label="Lembrar mais tarde (oculta este aviso por 7 dias)"
       >
         <X className="w-4 h-4" />
       </button>

@@ -2,7 +2,7 @@
   "name": "redija-app",
   "private": true,
   "license": "AGPL-3.0-or-later",
-  "version": "0.4.0-beta",
+  "version": "0.5.0-beta",
   "type": "module",
   "description": "RedijaApp - Editor acadêmico visual moderno, intuitivo e automatizado com foco em ABNT e Typst",
   "scripts": {

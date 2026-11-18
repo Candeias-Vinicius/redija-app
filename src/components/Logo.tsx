@@ -7,6 +7,10 @@ export interface LogoProps {
   showBetaBadge?: boolean;
   onBetaClick?: () => void;
   className?: string;
+  /** Classes de exibição do nome "RedijaApp" (padrão: sempre visível). */
+  wordmarkClassName?: string;
+  /** Classes de exibição do selo Beta (padrão: sempre visível). */
+  betaBadgeClassName?: string;
   variant?: 'dark' | 'light' | 'auto';
 }
 
@@ -16,6 +20,8 @@ export const Logo: React.FC<LogoProps> = ({
   showBetaBadge = true,
   onBetaClick,
   className = '',
+  wordmarkClassName = 'flex',
+  betaBadgeClassName = 'inline-flex',
   variant = 'auto',
 }) => {
   const [imgError, setImgError] = useState(false);
@@ -72,7 +78,7 @@ export const Logo: React.FC<LogoProps> = ({
         />
       ) : (
         <div
-          className={`${iconHeight} ${iconWidth} rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center font-black shadow-xs shrink-0`}
+          className={`${iconHeight} ${iconWidth} rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center font-black shadow-xs shrink-0`}
           aria-hidden="true"
         >
           <svg className="w-3/5 h-3/5" viewBox="0 0 64 64" fill="none">
@@ -86,33 +92,37 @@ export const Logo: React.FC<LogoProps> = ({
 
       {/* Nome do Aplicativo e Selo Beta */}
       {showWordmark && (
-        <div className="flex items-center tracking-tight leading-none gap-1.5">
+        <div className={`items-center tracking-tight leading-none gap-1.5 ${wordmarkClassName}`}>
           <div className="flex items-center">
             <span className={`${textClass} ${redijaColor} transition-colors`}>
               Redija
             </span>
-            <span className={`${textClass} text-emerald-500 dark:text-emerald-400 font-extrabold`}>
+            <span className={`${textClass} text-brand-500 dark:text-brand-400 font-extrabold`}>
               App
             </span>
           </div>
-          {showBetaBadge && (
-            <span
-              onClick={(e) => {
-                if (onBetaClick) {
+          {showBetaBadge &&
+            (onBetaClick ? (
+              <button
+                type="button"
+                onClick={(e) => {
                   e.stopPropagation();
                   onBetaClick();
-                }
-              }}
-              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 select-none ${
-                onBetaClick
-                  ? 'cursor-pointer hover:bg-emerald-500/20 hover:border-emerald-500/40 active:scale-95 transition-all'
-                  : ''
-              }`}
-              title={`RedijaApp v${APP_VERSION}${onBetaClick ? ' • Clique para informações do Beta' : ''}`}
-            >
-              Beta
-            </span>
-          )}
+                }}
+                className={`items-center px-1.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-brand-500/10 text-brand-800 dark:text-brand-300 border border-brand-500/30 select-none hover:bg-brand-500/20 hover:border-brand-500/40 active:scale-95 transition-all ${betaBadgeClassName}`}
+                title={`RedijaApp v${APP_VERSION} • Informações da versão Beta`}
+                aria-label={`Versão Beta ${APP_VERSION}: ver informações`}
+              >
+                Beta
+              </button>
+            ) : (
+              <span
+                className={`items-center px-1.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-brand-500/10 text-brand-800 dark:text-brand-300 border border-brand-500/30 select-none ${betaBadgeClassName}`}
+                title={`RedijaApp v${APP_VERSION}`}
+              >
+                Beta
+              </span>
+            ))}
         </div>
       )}
     </div>

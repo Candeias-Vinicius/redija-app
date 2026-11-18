@@ -114,19 +114,19 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
           handleFilesSelected(e.dataTransfer.files);
         }
       }}
-      className={`border rounded-xl p-4 bg-neutral-50/70 space-y-3 transition-colors focus:outline-none ${
+      className={`border rounded-xl p-4 bg-slate-50/70 space-y-3 transition-colors focus:outline-none ${
         isDragOverFile
           ? 'border-blue-500 bg-blue-50/40 ring-2 ring-blue-400'
-          : 'border-neutral-200'
+          : 'border-slate-200'
       }`}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-neutral-700 flex items-center gap-1.5">
+          <span className="font-semibold text-slate-700 flex items-center gap-1.5">
             <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
             Figura
           </span>
-          <span className="px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-[10px] font-semibold text-blue-700">
+          <span className="px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-xs font-semibold text-blue-700">
             {images.length}/{MAX_IMAGES_PER_BLOCK} {images.length === 1 ? 'imagem' : 'imagens'}
           </span>
         </div>
@@ -134,8 +134,9 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           {images.length > 1 && (
             <div className="flex items-center gap-1">
-              <Grid2X2 className="w-3.5 h-3.5 text-neutral-400" />
+              <Grid2X2 className="w-3.5 h-3.5 text-slate-500" />
               <select
+                aria-label="Disposição das imagens na figura"
                 value={currentLayout}
                 onChange={(e) =>
                   onUpdateMeta(block.id, {
@@ -143,7 +144,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
                   })
                 }
                 title="Modo de disposição das imagens juntas na figura"
-                className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded text-neutral-700"
+                className="px-2 py-1 text-xs bg-white border border-slate-200 rounded text-slate-700"
               >
                 <option value="auto">Disposição: Automática (Grade / Lado a lado)</option>
                 <option value="grid_2x2">Grade 2×2 (2 por linha)</option>
@@ -154,6 +155,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
           )}
 
           <select
+            aria-label="Largura da figura na página"
             value={block.meta?.imageWidthPct || 75}
             onChange={(e) =>
               onUpdateMeta(block.id, {
@@ -161,7 +163,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
               })
             }
             title="Largura da figura na folha A4 do PDF"
-            className="px-2 py-1 text-[11px] bg-white border border-neutral-200 rounded text-neutral-700"
+            className="px-2 py-1 text-xs bg-white border border-slate-200 rounded text-slate-700"
           >
             <option value={50}>Largura: 50%</option>
             <option value={75}>Largura: 75%</option>
@@ -169,7 +171,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
           </select>
 
           {canAddMore && (
-            <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-neutral-200 hover:bg-neutral-100 text-neutral-700 font-medium text-[11px] shadow-2xs">
+            <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-medium text-xs shadow-2xs">
               {images.length === 0 ? (
                 <>
                   <Upload className="w-3 h-3 text-blue-600" />
@@ -198,7 +200,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
             <button
               type="button"
               onClick={() => onClearImage(block.id)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white border border-red-200 hover:bg-red-50 text-red-600 font-medium text-[11px] transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white border border-red-200 hover:bg-red-50 text-red-600 font-medium text-xs transition-colors"
               title="Remover todas as imagens deste bloco (mantendo a legenda e fonte)"
             >
               <Trash2 className="w-3 h-3" />
@@ -209,23 +211,23 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
       </div>
 
       {/* Barra de Quota de Armazenamento de Imagens do Projeto (250 MB) */}
-      <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-lg bg-white border border-neutral-200 text-[11px]">
-        <span className="text-neutral-500">
+      <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs">
+        <span className="text-slate-500">
           Uso de imagens no projeto:{' '}
-          <strong className="text-neutral-800">{formatBytes(totalProjectImageBytes)}</strong> / 150
+          <strong className="text-slate-800">{formatBytes(totalProjectImageBytes)}</strong> / 150
           MB
           {images.length > 0 && (
-            <span className="text-neutral-400 ml-1.5">
+            <span className="text-slate-500 ml-1.5">
               (esta figura: {formatBytes(blockBytes)})
             </span>
           )}
         </span>
-        <div className="w-28 h-1.5 bg-neutral-200 rounded-full overflow-hidden shrink-0">
+        <div className="w-28 h-1.5 bg-slate-200 rounded-full overflow-hidden shrink-0">
           <div
             className={`h-full rounded-full transition-all ${
               totalProjectImageBytes / MAX_PROJECT_IMAGE_BYTES > 0.85
                 ? 'bg-red-500'
-                : 'bg-emerald-500'
+                : 'bg-brand-500'
             }`}
             style={{
               width: `${Math.min(
@@ -238,14 +240,14 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
       </div>
 
       {imageError && (
-        <div className="p-2 rounded-md bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium">
+        <div className="p-2 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
           {imageError}
         </div>
       )}
 
       {/* Legenda no topo */}
       <div>
-        <label className="text-[10px] font-semibold uppercase text-neutral-400 block mb-0.5">
+        <label className="text-xs font-semibold uppercase text-slate-500 block mb-0.5">
           Título / Legenda Superior
         </label>
         <input
@@ -253,7 +255,8 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
           value={block.meta?.caption || ''}
           onChange={(e) => onUpdateMeta(block.id, { caption: e.target.value })}
           placeholder="Ex: Comparação dos cenários avaliados (a, b, c, d)"
-          className="w-full text-xs px-2.5 py-1.5 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+          aria-label="Legenda da figura"
+          className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-brand-600"
         />
       </div>
 
@@ -265,9 +268,9 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
             return (
               <div
                 key={item.id || idx}
-                className="bg-white p-2 rounded-lg border border-neutral-200 flex flex-col justify-between gap-2"
+                className="bg-white p-2 rounded-lg border border-slate-200 flex flex-col justify-between gap-2"
               >
-                <div className="relative flex items-center justify-center min-h-[120px] bg-neutral-50/60 rounded overflow-hidden">
+                <div className="relative flex items-center justify-center min-h-[120px] bg-slate-50/60 rounded overflow-hidden">
                   <img
                     src={item.dataUrl}
                     alt={item.label || block.meta?.caption || `Imagem ${idx + 1}`}
@@ -275,7 +278,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
                   />
                   <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
                     <label
-                      className="cursor-pointer px-1.5 py-0.5 rounded bg-white/90 hover:bg-white border border-neutral-200 text-[10px] font-medium text-neutral-700 shadow-2xs"
+                      className="cursor-pointer px-1.5 py-0.5 rounded bg-white/90 hover:bg-white border border-slate-200 text-xs font-medium text-slate-700 shadow-2xs"
                       title="Trocar esta imagem"
                     >
                       Trocar
@@ -293,7 +296,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
                       <button
                         type="button"
                         onClick={() => onRemoveSubImage(block.id, idx)}
-                        className="px-1.5 py-0.5 rounded bg-white/90 hover:bg-red-50 border border-red-200 text-[10px] font-medium text-red-600 shadow-2xs"
+                        className="px-1.5 py-0.5 rounded bg-white/90 hover:bg-red-50 border border-red-200 text-xs font-medium text-red-600 shadow-2xs"
                         title="Remover esta imagem do conjunto"
                       >
                         Remover
@@ -308,7 +311,8 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
                     value={item.label || ''}
                     onChange={(e) => handleUpdateSubLabel(idx, e.target.value)}
                     placeholder={`(${subLetter}) Sublegenda opcional`}
-                    className="w-full text-[11px] px-2 py-1 bg-neutral-50 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+                    aria-label={`Sublegenda (${subLetter})`}
+                    className="w-full text-xs px-2 py-1 bg-slate-50 border border-slate-200 rounded focus:outline-none focus:border-brand-600"
                   />
                 )}
               </div>
@@ -316,12 +320,12 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
           })}
         </div>
       ) : (
-        <label className="w-full h-28 bg-neutral-100 hover:bg-neutral-200/50 border border-dashed border-neutral-300 rounded-lg flex flex-col items-center justify-center text-neutral-400 text-xs cursor-pointer transition-colors px-4 text-center">
+        <label className="w-full h-28 bg-slate-100 hover:bg-slate-200/50 border border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-500 text-xs cursor-pointer transition-colors px-4 text-center">
           <Upload className="w-5 h-5 mb-1.5 text-blue-600" />
-          <span className="font-medium text-neutral-600">
+          <span className="font-medium text-slate-600">
             Clique para selecionar até 4 imagens juntas, arraste os arquivos aqui ou cole (Ctrl+V)
           </span>
-          <span className="text-[11px] text-neutral-400 mt-0.5">
+          <span className="text-xs text-slate-500 mt-0.5">
             Suporta PNG, JPG, WebP, GIF • Lado a lado ou em grade 2×2 (limite do projeto: 250 MB)
           </span>
           <input
@@ -339,7 +343,7 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
 
       {/* Fonte na base */}
       <div>
-        <label className="text-[10px] font-semibold uppercase text-neutral-400 block mb-0.5">
+        <label className="text-xs font-semibold uppercase text-slate-500 block mb-0.5">
           Fonte Inferior
         </label>
         <input
@@ -347,7 +351,8 @@ export const ImageBlockItem: React.FC<ImageBlockItemProps> = ({
           value={block.meta?.source || ''}
           onChange={(e) => onUpdateMeta(block.id, { source: e.target.value })}
           placeholder="Ex: Elaborado pelo autor (2026)"
-          className="w-full text-xs px-2.5 py-1.5 bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-emerald-600"
+          aria-label="Fonte da figura"
+          className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-brand-600"
         />
       </div>
     </div>

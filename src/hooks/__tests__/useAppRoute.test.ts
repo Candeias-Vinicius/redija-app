@@ -21,6 +21,14 @@ describe('resolveRouteFromLocation', () => {
     });
   });
 
+  it('resolve "/?p=<id>" como o editor de um trabalho e ignora valor vazio', () => {
+    expect(resolveRouteFromLocation('/', '?p=abc-123', '')).toEqual({
+      route: 'app',
+      projectId: 'abc-123',
+    });
+    expect(resolveRouteFromLocation('/', '?p=', '')).toEqual({ route: 'app' });
+  });
+
   it('aceita fallbacks ?docs, ?view=docs e #docs para compatibilidade estática', () => {
     expect(resolveRouteFromLocation('/', '?docs=1', '')).toEqual({
       route: 'docs',

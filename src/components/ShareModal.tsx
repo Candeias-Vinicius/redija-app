@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Modal } from '@/components/ui/Modal';
 import {
   X,
   Share2,
@@ -43,6 +44,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const [isInviting, setIsInviting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  // Confirmação em dois passos na própria linha (substitui window.confirm)
+  const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null);
 
   // Carrega a lista de colaboradores ao abrir o modal
   useEffect(() => {
@@ -125,9 +128,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     const token = await getAccessToken();
     if (!token) return;
 
-    const confirm = window.confirm(`Remover acesso de ${perm.displayName || perm.emailAddress}?`);
-    if (!confirm) return;
-
     try {
       await removeCollaborator(driveFileId, perm.id, token);
       setCollaborators((prev) => prev.filter((c) => c.id !== perm.id));
@@ -139,25 +139,26 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150 overflow-y-auto">
+    <Modal onClose={onClose} labelledBy="share-modal-title">
       <div
-        className="relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-xl bg-white shadow-2xl border border-neutral-200 overflow-hidden my-auto"
+        className="relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho */}
-        <div className="flex items-center justify-between border-b border-neutral-100 px-4 sm:px-6 py-4 bg-neutral-50/50 shrink-0">
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 sm:px-6 py-4 bg-slate-50/50 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center shrink-0">
               <Share2 className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-base font-semibold text-neutral-900">Compartilhar Trabalho</h2>
-              <p className="text-xs text-neutral-500 truncate max-w-[14rem] sm:max-w-xs">{projectName}</p>
+              <h2 id="share-modal-title" className="text-base font-semibold text-slate-900">Compartilhar Trabalho</h2>
+              <p className="text-xs text-slate-500 truncate max-w-[14rem] sm:max-w-xs">{projectName}</p>
             </div>
           </div>
           <button
+            aria-label="Fechar"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition-colors shrink-0"
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
@@ -174,7 +175,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           )}
 
           {successMessage && (
-            <div className="flex items-center gap-2 p-3 text-xs rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <div className="flex items-center gap-2 p-3 text-xs rounded-lg bg-brand-50 text-brand-700 border border-brand-200">
               <Check className="w-4 h-4 shrink-0" />
               <span>{successMessage}</span>
             </div>
@@ -182,25 +183,25 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
           {/* Formulário de Convite */}
           <form onSubmit={handleInvite} className="space-y-2">
-            <label className="block text-xs font-semibold text-neutral-700">
+            <label className="block text-xs font-semibold text-slate-700">
               Adicionar colega ou orientador (E-mail Google)
             </label>
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative flex-1 min-w-0">
-                <Mail className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                   placeholder="exemplo@gmail.com"
                   required
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                 />
               </div>
               <button
                 type="submit"
                 disabled={isInviting || !emailInput.trim()}
-                className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white transition-colors w-full sm:w-auto shrink-0"
+                className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-brand-700 hover:bg-brand-800 disabled:opacity-50 text-white transition-colors w-full sm:w-auto shrink-0"
               >
                 {isInviting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -210,29 +211,29 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 <span>Convidar</span>
               </button>
             </div>
-            <p className="text-[11px] text-neutral-500">
+            <p className="text-xs text-slate-500">
               O colega receberá autorização no Google Drive e o projeto aparecerá no Redija dele.
             </p>
           </form>
 
           {/* Lista de Pessoas com Acesso */}
-          <div className="space-y-2 pt-2 border-t border-neutral-100">
-            <h3 className="text-xs font-semibold text-neutral-700 flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-neutral-500" />
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <h3 className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-slate-500" />
               <span>Pessoas com acesso</span>
             </h3>
 
             {isLoading ? (
-              <div className="py-6 flex flex-col items-center justify-center text-neutral-400 text-xs gap-2">
-                <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
+              <div className="py-6 flex flex-col items-center justify-center text-slate-500 text-xs gap-2">
+                <Loader2 className="w-5 h-5 animate-spin text-brand-700" />
                 <span>Consultando permissões no Google Drive...</span>
               </div>
             ) : collaborators.length === 0 ? (
-              <p className="text-xs text-neutral-400 py-3 text-center bg-neutral-50 rounded-lg">
+              <p className="text-xs text-slate-500 py-3 text-center bg-slate-50 rounded-lg">
                 Nenhum colaborador adicionado ainda. Convide alguém acima!
               </p>
             ) : (
-              <div className="max-h-48 overflow-y-auto divide-y divide-neutral-100 border border-neutral-200 rounded-lg">
+              <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-lg">
                 {collaborators.map((c) => {
                   const isCurrentUser =
                     currentUserEmail &&
@@ -241,46 +242,69 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   return (
                     <div
                       key={c.id}
-                      className="flex items-center justify-between p-2.5 hover:bg-neutral-50 text-xs"
+                      className="flex items-center justify-between p-2.5 hover:bg-slate-50 text-xs"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         {c.photoLink ? (
                           <img
                             src={c.photoLink}
                             alt=""
-                            className="w-7 h-7 rounded-full border border-neutral-200 shrink-0"
+                            className="w-7 h-7 rounded-full border border-slate-200 shrink-0"
                           />
                         ) : (
-                          <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0 text-xs">
+                          <div className="w-7 h-7 rounded-full bg-brand-100 text-brand-800 font-bold flex items-center justify-center shrink-0 text-xs">
                             {(c.displayName || c.emailAddress || 'U').charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div className="min-w-0">
-                          <p className="font-medium text-neutral-900 truncate flex items-center gap-1.5">
+                          <p className="font-medium text-slate-900 truncate flex items-center gap-1.5">
                             <span>{c.displayName || c.emailAddress}</span>
                             {isCurrentUser && (
-                              <span className="text-[10px] bg-neutral-100 text-neutral-600 px-1.5 py-0.2 rounded font-normal">
+                              <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-normal">
                                 Você
                               </span>
                             )}
                           </p>
-                          <p className="text-[11px] text-neutral-500 truncate">{c.emailAddress}</p>
+                          <p className="text-xs text-slate-500 truncate">{c.emailAddress}</p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[11px] font-medium text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded">
+                        <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                           {c.role === 'owner' ? 'Proprietário' : 'Editor'}
                         </span>
-                        {c.role !== 'owner' && (
-                          <button
-                            onClick={() => handleRemove(c)}
-                            title="Remover acesso"
-                            className="p-1 text-neutral-400 hover:text-red-600 rounded transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                        {c.role !== 'owner' &&
+                          (pendingRemovalId === c.id ? (
+                            <span className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPendingRemovalId(null);
+                                  void handleRemove(c);
+                                }}
+                                className="touch-target px-2 py-1 text-xs font-semibold rounded-md bg-red-600 hover:bg-red-700 text-white transition-colors"
+                              >
+                                Remover
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPendingRemovalId(null)}
+                                className="touch-target px-2 py-1 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-100 transition-colors"
+                              >
+                                Cancelar
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setPendingRemovalId(c.id)}
+                              title="Remover acesso"
+                              aria-label={`Remover acesso de ${c.displayName || c.emailAddress}`}
+                              className="touch-target p-1 text-slate-500 hover:text-red-600 rounded transition-colors flex items-center justify-center"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          ))}
                       </div>
                     </div>
                   );
@@ -290,8 +314,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           </div>
 
           {/* Nota de Segurança */}
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-50/60 text-emerald-800 text-[11px] border border-emerald-100">
-            <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-brand-50/60 text-brand-800 text-xs border border-brand-100">
+            <ShieldCheck className="w-4 h-4 shrink-0 text-brand-700 mt-0.5" />
             <span>
               O arquivo é protegido pelo Google Drive. Apenas os e-mails autorizados acima têm
               permissão para visualizar ou editar.
@@ -299,6 +323,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

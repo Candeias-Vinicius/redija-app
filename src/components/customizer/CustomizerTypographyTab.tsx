@@ -30,8 +30,8 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
 
   return (
     <div className="space-y-4">
-      <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-neutral-500">
-        <Type className="w-3.5 h-3.5 text-emerald-600" />
+      <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+        <Type className="w-3.5 h-3.5 text-brand-700" />
         Tipografia, Alinhamento e Idioma
       </label>
 
@@ -39,7 +39,7 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
         <div>
           <label
             htmlFor="template-font-family"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
+            className="block text-xs font-medium text-slate-600 mb-1"
           >
             Família da Fonte
           </label>
@@ -47,7 +47,7 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
             id="template-font-family"
             value={config.fontFamily}
             onChange={(e) => onUpdateField('fontFamily', e.target.value as FontFamilyId)}
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
           >
             {FONT_CATALOG.map((font) => (
               <option key={font.id} value={font.id}>
@@ -62,7 +62,7 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
           <div className="flex items-center justify-between mb-1">
             <label
               htmlFor="template-font-size"
-              className="text-[11px] font-medium text-neutral-600"
+              className="text-xs font-medium text-slate-600"
             >
               Tamanho do Corpo (pt)
             </label>
@@ -72,10 +72,10 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
                   key={pt}
                   type="button"
                   onClick={() => onUpdateField('fontSizePt', pt)}
-                  className={`px-1.5 py-0.2 rounded text-[10px] font-semibold border ${
+                  className={`px-1.5 py-0.2 rounded text-xs font-semibold border ${
                     config.fontSizePt === pt
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100'
+                      ? 'bg-brand-700 text-white border-brand-600'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
                   {pt}
@@ -96,14 +96,14 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
                 onUpdateField('fontSizePt', Math.min(24, Math.max(8, val)));
               }
             }}
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
           />
         </div>
 
         <div>
           <label
             htmlFor="template-line-spacing"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
+            className="block text-xs font-medium text-slate-600 mb-1"
           >
             Entrelinha
           </label>
@@ -113,7 +113,7 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
             onChange={(e) =>
               onUpdateField('lineSpacing', e.target.value as TemplateConfig['lineSpacing'])
             }
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
           >
             <option value="1.5">1,5 linhas (ABNT)</option>
             <option value="1.0">Simples (1,0)</option>
@@ -123,10 +123,10 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
       </div>
 
       {config.fontFamily === 'custom' && (
-        <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200 space-y-1.5">
+        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
           <label
             htmlFor="template-custom-font-name"
-            className="block text-[11px] font-semibold text-neutral-700"
+            className="block text-xs font-semibold text-slate-700"
           >
             Nome da Fonte Externa
           </label>
@@ -136,14 +136,14 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
             value={config.customFontFamily || ''}
             onChange={(e) => onUpdateField('customFontFamily', e.target.value)}
             placeholder="Ex: Open Sans, Source Serif 4, Merriweather, PT Serif"
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-emerald-600"
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-brand-600"
           />
           {isCustomFontInvalid ? (
-            <p className="text-[10px] text-red-600">
+            <p className="text-xs text-red-600">
               Use apenas letras, números, espaços ou hífens no nome da fonte.
             </p>
           ) : (
-            <p className="text-[10px] text-neutral-500">
+            <p className="text-xs text-slate-500">
               Carregada sob demanda quando selecionada, com fallback offline automático.
             </p>
           )}
@@ -153,12 +153,12 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
       <div
         className={`grid grid-cols-1 ${
           showColumnsControl ? 'sm:grid-cols-4' : 'sm:grid-cols-3'
-        } gap-3 pt-2 border-t border-neutral-100`}
+        } gap-3 pt-2 border-t border-slate-100`}
       >
         <div>
           <label
             htmlFor="template-body-alignment"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
+            className="block text-xs font-medium text-slate-600 mb-1"
           >
             Alinhamento do Corpo
           </label>
@@ -166,7 +166,7 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
             id="template-body-alignment"
             value={config.bodyAlignment ?? 'justify'}
             onChange={(e) => onUpdateField('bodyAlignment', e.target.value as BodyAlignment)}
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
           >
             <option value="justify">Justificado</option>
             <option value="left">Alinhado à Esquerda</option>
@@ -176,7 +176,7 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
         <div>
           <label
             htmlFor="template-paragraph-spacing"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
+            className="block text-xs font-medium text-slate-600 mb-1"
           >
             Espaço Parágrafos (em)
           </label>
@@ -199,7 +199,7 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
                 }
               }
             }}
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
           />
         </div>
 
@@ -207,7 +207,7 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
           <div>
             <label
               htmlFor="template-columns"
-              className="block text-[11px] font-medium text-neutral-600 mb-1"
+              className="block text-xs font-medium text-slate-600 mb-1"
             >
               Colunas do Texto
             </label>
@@ -217,7 +217,7 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
               onChange={(e) =>
                 onUpdateField('columns', Number(e.target.value) as TemplateConfig['columns'])
               }
-              className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
             >
               <option value={1}>1 Coluna</option>
               <option value={2}>2 Colunas</option>
@@ -229,7 +229,7 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
         <div>
           <label
             htmlFor="template-document-language"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
+            className="block text-xs font-medium text-slate-600 mb-1"
           >
             Idioma / Hifenização
           </label>
@@ -239,7 +239,7 @@ export const CustomizerTypographyTab: React.FC<CustomizerTypographyTabProps> = (
             onChange={(e) =>
               onUpdateField('documentLanguage', e.target.value as DocumentLanguage)
             }
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
           >
             <option value="pt">Português (BR)</option>
             <option value="en">English (US)</option>

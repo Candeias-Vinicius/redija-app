@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useId } from 'react';
 import { DocumentProject } from '@/types/document';
 import {
   generateTypstFiles,
@@ -15,6 +15,7 @@ import {
   type PageDimension,
 } from '@/core/typst/typstClient';
 import type { FriendlyDiagnostic } from '@/core/typst/diagnostics';
+import { PaneWindowControls } from '@/components/ui/PaneWindowControls';
 import {
   Eye,
   FileCode,
@@ -42,9 +43,16 @@ interface PdfPreviewProps {
   showCode: boolean;
   onToggleCode?: () => void;
   onMinimize?: () => void;
+  /** Deixa só este painel visível (desktop). */
+  onMaximize?: () => void;
+  /** Volta a exibir todos os painéis (quando este está maximizado). */
+  onRestoreLayout?: () => void;
+  /** Este é o único painel visível. */
+  isMaximized?: boolean;
   onDownloadPdf?: () => void;
   isExportingPdf?: boolean;
   onExportProjectZip?: () => void;
+  onExportTypst?: () => void;
   isExportingProject?: boolean;
 }
 
@@ -56,12 +64,39 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
   showCode,
   onToggleCode,
   onMinimize,
+  onMaximize,
+  onRestoreLayout,
+  isMaximized = false,
   onDownloadPdf,
   isExportingPdf = false,
   onExportProjectZip,
+  onExportTypst,
   isExportingProject = false,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  const exportMenuId = useId();
+  const hasExtraExports = Boolean(onExportProjectZip || onExportTypst);
+
+  // Fecha o menu de exportação ao clicar fora ou com Esc
+  useEffect(() => {
+    if (!isExportMenuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsExportMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isExportMenuOpen]);
   const [codeTab, setCodeTab] = useState<'main' | 'abnt' | 'bibtex'>('main');
   const [isCompiling, setIsCompiling] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -206,31 +241,32 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
 
   return (
     <aside
+      aria-label="Prévia do PDF"
       style={isFullWidth || isCompact ? undefined : { width: `${widthPx}px` }}
-      className={`${
+      className={`@container ${
         isFullWidth || isCompact ? 'flex-1 w-full min-w-0' : 'shrink-0'
-      } border-l border-neutral-200 bg-neutral-100 flex flex-col h-full overflow-hidden`}
+      } border-l border-slate-200 bg-slate-100 flex flex-col h-full overflow-hidden`}
     >
-      {/* Top Bar do Preview */}
-      <div className="h-10 shrink-0 border-b border-neutral-200 bg-neutral-50 px-3 flex items-center justify-between text-xs text-neutral-600">
-        <div className="flex items-center gap-1.5 overflow-hidden">
+      {/* Top Bar do Preview: quebra em duas linhas em vez de cortar botões */}
+      <div className="min-h-10 shrink-0 border-b border-slate-200 bg-slate-50 px-3 py-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-slate-600">
+        <div className="flex items-center gap-1.5 overflow-hidden min-w-0">
           {showCode ? (
-            <div className="flex items-center gap-1.5 font-medium text-neutral-900">
-              <FileCode className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <div className="flex items-center gap-1.5 font-medium text-slate-900">
+              <FileCode className="w-3.5 h-3.5 text-brand-700 shrink-0" />
               <span>Código Typst</span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 truncate">
-              <Eye className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <Eye className="w-3.5 h-3.5 text-brand-700 shrink-0" />
               <span className="font-medium truncate">Prévia PDF</span>
               {isCompiling ? (
-                <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded shrink-0">
+                <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded shrink-0">
                   <Loader2 className="w-3 h-3 animate-spin" />
                   {isInitialized ? 'Compilando...' : 'WASM...'}
                 </span>
               ) : (
                 compileTimeMs !== null && (
-                  <span className="text-[11px] text-neutral-400 shrink-0 hidden sm:inline">
+                  <span className="text-xs text-slate-500 shrink-0 hidden sm:inline">
                     • {pages.length} pág ({compileTimeMs}ms)
                   </span>
                 )
@@ -239,49 +275,51 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex flex-wrap items-center justify-end gap-1 min-w-0">
           {!showCode && (
             <>
               <button
                 type="button"
                 onClick={() => setNightPaper(!nightPaper)}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
+                aria-pressed={nightPaper}
+                aria-label="Papel noturno"
+                className={`touch-target flex items-center justify-center p-1.5 rounded-md border transition-colors ${
                   nightPaper
                     ? 'bg-slate-800 text-amber-300 border-slate-700'
-                    : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-100'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                 }`}
-                title="Alternar folha A4 entre Papel Branco e Papel Noturno"
+                title={nightPaper ? 'Voltar para o papel claro' : 'Papel noturno (folha escura para ler à noite)'}
               >
                 {nightPaper ? (
-                  <>
-                    <Sun className="w-3 h-3 text-amber-400" />
-                    <span className="hidden sm:inline">Claro</span>
-                  </>
+                  <Sun className="w-3.5 h-3.5 text-amber-400" />
                 ) : (
-                  <>
-                    <Moon className="w-3 h-3" />
-                    <span className="hidden sm:inline">Noturno</span>
-                  </>
+                  <Moon className="w-3.5 h-3.5" />
                 )}
               </button>
 
-              <div className="flex items-center gap-0.5 mr-0.5">
+              <div className="flex items-center gap-0.5" role="group" aria-label="Zoom da prévia">
                 <button
+                  type="button"
                   onClick={() => setZoom((z) => Math.max(70, z - 15))}
-                  className="p-1 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/60 rounded"
+                  disabled={zoom <= 70}
+                  className="touch-target flex items-center justify-center p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded disabled:opacity-40"
                   title="Diminuir zoom"
+                  aria-label="Diminuir zoom"
                 >
-                  <ZoomOut className="w-3 h-3" />
+                  <ZoomOut className="w-3.5 h-3.5" />
                 </button>
-                <span className="text-[11px] font-mono text-neutral-500 w-8 text-center">
+                <span className="text-xs font-mono text-slate-600 w-9 text-center" aria-live="polite">
                   {zoom}%
                 </span>
                 <button
+                  type="button"
                   onClick={() => setZoom((z) => Math.min(145, z + 15))}
-                  className="p-1 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/60 rounded"
+                  disabled={zoom >= 145}
+                  className="touch-target flex items-center justify-center p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded disabled:opacity-40"
                   title="Aumentar zoom"
+                  aria-label="Aumentar zoom"
                 >
-                  <ZoomIn className="w-3 h-3" />
+                  <ZoomIn className="w-3.5 h-3.5" />
                 </button>
               </div>
             </>
@@ -292,83 +330,121 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
             <button
               type="button"
               onClick={onToggleCode}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium border transition-colors ${
+              aria-label={showCode ? 'Ver PDF' : 'Ver Typst (código gerado)'}
+              className={`touch-target flex items-center justify-center gap-1 rounded-md text-xs font-medium border transition-colors ${
                 showCode
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-semibold'
-                  : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-100'
+                  ? 'px-2 py-1 bg-brand-50 border-brand-300 text-brand-800 font-semibold'
+                  : 'p-1.5 bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
               }`}
-              title={showCode ? 'Retornar para a visualização do PDF diagramado' : 'Visualizar código Typst gerado'}
+              title={showCode ? 'Retornar para a visualização do PDF diagramado' : 'Ver o código Typst gerado'}
             >
               {showCode ? (
-                <>
-                  <Eye className="w-3 h-3 text-emerald-600" />
-                  <span>Ver PDF</span>
-                </>
+                <Eye className="w-3.5 h-3.5 text-brand-700" />
               ) : (
-                <>
-                  <Code2 className="w-3 h-3 text-neutral-500" />
-                  <span>Ver Typst</span>
-                </>
+                <Code2 className="w-3.5 h-3.5 text-slate-500" />
               )}
+              {/* No código, "Ver PDF" fica escrito: é o caminho de volta */}
+              {showCode && <span>Ver PDF</span>}
             </button>
           )}
 
-          {/* Botão Baixar PDF */}
+          {/* Baixar: só o ícone (ação principal da barra, em destaque). Com outros formatos,
+              abre o menu com PDF, projeto completo e código Typst; sem eles, baixa o PDF direto. */}
           {onDownloadPdf && (
-            <button
-              type="button"
-              onClick={onDownloadPdf}
-              disabled={isExportingPdf}
-              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white shadow-xs transition-colors"
-              title="Compilar e baixar o PDF final nas normas ABNT"
-            >
-              {isExportingPdf ? (
-                <>
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span>Gerando...</span>
-                </>
-              ) : (
-                <>
-                  <Download className="w-3 h-3" />
-                  <span>Baixar PDF</span>
-                </>
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                type="button"
+                onClick={hasExtraExports ? () => setIsExportMenuOpen((open) => !open) : onDownloadPdf}
+                disabled={!hasExtraExports && isExportingPdf}
+                aria-label={hasExtraExports ? 'Baixar trabalho' : 'Baixar PDF'}
+                aria-expanded={hasExtraExports ? isExportMenuOpen : undefined}
+                aria-controls={hasExtraExports ? exportMenuId : undefined}
+                title={hasExtraExports ? 'Baixar: PDF, projeto completo ou código Typst' : 'Baixar o PDF'}
+                className="touch-target flex items-center justify-center p-1.5 rounded-md border border-transparent bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-white shadow-xs transition-colors"
+              >
+                {isExportingPdf || isExportingProject ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Download className="w-3.5 h-3.5" />
+                )}
+              </button>
+
+              {isExportMenuOpen && (
+                <div
+                  id={exportMenuId}
+                  className="absolute right-0 top-full mt-1.5 w-64 z-40 rounded-xl border border-slate-200 bg-white shadow-xl py-1.5 text-sm animate-in fade-in zoom-in-95 duration-100"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsExportMenuOpen(false);
+                      onDownloadPdf();
+                    }}
+                    disabled={isExportingPdf}
+                    className="touch-target w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {isExportingPdf ? (
+                      <Loader2 className="w-4 h-4 mt-0.5 animate-spin text-brand-700" />
+                    ) : (
+                      <FileText className="w-4 h-4 mt-0.5 text-brand-700" />
+                    )}
+                    <span>
+                      <span className="block font-medium text-slate-800">PDF (.pdf)</span>
+                      <span className="block text-xs text-slate-500">Documento final nas normas, pronto para entregar</span>
+                    </span>
+                  </button>
+                  {onExportProjectZip && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExportMenuOpen(false);
+                        onExportProjectZip();
+                      }}
+                      disabled={isExportingProject}
+                      className="touch-target w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      {isExportingProject ? (
+                        <Loader2 className="w-4 h-4 mt-0.5 animate-spin text-brand-700" />
+                      ) : (
+                        <FolderArchive className="w-4 h-4 mt-0.5 text-brand-700" />
+                      )}
+                      <span>
+                        <span className="block font-medium text-slate-800">Projeto completo (.zip)</span>
+                        <span className="block text-xs text-slate-500">
+                          Imagens, fontes e arquivos .typ para VS Code ou Typst CLI
+                        </span>
+                      </span>
+                    </button>
+                  )}
+                  {onExportTypst && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExportMenuOpen(false);
+                        onExportTypst();
+                      }}
+                      className="touch-target w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-slate-50"
+                    >
+                      <FileCode className="w-4 h-4 mt-0.5 text-slate-500" />
+                      <span>
+                        <span className="block font-medium text-slate-800">Código Typst (.typ)</span>
+                        <span className="block text-xs text-slate-500">Arquivo único gerado pelo editor</span>
+                      </span>
+                    </button>
+                  )}
+                </div>
               )}
-            </button>
+            </div>
           )}
 
-          {/* Botão Baixar Projeto Completo (.zip) */}
-          {onExportProjectZip && (
-            <button
-              type="button"
-              onClick={onExportProjectZip}
-              disabled={isExportingProject}
-              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded bg-neutral-900 hover:bg-black disabled:opacity-60 text-white shadow-xs transition-colors"
-              title="Baixar projeto completo em .zip com imagens, fontes e arquivos .typ para uso no VS Code ou Typst CLI"
-            >
-              {isExportingProject ? (
-                <>
-                  <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />
-                  <span>Gerando...</span>
-                </>
-              ) : (
-                <>
-                  <FolderArchive className="w-3 h-3 text-emerald-400" />
-                  <span>Baixar Projeto</span>
-                </>
-              )}
-            </button>
-          )}
-
-          {onMinimize && (
-            <button
-              type="button"
-              onClick={onMinimize}
-              className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded transition-colors"
-              title="Minimizar painel lateral"
-            >
-              <PanelRightClose className="w-4 h-4" />
-            </button>
-          )}
+          <PaneWindowControls
+            label="PDF"
+            isMaximized={isMaximized}
+            onMaximize={onMaximize}
+            onRestore={onRestoreLayout}
+            onMinimize={onMinimize}
+            minimizeIcon={<PanelRightClose className="w-4 h-4" />}
+          />
         </div>
       </div>
 
@@ -379,9 +455,9 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
             <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
             <span>Atenção na compilação do documento</span>
           </div>
-          {runtimeError && <p className="text-[11px] text-red-700">{runtimeError}</p>}
+          {runtimeError && <p className="text-xs text-red-700">{runtimeError}</p>}
           {diagnostics.map((d, idx) => (
-            <div key={idx} className="text-[11px] text-red-700">
+            <div key={idx} className="text-xs text-red-700">
               <span className="font-medium">{d.location}:</span> {d.message}
             </div>
           ))}
@@ -393,14 +469,14 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
         {showCode ? (
           <div className="w-full flex flex-col gap-3 max-w-4xl">
             {/* Banner Informativo sobre Liberdade e Portabilidade */}
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+            <div className="bg-brand-50 border border-brand-200 rounded-xl p-3 text-xs text-brand-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
               <div className="flex items-start gap-2">
-                <Terminal className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <Terminal className="w-4 h-4 text-brand-700 shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
-                  <p className="font-semibold text-emerald-900">
+                  <p className="font-semibold text-brand-900">
                     Seu documento 100% aberto e sem dependência
                   </p>
-                  <p className="text-[11px] text-emerald-800 leading-snug">
+                  <p className="text-xs text-brand-800 leading-snug">
                     O RedijaApp compila código Typst padrão. Você pode baixar o projeto completo com todas as imagens, modelo ABNT e BibTeX para editar no VS Code ou compilar via terminal.
                   </p>
                 </div>
@@ -411,7 +487,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
                   type="button"
                   onClick={onExportProjectZip}
                   disabled={isExportingProject}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold text-xs shadow-xs shrink-0 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-white font-semibold text-xs shadow-xs shrink-0 transition-colors"
                 >
                   {isExportingProject ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -424,15 +500,15 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
             </div>
 
             {/* Abas de Navegação entre Arquivos do Projeto */}
-            <div className="flex items-center justify-between gap-2 border-b border-neutral-300 pb-1">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-300 pb-1">
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setCodeTab('main')}
                   className={`px-3 py-1 text-xs font-semibold rounded-t-md transition-colors ${
                     codeTab === 'main'
-                      ? 'bg-neutral-900 text-white'
-                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'
+                      ? 'bg-slate-900 text-white'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                   }`}
                 >
                   main.typ
@@ -442,8 +518,8 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
                   onClick={() => setCodeTab('abnt')}
                   className={`px-3 py-1 text-xs font-semibold rounded-t-md transition-colors ${
                     codeTab === 'abnt'
-                      ? 'bg-neutral-900 text-white'
-                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'
+                      ? 'bg-slate-900 text-white'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                   }`}
                 >
                   {templateFileName} (Modelo)
@@ -453,8 +529,8 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
                   onClick={() => setCodeTab('bibtex')}
                   className={`px-3 py-1 text-xs font-semibold rounded-t-md transition-colors ${
                     codeTab === 'bibtex'
-                      ? 'bg-neutral-900 text-white'
-                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'
+                      ? 'bg-slate-900 text-white'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                   }`}
                 >
                   referencias.bib
@@ -464,13 +540,13 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
               <button
                 type="button"
                 onClick={handleCopy}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200 rounded transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200 rounded transition-colors"
                 title="Copiar código do arquivo ativo"
               >
                 {copied ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-emerald-700 font-semibold">Copiado</span>
+                    <Check className="w-3.5 h-3.5 text-brand-700" />
+                    <span className="text-brand-700 font-semibold">Copiado</span>
                   </>
                 ) : (
                   <>
@@ -482,17 +558,17 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
             </div>
 
             {/* Visualizador do Código */}
-            <div className="w-full bg-neutral-900 text-neutral-100 p-4 rounded-xl font-mono text-xs overflow-x-auto shadow-xl leading-relaxed select-text border border-neutral-800">
+            <div className="w-full bg-slate-900 text-slate-100 p-4 rounded-xl font-mono text-xs overflow-x-auto shadow-xl leading-relaxed select-text border border-slate-800">
               <pre>{getCurrentCode()}</pre>
             </div>
           </div>
         ) : !isInitialized && isCompiling ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-neutral-500">
-            <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
-            <p className="text-sm font-medium text-neutral-700">
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-slate-500">
+            <Loader2 className="w-8 h-8 text-brand-700 animate-spin mb-3" />
+            <p className="text-sm font-medium text-slate-700">
               Carregando motor tipográfico Typst WASM...
             </p>
-            <p className="text-xs text-neutral-400 mt-1 max-w-xs">
+            <p className="text-xs text-slate-500 mt-1 max-w-xs">
               Preparando fontes ABNT e diagramação A4 diretamente no seu navegador.
             </p>
           </div>
@@ -504,7 +580,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
             return (
               <div key={index} className="flex flex-col items-center gap-1.5">
                 <div
-                  className={`bg-white rounded-sm shadow-md border border-neutral-200 overflow-hidden transition-all ${
+                  className={`bg-white rounded-sm shadow-md border border-slate-200 overflow-hidden transition-all ${
                     nightPaper ? 'pdf-paper-night' : ''
                   }`}
                   style={{
@@ -523,8 +599,8 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
                     className="w-full h-full block"
                   />
                 </div>
-                <div className="flex items-center gap-1 text-[11px] text-neutral-400">
-                  <FileText className="w-3 h-3" />
+                <div className="flex items-center gap-1 text-xs text-slate-600">
+                  <FileText className="w-3 h-3" aria-hidden="true" />
                   <span>
                     Página {index + 1} de {pages.length}
                   </span>

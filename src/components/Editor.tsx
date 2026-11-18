@@ -17,7 +17,8 @@ import {
   MAX_IMAGES_PER_BLOCK,
   validateMultipleImageUploadsForProject,
 } from '@/core/storage/imageQuota';
-import { Minimize2, Plus } from 'lucide-react';
+import { FileEdit, Minus, Plus } from 'lucide-react';
+import { PaneWindowControls } from '@/components/ui/PaneWindowControls';
 import {
   SlashCommandType,
   computeSectionNumbers,
@@ -47,6 +48,12 @@ interface EditorProps {
   onChangeBlocks: (blocks: Block[]) => void;
   onFocusBlock?: (blockId: string) => void;
   onMinimize?: () => void;
+  /** Deixa só este painel visível (desktop). */
+  onMaximize?: () => void;
+  /** Volta a exibir todos os painéis (quando este está maximizado). */
+  onRestoreLayout?: () => void;
+  /** Este é o único painel visível. */
+  isMaximized?: boolean;
 }
 
 export const Editor: React.FC<EditorProps> = ({
@@ -63,6 +70,9 @@ export const Editor: React.FC<EditorProps> = ({
   onChangeBlocks,
   onFocusBlock,
   onMinimize,
+  onMaximize,
+  onRestoreLayout,
+  isMaximized = false,
 }) => {
   const [activeMenuBlockId, setActiveMenuBlockId] = useState<string | null>(null);
   const [menuSearch, setMenuSearch] = useState('');
@@ -71,6 +81,7 @@ export const Editor: React.FC<EditorProps> = ({
   const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null);
   const [dragOverBlockId, setDragOverBlockId] = useState<string | null>(null);
   const [imageErrorByBlock, setImageErrorByBlock] = useState<Record<string, string | null>>({});
+  const [moveAnnouncement, setMoveAnnouncement] = useState('');
 
   const refIndexMap = useMemo(
     () => getReferenceIndexMap(references, referenceOrdering, blocks),
@@ -125,6 +136,28 @@ export const Editor: React.FC<EditorProps> = ({
     if (index > 0) {
       setFocusedBlockId(next[index - 1].id);
     }
+  };
+
+  /** Move um bloco uma posição para cima (-1) ou para baixo (+1), mantendo o foco nele. */
+  const moveBlock = (id: string, direction: -1 | 1) => {
+    const index = blocks.findIndex((b) => b.id === id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= blocks.length) return;
+    const next = [...blocks];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChangeBlocks(next);
+    setActiveMenuBlockId(null);
+    setMoveAnnouncement(`Bloco movido para a posição ${target + 1} de ${blocks.length}.`);
+    requestAnimationFrame(() => {
+      const row = document.querySelector<HTMLElement>(`[data-block-id="${id}"]`);
+      if (!row) return;
+      row.scrollIntoView({ block: 'nearest' });
+      if (!row.contains(document.activeElement)) {
+        row
+          .querySelector<HTMLElement>('[contenteditable="true"], textarea, input:not([type="file"])')
+          ?.focus();
+      }
+    });
   };
 
   const changeBlockType = (id: string, type: BlockType) => {
@@ -357,64 +390,59 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   return (
-    <div
-      className={`flex-1 h-full overflow-y-auto bg-white dark:bg-neutral-950 flex justify-center min-w-0 ${
-        isCompact ? 'px-4 py-4' : 'py-8 pl-24 pr-8 sm:pl-28 sm:pr-14'
-      }`}
-    >
+    <section aria-label="Editor de texto" className="flex-1 min-w-0 h-full flex flex-col bg-surface">
+      {/* Barra do painel: mesmo padrão do PDF, com os controles no canto superior direito */}
+      {!isCompact && (
+        <div className="min-h-10 shrink-0 border-b border-slate-200 bg-slate-50 px-3 py-1 flex items-center justify-between gap-2 text-xs text-slate-600">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <FileEdit className="w-3.5 h-3.5 text-brand-700 shrink-0" aria-hidden="true" />
+            <span className="font-medium truncate">Texto</span>
+            <span className="text-slate-500 shrink-0">• {blocks.length} blocos</span>
+          </div>
+          <PaneWindowControls
+            label="Texto"
+            isMaximized={isMaximized}
+            onMaximize={onMaximize}
+            onRestore={onRestoreLayout}
+            onMinimize={onMinimize}
+            minimizeIcon={<Minus className="w-4 h-4" />}
+          />
+        </div>
+      )}
+
+      <div
+        className={`@container flex-1 min-h-0 overflow-y-auto flex justify-center ${
+          isCompact ? 'px-4 py-4' : 'py-8 pl-24 pr-6 @3xl:pl-28 @3xl:pr-14'
+        }`}
+      >
+      <p className="sr-only" role="status" aria-live="polite">
+        {moveAnnouncement}
+      </p>
       <div
         className={`w-full ${
           isFullWidth || isCompact ? 'max-w-5xl' : 'max-w-2xl'
         } space-y-2 sm:space-y-3 pb-28 transition-all duration-200`}
       >
-        {/* Dica rápida no topo do editor */}
-        <div
-          className={`mb-4 sm:mb-6 pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-2 text-xs text-neutral-400 ${
-            isCompact ? 'flex-row' : 'items-start sm:items-center'
-          }`}
-        >
-          <span className={`leading-relaxed min-w-0 ${isCompact ? 'truncate' : ''}`}>
-            {isCompact ? (
-              <>
-                Digite{' '}
-                <kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 rounded border border-neutral-200 dark:border-neutral-700 font-mono">
-                  /
-                </kbd>{' '}
-                para blocos
-              </>
-            ) : (
-              <>
-                Dica: digite{' '}
-                <kbd className="px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded border border-neutral-200 font-mono">
-                  /
-                </kbd>{' '}
-                em um bloco vazio para abrir os blocos ABNT ou selecione texto para formatar.
-              </>
-            )}
-          </span>
-          <div className="flex items-center gap-2 shrink-0">
-            <span>{blocks.length} blocos</span>
-            {onMinimize && (
-              <button
-                type="button"
-                onClick={onMinimize}
-                className="p-1 rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
-                title="Minimizar aba de texto (focar na estrutura ou no PDF)"
-              >
-                <Minimize2 className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {blocks.map((block) => {
+        {blocks.map((block, blockIndex) => {
           const activeCollab = activeCollaborators.find((c) => c.activeBlockId === block.id);
           return (
             <div
               key={block.id}
+              data-block-id={block.id}
               onFocus={() => {
                 setFocusedBlockId(block.id);
                 onFocusBlock?.(block.id);
+              }}
+              onKeyDown={(e) => {
+                // Alternativa ao arrastar: Ctrl/Cmd + Shift + ↑/↓ move o bloco
+                if (
+                  (e.ctrlKey || e.metaKey) &&
+                  e.shiftKey &&
+                  (e.key === 'ArrowUp' || e.key === 'ArrowDown')
+                ) {
+                  e.preventDefault();
+                  moveBlock(block.id, e.key === 'ArrowUp' ? -1 : 1);
+                }
               }}
               onDragOver={(e) => {
                 if (!draggedBlockId || draggedBlockId === block.id) return;
@@ -431,23 +459,23 @@ export const Editor: React.FC<EditorProps> = ({
                 setDraggedBlockId(null);
                 setDragOverBlockId(null);
               }}
-              className={`group relative rounded-lg transition-all hover:bg-neutral-50/80 dark:hover:bg-neutral-900/50 ${
+              className={`group relative rounded-lg transition-all hover:bg-slate-50/80 dark:hover:bg-slate-900/50 ${
                 isCompact
                   ? 'flex flex-col px-1 py-1.5'
                   : 'flex items-start gap-2.5 -ml-24 pl-24 pr-3 py-1.5'
               } ${draggedBlockId === block.id ? 'opacity-40' : ''} ${
                 dragOverBlockId === block.id
-                  ? 'border-t-2 border-emerald-500 bg-emerald-50/30'
+                  ? 'border-t-2 border-brand-500 bg-brand-50/30'
                   : ''
-              } ${activeCollab ? 'ring-1 ring-emerald-400/80 bg-emerald-50/15' : ''}`}
+              } ${activeCollab ? 'ring-1 ring-brand-400/80 bg-brand-50/15' : ''}`}
             >
               {/* Badge Flutuante do Colaborador Ativo no Bloco */}
               {activeCollab && (
                 <div
-                  className="absolute -top-2.5 right-3 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs animate-in fade-in zoom-in-95 duration-150"
+                  className="absolute -top-2.5 right-3 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-brand-100 text-brand-800 border border-brand-300 shadow-xs animate-in fade-in zoom-in-95 duration-150"
                   title={`${activeCollab.user.name} (${activeCollab.user.email}) está editando este bloco`}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" />
                   <span>{activeCollab.user.name.split(' ')[0]} está aqui</span>
                 </div>
               )}
@@ -458,6 +486,10 @@ export const Editor: React.FC<EditorProps> = ({
                 isCompact={isCompact}
                 isActive={focusedBlockId === block.id || activeMenuBlockId === block.id}
                 canDelete={blocks.length > 1}
+                canMoveUp={blockIndex > 0}
+                canMoveDown={blockIndex < blocks.length - 1}
+                onMoveUp={(id) => moveBlock(id, -1)}
+                onMoveDown={(id) => moveBlock(id, 1)}
                 onAddBelow={(id) => addBlock(id)}
                 onToggleMenu={(id) => {
                   setActiveMenuBlockId(activeMenuBlockId === id ? null : id);
@@ -478,6 +510,10 @@ export const Editor: React.FC<EditorProps> = ({
                   onChangeSearch={setMenuSearch}
                   onClose={() => setActiveMenuBlockId(null)}
                   onSelect={handleSelectSlashOption}
+                  onMoveUp={blockIndex > 0 ? () => moveBlock(block.id, -1) : undefined}
+                  onMoveDown={
+                    blockIndex < blocks.length - 1 ? () => moveBlock(block.id, 1) : undefined
+                  }
                 />
               )}
 
@@ -491,12 +527,13 @@ export const Editor: React.FC<EditorProps> = ({
         <button
           type="button"
           onClick={() => addBlock(blocks[blocks.length - 1]?.id ?? '', 'paragraph')}
-          className="mt-4 flex items-center gap-1.5 text-xs text-neutral-400 hover:text-emerald-600 py-2 px-3 rounded-md hover:bg-neutral-50 transition-colors"
+          className="mt-4 flex items-center gap-1.5 text-xs text-slate-500 hover:text-brand-600 py-2 px-3 rounded-md hover:bg-slate-50 transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Adicionar parágrafo</span>
         </button>
       </div>
-    </div>
+      </div>
+    </section>
   );
 };

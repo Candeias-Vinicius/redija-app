@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { createProject } from './helpers';
 
 test.describe('RedijaApp: Fluxo Principal E2E', () => {
   test.beforeEach(async ({ page }) => {
@@ -22,23 +23,12 @@ test.describe('RedijaApp: Fluxo Principal E2E', () => {
     // Verifica que o cabeçalho do RedijaApp carregou
     await expect(page.getByText('Redija', { exact: true })).toBeVisible();
 
-    // Se o modal de projetos não abriu automaticamente (ex: primeiro acesso sem projetos), abre pelo cabeçalho
-    const projectsModalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
-    try {
-      await projectsModalHeading.waitFor({ state: 'visible', timeout: 3500 });
-    } catch {
-      await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
-      await expect(projectsModalHeading).toBeVisible();
-    }
+    // Cria um novo projeto a partir do modelo de Artigo Científico pela Home
+    await createProject(page, 'Artigo E2E Teste', /Artigo Científico/);
 
-    // Cria um novo projeto a partir do modelo de Artigo Científico
-    await page.getByText('Artigo Científico').click();
-    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill('Artigo E2E Teste');
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
-
-    // Confirma que o novo projeto está ativo no cabeçalho e botão Baixar PDF está visível no preview
+    // Confirma que o novo projeto está ativo no cabeçalho e o botão Baixar está visível no preview
     await expect(page.getByText('Artigo E2E Teste')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Baixar PDF/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Baixar trabalho' })).toBeVisible();
 
     // Alterna para visualização do código Typst gerado e verifica que contém #show: abnt.with
     await page.getByRole('button', { name: /Ver Typst/i }).click();

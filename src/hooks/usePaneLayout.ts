@@ -1,19 +1,32 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
 export type ResizingPane = 'sidebar' | 'preview' | null;
 export type PaneId = 'sidebar' | 'editor' | 'preview';
 
-const COMPACT_MQ = '(max-width: 1023px)';
+// Abaixo de 1280px os três painéis não cabem lado a lado com folga: usa abas.
+const COMPACT_MQ = '(max-width: 1279px)';
 
-const DEFAULT_SIDEBAR_WIDTH = 320;
-const MIN_SIDEBAR_WIDTH = 240;
-const MAX_SIDEBAR_WIDTH = 520;
+/** Largura mínima da área do editor no layout desktop. */
+export const MIN_EDITOR_WIDTH = 480;
+/** Largura dos divisores redimensionáveis entre os painéis. */
+const DIVIDER_WIDTH = 6;
+/** Largura da barra que substitui um painel minimizado (w-10). */
+const RAIL_WIDTH = 40;
 
-const DEFAULT_PREVIEW_WIDTH = 500;
-const MIN_PREVIEW_WIDTH = 320;
-const MAX_PREVIEW_WIDTH = 820;
+export const MIN_SIDEBAR_WIDTH = 240;
+const MAX_SIDEBAR_WIDTH = 480;
+const DEFAULT_SIDEBAR_RATIO = 0.22;
 
+export const MIN_PREVIEW_WIDTH = 320;
+const MAX_PREVIEW_WIDTH = 1000;
+const DEFAULT_PREVIEW_RATIO = 0.36;
+
+const SIDEBAR_RATIO_KEY = 'redija:sidebarRatio';
+const PREVIEW_RATIO_KEY = 'redija:previewRatio';
+const LEGACY_SIDEBAR_PX_KEY = 'redija:sidebarWidth';
+const LEGACY_PREVIEW_PX_KEY = 'redija:previewWidth';
 const DESKTOP_PANES_KEY = 'redija:desktopPanes';
+const DARK_MODE_KEY = 'redija:darkMode';
 
 type DesktopPaneState = {
   showSidebar: boolean;
@@ -21,12 +34,36 @@ type DesktopPaneState = {
   showPreview: boolean;
 };
 
-function readSavedWidth(key: string, min: number, max: number, fallback: number): number {
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function currentViewportWidth(): number {
+  return typeof window !== 'undefined' ? window.innerWidth : 1440;
+}
+
+/**
+ * Lê a proporção salva do painel. As larguras são guardadas como fração da
+ * janela (e não em px) para que os painéis acompanhem telas maiores ou menores.
+ * Migra o formato antigo, que salvava px.
+ */
+function readSavedRatio(ratioKey: string, legacyPxKey: string, fallback: number): number {
   try {
-    const saved = Number(localStorage.getItem(key));
-    return saved >= min && saved <= max ? saved : fallback;
+    const ratio = Number(localStorage.getItem(ratioKey));
+    if (ratio > 0.05 && ratio < 0.8) return ratio;
+    const legacyPx = Number(localStorage.getItem(legacyPxKey));
+    if (legacyPx > 0) return clamp(legacyPx / currentViewportWidth(), 0.1, 0.6);
   } catch {
-    return fallback;
+    // localStorage indisponível
+  }
+  return fallback;
+}
+
+function persistRatio(key: string, ratio: number) {
+  try {
+    localStorage.setItem(key, ratio.toFixed(4));
+  } catch {
+    // ignore
   }
 }
 
@@ -56,41 +93,80 @@ function persistDesktopPanes(state: DesktopPaneState) {
   }
 }
 
-function clampSidebarWidth(width: number, viewportWidth: number): number {
-  const maxByViewport = Math.max(MIN_SIDEBAR_WIDTH, Math.floor(viewportWidth * 0.42));
-  return Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, maxByViewport, width));
-}
-
-function clampPreviewWidth(width: number, viewportWidth: number): number {
-  const maxByViewport = Math.max(MIN_PREVIEW_WIDTH, Math.floor(viewportWidth * 0.45));
-  return Math.max(MIN_PREVIEW_WIDTH, Math.min(MAX_PREVIEW_WIDTH, maxByViewport, width));
-}
-
 function readIsCompact(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
   return window.matchMedia(COMPACT_MQ).matches;
 }
 
+function systemPrefersDark(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function readSavedDarkMode(): boolean | null {
+  try {
+    const saved = localStorage.getItem(DARK_MODE_KEY);
+    if (saved === '1') return true;
+    if (saved === '0') return false;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+/**
+ * Converte as proporções em px respeitando os limites de cada painel e a
+ * largura mínima do editor, para que ele nunca fique espremido.
+ */
+function computePaneWidths(
+  viewportWidth: number,
+  sidebarRatio: number,
+  previewRatio: number,
+  panes: DesktopPaneState,
+) {
+  const editorReserve = panes.showEditor ? MIN_EDITOR_WIDTH : 0;
+  // Painéis minimizados viram uma barra fina de restauração (RAIL_WIDTH cada)
+  const rails =
+    (panes.showSidebar ? 0 : RAIL_WIDTH) +
+    (panes.showEditor ? 0 : RAIL_WIDTH) +
+    (panes.showPreview ? 0 : RAIL_WIDTH);
+  const dividers =
+    rails +
+    (panes.showSidebar && (panes.showEditor || panes.showPreview) ? DIVIDER_WIDTH : 0) +
+    (panes.showPreview && panes.showEditor ? DIVIDER_WIDTH : 0);
+
+  const sidebarMax = Math.max(
+    MIN_SIDEBAR_WIDTH,
+    Math.min(
+      MAX_SIDEBAR_WIDTH,
+      viewportWidth - dividers - editorReserve - (panes.showPreview ? MIN_PREVIEW_WIDTH : 0),
+    ),
+  );
+  const sidebarWidth = Math.round(
+    clamp(sidebarRatio * viewportWidth, MIN_SIDEBAR_WIDTH, sidebarMax),
+  );
+
+  const usedBySidebar = panes.showSidebar ? sidebarWidth : 0;
+  const previewMax = Math.max(
+    MIN_PREVIEW_WIDTH,
+    Math.min(MAX_PREVIEW_WIDTH, viewportWidth - dividers - editorReserve - usedBySidebar),
+  );
+  const previewWidth = Math.round(
+    clamp(previewRatio * viewportWidth, MIN_PREVIEW_WIDTH, previewMax),
+  );
+
+  return { sidebarWidth, previewWidth, sidebarMax, previewMax };
+}
+
 export function usePaneLayout() {
   const [isCompact, setIsCompact] = useState<boolean>(readIsCompact);
-  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
-    const saved = readSavedWidth(
-      'redija:sidebarWidth',
-      MIN_SIDEBAR_WIDTH,
-      MAX_SIDEBAR_WIDTH,
-      DEFAULT_SIDEBAR_WIDTH,
-    );
-    return typeof window !== 'undefined' ? clampSidebarWidth(saved, window.innerWidth) : saved;
-  });
-  const [previewWidth, setPreviewWidth] = useState<number>(() => {
-    const saved = readSavedWidth(
-      'redija:previewWidth',
-      MIN_PREVIEW_WIDTH,
-      MAX_PREVIEW_WIDTH,
-      DEFAULT_PREVIEW_WIDTH,
-    );
-    return typeof window !== 'undefined' ? clampPreviewWidth(saved, window.innerWidth) : saved;
-  });
+  const [viewportWidth, setViewportWidth] = useState<number>(currentViewportWidth);
+  const [sidebarRatio, setSidebarRatio] = useState<number>(() =>
+    readSavedRatio(SIDEBAR_RATIO_KEY, LEGACY_SIDEBAR_PX_KEY, DEFAULT_SIDEBAR_RATIO),
+  );
+  const [previewRatio, setPreviewRatio] = useState<number>(() =>
+    readSavedRatio(PREVIEW_RATIO_KEY, LEGACY_PREVIEW_PX_KEY, DEFAULT_PREVIEW_RATIO),
+  );
   const [resizingPane, setResizingPane] = useState<ResizingPane>(null);
 
   // Estado inicial calculado uma única vez (sem ler refs durante o render)
@@ -115,22 +191,19 @@ export function usePaneLayout() {
     panesRef.current = { showSidebar, showEditor, showPreview };
   }, [showSidebar, showEditor, showPreview]);
 
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('redija:darkMode') === '1';
-    } catch {
-      return false;
-    }
-  });
+  // Tema: preferência salva pelo usuário; sem preferência, segue o sistema.
+  const [hasSavedTheme, setHasSavedTheme] = useState<boolean>(() => readSavedDarkMode() !== null);
+  const [darkMode, setDarkMode] = useState<boolean>(() => readSavedDarkMode() ?? systemPrefersDark());
 
-  const persistWidths = useCallback((sidebar: number, preview: number) => {
-    try {
-      localStorage.setItem('redija:sidebarWidth', String(sidebar));
-      localStorage.setItem('redija:previewWidth', String(preview));
-    } catch {
-      // ignore
-    }
-  }, []);
+  const { sidebarWidth, previewWidth, sidebarMax, previewMax } = useMemo(
+    () =>
+      computePaneWidths(viewportWidth, sidebarRatio, previewRatio, {
+        showSidebar,
+        showEditor,
+        showPreview,
+      }),
+    [viewportWidth, sidebarRatio, previewRatio, showSidebar, showEditor, showPreview],
+  );
 
   const applyDesktopPanes = useCallback((state: DesktopPaneState) => {
     setShowSidebar(state.showSidebar);
@@ -191,8 +264,38 @@ export function usePaneLayout() {
     });
   }, [isCompact, selectPane, showSidebar, showEditor]);
 
+  /** Deixa só um painel visível (no compacto, equivale a selecionar a aba). */
+  const focusPane = useCallback(
+    (pane: PaneId) => {
+      if (isCompact) {
+        selectPane(pane);
+        return;
+      }
+      applyDesktopPanes({
+        showSidebar: pane === 'sidebar',
+        showEditor: pane === 'editor',
+        showPreview: pane === 'preview',
+      });
+    },
+    [isCompact, selectPane, applyDesktopPanes],
+  );
+
+  /** Volta a exibir os três painéis. */
+  const restoreAllPanes = useCallback(() => {
+    applyDesktopPanes({ showSidebar: true, showEditor: true, showPreview: true });
+  }, [applyDesktopPanes]);
+
   const toggleDarkMode = useCallback(() => {
-    setDarkMode((prev) => !prev);
+    setDarkMode((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(DARK_MODE_KEY, next ? '1' : '0');
+      } catch {
+        // Ignorar se localStorage estiver bloqueado
+      }
+      return next;
+    });
+    setHasSavedTheme(true);
   }, []);
 
   // Compact / desktop mode transitions
@@ -230,38 +333,50 @@ export function usePaneLayout() {
     return () => mql.removeEventListener('change', onChange);
   }, [applyDesktopPanes, selectPane]);
 
-  // Clamp pane widths when viewport shrinks
+  // Recalcula as larguras quando a janela muda (os painéis crescem e encolhem)
   useEffect(() => {
-    const clampToViewport = () => {
-      const vw = window.innerWidth;
-      setSidebarWidth((prev) => {
-        const next = clampSidebarWidth(prev, vw);
-        return next === prev ? prev : next;
-      });
-      setPreviewWidth((prev) => {
-        const next = clampPreviewWidth(prev, vw);
-        return next === prev ? prev : next;
-      });
-    };
-
-    clampToViewport();
-    window.addEventListener('resize', clampToViewport);
-    return () => window.removeEventListener('resize', clampToViewport);
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Aplica o tema e acompanha o sistema enquanto o usuário não escolheu um tema
   useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    try {
-      localStorage.setItem('redija:darkMode', darkMode ? '1' : '0');
-    } catch {
-      // Ignorar se localStorage estiver bloqueado
-    }
+    document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
+
+  useEffect(() => {
+    if (hasSavedTheme || typeof window.matchMedia !== 'function') return;
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = (e: MediaQueryListEvent) => setDarkMode(e.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, [hasSavedTheme]);
+
+  const setPaneWidthPx = useCallback(
+    (pane: 'sidebar' | 'preview', px: number) => {
+      const vw = window.innerWidth;
+      if (pane === 'sidebar') {
+        const next = clamp(px, MIN_SIDEBAR_WIDTH, sidebarMax) / vw;
+        setSidebarRatio(next);
+        persistRatio(SIDEBAR_RATIO_KEY, next);
+      } else {
+        const next = clamp(px, MIN_PREVIEW_WIDTH, previewMax) / vw;
+        setPreviewRatio(next);
+        persistRatio(PREVIEW_RATIO_KEY, next);
+      }
+    },
+    [sidebarMax, previewMax],
+  );
+
+  /** Redimensiona um painel pelo teclado (setas nos divisores). */
+  const nudgePane = useCallback(
+    (pane: 'sidebar' | 'preview', deltaPx: number) => {
+      setPaneWidthPx(pane, (pane === 'sidebar' ? sidebarWidth : previewWidth) + deltaPx);
+    },
+    [setPaneWidthPx, sidebarWidth, previewWidth],
+  );
 
   // Pointer-based resize (mouse + touch)
   useEffect(() => {
@@ -269,13 +384,9 @@ export function usePaneLayout() {
 
     const handlePointerMove = (e: PointerEvent) => {
       if (resizingPane === 'sidebar') {
-        const nextWidth = clampSidebarWidth(e.clientX, window.innerWidth);
-        setSidebarWidth(nextWidth);
-        persistWidths(nextWidth, previewWidth);
+        setPaneWidthPx('sidebar', e.clientX);
       } else if (resizingPane === 'preview') {
-        const nextWidth = clampPreviewWidth(window.innerWidth - e.clientX, window.innerWidth);
-        setPreviewWidth(nextWidth);
-        persistWidths(sidebarWidth, nextWidth);
+        setPaneWidthPx('preview', window.innerWidth - e.clientX);
       }
     };
 
@@ -291,14 +402,17 @@ export function usePaneLayout() {
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerUp);
     };
-  }, [resizingPane, persistWidths, previewWidth, sidebarWidth]);
+  }, [resizingPane, setPaneWidthPx]);
 
   return {
     isCompact,
     sidebarWidth,
     previewWidth,
+    sidebarMax,
+    previewMax,
     resizingPane,
     setResizingPane,
+    nudgePane,
     showSidebar,
     showEditor,
     showPreview,
@@ -306,6 +420,8 @@ export function usePaneLayout() {
     toggleSidebar,
     toggleEditor,
     togglePreview,
+    focusPane,
+    restoreAllPanes,
     darkMode,
     setDarkMode,
     toggleDarkMode,

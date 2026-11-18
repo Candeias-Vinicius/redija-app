@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Modal } from '@/components/ui/Modal';
 import {
   X,
   BookOpen,
@@ -95,12 +96,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
-      onClick={onClose}
-    >
+    <Modal onClose={onClose} labelledBy="landing-modal-title" closeOnBackdrop className="sm:p-6">
       <div
         className={`relative w-full max-w-3xl rounded-3xl border shadow-2xl overflow-hidden my-8 max-h-[90vh] flex flex-col transition-all ${
           isDark
@@ -116,19 +112,19 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
           }`}
         >
           <div className="flex items-center gap-2.5">
-            {modalType === 'docs' && <BookOpen className="w-5 h-5 text-emerald-500" />}
+            {modalType === 'docs' && <BookOpen className="w-5 h-5 text-brand-500" />}
             {modalType === 'about' && <Users className="w-5 h-5 text-teal-500" />}
             {modalType === 'contact' && <MessageSquare className="w-5 h-5 text-blue-500" />}
-            {modalType === 'privacy' && <ShieldCheck className="w-5 h-5 text-emerald-500" />}
+            {modalType === 'privacy' && <ShieldCheck className="w-5 h-5 text-brand-500" />}
             {modalType === 'terms' && <FileText className="w-5 h-5 text-amber-500" />}
 
-            <h3 className="font-bold text-base sm:text-lg">
+            <h2 id="landing-modal-title" className="font-bold text-base sm:text-lg">
               {modalType === 'docs' && 'Guia Técnico de Normas & Modelos'}
               {modalType === 'about' && 'Sobre o RedijaApp'}
               {modalType === 'contact' && 'Fale Conosco & Comunidade'}
               {modalType === 'privacy' && 'Política de Privacidade & Dados'}
               {modalType === 'terms' && 'Termos de Uso & Código Aberto'}
-            </h3>
+            </h2>
           </div>
 
           <button
@@ -164,7 +160,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                     onClick={() => setActiveDocCode(doc.code)}
                     className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
                       activeDocCode === doc.code
-                        ? 'bg-emerald-500 text-slate-950 shadow-xs'
+                        ? 'bg-brand-500 text-slate-950 shadow-xs'
                         : isDark
                           ? 'bg-slate-800/80 text-slate-300 hover:bg-slate-750'
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -187,7 +183,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                     }`}
                   >
                     <div>
-                      <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                      <span className="text-xs font-mono font-bold text-brand-700 dark:text-brand-400">
                         {currentDoc.code}
                       </span>
                       <h4 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5">
@@ -208,7 +204,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                             key={idx}
                             className="flex items-start gap-2 text-slate-600 dark:text-slate-300"
                           >
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                            <CheckCircle2 className="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />
                             <span>{rule}</span>
                           </li>
                         ))}
@@ -234,8 +230,8 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-slate-800 dark:text-slate-200 space-y-2 text-xs sm:text-sm">
-                <span className="font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+              <div className="p-4 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-slate-800 dark:text-slate-200 space-y-2 text-xs sm:text-sm">
+                <span className="font-bold flex items-center gap-1.5 text-brand-700 dark:text-brand-400">
                   <Sparkles className="w-4 h-4" />
                   Nossa Filosofia
                 </span>
@@ -268,7 +264,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <GitHubIcon className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <GitHubIcon className="w-4 h-4 text-brand-500 shrink-0" />
                   <span>Projeto de código aberto sob licença AGPL-3.0 no GitHub.</span>
                 </div>
                 <div className="flex items-center gap-3 font-semibold">
@@ -276,7 +272,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                     href={GITHUB_REPO_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-emerald-600 dark:text-emerald-400 hover:underline"
+                    className="text-brand-700 dark:text-brand-400 hover:underline"
                   >
                     Repositório
                   </a>
@@ -284,7 +280,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                     href={GITHUB_ISSUES_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-emerald-600 dark:text-emerald-400 hover:underline"
+                    className="text-brand-700 dark:text-brand-400 hover:underline"
                   >
                     Issues
                   </a>
@@ -313,7 +309,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                     <Mail className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase">
+                    <span className="text-xs font-semibold text-slate-400 uppercase">
                       E-mail Oficial
                     </span>
                     <p className="font-mono font-bold text-sm text-slate-900 dark:text-white">
@@ -326,7 +322,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                   onClick={handleCopyEmail}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
                     copiedEmail
-                      ? 'bg-emerald-500 text-slate-950 border-emerald-500'
+                      ? 'bg-brand-500 text-slate-950 border-brand-500'
                       : isDark
                         ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
                         : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
@@ -354,8 +350,8 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                     placeholder="voce@universidade.edu.br"
                     className={`w-full p-2.5 rounded-xl border text-xs outline-hidden transition-colors ${
                       isDark
-                        ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-emerald-500'
-                        : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-600'
+                        ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-brand-500'
+                        : 'bg-white border-slate-200 text-slate-900 placeholder-slate-500 focus:border-brand-600'
                     }`}
                   />
                 </div>
@@ -371,8 +367,8 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                     rows={4}
                     className={`w-full p-3 rounded-xl border text-xs outline-hidden transition-colors ${
                       isDark
-                        ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-emerald-500'
-                        : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-600'
+                        ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-brand-500'
+                        : 'bg-white border-slate-200 text-slate-900 placeholder-slate-500 focus:border-brand-600'
                     }`}
                   />
                 </div>
@@ -383,8 +379,8 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                     disabled={!feedbackText.trim() || isSendingFeedback || feedbackSent}
                     className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                       feedbackSent
-                        ? 'bg-emerald-500 text-slate-950'
-                        : 'bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50'
+                        ? 'bg-brand-500 text-slate-950'
+                        : 'bg-brand-700 hover:bg-brand-800 text-white disabled:opacity-50'
                     }`}
                   >
                     {isSendingFeedback
@@ -403,8 +399,8 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
           {/* ------------------------------------------------------- */}
           {modalType === 'privacy' && (
             <div className="space-y-4 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-slate-800 dark:text-slate-200 space-y-1">
-                <span className="font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+              <div className="p-4 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-slate-800 dark:text-slate-200 space-y-1">
+                <span className="font-bold flex items-center gap-1.5 text-brand-700 dark:text-brand-400">
                   <ShieldCheck className="w-4 h-4" />
                   Privacidade por Design (Privacy by Design)
                 </span>
@@ -457,7 +453,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                     href={GITHUB_LICENSE_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                    className="font-semibold text-brand-700 dark:text-brand-400 hover:underline"
                   >
                     GNU Affero General Public License v3.0 (AGPL-3.0)
                   </a>
@@ -499,7 +495,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                     href={GITHUB_THIRD_PARTY_NOTICES_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                    className="font-semibold text-brand-700 dark:text-brand-400 hover:underline"
                   >
                     THIRD_PARTY_NOTICES.md
                   </a>
@@ -525,7 +521,7 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
                 onOpenFullDocs(modalType === 'docs' ? 'normas-abnt' : undefined);
               }
             }}
-            className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+            className="text-xs font-semibold text-brand-700 dark:text-brand-400 hover:underline"
           >
             Abrir Central de Documentação (/docs) &rarr;
           </a>
@@ -542,6 +538,6 @@ export const LandingModals: React.FC<LandingModalsProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

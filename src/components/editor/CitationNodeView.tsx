@@ -168,8 +168,8 @@ export const CitationNodeView: React.FC<NodeViewProps> = ({
           !matchedRef
             ? 'bg-red-50 text-red-700 border border-red-300'
             : selected || isOpen
-              ? 'bg-emerald-600 text-white border border-emerald-700'
-              : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+              ? 'bg-brand-700 text-white border border-brand-700'
+              : 'bg-brand-50 text-brand-800 border border-brand-200 hover:bg-brand-100'
         }`}
       >
         {label}
@@ -178,19 +178,20 @@ export const CitationNodeView: React.FC<NodeViewProps> = ({
       {isOpen && (
         <div
           onMouseDown={(e) => e.stopPropagation()}
-          className="absolute left-0 top-full mt-1 z-40 w-64 bg-white border border-neutral-200 rounded-xl shadow-xl p-2.5 text-xs space-y-2"
+          className="absolute left-0 top-full mt-1 z-40 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-2.5 text-xs space-y-2"
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[10px] font-bold uppercase text-neutral-500">
+            <span className="text-xs font-bold uppercase text-slate-500">
               Chamada de Citação
             </span>
             <button
+              aria-label="Remover citação"
               type="button"
               onClick={() => {
                 deleteNode();
                 setIsOpen(false);
               }}
-              className="p-1 text-neutral-400 hover:text-red-600 rounded"
+              className="p-1 text-slate-500 hover:text-red-600 rounded"
               title="Remover citação"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -201,10 +202,10 @@ export const CitationNodeView: React.FC<NodeViewProps> = ({
             <button
               type="button"
               onClick={() => applyUpdate('parenthetical', pageDraft)}
-              className={`px-2 py-1 rounded-md text-[11px] font-medium border ${
+              className={`px-2 py-1 rounded-md text-xs font-medium border ${
                 citeMode === 'parenthetical'
-                  ? 'bg-emerald-600 text-white border-emerald-600'
-                  : 'bg-neutral-50 text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+                  ? 'bg-brand-700 text-white border-brand-600'
+                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
               }`}
             >
               Parentética
@@ -212,10 +213,10 @@ export const CitationNodeView: React.FC<NodeViewProps> = ({
             <button
               type="button"
               onClick={() => applyUpdate('narrative', pageDraft)}
-              className={`px-2 py-1 rounded-md text-[11px] font-medium border ${
+              className={`px-2 py-1 rounded-md text-xs font-medium border ${
                 citeMode === 'narrative'
-                  ? 'bg-emerald-600 text-white border-emerald-600'
-                  : 'bg-neutral-50 text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+                  ? 'bg-brand-700 text-white border-brand-600'
+                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
               }`}
             >
               Narrativa
@@ -237,7 +238,8 @@ export const CitationNodeView: React.FC<NodeViewProps> = ({
                 }
               }}
               placeholder="Página (ex: 42 ou 10-12)"
-              className="flex-1 min-w-0 px-2 py-1 text-[11px] bg-neutral-50 border border-neutral-200 rounded focus:outline-none focus:border-emerald-600"
+              aria-label="Página da citação"
+              className="flex-1 min-w-0 px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded focus:outline-none focus:border-brand-600"
             />
             <button
               type="button"
@@ -245,7 +247,7 @@ export const CitationNodeView: React.FC<NodeViewProps> = ({
                 applyUpdate(citeMode, pageDraft);
                 setIsOpen(false);
               }}
-              className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold"
+              className="px-2 py-1 rounded bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold"
             >
               OK
             </button>

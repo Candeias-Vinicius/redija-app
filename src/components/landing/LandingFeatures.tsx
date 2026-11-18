@@ -22,7 +22,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24">
         {/* Cabeçalho da Seção de Recursos */}
         <div className="text-center max-w-3xl mx-auto space-y-4">
-          <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-brand-700 dark:text-brand-400">
             Arquitetura e Recursos
           </span>
           <h2
@@ -42,7 +42,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
         {/* ======================================================== */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           <div className="lg:col-span-6 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-semibold bg-brand-500/10 text-brand-700 dark:text-brand-400 border border-brand-500/20">
               <BookOpen className="w-3.5 h-3.5" />
               <span>Conformidade Multi-Normas &amp; Customizer</span>
             </div>
@@ -61,7 +61,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
 
             <div className="space-y-3 pt-2">
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-5 h-5 text-brand-500 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
                     Layouts &amp; Linters específicos por padrão
@@ -73,7 +73,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
               </div>
 
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-5 h-5 text-brand-500 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
                     Busca de Referências por DOI, ISBN e BibTeX (.bib)
@@ -85,7 +85,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
               </div>
 
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-5 h-5 text-brand-500 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
                     Estilos reativos de chamada no texto (@)
@@ -100,7 +100,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
             <div className="pt-2">
               <button
                 onClick={() => onOpenDoc()}
-                className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                className="inline-flex items-center gap-2 text-xs font-semibold text-brand-700 dark:text-brand-400 hover:underline"
               >
                 <span>Explorar normas e padrões no Guia Técnico &rarr;</span>
               </button>
@@ -115,10 +115,10 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
               }`}
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-                <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="text-xs font-mono font-bold text-brand-700 dark:text-brand-400">
                   ABNT • SBC • IEEE • APA 7ª
                 </span>
-                <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold">
+                <span className="text-xs px-2 py-0.5 rounded bg-brand-500/15 text-brand-700 dark:text-brand-400 font-semibold">
                   Conversão Reativa
                 </span>
               </div>
@@ -126,28 +126,28 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
               {/* Exemplos comparativos reais */}
               <div className="space-y-3 font-sans">
                 <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-xs">
-                  <span className="text-[10px] font-semibold uppercase text-slate-400 block mb-1">
+                  <span className="text-xs font-semibold uppercase text-slate-400 block mb-1">
                     Chamadas Reativas por Padrão
                   </span>
                   <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
-                    Autor-Data ABNT <strong className="text-emerald-600 dark:text-emerald-400">(Silva, 2024)</strong> • Numérico IEEE <strong className="text-indigo-600 dark:text-indigo-400">[1]</strong> • APA 7ª <strong className="text-violet-600 dark:text-violet-400">(Silva &amp; Pereira, 2024)</strong>
+                    Autor-Data ABNT <strong className="text-brand-700 dark:text-brand-400">(Silva, 2024)</strong> • Numérico IEEE <strong className="text-indigo-600 dark:text-indigo-400">[1]</strong> • APA 7ª <strong className="text-violet-600 dark:text-violet-400">(Silva &amp; Pereira, 2024)</strong>
                   </p>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-500/30 text-xs pl-6 border-l-4 border-l-emerald-500">
-                  <span className="text-[10px] font-semibold uppercase text-emerald-700 dark:text-emerald-400 block mb-1">
+                <div className="p-3.5 rounded-xl bg-brand-50/50 dark:bg-brand-950/30 border border-brand-500/30 text-xs pl-6 border-l-4 border-l-brand-500">
+                  <span className="text-xs font-semibold uppercase text-brand-700 dark:text-brand-400 block mb-1">
                     Citação Direta Longa (recuo 4 cm, fonte 10 pt, espaçamento simples)
                   </span>
-                  <p className="text-slate-700 dark:text-slate-300 italic text-[11.5px] leading-snug">
+                  <p className="text-slate-700 dark:text-slate-300 italic text-xs leading-snug">
                     O editor adapta automaticamente recuo, fonte e formato da chamada quando o pesquisador troca o trabalho de TCC ABNT para artigo SBC, IEEE Conference ou periódicos APA.
                   </p>
-                  <p className="text-[10px] text-right font-medium text-slate-500 dark:text-slate-400 mt-1">
+                  <p className="text-xs text-right font-medium text-slate-500 dark:text-slate-400 mt-1">
                     (SANTOS; OLIVEIRA, 2024, p. 89)
                   </p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-[11px]">
-                  <span className="text-[10px] font-semibold uppercase text-slate-400 block mb-1">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-xs">
+                  <span className="text-xs font-semibold uppercase text-slate-400 block mb-1">
                     Referência Formatada pelo Estilo Ativo (NBR 6023 / IEEE / APA)
                   </span>
                   <p className="text-slate-800 dark:text-slate-200">
@@ -173,7 +173,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                 <span className="text-xs font-mono font-bold text-teal-600 dark:text-teal-400">
                   Typst WebAssembly Engine
                 </span>
-                <span className="text-[11px] font-mono text-emerald-500 font-semibold">
+                <span className="text-xs font-mono text-brand-500 font-semibold">
                   ~30ms por compilação
                 </span>
               </div>
@@ -189,17 +189,17 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-500/30 space-y-2">
-                  <div className="flex justify-between text-emerald-800 dark:text-emerald-300">
+                <div className="p-4 rounded-xl bg-brand-50/60 dark:bg-brand-950/40 border border-brand-500/30 space-y-2">
+                  <div className="flex justify-between text-brand-800 dark:text-brand-300">
                     <span className="font-semibold">Tempo de Renderização Typst no Redija</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold font-mono">28 ms</span>
+                    <span className="text-brand-700 dark:text-brand-400 font-bold font-mono">28 ms</span>
                   </div>
-                  <div className="w-full bg-emerald-200/50 dark:bg-emerald-950 h-2 rounded-full overflow-hidden">
-                    <div className="bg-emerald-500 h-full w-[5%]" />
+                  <div className="w-full bg-brand-200/50 dark:bg-brand-950 h-2 rounded-full overflow-hidden">
+                    <div className="bg-brand-500 h-full w-[5%]" />
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                   Compilação incremental direta: conforme você digita uma letra ou altera um número, apenas a página afetada é recompilada sem qualquer travamento.
                 </p>
               </div>
@@ -271,7 +271,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                     Pastas estruturadas e limpas
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Seus arquivos são organizados em <code className="font-mono text-emerald-500">Meu Drive &gt; RedijaApp &gt; [Nome do Projeto]</code>.
+                    Seus arquivos são organizados em <code className="font-mono text-brand-500">Meu Drive &gt; RedijaApp &gt; [Nome do Projeto]</code>.
                   </p>
                 </div>
               </div>
@@ -312,7 +312,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                 <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">
                   Estrutura no Seu Google Drive
                 </span>
-                <span className="text-[11px] font-semibold text-emerald-500 flex items-center gap-1">
+                <span className="text-xs font-semibold text-brand-500 flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Sincronizado
                 </span>
@@ -325,20 +325,20 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                   <span className="font-semibold text-slate-900 dark:text-white">Meu Drive</span>
                 </div>
                 <div className="ml-4 p-2.5 rounded-lg bg-slate-100 dark:bg-slate-950/60 flex items-center gap-2">
-                  <span className="text-emerald-500">📁</span>
+                  <span className="text-brand-500">📁</span>
                   <span className="font-semibold text-slate-900 dark:text-white">RedijaApp</span>
                 </div>
-                <div className="ml-8 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/30 space-y-1.5">
+                <div className="ml-8 p-2.5 rounded-lg bg-brand-50 dark:bg-brand-950/30 border border-brand-500/30 space-y-1.5">
                   <div className="flex items-center gap-2">
                     <span className="text-teal-500">📁</span>
                     <span className="font-bold text-slate-900 dark:text-white">Monografia_Final_2026/</span>
                   </div>
-                  <div className="ml-6 space-y-1 text-[11px] text-slate-600 dark:text-slate-400">
+                  <div className="ml-6 space-y-1 text-xs text-slate-600 dark:text-slate-400">
                     <p className="flex items-center gap-1.5">
                       <span>📄</span>
                       <span>projeto.redija (Documento completo + referências)</span>
                     </p>
-                    <p className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <p className="flex items-center gap-1.5 text-brand-700 dark:text-brand-400 font-semibold">
                       <span>📕</span>
                       <span>Monografia_Final_2026.pdf (Cópia pronta em PDF)</span>
                     </p>
@@ -364,13 +364,13 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                   Sessão WebRTC P2P Ativa
                 </span>
                 <div className="flex items-center -space-x-2">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold border-2 border-white dark:border-slate-900">
+                  <div className="w-6 h-6 rounded-full bg-brand-500 text-white flex items-center justify-center text-xs font-bold border-2 border-white dark:border-slate-900">
                     VC
                   </div>
-                  <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold border-2 border-white dark:border-slate-900">
+                  <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold border-2 border-white dark:border-slate-900">
                     Prof
                   </div>
-                  <div className="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-[10px] font-bold border-2 border-white dark:border-slate-900">
+                  <div className="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-bold border-2 border-white dark:border-slate-900">
                     MC
                   </div>
                 </div>
@@ -378,7 +378,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
 
               <div className="space-y-3 font-sans text-xs">
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-1">
-                  <div className="flex items-center gap-1.5 text-blue-500 font-semibold text-[11px]">
+                  <div className="flex items-center gap-1.5 text-blue-500 font-semibold text-xs">
                     <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                     <span>Prof. Dr. Ricardo (Orientador) está editando:</span>
                   </div>
@@ -387,11 +387,11 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                   </p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-500/30 space-y-1">
-                  <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
+                <div className="p-3 rounded-xl bg-brand-50/60 dark:bg-brand-950/30 border border-brand-500/30 space-y-1">
+                  <div className="flex items-center gap-1.5 text-brand-700 dark:text-brand-400 font-semibold text-xs">
                     <span>Você acabou de aprovar a sugestão:</span>
                   </div>
-                  <p className="text-slate-700 dark:text-slate-300 text-[11px]">
+                  <p className="text-slate-700 dark:text-slate-300 text-xs">
                     Auto-Merge aplicado instantaneamente sem conflitos.
                   </p>
                 </div>
@@ -453,7 +453,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
             </h3>
 
             <p className={`text-sm sm:text-base leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-              Você não fica preso a uma plataforma fechada. Traga trabalhos do Microsoft Word (.docx), pacotes do Overleaf (.tex / .zip) ou projetos Typst (.typ / Universe). A qualquer momento, exporte os arquivos puros com <code className="font-mono text-emerald-500">main.typ</code>, módulo do padrão ativo (<code className="font-mono text-emerald-500">abnt.typ</code> / <code className="font-mono text-emerald-500">sbc.typ</code> / <code className="font-mono text-emerald-500">ieee.typ</code>), figuras e <code className="font-mono text-emerald-500">referencias.bib</code>.
+              Você não fica preso a uma plataforma fechada. Traga trabalhos do Microsoft Word (.docx), pacotes do Overleaf (.tex / .zip) ou projetos Typst (.typ / Universe). A qualquer momento, exporte os arquivos puros com <code className="font-mono text-brand-500">main.typ</code>, módulo do padrão ativo (<code className="font-mono text-brand-500">abnt.typ</code> / <code className="font-mono text-brand-500">sbc.typ</code> / <code className="font-mono text-brand-500">ieee.typ</code>), figuras e <code className="font-mono text-brand-500">referencias.bib</code>.
             </p>
 
             <div className="grid grid-cols-2 gap-3 pt-2 text-xs">
@@ -461,16 +461,16 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                 <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                   <span className="text-blue-500">📥</span> Importe
                 </span>
-                <p className="text-slate-500 dark:text-slate-400 text-[11px]">
+                <p className="text-slate-500 dark:text-slate-400 text-xs">
                   Word (.docx), LaTeX/Overleaf (.tex/.zip), Typst (.typ), Universe (@preview) e .redija.
                 </p>
               </div>
 
               <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-1">
                 <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <span className="text-emerald-500">📤</span> Exporte
+                  <span className="text-brand-500">📤</span> Exporte
                 </span>
-                <p className="text-slate-500 dark:text-slate-400 text-[11px]">
+                <p className="text-slate-500 dark:text-slate-400 text-xs">
                   PDF vetorial pronto para publicação e pacote ZIP completo do código Typst.
                 </p>
               </div>
@@ -487,7 +487,7 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
                 <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
                   Conteúdo do Pacote ZIP Exportado
                 </span>
-                <span className="text-[11px] font-semibold text-slate-500">
+                <span className="text-xs font-semibold text-slate-500">
                   Zero Lock-in
                 </span>
               </div>
@@ -495,27 +495,27 @@ export const LandingFeatures: React.FC<LandingFeaturesProps> = ({ isDark, onOpen
               <div className="space-y-2 font-mono text-xs">
                 <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-950/60 flex items-center justify-between">
                   <span className="text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                    <span className="text-emerald-500">typ</span> main.typ
+                    <span className="text-brand-500">typ</span> main.typ
                   </span>
-                  <span className="text-[10px] text-slate-400">Código principal</span>
+                  <span className="text-xs text-slate-400">Código principal</span>
                 </div>
                 <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-950/60 flex items-center justify-between">
                   <span className="text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                    <span className="text-emerald-500">typ</span> abnt.typ / sbc.typ / ieee.typ
+                    <span className="text-brand-500">typ</span> abnt.typ / sbc.typ / ieee.typ
                   </span>
-                  <span className="text-[10px] text-slate-400">Regras do padrão selecionado</span>
+                  <span className="text-xs text-slate-400">Regras do padrão selecionado</span>
                 </div>
                 <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-950/60 flex items-center justify-between">
                   <span className="text-slate-800 dark:text-slate-200 flex items-center gap-2">
                     <span className="text-amber-500">bib</span> referencias.bib
                   </span>
-                  <span className="text-[10px] text-slate-400">BibTeX padronizado</span>
+                  <span className="text-xs text-slate-400">BibTeX padronizado</span>
                 </div>
                 <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-950/60 flex items-center justify-between">
                   <span className="text-slate-800 dark:text-slate-200 flex items-center gap-2">
                     <span className="text-blue-500">img</span> assets/ (figuras e logos)
                   </span>
-                  <span className="text-[10px] text-slate-400">Imagens originais</span>
+                  <span className="text-xs text-slate-400">Imagens originais</span>
                 </div>
               </div>
             </div>

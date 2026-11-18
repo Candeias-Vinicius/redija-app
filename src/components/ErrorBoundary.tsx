@@ -74,7 +74,7 @@ export class ErrorBoundary extends Component<Props, State> {
             {message}
           </p>
 
-          <div className="flex items-center gap-2 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 mb-4 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800/50">
+          <div className="flex items-center gap-2 text-xs font-medium text-brand-700 dark:text-brand-400 mb-4 bg-brand-50 dark:bg-brand-950/40 px-3 py-1.5 rounded-lg border border-brand-200 dark:border-brand-800/50">
             <ShieldCheck className="w-4 h-4 shrink-0" />
             <span>Seu documento permanece intacto na memória local</span>
           </div>
@@ -83,7 +83,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <button
               type="button"
               onClick={this.handleReset}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-brand-700 hover:bg-brand-800 text-white shadow-xs transition-colors cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Tentar Novamente</span>
@@ -109,12 +109,12 @@ export class ErrorBoundary extends Component<Props, State> {
           </div>
 
           {this.state.showDetails && this.state.error && (
-            <div className="mt-4 w-full max-w-lg p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-700 dark:text-slate-300 overflow-x-auto text-left font-mono">
+            <div className="mt-4 w-full max-w-lg p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 overflow-x-auto text-left font-mono">
               <p className="font-bold text-red-600 dark:text-red-400 mb-1">
                 {this.state.error.name}: {this.state.error.message}
               </p>
               {this.state.error.stack && (
-                <pre className="whitespace-pre-wrap text-[10px] text-slate-500 leading-tight">
+                <pre className="whitespace-pre-wrap text-xs text-slate-500 leading-tight">
                   {this.state.error.stack}
                 </pre>
               )}

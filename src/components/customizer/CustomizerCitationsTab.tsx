@@ -53,17 +53,17 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
 
   const highlightClass =
     effectiveHighlight === 'bold'
-      ? 'font-bold text-neutral-900'
+      ? 'font-bold text-slate-900'
       : effectiveHighlight === 'italic'
-        ? 'italic text-neutral-900'
+        ? 'italic text-slate-900'
         : effectiveHighlight === 'underline'
-          ? 'underline text-neutral-900'
-          : 'text-neutral-900';
+          ? 'underline text-slate-900'
+          : 'text-slate-900';
 
   return (
     <div className="space-y-4">
-      <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-neutral-500">
-        <Quote className="w-3.5 h-3.5 text-emerald-600" />
+      <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+        <Quote className="w-3.5 h-3.5 text-brand-700" />
         Central de Citações e Lista de Referências
       </label>
 
@@ -71,7 +71,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
         <div>
           <label
             htmlFor="template-citation-format"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
+            className="block text-xs font-medium text-slate-600 mb-1"
           >
             Formato da Chamada no Texto
           </label>
@@ -79,7 +79,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
             id="template-citation-format"
             value={effectiveCitationFormat}
             onChange={(e) => onCitationFormatChange(e.target.value as CitationFormat)}
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
           >
             <option value="abnt_titlecase">ABNT Autor-Data: (Silva, 2023) [NBR 10520:2023]</option>
             <option value="ieee_numeric">Numérico Colchetes: [1] (IEEE / Vancouver)</option>
@@ -91,7 +91,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
         <div>
           <label
             htmlFor="template-bibliography-engine"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
+            className="block text-xs font-medium text-slate-600 mb-1"
           >
             Motor de Bibliografia
           </label>
@@ -101,7 +101,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
             onChange={(e) =>
               onUpdateField('bibliographyEngine', e.target.value as BibliographyEngine)
             }
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
           >
             <option value="redija_custom">Redija Multi-Norma (ABNT / APA / IEEE)</option>
             <option value="typst_csl">CSL Nativo do Typst (BibTeX)</option>
@@ -112,7 +112,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
           <div>
             <label
               htmlFor="template-csl-style"
-              className="block text-[11px] font-medium text-neutral-600 mb-1"
+              className="block text-xs font-medium text-slate-600 mb-1"
             >
               Estilo CSL (Typst)
             </label>
@@ -120,7 +120,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
               id="template-csl-style"
               value={effectiveCslStyle}
               onChange={(e) => onUpdateField('cslStyle', e.target.value as CslStyle)}
-              className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
             >
               <option value="associacao-brasileira-de-normas-tecnicas">ABNT</option>
               <option value="apa">APA (American Psychological Association)</option>
@@ -134,7 +134,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
           <div>
             <label
               htmlFor="template-reference-entry-format"
-              className="block text-[11px] font-medium text-neutral-600 mb-1"
+              className="block text-xs font-medium text-slate-600 mb-1"
             >
               Formatação das Referências
             </label>
@@ -144,7 +144,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
               onChange={(e) =>
                 onUpdateField('referenceEntryFormat', e.target.value as ReferenceEntryFormat)
               }
-              className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
             >
               <option value="auto">Automática pelo modelo ativo</option>
               <option value="abnt">ABNT (NBR 6023)</option>
@@ -157,7 +157,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
         <div>
           <label
             htmlFor="template-reference-ordering"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
+            className="block text-xs font-medium text-slate-600 mb-1"
           >
             Ordenação das Referências
           </label>
@@ -167,7 +167,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
             onChange={(e) =>
               onUpdateField('referenceOrdering', e.target.value as ReferenceOrdering)
             }
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
           >
             <option value="alphabetical">Alfabética por autor (ABNT / APA)</option>
             <option value="citation_order">Ordem de aparição no texto (IEEE / Vancouver)</option>
@@ -177,7 +177,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
         <div>
           <label
             htmlFor="template-reference-highlight"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
+            className="block text-xs font-medium text-slate-600 mb-1"
           >
             Destaque dos Títulos nas Referências
           </label>
@@ -187,7 +187,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
             onChange={(e) =>
               onUpdateField('referenceHighlight', e.target.value as ReferenceHighlight)
             }
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
           >
             <option value="bold">Negrito (Padrão ABNT NBR 6023)</option>
             <option value="italic">Itálico (APA / Periódicos Internacionais)</option>
@@ -199,7 +199,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
         <div>
           <label
             htmlFor="template-reference-alignment"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
+            className="block text-xs font-medium text-slate-600 mb-1"
           >
             Alinhamento da Lista de Referências
           </label>
@@ -209,7 +209,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
             onChange={(e) =>
               onUpdateField('referenceAlignment', e.target.value as ReferenceAlignment)
             }
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
           >
             <option value="left">Alinhada à Esquerda (ABNT / APA)</option>
             <option value="justify">Justificada</option>
@@ -219,7 +219,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
         <div className="sm:col-span-2">
           <label
             htmlFor="template-reference-spacing"
-            className="block text-[11px] font-medium text-neutral-600 mb-1"
+            className="block text-xs font-medium text-slate-600 mb-1"
           >
             Espaçamento entre Referências
           </label>
@@ -229,7 +229,7 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
             onChange={(e) =>
               onUpdateField('referenceSpacing', e.target.value as ReferenceSpacing)
             }
-            className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-emerald-600"
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-600"
           >
             <option value="single_blank">
               Espaço Simples em Branco (Padrão ABNT NBR 6023)
@@ -241,23 +241,23 @@ export const CustomizerCitationsTab: React.FC<CustomizerCitationsTabProps> = ({
       </div>
 
       {/* Prévia Instantânea */}
-      <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200 space-y-2">
-        <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+        <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">
           Prévia Instantânea de Citação &amp; Referência
         </span>
-        <p className="text-xs text-neutral-700 leading-relaxed">
+        <p className="text-xs text-slate-700 leading-relaxed">
           <strong>No texto:</strong> A arquitetura modular reduz o acoplamento entre módulos{' '}
-          <span className="font-semibold text-emerald-700">
+          <span className="font-semibold text-brand-700">
             {effectiveCitationFormat === 'superscript' ? <sup>1</sup> : sampleInlineCall}
           </span>
           .
         </p>
         <div
-          className={`text-[11px] text-neutral-600 pt-2 border-t border-neutral-200 ${
+          className={`text-xs text-slate-600 pt-2 border-t border-slate-200 ${
             effectiveAlignment === 'justify' ? 'text-justify' : 'text-left'
           }`}
         >
-          <span className="font-semibold text-neutral-500 mr-1">Na bibliografia:</span>
+          <span className="font-semibold text-slate-500 mr-1">Na bibliografia:</span>
           {effectiveCitationFormat === 'ieee_numeric' && '[1] '}
           {effectiveCitationFormat === 'superscript' && <sup className="mr-0.5">1</sup>}
           {resolvedPreviewStyle === 'ieee' ? (

@@ -1,27 +1,40 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { FolderOpen, Plus, Upload } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { FileEdit, Loader2, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Editor } from '@/components/Editor';
 import { PdfPreview } from '@/components/PdfPreview';
 import { ReferenceModal } from '@/components/ReferenceModal';
-import { ProjectsModal } from '@/components/ProjectsModal';
+import { HomePage } from '@/components/home/HomePage';
+import {
+  DeleteForeverDialog,
+  RenameProjectDialog,
+  StorageInfoDialog,
+} from '@/components/home/ProjectDialogs';
+import { toast } from '@/components/ui/toastStore';
 import { WelcomeModal } from '@/components/WelcomeModal';
 import { TemplateCustomizerModal } from '@/components/TemplateCustomizerModal';
 import { BugReportModal } from '@/components/BugReportModal';
-import { BetaNoticeModal } from '@/components/BetaNoticeModal';
+import { BetaNoticeModal, BetaNoticeToast } from '@/components/BetaNoticeModal';
 import { ShareModal } from '@/components/ShareModal';
 import { AccountSettingsModal } from '@/components/AccountSettingsModal';
 import { BackupNoticeBanner } from '@/components/BackupNoticeBanner';
 import { LoginScreen } from '@/components/LoginScreen';
 import { DocsPage } from '@/components/docs/DocsPage';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { PaneRestoreRail } from '@/components/ui/PaneRestoreRail';
 import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
 import { isBetaNoticeDismissed } from '@/core/version';
-import { AcademicReference, DEFAULT_TEMPLATE_CONFIG, DocumentProject } from '@/types/document';
+import { dismissBackupNotice, isBackupNoticeDismissed } from '@/core/backupNotice';
+import {
+  AcademicReference,
+  DEFAULT_TEMPLATE_CONFIG,
+  DocumentProject,
+  ProjectTemplateType,
+} from '@/types/document';
 import { type ContextualGuideMode } from '@/core/templates/templateCapabilities';
 import { useAppRoute } from '@/hooks/useAppRoute';
-import { usePaneLayout } from '@/hooks/usePaneLayout';
+import { MIN_PREVIEW_WIDTH, MIN_SIDEBAR_WIDTH, usePaneLayout } from '@/hooks/usePaneLayout';
 import { useUndoRedoHistory } from '@/hooks/useUndoRedoHistory';
 import { useRealtimeCollab } from '@/hooks/useRealtimeCollab';
 import {
@@ -29,7 +42,9 @@ import {
   useProjectWorkspace,
 } from '@/hooks/useProjectWorkspace';
 import { useDriveSyncOrchestrator } from '@/hooks/useDriveSyncOrchestrator';
-import { useDocumentExport } from '@/hooks/useDocumentExport';
+import { downloadProjectPdf, useDocumentExport } from '@/hooks/useDocumentExport';
+import { useCustomTemplates } from '@/hooks/useCustomTemplates';
+import { uniqueProjectName } from '@/components/home/homeUtils';
 import { readInitialGuestMode, useAuthSession } from '@/hooks/useAuthSession';
 
 export const App: React.FC = () => {
@@ -39,7 +54,12 @@ export const App: React.FC = () => {
   const [showCode, setShowCode] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingReference, setEditingReference] = useState<AcademicReference | null>(null);
-  const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
+  // Home (lista de trabalhos) e seus diálogos
+  const [renameTarget, setRenameTarget] = useState<DocumentProject | null>(null);
+  const [storageTarget, setStorageTarget] = useState<DocumentProject | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DocumentProject | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [welcomeInitialTab, setWelcomeInitialTab] = useState<'overview' | ContextualGuideMode>(
     'overview',
@@ -47,6 +67,10 @@ export const App: React.FC = () => {
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [isBetaNoticeOpen, setIsBetaNoticeOpen] = useState(false);
+  const [isBetaToastVisible, setIsBetaToastVisible] = useState(false);
+  const [isBackupNoticeVisible, setIsBackupNoticeVisible] = useState<boolean>(
+    () => !isBackupNoticeDismissed(),
+  );
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
 
@@ -67,7 +91,7 @@ export const App: React.FC = () => {
 
   const activeOwner = isAuthenticated && user ? user.email : 'local';
   const isSessionActive = isAuthenticated || isGuestMode;
-  const { route, sectionId, navigateTo } = useAppRoute();
+  const { route, sectionId, projectId, navigateTo, openProjectRoute, goHomeRoute } = useAppRoute();
   const handleOpenFullDocs = useCallback(
     (targetSectionId?: string) => navigateTo('/docs', targetSectionId),
     [navigateTo],
@@ -78,8 +102,11 @@ export const App: React.FC = () => {
     isCompact,
     sidebarWidth,
     previewWidth,
+    sidebarMax,
+    previewMax,
     resizingPane,
     setResizingPane,
+    nudgePane,
     showSidebar,
     showEditor,
     showPreview,
@@ -87,6 +114,8 @@ export const App: React.FC = () => {
     toggleSidebar,
     toggleEditor,
     togglePreview,
+    focusPane,
+    restoreAllPanes,
     darkMode,
     toggleDarkMode,
   } = usePaneLayout();
@@ -112,8 +141,14 @@ export const App: React.FC = () => {
     setProject,
   });
 
-  const openProjectsModal = useCallback(() => setIsProjectsModalOpen(true), []);
-  const closeProjectsModal = useCallback(() => setIsProjectsModalOpen(false), []);
+  // Sem trabalhos, a própria Home mostra o estado vazio (não há modal para abrir)
+  const handleEmptyWorkspace = useCallback(() => {}, []);
+  const handleProjectImported = useCallback(
+    (imported: DocumentProject) => {
+      openProjectRoute(imported.id);
+    },
+    [openProjectRoute],
+  );
   const clearEditingReference = useCallback(() => setEditingReference(null), []);
 
   const {
@@ -150,8 +185,8 @@ export const App: React.FC = () => {
     clearHistory,
     onBroadcastBlocksSync: broadcastBlocksSync,
     onBroadcastBlockUpdate: broadcastBlockUpdate,
-    onEmptyWorkspace: openProjectsModal,
-    onProjectImported: closeProjectsModal,
+    onEmptyWorkspace: handleEmptyWorkspace,
+    onProjectImported: handleProjectImported,
     onReferenceUpdated: clearEditingReference,
     getDriveAccessToken: isAuthenticated && user ? getValidAccessToken : null,
   });
@@ -210,17 +245,122 @@ export const App: React.FC = () => {
     onResetWorkspace: handleResetSessionWorkspace,
   });
 
-  // Exibição do aviso de boas-vindas do Beta no primeiro acesso do usuário
+  // Aviso do Beta no primeiro acesso: não modal, para não interromper a entrada.
   useEffect(() => {
     if (route !== 'docs' && isSessionActive && !isBetaNoticeDismissed()) {
       const timer = setTimeout(() => {
         if (!isBetaNoticeDismissed()) {
-          setIsBetaNoticeOpen(true);
+          setIsBetaToastVisible(true);
         }
       }, 700);
       return () => clearTimeout(timer);
     }
   }, [isSessionActive, route]);
+
+  const showBackupNotice = !isAuthenticated && isBackupNoticeVisible;
+
+  // Editor = URL com ?p=<id>; sem ele, a Home é a tela inicial
+  const isEditorView = route === 'app' && Boolean(projectId);
+  const isEditorReady = isEditorView && project.id === projectId;
+
+  // Sincroniza o trabalho aberto com a URL (links diretos, voltar/avançar do navegador)
+  useEffect(() => {
+    if (!isSessionActive || !isStorageReady || !projectId || project.id === projectId) return;
+    const target = projects.find((p) => p.id === projectId);
+    if (target) {
+      handleSelectProject(target);
+    } else {
+      goHomeRoute({ replace: true });
+      toast.info('Esse trabalho não está mais disponível.');
+    }
+  }, [isSessionActive, isStorageReady, projectId, project.id, projects, handleSelectProject, goHomeRoute]);
+
+  const openProject = useCallback(
+    (target: DocumentProject) => {
+      handleSelectProject(target);
+      openProjectRoute(target.id);
+    },
+    [handleSelectProject, openProjectRoute],
+  );
+
+  const goHome = useCallback(() => goHomeRoute(), [goHomeRoute]);
+
+  const createAndOpenProject = useCallback(
+    async (templateType: ProjectTemplateType, name?: string, universePackage?: string) => {
+      const created = await handleCreateProject(templateType, name, universePackage);
+      if (created) openProjectRoute(created.id);
+    },
+    [handleCreateProject, openProjectRoute],
+  );
+
+  const customTemplates = useCustomTemplates(activeOwner);
+
+  const createFromCustomTemplate = useCallback(
+    (template: { name: string; packageId: string }, name?: string) =>
+      void createAndOpenProject(
+        'universe_custom',
+        name || uniqueProjectName(template.name, projects.map((p) => p.name)),
+        template.packageId,
+      ),
+    [projects, createAndOpenProject],
+  );
+
+  const openImportPicker = useCallback(() => importInputRef.current?.click(), []);
+
+  const handleDownloadFromHome = useCallback(
+    async (target: DocumentProject) => {
+      if (downloadingId) return;
+      setDownloadingId(target.id);
+      try {
+        await downloadProjectPdf(target, { isAuthenticated, getValidAccessToken });
+      } finally {
+        setDownloadingId(null);
+      }
+    },
+    [downloadingId, isAuthenticated, getValidAccessToken],
+  );
+
+  const handleDuplicateFromHome = useCallback(
+    async (target: DocumentProject) => {
+      const copy = await handleDuplicateProject(target.id, { activate: false });
+      if (copy) toast.success(`Cópia criada: "${copy.name}".`);
+    },
+    [handleDuplicateProject],
+  );
+
+  const handleMoveToTrashFromHome = useCallback(
+    async (target: DocumentProject) => {
+      await handleMoveToTrash(target.id);
+      toast.info(`"${target.name}" foi movido para a Lixeira.`, {
+        action: {
+          label: 'Desfazer',
+          onClick: () => void handleRestoreFromTrash(target.id, { activate: false }),
+        },
+      });
+    },
+    [handleMoveToTrash, handleRestoreFromTrash],
+  );
+
+  const handleRestoreFromHome = useCallback(
+    async (target: DocumentProject) => {
+      await handleRestoreFromTrash(target.id, { activate: false });
+      toast.success(`"${target.name}" voltou para Meus trabalhos.`);
+    },
+    [handleRestoreFromTrash],
+  );
+
+  const handleResizerKeyDown = (pane: 'sidebar' | 'preview') => (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 64 : 16;
+    // Divisor da sidebar: seta para a direita alarga; divisor do PDF: seta para a esquerda alarga.
+    const grow = pane === 'sidebar' ? 'ArrowRight' : 'ArrowLeft';
+    const shrink = pane === 'sidebar' ? 'ArrowLeft' : 'ArrowRight';
+    if (e.key === grow) nudgePane(pane, step);
+    else if (e.key === shrink) nudgePane(pane, -step);
+    else if (e.key === 'Home') nudgePane(pane, -10000);
+    else if (e.key === 'End') nudgePane(pane, 10000);
+    else return;
+    e.preventDefault();
+  };
 
   if (route === 'docs') {
     return (
@@ -251,15 +391,25 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-neutral-100 select-none overflow-hidden">
+    <div
+      data-theme-compat
+      className={`h-dvh flex flex-col bg-surface-sunken overflow-hidden ${
+        resizingPane ? 'select-none cursor-col-resize' : ''
+      }`}
+    >
       {/* Alerta de Recomendação de Backup para Usuários sem Login */}
-      <BackupNoticeBanner
-        isAuthenticated={isAuthenticated}
-        onLogin={handleLoginClick}
-        onLoginDevMock={loginDevMock}
-        isConfigured={isAuthConfigured}
-        isLoading={isAuthLoading}
-      />
+      {showBackupNotice && (
+        <BackupNoticeBanner
+          onLogin={handleLoginClick}
+          onLoginDevMock={loginDevMock}
+          isConfigured={isAuthConfigured}
+          isLoading={isAuthLoading}
+          onDismiss={() => {
+            dismissBackupNotice();
+            setIsBackupNoticeVisible(false);
+          }}
+        />
+      )}
 
       <Header
         projectName={project.name}
@@ -277,10 +427,9 @@ export const App: React.FC = () => {
         showEditor={showEditor}
         showPreview={showPreview}
         onSelectPane={selectPane}
-        onToggleSidebar={toggleSidebar}
-        onToggleEditor={toggleEditor}
-        onTogglePreview={togglePreview}
-        onOpenProjectsModal={openProjectsModal}
+        hasProject={projects.length > 0}
+        view={isEditorView ? 'editor' : 'home'}
+        onGoHome={goHome}
         onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
         onOpenBugReportModal={() => setIsBugReportOpen(true)}
         onOpenBetaNoticeModal={() => setIsBetaNoticeOpen(true)}
@@ -306,38 +455,57 @@ export const App: React.FC = () => {
         onExitGuestMode={handleExitGuestMode}
         onOpenShareModal={() => setIsShareModalOpen(true)}
         onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+        showLoginButton={!showBackupNotice}
       />
 
-      {projects.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-neutral-50 dark:bg-neutral-900 text-center">
-          <div className="w-16 h-16 rounded-3xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 shadow-xs">
-            <FolderOpen className="w-8 h-8" />
-          </div>
-          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">
-            Nenhum trabalho criado ainda
-          </h2>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-sm mb-6 leading-relaxed">
-            Comece escolhendo um modelo com estrutura ABNT pré-configurada ou importe um arquivo existente.
-          </p>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full max-w-sm sm:max-w-none">
-            <button
-              onClick={openProjectsModal}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Criar Primeiro Trabalho</span>
-            </button>
-            <button
-              onClick={openProjectsModal}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700 text-xs font-semibold rounded-xl transition-colors"
-            >
-              <Upload className="w-4 h-4 text-emerald-600" />
-              <span>Importar Trabalho</span>
-            </button>
-          </div>
-        </div>
+      {!isEditorView ? (
+        <HomePage
+          projects={projects}
+          trashedProjects={trashedProjects}
+          lastOpenedProjectId={project.id}
+          isStorageReady={isStorageReady}
+          isAuthenticated={isAuthenticated}
+          downloadingId={downloadingId}
+          isSyncingDrive={isSyncingDrive}
+          onSyncFromDrive={() => void handleSyncFromDrive(true)}
+          onQuickCreate={(type, name) => void createAndOpenProject(type, name)}
+          customTemplates={customTemplates.templates}
+          onAddCustomTemplate={customTemplates.add}
+          onRemoveCustomTemplate={(template) => {
+            customTemplates.remove(template.id);
+            toast.info(`Modelo "${template.name}" removido.`, {
+              action: { label: 'Desfazer', onClick: () => customTemplates.restore(template) },
+            });
+          }}
+          onCreateFromCustom={createFromCustomTemplate}
+          onImport={openImportPicker}
+          onOpen={openProject}
+          onDownloadPdf={(p) => void handleDownloadFromHome(p)}
+          onDuplicate={(p) => void handleDuplicateFromHome(p)}
+          onRename={setRenameTarget}
+          onShowStorage={setStorageTarget}
+          onMoveToTrash={(p) => void handleMoveToTrashFromHome(p)}
+          onRestore={(p) => void handleRestoreFromHome(p)}
+          onDeleteForever={setDeleteTarget}
+          onConnectGoogle={handleLoginClick}
+        />
+      ) : !isEditorReady ? (
+        <main className="flex-1 flex items-center justify-center gap-2 text-sm text-fg-muted" aria-busy="true">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Abrindo trabalho…
+        </main>
       ) : (
-        <div className="flex-1 flex overflow-hidden min-h-0">
+        <main className="flex-1 flex overflow-hidden min-h-0" aria-label="Área de trabalho">
+          {/* Painel minimizado no desktop: barra fina para restaurar */}
+          {!isCompact && !showSidebar && (
+            <PaneRestoreRail
+              side="left"
+              label="Estrutura"
+              icon={<PanelLeftOpen className="w-4 h-4" />}
+              onRestore={toggleSidebar}
+            />
+          )}
+
           {/* Painel Esquerdo: Metadados ABNT e Referências */}
           {showSidebar && (
             <ErrorBoundary
@@ -368,7 +536,10 @@ export const App: React.FC = () => {
                   setWelcomeInitialTab(mode);
                   setIsWelcomeModalOpen(true);
                 }}
-                onMinimize={isCompact ? undefined : toggleSidebar}
+                onMinimize={isCompact || (!showEditor && !showPreview) ? undefined : toggleSidebar}
+                onMaximize={isCompact ? undefined : () => focusPane('sidebar')}
+                onRestoreLayout={restoreAllPanes}
+                isMaximized={!isCompact && !showEditor && !showPreview}
                 isCompact={isCompact}
                 widthPx={isCompact || (!showEditor && !showPreview) ? undefined : sidebarWidth}
               />
@@ -378,20 +549,37 @@ export const App: React.FC = () => {
           {/* Divisor Redimensionável: Sidebar <-> Editor */}
           {!isCompact && showSidebar && (showEditor || showPreview) && (
             <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Redimensionar barra lateral"
+              aria-valuenow={sidebarWidth}
+              aria-valuemin={MIN_SIDEBAR_WIDTH}
+              aria-valuemax={sidebarMax}
+              tabIndex={0}
+              onKeyDown={handleResizerKeyDown('sidebar')}
               onPointerDown={(e) => {
                 e.preventDefault();
                 (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
                 setResizingPane('sidebar');
               }}
-              title="Arraste para redimensionar a barra lateral"
-              className={`w-1.5 cursor-col-resize shrink-0 touch-none flex items-center justify-center transition-colors group ${
+              title="Arraste ou use as setas para redimensionar a barra lateral"
+              className={`relative w-1.5 cursor-col-resize shrink-0 touch-none flex items-center justify-center transition-colors group before:absolute before:inset-y-0 before:-inset-x-1.5 before:content-[''] focus-visible:bg-brand-500 ${
                 resizingPane === 'sidebar'
-                  ? 'bg-emerald-500'
-                  : 'bg-neutral-200/60 hover:bg-emerald-500/60'
+                  ? 'bg-brand-500'
+                  : 'bg-slate-200/60 dark:bg-slate-700/60 hover:bg-brand-500/60'
               }`}
             >
-              <div className="w-0.5 h-8 rounded-full bg-neutral-400/60 group-hover:bg-white" />
+              <div className="w-0.5 h-8 rounded-full bg-slate-400/60 group-hover:bg-white" />
             </div>
+          )}
+
+          {!isCompact && !showEditor && (
+            <PaneRestoreRail
+              side="center"
+              label="Texto"
+              icon={<FileEdit className="w-4 h-4" />}
+              onRestore={toggleEditor}
+            />
           )}
 
           {/* Centro: Editor Visual Estilo Notion */}
@@ -416,7 +604,10 @@ export const App: React.FC = () => {
                 }}
                 onChangeBlocks={handleBlocksChange}
                 onFocusBlock={broadcastCursor}
-                onMinimize={isCompact ? undefined : toggleEditor}
+                onMinimize={isCompact || (!showSidebar && !showPreview) ? undefined : toggleEditor}
+                onMaximize={isCompact ? undefined : () => focusPane('editor')}
+                onRestoreLayout={restoreAllPanes}
+                isMaximized={!isCompact && !showSidebar && !showPreview}
               />
             </ErrorBoundary>
           )}
@@ -424,19 +615,27 @@ export const App: React.FC = () => {
           {/* Divisor Redimensionável: Editor <-> Preview PDF */}
           {!isCompact && showEditor && showPreview && (
             <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Redimensionar painel do PDF"
+              aria-valuenow={previewWidth}
+              aria-valuemin={MIN_PREVIEW_WIDTH}
+              aria-valuemax={previewMax}
+              tabIndex={0}
+              onKeyDown={handleResizerKeyDown('preview')}
               onPointerDown={(e) => {
                 e.preventDefault();
                 (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
                 setResizingPane('preview');
               }}
-              title="Arraste para redimensionar o painel do PDF e o editor"
-              className={`w-1.5 cursor-col-resize shrink-0 touch-none flex items-center justify-center transition-colors group ${
+              title="Arraste ou use as setas para redimensionar o painel do PDF"
+              className={`relative w-1.5 cursor-col-resize shrink-0 touch-none flex items-center justify-center transition-colors group before:absolute before:inset-y-0 before:-inset-x-1.5 before:content-[''] focus-visible:bg-brand-500 ${
                 resizingPane === 'preview'
-                  ? 'bg-emerald-500'
-                  : 'bg-neutral-200/60 hover:bg-emerald-500/60'
+                  ? 'bg-brand-500'
+                  : 'bg-slate-200/60 dark:bg-slate-700/60 hover:bg-brand-500/60'
               }`}
             >
-              <div className="w-0.5 h-8 rounded-full bg-neutral-400/60 group-hover:bg-white" />
+              <div className="w-0.5 h-8 rounded-full bg-slate-400/60 group-hover:bg-white" />
             </div>
           )}
 
@@ -453,15 +652,28 @@ export const App: React.FC = () => {
                 onDownloadPdf={handleDownloadPdf}
                 isExportingPdf={isExportingPdf}
                 onExportProjectZip={handleExportProjectZip}
+                onExportTypst={handleExportTypst}
                 isExportingProject={isExportingProject}
                 widthPx={previewWidth}
                 isFullWidth={isCompact || !showEditor}
                 isCompact={isCompact}
-                onMinimize={isCompact ? undefined : togglePreview}
+                onMinimize={isCompact || (!showSidebar && !showEditor) ? undefined : togglePreview}
+                onMaximize={isCompact ? undefined : () => focusPane('preview')}
+                onRestoreLayout={restoreAllPanes}
+                isMaximized={!isCompact && !showSidebar && !showEditor}
               />
             </ErrorBoundary>
           )}
-        </div>
+
+          {!isCompact && !showPreview && (
+            <PaneRestoreRail
+              side="right"
+              label="PDF"
+              icon={<PanelRightOpen className="w-4 h-4" />}
+              onRestore={togglePreview}
+            />
+          )}
+        </main>
       )}
 
       <ReferenceModal
@@ -476,24 +688,50 @@ export const App: React.FC = () => {
         onAddMultipleReferences={handleAddMultipleReferences}
       />
 
-      <ProjectsModal
-        isOpen={isProjectsModalOpen}
-        onClose={closeProjectsModal}
-        projects={projects}
-        trashedProjects={trashedProjects}
-        activeProjectId={project.id}
-        onSelectProject={handleSelectProject}
-        onCreateProject={handleCreateProject}
-        onRenameProject={handleRenameProject}
-        onDuplicateProject={handleDuplicateProject}
-        onMoveToTrash={handleMoveToTrash}
-        onRestoreFromTrash={handleRestoreFromTrash}
-        onPermanentDelete={handlePermanentDelete}
-        onExportBackup={handleExportBackup}
-        onImportBackup={handleImportBackup}
+      {/* Importação (Home e diálogo de novo trabalho) */}
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".redija,.docx,.zip,.typ,.tex,.md,.markdown,.json"
+        className="hidden"
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleImportBackup(file);
+          e.target.value = '';
+        }}
+      />
+
+      <RenameProjectDialog
+        project={renameTarget}
+        existingNames={projects.map((p) => p.name)}
+        onClose={() => setRenameTarget(null)}
+        onRename={(target, newName) => {
+          void handleRenameProject(target.id, newName);
+          setRenameTarget(null);
+        }}
+      />
+
+      <StorageInfoDialog
+        project={storageTarget}
+        ownerLabel={isAuthenticated && user ? `conta ${user.email}` : 'perfil local'}
         isAuthenticated={isAuthenticated}
-        onSyncFromDrive={() => handleSyncFromDrive(true)}
-        isSyncingDrive={isSyncingDrive}
+        onClose={() => setStorageTarget(null)}
+        onExportBackup={handleExportBackup}
+      />
+
+      <DeleteForeverDialog
+        project={deleteTarget}
+        removesFromDrive={Boolean(
+          isAuthenticated && deleteTarget?.driveFileId && !deleteTarget?.isSharedWithMe,
+        )}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={(target) => {
+          void handlePermanentDelete(target.id);
+          setDeleteTarget(null);
+          toast.info(`"${target.name}" foi excluído permanentemente.`);
+        }}
       />
 
       <ShareModal
@@ -546,6 +784,13 @@ export const App: React.FC = () => {
         onClose={() => setIsBetaNoticeOpen(false)}
         onOpenBugReport={() => setIsBugReportOpen(true)}
       />
+
+      {isBetaToastVisible && !isBetaNoticeOpen && (
+        <BetaNoticeToast
+          onLearnMore={() => setIsBetaNoticeOpen(true)}
+          onDismiss={() => setIsBetaToastVisible(false)}
+        />
+      )}
     </div>
   );
 };

@@ -1,14 +1,8 @@
 import { test, expect, Page } from '@playwright/test';
+import { modelsPanel, openNewProjectDialog } from './helpers';
 
 async function ensureProjectsModal(page: Page) {
-  const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
-  try {
-    await modalHeading.waitFor({ state: 'visible', timeout: 3500 });
-  } catch {
-    await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
-    await expect(modalHeading).toBeVisible();
-  }
-  return modalHeading;
+  return openNewProjectDialog(page);
 }
 
 test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E', () => {
@@ -32,10 +26,9 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     const modalHeading = await ensureProjectsModal(page);
 
     // Seleciona template SBC
-    await page.getByRole('button', { name: /Artigo SBC/i }).click();
     const nameInput = page.getByPlaceholder(/Ex: TCC Engenharia/i);
     await nameInput.fill('Artigo SBC E2E');
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await modelsPanel(page).getByRole('button', { name: /Artigo SBC/i }).click();
 
     // Valida que o projeto está ativo no cabeçalho
     await expect(modalHeading).not.toBeVisible();
@@ -52,10 +45,9 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     const modalHeading = await ensureProjectsModal(page);
 
     // Seleciona template IEEE
-    await page.getByRole('button', { name: /Artigo IEEE Conference/i }).click();
     const nameInput = page.getByPlaceholder(/Ex: TCC Engenharia/i);
     await nameInput.fill('Artigo IEEE E2E');
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await modelsPanel(page).getByRole('button', { name: /Artigo IEEE Conference/i }).click();
 
     // Valida que o projeto está ativo
     await expect(modalHeading).not.toBeVisible();
@@ -72,10 +64,9 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     const modalHeading = await ensureProjectsModal(page);
 
     // Seleciona template Pôster Acadêmico A0
-    await page.getByRole('button', { name: /Pôster Acadêmico A0/i }).click();
     const nameInput = page.getByPlaceholder(/Ex: TCC Engenharia/i);
     await nameInput.fill('Banner Simposio E2E');
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await modelsPanel(page).getByRole('button', { name: /Pôster Acadêmico A0/i }).click();
 
     // Valida que o projeto está ativo
     await expect(modalHeading).not.toBeVisible();
@@ -88,37 +79,43 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     await expect(codeViewer).toContainText('poster.typ');
   });
 
-  test('cria projeto com pacote Typst Universe customizado', async ({ page }) => {
+  test('adiciona modelo do Typst Universe em Mais modelos e cria trabalho com ele', async ({ page }) => {
     const modalHeading = await ensureProjectsModal(page);
 
-    // Seleciona template Typst Universe pelo role button
-    await page.getByRole('button', { name: /Typst Universe \(Template/i }).click();
+    // "Buscar novos modelos" abre a janela com o passo a passo do Typst Universe
+    await modelsPanel(page).getByRole('button', { name: 'Buscar novos modelos' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Buscar novos modelos' });
+    await expect(dialog.getByRole('link', { name: /Abrir Typst Universe/ })).toBeVisible();
 
-    // Valida que o campo de pacote do Typst Universe apareceu
-    await expect(page.getByText('Pacote Typst Universe:')).toBeVisible();
+    // Cola a linha de importação copiada do Universe e dá um nome ao modelo
+    await dialog.getByLabel('Linha de importação').fill('#import "@preview/charged-ieee:0.1.4": ieee');
+    await expect(dialog.getByText(/Pacote reconhecido: charged-ieee/)).toBeVisible();
+    await dialog.getByLabel('Nome do modelo').fill('Artigo IEEE da Comunidade');
+    await dialog.getByRole('button', { name: 'Adicionar modelo' }).click();
+    await expect(dialog).not.toBeVisible();
 
-    // Preenche o identificador do pacote oficial
-    await page.getByPlaceholder('Ex: @preview/charged-ieee:0.1.4').fill('@preview/charged-ieee:0.1.4');
+    // O modelo fica salvo em "Seus modelos" e cria o trabalho com o pacote
+    const customTile = modelsPanel(page).getByRole('button', { name: 'Criar Artigo IEEE da Comunidade' });
+    await expect(customTile).toBeVisible();
+    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill('Artigo Universe E2E');
+    await customTile.click();
 
-    const nameInput = page.getByPlaceholder(/Ex: TCC Engenharia/i);
-    await nameInput.fill('Artigo Universe E2E');
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
-
-    // Valida que o projeto está ativo
     await expect(modalHeading).not.toBeVisible();
     await expect(page.getByText('Artigo Universe E2E')).toBeVisible();
 
-    // Alterna para o código Typst gerado
     await page.getByRole('button', { name: /Ver Typst/i }).click();
-    const codeViewer = page.locator('pre');
-    await expect(codeViewer).toContainText('@preview/charged-ieee');
+    await expect(page.locator('pre')).toContainText('@preview/charged-ieee');
+
+    // Ao voltar para a Home, o modelo personalizado continua em "Mais modelos"
+    await openNewProjectDialog(page);
+    await expect(modelsPanel(page).getByRole('button', { name: 'Criar Artigo IEEE da Comunidade' })).toBeVisible();
   });
 
   test('configura parâmetros avançados de Pôster no Template Customizer', async ({ page }) => {
     const modalHeading = await ensureProjectsModal(page);
     // Cria projeto inicial
     await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Projeto Pôster Custom ${Date.now()}`);
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await modelsPanel(page).getByRole('button', { name: /Trabalho de Conclusão de Curso/ }).click();
     await expect(modalHeading).not.toBeVisible();
 
     // Abre o Template Customizer pelo cabeçalho da barra lateral
@@ -165,9 +162,8 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     const modalHeading = await ensureProjectsModal(page);
 
     // 1. Cria artigo SBC e verifica adaptação imediata da aba lateral
-    await page.getByRole('button', { name: /Artigo SBC/i }).click();
     await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill('SBC Adaptativo E2E');
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await modelsPanel(page).getByRole('button', { name: /Artigo SBC/i }).click();
     await expect(modalHeading).not.toBeVisible();
 
     const sidebar = page.locator('aside').first();
@@ -178,11 +174,9 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     await expect(sidebar.getByText(/Verificador SBC \(\d+\)/)).toBeVisible();
 
     // 2. Cria TCC e aplica formatação customizada para validar ABNT Modificado
-    await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
-    await expect(modalHeading).toBeVisible();
-    await page.getByText('Trabalho de Conclusão de Curso (TCC)').click();
+    await ensureProjectsModal(page);
     await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill('TCC Modificado E2E');
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await modelsPanel(page).getByRole('button', { name: /Trabalho de Conclusão de Curso/ }).click();
     await expect(modalHeading).not.toBeVisible();
 
     await expect(sidebar.getByText('NBR 14724', { exact: true })).toBeVisible();
@@ -209,7 +203,7 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
   }) => {
     const modalHeading = await ensureProjectsModal(page);
     await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`TCC Campos ${Date.now()}`);
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await modelsPanel(page).getByRole('button', { name: /Trabalho de Conclusão de Curso/ }).click();
     await expect(modalHeading).not.toBeVisible();
 
     const sidebar = page.locator('aside').first();
@@ -219,7 +213,8 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     // Abre Personalizar Campos e oculta Coorientador(a)
     await sidebar.getByRole('button', { name: /Personalizar Campos/i }).click();
     await expect(page.getByText('Personalizar Campos da Barra Lateral')).toBeVisible();
-    await page.getByLabel(/Coorientador\(a\)/).uncheck();
+    // O campo da sidebar agora também tem rótulo associado: restringe a busca ao modal
+    await page.getByRole('dialog').getByLabel(/Coorientador\(a\)/).uncheck();
     await page.getByRole('button', { name: /Salvar Campos/i }).click();
 
     await expect(sidebar.getByText('ABNT Modificado', { exact: true })).toBeVisible();
@@ -239,7 +234,7 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
   }) => {
     const modalHeading = await ensureProjectsModal(page);
     await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Artigo Central ${Date.now()}`);
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await modelsPanel(page).getByRole('button', { name: /Trabalho de Conclusão de Curso/ }).click();
     await expect(modalHeading).not.toBeVisible();
 
     await page
@@ -282,7 +277,7 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
   }) => {
     const modalHeading = await ensureProjectsModal(page);
     await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Citação Reativa ${Date.now()}`);
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await modelsPanel(page).getByRole('button', { name: /Trabalho de Conclusão de Curso/ }).click();
     await expect(modalHeading).not.toBeVisible();
 
     const firstParagraph = page.locator('.tiptap.ProseMirror').first();
@@ -324,7 +319,7 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
   }) => {
     const modalHeading = await ensureProjectsModal(page);
     await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Universe Aba1 ${Date.now()}`);
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await modelsPanel(page).getByRole('button', { name: /Trabalho de Conclusão de Curso/ }).click();
     await expect(modalHeading).not.toBeVisible();
 
     await page
@@ -362,9 +357,8 @@ test.describe('RedijaApp: Templates SBC, IEEE, Pôster A0 e Typst Universe E2E',
     page,
   }) => {
     const modalHeading = await ensureProjectsModal(page);
-    await page.getByRole('button', { name: /Artigo SBC/i }).click();
     await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`SBC Draft Safe ${Date.now()}`);
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await modelsPanel(page).getByRole('button', { name: /Artigo SBC/i }).click();
     await expect(modalHeading).not.toBeVisible();
 
     // Aguarda a prévia PDF inicial do SBC renderizar sem erros

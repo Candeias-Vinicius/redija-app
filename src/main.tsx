@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
+import { Toaster } from './components/ui/Toaster';
 import { GoogleAuthProvider } from './core/auth/GoogleAuthContext';
 import { requestStoragePersistence } from './core/storage/db';
 import './index.css';
@@ -12,6 +13,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <GoogleAuthProvider>
       <App />
+      <Toaster />
     </GoogleAuthProvider>
   </React.StrictMode>
 );

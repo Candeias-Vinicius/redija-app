@@ -69,7 +69,7 @@ export const LandingFaq: React.FC<LandingFaqProps> = ({ isDark }) => {
     <section id="faq" className="py-20 sm:py-28 border-t border-slate-200/60 dark:border-slate-800/60 relative">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         <div className="text-center space-y-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-brand-700 dark:text-brand-400">
             Perguntas Frequentes
           </span>
           <h2
@@ -108,7 +108,7 @@ export const LandingFaq: React.FC<LandingFaqProps> = ({ isDark }) => {
                   <span
                     className={`font-semibold text-sm sm:text-base leading-snug ${
                       isOpen
-                        ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                        ? 'text-brand-700 dark:text-brand-400 font-bold'
                         : isDark
                           ? 'text-slate-200'
                           : 'text-slate-800'
@@ -118,7 +118,7 @@ export const LandingFaq: React.FC<LandingFaqProps> = ({ isDark }) => {
                   </span>
                   <div
                     className={`p-1.5 rounded-full transition-transform duration-200 shrink-0 ${
-                      isOpen ? 'rotate-180 bg-emerald-500/10 text-emerald-500' : 'text-slate-400'
+                      isOpen ? 'rotate-180 bg-brand-500/10 text-brand-500' : 'text-slate-400'
                     }`}
                   >
                     <ChevronDown className="w-4 h-4" />

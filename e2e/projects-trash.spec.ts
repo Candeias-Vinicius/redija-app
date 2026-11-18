@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { createProject, goHome } from './helpers';
 
 test.describe('RedijaApp: Gestão de Projetos e Lixeira de Segurança', () => {
   test.beforeEach(async ({ page }) => {
@@ -12,103 +13,64 @@ test.describe('RedijaApp: Gestão de Projetos e Lixeira de Segurança', () => {
     });
 
     await page.goto('/');
-    // Entra como convidado
+    // Entra como convidado: a Home é a tela inicial
     await page.getByRole('button', { name: /Experimentar como Convidado/i }).first().click();
+    await expect(page.getByRole('tablist', { name: 'Filtrar trabalhos' })).toBeVisible();
   });
 
   test('cria múltiplos projetos, alterna entre eles e valida integridade no cabeçalho', async ({
     page,
   }) => {
-    const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
+    const header = page.locator('header');
 
     // 1. Cria primeiro projeto: Artigo de Robótica
-    await expect(modalHeading).toBeVisible();
-    await page.getByText('Artigo Científico').click();
-    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill('Artigo de Robótica 2026');
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await createProject(page, 'Artigo de Robótica 2026', /Artigo Científico/);
+    await expect(header.getByText('Artigo de Robótica 2026')).toBeVisible();
 
-    await expect(modalHeading).not.toBeVisible();
-    await expect(page.getByText('Artigo de Robótica 2026')).toBeVisible();
+    // 2. Volta para a Home e cria o segundo projeto: Relatório de Estágio
+    await createProject(page, 'Relatório de Estágio 2026', /Relatório Técnico/);
+    await expect(header.getByText('Relatório de Estágio 2026')).toBeVisible();
 
-    // 2. Abre modal novamente e cria segundo projeto: Relatório de Estágio
-    await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
-    await expect(modalHeading).toBeVisible();
-
-    await page.getByText('Relatório Técnico').click();
-    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill('Relatório de Estágio 2026');
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
-
-    await expect(modalHeading).not.toBeVisible();
-    await expect(page.getByText('Relatório de Estágio 2026')).toBeVisible();
-
-    // 3. Alterna de volta para o Artigo de Robótica
-    await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
-    await expect(modalHeading).toBeVisible();
-
-    await page.getByRole('button', { name: /Artigo de Robótica 2026/i }).first().click();
-    await expect(modalHeading).not.toBeVisible();
-    await expect(page.getByText('Artigo de Robótica 2026')).toBeVisible();
+    // 3. Pela Home, abre de novo o Artigo de Robótica
+    await goHome(page);
+    await page.getByRole('tabpanel').getByRole('heading', { name: 'Artigo de Robótica 2026' }).click();
+    await expect(header.getByText('Artigo de Robótica 2026')).toBeVisible();
   });
 
   test('move trabalho para a lixeira sem confirmação e desfaz pelo aviso', async ({ page }) => {
-    const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
-    await expect(modalHeading).toBeVisible();
-
     const targetProjectName = 'Trabalho Para Desfazer';
-    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(targetProjectName);
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
-    await expect(modalHeading).not.toBeVisible();
+    await createProject(page, targetProjectName);
+    await goHome(page);
 
-    await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
-    await expect(modalHeading).toBeVisible();
+    // Configurações do card > Mover para a Lixeira (sem sub-modal de confirmação)
+    await page.getByRole('button', { name: `Configurações de ${targetProjectName}` }).click();
+    await page.getByRole('button', { name: 'Mover para a Lixeira' }).click();
 
-    await page.getByTitle('Mover para a Lixeira').first().click();
+    const notifications = page.getByRole('region', { name: 'Notificações' });
+    await expect(notifications.getByRole('status')).toContainText(targetProjectName);
+    await notifications.getByRole('button', { name: 'Desfazer', exact: true }).click();
 
-    // Sem sub-modal de confirmação: vai direto para a lixeira com opção de desfazer
-    await expect(page.getByText(/Mover trabalho para a Lixeira\?/i)).not.toBeVisible();
-    const modal = page.locator('div.fixed.z-50');
-    await expect(modal.getByRole('status')).toContainText(targetProjectName);
-    await modal.getByRole('button', { name: 'Desfazer', exact: true }).click();
-
-    await expect(modal.getByRole('button', { name: /^Lixeira \(0\)/ })).toBeVisible();
-    await expect(modal.getByText(targetProjectName)).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Lixeira\s*0/ })).toBeVisible();
+    await expect(page.getByRole('tabpanel').getByRole('heading', { name: targetProjectName })).toBeVisible();
   });
 
   test('move trabalho para a lixeira e restaura com segurança', async ({ page }) => {
-    const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
-    await expect(modalHeading).toBeVisible();
-
-    // Cria projeto para teste de exclusão
     const targetProjectName = 'Trabalho Temporário Descartável';
-    await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(targetProjectName);
-    await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
+    await createProject(page, targetProjectName);
+    await goHome(page);
 
-    await expect(modalHeading).not.toBeVisible();
-    await expect(page.getByText(targetProjectName)).toBeVisible();
+    await page.getByRole('button', { name: `Configurações de ${targetProjectName}` }).click();
+    await page.getByRole('button', { name: 'Mover para a Lixeira' }).click();
 
-    // Abre modal de projetos para mover para a lixeira
-    await page.getByTitle('Alternar ou criar trabalho acadêmico').click();
-    await expect(modalHeading).toBeVisible();
+    // Acessa a aba Lixeira e valida o aviso de retenção
+    await page.getByRole('tab', { name: /Lixeira/ }).click();
+    const panel = page.getByRole('tabpanel');
+    await expect(panel.getByRole('heading', { name: targetProjectName })).toBeVisible();
+    await expect(panel.getByText(/Expira em \d+ dias/i)).toBeVisible();
 
-    // Clica no botão de lixeira do projeto alvo (move na hora, sem confirmação)
-    await page.getByTitle('Mover para a Lixeira').first().click();
-
-    // Fecha o aviso de "Desfazer" para validar só a lista da Lixeira
-    const modal = page.locator('div.fixed.z-50');
-    await modal.getByTitle('Fechar aviso').click();
-
-    // Acessa a aba da Lixeira no modal (ex: "Lixeira (1)")
-    await modal.getByRole('button', { name: /^Lixeira \(/ }).click();
-
-    // Valida que o trabalho está na Lixeira com aviso de retenção de 30 dias
-    await expect(modal.getByText(targetProjectName)).toBeVisible();
-    await expect(modal.getByText(/Expira em \d+ dias/i)).toBeVisible();
-
-    // Restaura o trabalho da lixeira
-    await modal.getByRole('button', { name: /Restaurar/i }).click();
-
-    // Volta para a aba de Trabalhos Salvos e confirma restauração
-    await modal.getByRole('button', { name: /^Trabalhos Salvos \(/ }).click();
-    await expect(modal.getByText(targetProjectName)).toBeVisible();
+    // Restaura e confirma em Meus trabalhos
+    await panel.getByRole('button', { name: /Restaurar/i }).click();
+    await page.getByRole('tab', { name: /Meus trabalhos/ }).click();
+    await expect(page.getByRole('tabpanel').getByRole('heading', { name: targetProjectName })).toBeVisible();
   });
 });

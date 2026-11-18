@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { createProject } from './helpers';
 
 test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
   test.beforeEach(async ({ page }) => {
@@ -34,15 +35,8 @@ test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
     await expect(page.getByText('Redija', { exact: true })).toBeVisible();
 
     // 4. Se o modal de projetos abrir automaticamente, inicializa um trabalho
-    const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
-    try {
-      await modalHeading.waitFor({ state: 'visible', timeout: 1800 });
-      await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Projeto Cloud ${Date.now()}`);
-      await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
-      await expect(modalHeading).not.toBeVisible();
-    } catch {
-      // Modal não abriu, projeto já ativo
-    }
+    // A Home é a tela inicial: cria um trabalho para abrir o editor
+    await createProject(page, `Projeto Cloud ${Date.now()}`);
 
     // 5. Clica no botão "Compartilhar"
     const shareBtn = page.getByRole('button', { name: /Compartilhar/i });
@@ -50,7 +44,7 @@ test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
     await shareBtn.click();
 
     // 6. Valida que o modal de compartilhamento abriu
-    const shareModal = page.locator('div.fixed.z-50');
+    const shareModal = page.getByRole('dialog');
     await expect(shareModal.getByText('Compartilhar Trabalho')).toBeVisible();
     await expect(shareModal.getByPlaceholder('exemplo@gmail.com')).toBeVisible();
 
@@ -69,15 +63,8 @@ test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
       await demoBtn.click();
 
       // Fecha modal inicial se abrir
-      const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
-      try {
-        await modalHeading.waitFor({ state: 'visible', timeout: 1800 });
-        await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Projeto Perfil ${Date.now()}`);
-        await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
-        await expect(modalHeading).not.toBeVisible();
-      } catch {
-        // Modal não abriu, projeto já ativo
-      }
+      // A Home é a tela inicial: cria um trabalho para abrir o editor
+      await createProject(page, `Projeto Perfil ${Date.now()}`);
 
       // 2. Abre o menu do usuário (avatar no cabeçalho)
       const userMenuTrigger = page.locator('header button.rounded-full');
@@ -93,7 +80,7 @@ test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
       await expect(page.getByRole('heading', { name: 'Configurações da Conta' })).toBeVisible();
 
       // 5. Fecha o modal de configurações
-      const closeSettingsBtn = page.locator('div.fixed.z-50 button').filter({ has: page.locator('svg.lucide-x') }).first();
+      const closeSettingsBtn = page.getByRole('dialog').locator('button').filter({ has: page.locator('svg.lucide-x') }).first();
       await closeSettingsBtn.click();
 
       // 6. Reabre o menu do usuário e realiza Logout
@@ -122,15 +109,8 @@ test.describe('RedijaApp: Autenticação, Nuvem e Compartilhamento', () => {
     await expect(page.getByText('Redija', { exact: true })).toBeVisible();
 
     // Fecha modal de boas-vindas/projetos se abrir
-    const modalHeading = page.getByRole('heading', { name: /Meus Trabalhos Acadêmicos/i });
-    try {
-      await modalHeading.waitFor({ state: 'visible', timeout: 1800 });
-      await page.getByPlaceholder(/Ex: TCC Engenharia/i).fill(`Trabalho F5 ${Date.now()}`);
-      await page.getByRole('button', { name: /Criar Novo Trabalho/i }).click();
-      await expect(modalHeading).not.toBeVisible();
-    } catch {
-      // Modal não abriu
-    }
+    // A Home é a tela inicial: cria um trabalho para abrir o editor
+    await createProject(page, `Trabalho F5 ${Date.now()}`);
 
     // 3. Simula F5 (Reload completo da página)
     await page.reload();

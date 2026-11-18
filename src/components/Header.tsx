@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import {
+  ArrowLeft,
   CheckCircle2,
   FolderOpen,
   ChevronDown,
@@ -13,7 +14,6 @@ import {
   CloudCheck,
   Cloud,
   Share2,
-  LogIn,
   LogOut,
   Settings,
   User,
@@ -28,6 +28,8 @@ import { GITHUB_REPO_URL } from '@/core/links';
 import type { PaneId } from '@/hooks/usePaneLayout';
 import { Logo } from './Logo';
 import { GitHubIcon } from './GitHubIcon';
+import { GoogleLogo } from './GoogleLogo';
+import { InfoTooltip } from './ui/InfoTooltip';
 
 interface HeaderProps {
   projectName: string;
@@ -45,10 +47,14 @@ interface HeaderProps {
   showEditor: boolean;
   showPreview: boolean;
   onSelectPane?: (pane: PaneId) => void;
-  onToggleSidebar: () => void;
-  onToggleEditor: () => void;
-  onTogglePreview: () => void;
-  onOpenProjectsModal: () => void;
+  /** Há um trabalho aberto (abas de painel e histórico só fazem sentido com projeto). */
+  hasProject?: boolean;
+  /** "home": lista de trabalhos (com busca); "editor": trabalho aberto. */
+  view?: 'home' | 'editor';
+  /** Volta do editor para a Home. */
+  onGoHome?: () => void;
+  /** Campo de busca exibido no header da Home. */
+  homeSearch?: React.ReactNode;
   onOpenBugReportModal: () => void;
   onOpenBetaNoticeModal?: () => void;
   onOpenTemplateCustomizer?: () => void;
@@ -72,7 +78,17 @@ interface HeaderProps {
   onOpenAccountSettings: () => void;
   isGuestMode?: boolean;
   onExitGuestMode?: () => void;
+  /** Exibe o botão "Entrar" (oculto enquanto o aviso de backup já oferece o login). */
+  showLoginButton?: boolean;
 }
+
+type PaneTab = { id: PaneId; label: string; icon: React.ReactNode; active: boolean };
+
+const ICON_BUTTON =
+  'touch-target flex items-center justify-center p-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-surface-sunken transition-colors';
+
+const MENU_ITEM =
+  'w-full flex items-center gap-2 px-3.5 py-2 touch-target text-slate-700 dark:text-slate-200 hover:bg-surface-sunken transition-colors text-left';
 
 export const Header: React.FC<HeaderProps> = ({
   projectName,
@@ -90,10 +106,10 @@ export const Header: React.FC<HeaderProps> = ({
   showEditor,
   showPreview,
   onSelectPane,
-  onToggleSidebar,
-  onToggleEditor,
-  onTogglePreview,
-  onOpenProjectsModal,
+  hasProject = true,
+  view = 'editor',
+  onGoHome,
+  homeSearch,
   onOpenBugReportModal,
   onOpenBetaNoticeModal,
   onOpenFullDocs,
@@ -107,467 +123,510 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAccountSettings,
   isGuestMode = false,
   onExitGuestMode,
+  showLoginButton = true,
 }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const userMenuId = useId();
 
-  // Fecha menus ao clicar fora
+  // Fecha o menu ao clicar fora ou com Esc (devolvendo o foco ao botão)
   useEffect(() => {
+    if (!isUserMenuOpen) return;
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setIsUserMenuOpen(false);
       }
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsUserMenuOpen(false);
+        userMenuButtonRef.current?.focus();
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isUserMenuOpen]);
+
+  const paneTabs: PaneTab[] = [
+    {
+      id: 'sidebar',
+      label: 'Estrutura',
+      icon: <PanelLeft className="w-3.5 h-3.5" />,
+      active: showSidebar,
+    },
+    {
+      id: 'editor',
+      label: 'Texto',
+      icon: <FileEdit className="w-3.5 h-3.5" />,
+      active: showEditor,
+    },
+    {
+      id: 'preview',
+      label: 'PDF',
+      icon: <Eye className="w-3.5 h-3.5" />,
+      active: showPreview,
+    },
+  ];
+
+  const handlePaneTabsKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!onSelectPane) return;
+    if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+    const currentIndex = paneTabs.findIndex((tab) => tab.active);
+    const delta = event.key === 'ArrowRight' ? 1 : -1;
+    const next = paneTabs[(currentIndex + delta + paneTabs.length) % paneTabs.length];
+    onSelectPane(next.id);
+    const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>('button');
+    buttons[paneTabs.indexOf(next)]?.focus();
+    event.preventDefault();
+  };
 
   const paneSwitcher = (
     <div
-      className={`flex items-center gap-0.5 sm:gap-1 ${
-        isCompact
-          ? 'w-full bg-neutral-100 dark:bg-neutral-800/80 rounded-lg p-0.5'
-          : 'pl-1.5 border-l border-neutral-200 dark:border-neutral-800'
-      }`}
-      role={isCompact ? 'tablist' : undefined}
+      className="flex-1 flex items-center gap-0.5 sm:gap-1 bg-surface-sunken rounded-lg p-0.5"
+      role="tablist"
       aria-label="Painéis do workspace"
+      onKeyDown={handlePaneTabsKeyDown}
+    >
+      {paneTabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          role="tab"
+          aria-selected={tab.active}
+          tabIndex={tab.active ? undefined : -1}
+          onClick={() => onSelectPane?.(tab.id)}
+          className={`touch-target flex flex-1 sm:flex-none items-center justify-center gap-1 px-2 py-1.5 sm:py-1 rounded-md text-xs font-medium border transition-colors whitespace-nowrap ${
+            tab.active
+              ? 'bg-surface border-transparent shadow-xs text-brand-800 dark:text-brand-300'
+              : 'bg-transparent border-transparent text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          {tab.icon}
+          <span>{tab.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  const undoRedo = (
+    <div
+      className={`flex items-center gap-0.5 ${isCompact ? '' : 'pl-1 border-l border-line'}`}
+      role="group"
+      aria-label="Histórico de edição"
     >
       <button
         type="button"
-        role={isCompact ? 'tab' : undefined}
-        aria-selected={isCompact ? showSidebar : undefined}
-        onClick={() => (isCompact && onSelectPane ? onSelectPane('sidebar') : onToggleSidebar())}
-        className={`flex flex-1 sm:flex-none items-center justify-center gap-1 px-2 py-1.5 sm:py-0.5 rounded text-[11px] font-medium border transition-colors ${
-          showSidebar
-            ? isCompact
-              ? 'bg-white dark:bg-neutral-900 border-transparent shadow-xs text-emerald-800 dark:text-emerald-300'
-              : 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-            : isCompact
-              ? 'bg-transparent border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
-              : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
-        }`}
-        title="Painel Estrutura"
+        onClick={onUndo}
+        disabled={!canUndo}
+        className={`${ICON_BUTTON} disabled:opacity-30 disabled:pointer-events-none`}
+        title="Desfazer alteração (Ctrl+Z)"
+        aria-label="Desfazer alteração"
+        aria-keyshortcuts="Control+Z"
       >
-        <PanelLeft className="w-3.5 h-3.5" />
-        <span>Estrutura</span>
+        <Undo2 className="w-4 h-4" />
       </button>
-
       <button
         type="button"
-        role={isCompact ? 'tab' : undefined}
-        aria-selected={isCompact ? showEditor : undefined}
-        onClick={() => (isCompact && onSelectPane ? onSelectPane('editor') : onToggleEditor())}
-        className={`flex flex-1 sm:flex-none items-center justify-center gap-1 px-2 py-1.5 sm:py-0.5 rounded text-[11px] font-medium border transition-colors ${
-          showEditor
-            ? isCompact
-              ? 'bg-white dark:bg-neutral-900 border-transparent shadow-xs text-emerald-800 dark:text-emerald-300'
-              : 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-            : isCompact
-              ? 'bg-transparent border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
-              : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
-        }`}
-        title="Painel Texto"
+        onClick={onRedo}
+        disabled={!canRedo}
+        className={`${ICON_BUTTON} disabled:opacity-30 disabled:pointer-events-none`}
+        title="Refazer alteração (Ctrl+Y)"
+        aria-label="Refazer alteração"
+        aria-keyshortcuts="Control+Y"
       >
-        <FileEdit className="w-3.5 h-3.5" />
-        <span>Texto</span>
-      </button>
-
-      <button
-        type="button"
-        role={isCompact ? 'tab' : undefined}
-        aria-selected={isCompact ? showPreview : undefined}
-        onClick={() => (isCompact && onSelectPane ? onSelectPane('preview') : onTogglePreview())}
-        className={`flex flex-1 sm:flex-none items-center justify-center gap-1 px-2 py-1.5 sm:py-0.5 rounded text-[11px] font-medium border transition-colors ${
-          showPreview
-            ? isCompact
-              ? 'bg-white dark:bg-neutral-900 border-transparent shadow-xs text-emerald-800 dark:text-emerald-300'
-              : 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-            : isCompact
-              ? 'bg-transparent border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
-              : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
-        }`}
-        title="Painel PDF"
-      >
-        <Eye className="w-3.5 h-3.5" />
-        <span>PDF</span>
+        <Redo2 className="w-4 h-4" />
       </button>
     </div>
   );
 
-  return (
-    <header className="border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 sticky top-0 z-30 transition-colors">
-      <div className="h-12 sm:h-14 px-2 sm:px-3 flex items-center justify-between gap-2">
-      {/* Lado Esquerdo: Marca, Projeto e Navegação de Abas */}
-      <div className="flex items-center gap-1 sm:gap-2.5 min-w-0 flex-1 overflow-hidden">
-        <Logo size="sm" onBetaClick={onOpenBetaNoticeModal} />
+  // Status de salvamento: visível em todas as larguras (texto a partir de xl)
+  const isSaving = driveSyncStatus === 'syncing' || saveStatus === 'saving';
+  const statusText = isSaving
+    ? 'Salvando alterações…'
+    : driveSyncStatus === 'synced'
+      ? 'Salvo no Google Drive'
+      : driveSyncStatus === 'error'
+        ? 'Sessão do Drive expirada: reconecte sua conta Google'
+        : 'Salvo neste navegador';
 
-        <span className="text-neutral-300 dark:text-neutral-700 hidden md:inline">/</span>
-
-        {/* Seletor de Projetos */}
-        <button
-          onClick={onOpenProjectsModal}
-          className="flex items-center gap-1.5 px-1.5 sm:px-2 py-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs font-medium text-neutral-800 dark:text-neutral-200 transition-colors min-w-0 max-w-[140px] sm:max-w-[160px] lg:max-w-xs"
-          title="Alternar ou criar trabalho acadêmico"
+  const saveStatusIndicator = (
+    <div className="flex items-center">
+      <span role="status" aria-live="polite" className="sr-only">
+        {statusText}
+      </span>
+      {isSaving ? (
+        <div
+          className="flex items-center gap-1 text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded-full border border-amber-200 dark:border-amber-800/60"
+          title={statusText}
+          aria-hidden="true"
         >
-          <FolderOpen className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          <span className="truncate hidden md:inline">{projectName}</span>
-          <span className="text-[10px] bg-neutral-200/80 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-1 rounded-full shrink-0 hidden md:inline">
-            {projectsCount}
-          </span>
-          <ChevronDown className="w-3 h-3 text-neutral-400 shrink-0" />
-        </button>
-
-        {/* Botões Desfazer / Refazer */}
-        <div className="flex items-center gap-0.5 pl-1 border-l border-neutral-200 dark:border-neutral-800">
-          <button
-            type="button"
-            onClick={onUndo}
-            disabled={!canUndo}
-            className="p-1.5 rounded-md text-neutral-500 hover:text-neutral-800 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-            title="Desfazer alteração (Ctrl+Z)"
-          >
-            <Undo2 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={onRedo}
-            disabled={!canRedo}
-            className="p-1.5 rounded-md text-neutral-500 hover:text-neutral-800 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-            title="Refazer alteração (Ctrl+Y)"
-          >
-            <Redo2 className="w-3.5 h-3.5" />
-          </button>
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <span className="hidden xl:inline">Salvando…</span>
         </div>
-
-        {/* Alternadores de painéis — desktop inline */}
-        {!isCompact && paneSwitcher}
-      </div>
-
-      {/* Lado Direito: Ações Principais e Perfil */}
-      <div className="flex items-center gap-1.5 shrink-0">
-        {/* Status de Sincronização Local / Nuvem */}
-        <div className="hidden lg:flex items-center mr-1">
-          {driveSyncStatus === 'syncing' || saveStatus === 'saving' ? (
-            <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              <span>Sincronizando...</span>
-            </div>
-          ) : driveSyncStatus === 'synced' ? (
-            <div
-              className="flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60 cursor-default"
-              title="Salvo com segurança no seu Google Drive"
-            >
-              <CloudCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-              <span>Salvo no Drive</span>
-            </div>
-          ) : driveSyncStatus === 'error' ? (
-            <button
-              onClick={onLogin}
-              className="flex items-center gap-1 text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800 cursor-pointer transition-colors"
-              title="Sessão do Drive expirada. Clique para reconectar sua conta Google."
-            >
-              <Cloud className="w-3 h-3 text-amber-600" />
-              <span>Reconectar Drive</span>
-            </button>
-          ) : (
-            <div
-              className="flex items-center gap-1 text-[11px] text-neutral-500 dark:text-neutral-400 px-2 py-0.5 cursor-default"
-              title="Salvo apenas neste navegador."
-            >
-              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-              <span className="hidden xl:inline">Salvo local</span>
-            </div>
-          )}
-        </div>
-
-        {/* Presença de Colaboradores em Tempo Real (Nível 3 P2P) */}
-        {activeCollaborators.length > 0 && (
-          <div
-            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 animate-in fade-in duration-200"
-            title={`${activeCollaborators.length} colaborador(es) editando ao vivo agora`}
-          >
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <div className="flex items-center -space-x-1.5">
-              {activeCollaborators.slice(0, 3).map((c) => (
-                <div
-                  key={c.peerId}
-                  title={`${c.user.name} (${c.user.email}): Online agora`}
-                  className="w-5 h-5 rounded-full ring-1 ring-white dark:ring-neutral-900 overflow-hidden bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-neutral-700 dark:text-neutral-200 shrink-0"
-                >
-                  {c.user.picture ? (
-                    <img
-                      src={c.user.picture}
-                      alt={c.user.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    c.user.name.charAt(0).toUpperCase()
-                  )}
-                </div>
-              ))}
-            </div>
-            <span className="text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 hidden md:inline">
-              {activeCollaborators.length === 1
-                ? '1 online'
-                : `${activeCollaborators.length} online`}
-            </span>
-          </div>
-        )}
-
-        {/* Botão Compartilhar */}
-        <button
-          onClick={onOpenShareModal}
-          className="flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-          title="Compartilhar projeto via e-mail do Google"
+      ) : driveSyncStatus === 'synced' ? (
+        <div
+          className="flex items-center gap-1 text-xs text-brand-800 dark:text-brand-300 px-1.5 py-1"
+          title={statusText}
+          aria-hidden="true"
         >
-          <Share2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
-          <span className="hidden md:inline">Compartilhar</span>
-        </button>
-
-        {/* Botão Relatar Problema (Direto) */}
+          <CloudCheck className="w-4 h-4 text-brand-700 dark:text-brand-400" />
+          <span className="hidden xl:inline">Salvo no Drive</span>
+        </div>
+      ) : driveSyncStatus === 'error' ? (
         <button
           type="button"
-          onClick={onOpenBugReportModal}
-          className="flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-medium rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-amber-700 dark:text-amber-400 hover:bg-amber-50/60 dark:hover:bg-amber-950/40 transition-colors"
-          title="Relatar problema ou sugestão"
+          onClick={onLogin}
+          className="touch-target flex items-center gap-1 text-xs text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-2 py-1 rounded-full border border-amber-300 dark:border-amber-800 transition-colors"
+          title={statusText}
         >
-          <Bug className="w-3.5 h-3.5 text-amber-600 dark:text-amber-500 shrink-0" />
-          <span className="hidden md:inline">Relatar Problema</span>
+          <Cloud className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+          <span className="hidden md:inline">Reconectar Drive</span>
+          <span className="sr-only md:hidden">Reconectar Drive</span>
         </button>
+      ) : (
+        <div
+          className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300 px-1.5 py-1"
+          title={statusText}
+          aria-hidden="true"
+        >
+          <CheckCircle2 className="w-4 h-4 text-brand-700 dark:text-brand-400" />
+          <span className="hidden xl:inline">Salvo local</span>
+        </div>
+      )}
+    </div>
+  );
 
-        {/* Separador */}
-        <div className="h-4 w-px bg-neutral-200 dark:bg-neutral-800 mx-0.5" />
-
-        {/* Perfil do Usuário / Login */}
-        {isAuthenticated && user ? (
-          <div className="relative" ref={userMenuRef}>
-            <button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center gap-1 p-0.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-              title={`Conectado como ${user.name}`}
-            >
-              {user.picture ? (
-                <img
-                  src={user.picture}
-                  alt={user.name}
-                  className="w-7 h-7 rounded-full border border-neutral-200 dark:border-neutral-700 shrink-0"
-                />
-              ) : (
-                <div className="w-7 h-7 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <ChevronDown className="w-3 h-3 text-neutral-400" />
-            </button>
-
-            {/* Dropdown do Usuário */}
-            {isUserMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-neutral-900 shadow-xl border border-neutral-200 dark:border-neutral-800 py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-100 divide-y divide-neutral-100 dark:divide-neutral-800">
-                <div className="px-3.5 py-2">
-                  <p className="font-semibold text-neutral-900 dark:text-white truncate">
-                    {user.name}
-                  </p>
-                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
-                    {user.email}
-                  </p>
-                </div>
-
-                <div className="py-1">
-                  {/* Alternador de Modo Claro / Escuro dentro do perfil */}
-                  <button
-                    onClick={onToggleDarkMode}
-                    className="w-full flex items-center justify-between px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      {darkMode ? (
-                        <Sun className="w-3.5 h-3.5 text-amber-400" />
-                      ) : (
-                        <Moon className="w-3.5 h-3.5 text-neutral-500" />
-                      )}
-                      <span>Aparência</span>
-                    </div>
-                    <span className="text-[10px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-1.5 py-0.5 rounded">
-                      {darkMode ? 'Escuro' : 'Claro'}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setIsUserMenuOpen(false);
-                      onOpenAccountSettings();
-                    }}
-                    className="w-full flex items-center gap-2 px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
-                  >
-                    <Settings className="w-3.5 h-3.5 text-neutral-500" />
-                    <span>Configurações da Conta</span>
-                  </button>
-
-                  <a
-                    href="/docs"
-                    onClick={(e) => {
-                      setIsUserMenuOpen(false);
-                      if (onOpenFullDocs && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-                        e.preventDefault();
-                        onOpenFullDocs();
-                      }
-                    }}
-                    className="w-full flex items-center gap-2 px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
-                  >
-                    <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Documentação (/docs)</span>
-                  </a>
-
-                  <a
-                    href={GITHUB_REPO_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="w-full flex items-center gap-2 px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
-                  >
-                    <GitHubIcon className="w-3.5 h-3.5 text-neutral-500" />
-                    <span>GitHub (Código Aberto)</span>
-                  </a>
-                </div>
-
-                <div className="py-1">
-                  <button
-                    onClick={() => {
-                      setIsUserMenuOpen(false);
-                      onLogout();
-                    }}
-                    className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-left"
-                  >
-                    <LogOut className="w-3.5 h-3.5 text-red-500" />
-                    <span>Sair da Conta Google</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+  const appearanceItem = (
+    <button type="button" onClick={onToggleDarkMode} className={`${MENU_ITEM} justify-between`}>
+      <span className="flex items-center gap-2">
+        {darkMode ? (
+          <Sun className="w-4 h-4 text-amber-500" />
         ) : (
-          <div className="flex items-center gap-2">
-            {/* Botão rápido para conectar com Google */}
-            <button
-              onClick={onLogin}
-              disabled={isAuthLoading}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-700 text-neutral-800 dark:text-white border border-neutral-300 dark:border-neutral-700 shadow-xs transition-all"
-              title="Conectar com conta Google para sincronizar e colaborar"
-            >
-              {isAuthLoading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
-              ) : (
-                <LogIn className="w-3.5 h-3.5 text-emerald-600" />
-              )}
-              <span className="hidden sm:inline">Entrar</span>
-            </button>
+          <Moon className="w-4 h-4 text-slate-500" />
+        )}
+        <span>Aparência</span>
+      </span>
+      <span className="text-xs font-medium bg-surface-sunken text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded">
+        {darkMode ? 'Escuro' : 'Claro'}
+      </span>
+    </button>
+  );
 
-            {/* Menu Perfil Local */}
+  const docsItems = (
+    <>
+      <a
+        href="/docs"
+        onClick={(e) => {
+          setIsUserMenuOpen(false);
+          if (onOpenFullDocs && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            e.preventDefault();
+            onOpenFullDocs();
+          }
+        }}
+        className={MENU_ITEM}
+      >
+        <BookOpen className="w-4 h-4 text-brand-700 dark:text-brand-400" />
+        <span>Documentação</span>
+      </a>
+      <button
+        type="button"
+        onClick={() => {
+          setIsUserMenuOpen(false);
+          onOpenBugReportModal();
+        }}
+        className={MENU_ITEM}
+      >
+        <Bug className="w-4 h-4 text-slate-500" />
+        <span>Relatar problema ou sugestão</span>
+      </button>
+      <a
+        href={GITHUB_REPO_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => setIsUserMenuOpen(false)}
+        className={MENU_ITEM}
+      >
+        <GitHubIcon className="w-4 h-4 text-slate-500" />
+        <span>GitHub (Código Aberto)</span>
+      </a>
+    </>
+  );
+
+  const menuPanelClass =
+    'absolute right-0 mt-2 rounded-xl bg-surface shadow-xl border border-line py-1.5 z-50 text-sm animate-in fade-in zoom-in-95 duration-100 divide-y divide-slate-100 dark:divide-slate-700';
+
+  return (
+    <header className="border-b border-line bg-surface sticky top-0 z-30 transition-colors">
+      <div className="h-12 sm:h-14 px-2 sm:px-3 flex items-center justify-between gap-2">
+        {/* Lado Esquerdo: Marca, Projeto e Navegação de Painéis */}
+        <div className="flex items-center gap-1 sm:gap-2.5 min-w-0 flex-1">
+          <Logo
+            size="sm"
+            onBetaClick={onOpenBetaNoticeModal}
+            className="shrink-0"
+            wordmarkClassName="hidden sm:flex"
+            betaBadgeClassName="hidden md:inline-flex"
+          />
+
+          {view === 'home' ? (
+            homeSearch
+          ) : (
+            <>
+              {/* Voltar para a Home + nome do trabalho aberto */}
+              <button
+                type="button"
+                onClick={onGoHome}
+                className="touch-target flex items-center gap-1.5 px-1.5 sm:px-2 py-1 rounded-md hover:bg-surface-sunken text-sm font-medium text-slate-700 dark:text-slate-200 transition-colors shrink-0"
+                title={`Voltar para Meus trabalhos (${projectsCount})`}
+                aria-label="Voltar para Meus trabalhos"
+              >
+                <ArrowLeft className="w-4 h-4 shrink-0" />
+                <span className="hidden lg:inline">Meus trabalhos</span>
+              </button>
+              <span className="text-slate-300 dark:text-slate-600 hidden lg:inline" aria-hidden="true">
+                /
+              </span>
+              <p
+                className="min-w-0 flex items-center gap-1.5 text-sm font-medium text-fg"
+                title={projectName}
+              >
+                <FolderOpen className="w-4 h-4 text-brand-700 dark:text-brand-400 shrink-0 hidden sm:block" aria-hidden="true" />
+                <span className="truncate">{projectName}</span>
+              </p>
+            </>
+          )}
+
+          {!isCompact && hasProject && view === 'editor' && undoRedo}
+        </div>
+
+        {/* Lado Direito: Status, Ações e Perfil */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {saveStatusIndicator}
+
+          {/* Presença de Colaboradores em Tempo Real (Nível 3 P2P) */}
+          {activeCollaborators.length > 0 && (
+            <div
+              className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-brand-50/80 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800 animate-in fade-in duration-200"
+              title={`${activeCollaborators.length} colaborador(es) editando ao vivo agora`}
+              role="status"
+              aria-label={`${activeCollaborators.length} colaborador(es) online`}
+            >
+              <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
+                <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-500"></span>
+              </span>
+              <div className="flex items-center -space-x-1.5">
+                {activeCollaborators.slice(0, 3).map((c) => (
+                  <div
+                    key={c.peerId}
+                    title={`${c.user.name} (${c.user.email}): Online agora`}
+                    className="w-5 h-5 rounded-full ring-1 ring-white dark:ring-slate-900 overflow-hidden bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-200 shrink-0"
+                  >
+                    {c.user.picture ? (
+                      <img src={c.user.picture} alt={c.user.name} className="w-full h-full object-cover" />
+                    ) : (
+                      c.user.name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                ))}
+              </div>
+              <span className="text-xs font-semibold text-brand-800 dark:text-brand-300 hidden md:inline">
+                {activeCollaborators.length} online
+              </span>
+            </div>
+          )}
+
+          {/* Compartilhar (ação do trabalho aberto: só no editor) */}
+          {view === 'editor' && (
+          <button
+            type="button"
+            onClick={onOpenShareModal}
+            className="touch-target flex items-center justify-center gap-1.5 p-1.5 md:px-2.5 text-sm font-medium rounded-lg border border-line bg-surface text-slate-700 dark:text-slate-200 hover:bg-surface-sunken transition-colors"
+            title="Compartilhar projeto via e-mail do Google"
+            aria-label="Compartilhar trabalho"
+          >
+            <Share2 className="w-4 h-4 text-brand-700 dark:text-brand-400" />
+            <span className="hidden md:inline">Compartilhar</span>
+          </button>
+          )}
+
+          {/* Perfil do Usuário / Login (o menu também traz Ajuda: documentação e relatar problema) */}
+          {isAuthenticated && user ? (
             <div className="relative" ref={userMenuRef}>
               <button
+                ref={userMenuButtonRef}
+                type="button"
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-750 transition-colors text-neutral-800 dark:text-neutral-200"
-                title={isGuestMode ? "Sessão Local Ativa (Navegador)" : "Sessão Local (Navegador)"}
+                className="touch-target flex items-center justify-center gap-1 p-0.5 rounded-full hover:bg-surface-sunken transition-colors"
+                title={`Conectado como ${user.name}`}
+                aria-label={`Menu da conta de ${user.name}`}
+                aria-expanded={isUserMenuOpen}
+                aria-controls={userMenuId}
               >
-                <div className="w-5 h-5 rounded-full bg-neutral-300 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 flex items-center justify-center text-[10px] font-bold">
-                  <User className="w-3 h-3" />
-                </div>
-                <span className="text-xs font-medium hidden sm:inline">Perfil Local</span>
-                <ChevronDown className="w-3 h-3 text-neutral-400" />
+                {user.picture ? (
+                  <img
+                    src={user.picture}
+                    alt=""
+                    className="w-7 h-7 rounded-full border border-line shrink-0"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-brand-700 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
               </button>
 
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-xl bg-white dark:bg-neutral-900 shadow-xl border border-neutral-200 dark:border-neutral-800 py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-100 divide-y divide-neutral-100 dark:divide-neutral-800">
-                  <div className="px-3.5 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                        <HardDrive className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-neutral-900 dark:text-white truncate">
-                          Perfil Local
-                        </p>
-                        <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                          Salvo neste dispositivo
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-2 leading-relaxed bg-neutral-50 dark:bg-neutral-800/60 p-2 rounded-lg">
-                      Seus trabalhos locais ficam salvos isolados. Ao sair, outro colega pode logar com a conta dele sem acessar seus arquivos.
-                    </p>
+                <div id={userMenuId} className={`${menuPanelClass} w-64`}>
+                  <div className="px-3.5 py-2">
+                    <p className="font-semibold text-fg truncate">{user.name}</p>
+                    <p className="text-xs text-fg-muted truncate">{user.email}</p>
                   </div>
 
                   <div className="py-1">
+                    {appearanceItem}
                     <button
-                      onClick={onToggleDarkMode}
-                      className="w-full flex items-center justify-between px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-2">
-                        {darkMode ? (
-                          <Sun className="w-3.5 h-3.5 text-amber-400" />
-                        ) : (
-                          <Moon className="w-3.5 h-3.5 text-neutral-500" />
-                        )}
-                        <span>Aparência</span>
-                      </div>
-                      <span className="text-[10px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-1.5 py-0.5 rounded">
-                        {darkMode ? 'Escuro' : 'Claro'}
-                      </span>
-                    </button>
-
-                    <a
-                      href="/docs"
-                      onClick={(e) => {
-                        setIsUserMenuOpen(false);
-                        if (onOpenFullDocs && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-                          e.preventDefault();
-                          onOpenFullDocs();
-                        }
-                      }}
-                      className="w-full flex items-center gap-2 px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
-                    >
-                      <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Documentação (/docs)</span>
-                    </a>
-
-                    <a
-                      href={GITHUB_REPO_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="w-full flex items-center gap-2 px-3.5 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
-                    >
-                      <GitHubIcon className="w-3.5 h-3.5 text-neutral-500" />
-                      <span>GitHub (Código Aberto)</span>
-                    </a>
-                  </div>
-
-                  <div className="py-1">
-                    <button
+                      type="button"
                       onClick={() => {
                         setIsUserMenuOpen(false);
-                        onExitGuestMode?.();
+                        onOpenAccountSettings();
                       }}
-                      className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-left font-medium"
+                      className={MENU_ITEM}
                     >
-                      <LogOut className="w-3.5 h-3.5 text-red-500" />
-                      <span>Sair do Perfil Local</span>
+                      <Settings className="w-4 h-4 text-slate-500" />
+                      <span>Configurações da Conta</span>
+                    </button>
+                    {docsItems}
+                  </div>
+
+                  <div className="py-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        onLogout();
+                      }}
+                      className={`${MENU_ITEM} !text-red-700 dark:!text-red-400 hover:!bg-red-50 dark:hover:!bg-red-950/40`}
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Sair da Conta Google</span>
                     </button>
                   </div>
                 </div>
               )}
             </div>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              {showLoginButton && (
+                // Botão no padrão visual do Google (cores e "G" oficiais) para deixar claro
+                // que a conexão é com a conta Google; no celular fica só o "G".
+                <button
+                  type="button"
+                  onClick={onLogin}
+                  disabled={isAuthLoading}
+                  className="touch-target flex items-center justify-center gap-2 p-1.5 sm:px-3 sm:py-1.5 text-sm font-medium rounded-full border border-[#747775] bg-[#ffffff] text-[#1f1f1f] hover:bg-[#f8f9fa] dark:border-[#8e918f] dark:bg-[#131314] dark:text-[#e3e3e3] dark:hover:bg-[#1f1f20] disabled:opacity-60 transition-colors"
+                  title="Conectar sua conta Google para salvar no Drive e colaborar"
+                  aria-label="Conectar com a conta Google"
+                >
+                  {isAuthLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" />
+                  ) : (
+                    <GoogleLogo />
+                  )}
+                  <span className="hidden sm:inline">Conectar</span>
+                </button>
+              )}
+
+              {/* Menu Perfil Local */}
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  ref={userMenuButtonRef}
+                  type="button"
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="touch-target flex items-center justify-center gap-1.5 px-2 py-1 rounded-full border border-line bg-surface-sunken hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-fg"
+                  title={isGuestMode ? 'Sessão Local Ativa (Navegador)' : 'Sessão Local (Navegador)'}
+                  aria-label="Menu do perfil local"
+                  aria-expanded={isUserMenuOpen}
+                  aria-controls={userMenuId}
+                >
+                  <div className="w-5 h-5 rounded-full bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-slate-100 flex items-center justify-center">
+                    <User className="w-3.5 h-3.5" />
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                </button>
+
+                {isUserMenuOpen && (
+                  <div id={userMenuId} className={`${menuPanelClass} w-72`}>
+                    <div className="px-3.5 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-950/60 text-brand-700 dark:text-brand-400 flex items-center justify-center shrink-0">
+                          <HardDrive className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-fg truncate">Perfil Local</p>
+                          <p className="text-xs text-fg-muted flex items-center gap-1">
+                            <span>Salvo neste dispositivo</span>
+                            <InfoTooltip
+                              label="Sobre o perfil local"
+                              align="end"
+                              text="Seus trabalhos locais ficam salvos isolados. Ao sair, outro colega pode logar com a conta dele sem acessar seus arquivos."
+                            />
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="py-1">
+                      {!showLoginButton && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            onLogin();
+                          }}
+                          className={MENU_ITEM}
+                        >
+                          <GoogleLogo />
+                          <span>Conectar conta Google</span>
+                        </button>
+                      )}
+                      {appearanceItem}
+                      {docsItems}
+                    </div>
+
+                    <div className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          onExitGuestMode?.();
+                        }}
+                        className={`${MENU_ITEM} font-medium !text-red-700 dark:!text-red-400 hover:!bg-red-50 dark:hover:!bg-red-950/40`}
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Sair do Perfil Local</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Segunda linha no compacto: abas Estrutura | Texto | PDF em largura total */}
-      {isCompact && (
-        <div className="px-2 pb-2 pt-0">{paneSwitcher}</div>
+      {/* Segunda linha no compacto: abas Estrutura | Texto | PDF e histórico de edição */}
+      {isCompact && hasProject && view === 'editor' && (
+        <div className="px-2 pb-2 pt-0 flex items-center gap-1.5">
+          {paneSwitcher}
+          {undoRedo}
+        </div>
       )}
     </header>
   );
