@@ -198,4 +198,95 @@ describe('Typst WASM WorkerPackageRegistry & AccessModel', () => {
       expect(res.result!.byteLength).toBeGreaterThan(100);
     }
   });
+
+  async function compileProjectFiles(
+    files: Record<string, string>,
+    packageArchives?: Record<string, Uint8Array>,
+  ) {
+    const { sourceFiles, packageFiles } = splitCompileFiles(files);
+    registry.setRequestPackages(packageArchives, packageFiles);
+    compiler.resetShadow();
+    for (const [name, content] of Object.entries(sourceFiles)) {
+      compiler.addSource(name.startsWith('/') ? name : `/${name}`, content);
+    }
+    const res = await compiler.compile({
+      mainFilePath: '/main.typ',
+      format: CompileFormatEnum.vector,
+      diagnostics: 'full',
+    });
+    const errors = (res.diagnostics ?? []).filter((d) => d.severity === 'error');
+    return { res, errors };
+  }
+
+  function createAbntlyProject(name: string, packageId: string) {
+    const project = createProjectFromTemplate('universe_custom', name);
+    project.templateConfig = {
+      ...project.templateConfig!,
+      preset: 'universe_custom',
+      universePackage: packageId,
+      universeEntrypoint: 'abntly',
+      includeCoverPage: true,
+      includeTitlePage: true,
+      includeToc: true,
+    };
+    project.metadata = {
+      ...project.metadata,
+      advisor: 'Prof. Dr. João Souza',
+      course: 'Ciência da Computação',
+      nature: 'Trabalho de Conclusão de Curso apresentado como requisito parcial.',
+      foreignAbstract: 'Abstract of the work.',
+      foreignKeywords: ['ABNT', 'Typst'],
+    };
+    project.blocks = [
+      ...project.blocks,
+      { id: 'quadro-1', type: 'box', content: 'Conteúdo do quadro', meta: { caption: 'Quadro', source: 'Autor' } },
+    ];
+    return project;
+  }
+
+  it('embute o Typst 0.15 ou mais novo no compilador WASM', async () => {
+    const { errors } = await compileProjectFiles({
+      'main.typ': '#assert(sys.version >= version(0, 15, 0), message: "Typst " + str(sys.version))',
+    });
+    expect(errors).toEqual([]);
+  });
+
+  it('compila pacote do Universe que exige compiler = "0.15.0" com o adaptador do abntly', async () => {
+    // Mesma API pública do @preview/abntly 0.1.x (assinaturas sem `..rest`, como no pacote real),
+    // com um `quadro` de outra assinatura para provar que o do abnt.typ continua valendo.
+    const tarGz = buildMockTarGz({
+      'typst.toml':
+        '[package]\nname = "abntly"\nversion = "0.1.1"\nentrypoint = "src/lib.typ"\ncompiler = "0.15.0"\n',
+      'src/lib.typ': `
+#let config-info(title: none, subtitle: none, author: none, advisor: none, co-advisor: none,
+  institution: none, program: none, area: none, year: auto, location: none, version: none,
+  volume: none, work-type: none, logo: none) = (title: title, author: author)
+#let abntly(body, info: (:), lang: "pt") = {
+  assert(type(info) == dictionary and info.title != none)
+  set text(lang: lang)
+  body
+}
+#let cover(top: auto) = [Capa]
+#let title-page(body, top: auto) = [Folha de rosto: #body]
+#let keywords(..words, sep: "; ") = words.pos().join(sep)
+#let abstract(body, lang: auto) = [Resumo: #body]
+#let quadro(conteudo, titulo: none) = conteudo
+`,
+    });
+
+    const files = generateTypstFiles(createAbntlyProject('Teste abntly', '@preview/abntly:0.1.1'));
+    const { res, errors } = await compileProjectFiles(files, { '@preview/abntly:0.1.1': tarGz });
+
+    expect(errors).toEqual([]);
+    expect(res.result).toBeInstanceOf(Uint8Array);
+  });
+
+  it('sintetiza pacote virtual do abntly compatível com o adaptador quando está offline', async () => {
+    // Outra versão: o registry mantém em memória os pacotes reais já extraídos.
+    const files = generateTypstFiles(createAbntlyProject('Teste abntly offline', '@preview/abntly:0.1.0'));
+    const { res, errors } = await compileProjectFiles(files);
+
+    expect(errors).toEqual([]);
+    expect(res.result).toBeInstanceOf(Uint8Array);
+  });
 });
