@@ -211,8 +211,10 @@ export const App: React.FC = () => {
 
   const {
     isExportingPdf,
+    isExportingDocx,
     isExportingProject,
     handleDownloadPdf,
+    handleDownloadDocx,
     handleExportProjectZip,
     handleExportTypst,
   } = useDocumentExport({
@@ -440,6 +442,8 @@ export const App: React.FC = () => {
         onOpenFullDocs={() => handleOpenFullDocs()}
         onDownloadPdf={handleDownloadPdf}
         isExportingPdf={isExportingPdf}
+        onDownloadDocx={handleDownloadDocx}
+        isExportingDocx={isExportingDocx}
         onExportTypst={handleExportTypst}
         onExportProjectZip={handleExportProjectZip}
         isExportingProject={isExportingProject}
@@ -651,6 +655,8 @@ export const App: React.FC = () => {
                 onToggleCode={() => setShowCode(!showCode)}
                 onDownloadPdf={handleDownloadPdf}
                 isExportingPdf={isExportingPdf}
+                onDownloadDocx={handleDownloadDocx}
+                isExportingDocx={isExportingDocx}
                 onExportProjectZip={handleExportProjectZip}
                 onExportTypst={handleExportTypst}
                 isExportingProject={isExportingProject}
