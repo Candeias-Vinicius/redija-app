@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useId } from 'react';
 import {
   ArrowLeft,
   CheckCircle2,
+  ClipboardCheck,
   FolderOpen,
   ChevronDown,
   Moon,
@@ -26,6 +27,7 @@ import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
 import { GITHUB_REPO_URL } from '@/core/links';
 import type { PaneId } from '@/hooks/usePaneLayout';
+import type { ComplianceScoreResult } from '@/core/transpiler/readiness';
 import { Logo } from './Logo';
 import { GitHubIcon } from './GitHubIcon';
 import { GoogleLogo } from './GoogleLogo';
@@ -58,6 +60,8 @@ interface HeaderProps {
   onOpenBugReportModal: () => void;
   onOpenBetaNoticeModal?: () => void;
   onOpenTemplateCustomizer?: () => void;
+  onOpenReadinessCheck?: () => void;
+  readinessScore?: ComplianceScoreResult;
   onOpenWelcomeModal?: () => void;
   onOpenFullDocs?: () => void;
   onDownloadPdf?: () => void;
@@ -114,6 +118,8 @@ export const Header: React.FC<HeaderProps> = ({
   homeSearch,
   onOpenBugReportModal,
   onOpenBetaNoticeModal,
+  onOpenReadinessCheck,
+  readinessScore,
   onOpenFullDocs,
   user,
   isAuthenticated,
@@ -441,6 +447,33 @@ export const Header: React.FC<HeaderProps> = ({
                 {activeCollaborators.length} online
               </span>
             </div>
+          )}
+
+          {/* Verificar antes de entregar (RDJ-05.4) */}
+          {view === 'editor' && onOpenReadinessCheck && (
+            <button
+              type="button"
+              onClick={onOpenReadinessCheck}
+              className="touch-target flex items-center justify-center gap-1.5 p-1.5 md:px-2.5 text-sm font-medium rounded-lg border border-line bg-surface text-slate-700 dark:text-slate-200 hover:bg-surface-sunken transition-colors"
+              title="Verificar conformidade antes de entregar"
+              aria-label="Verificar antes de entregar"
+            >
+              <ClipboardCheck className="w-4 h-4 text-brand-700 dark:text-brand-400" />
+              <span className="hidden lg:inline">Verificar antes de entregar</span>
+              {readinessScore && !readinessScore.isPaused && readinessScore.score !== null && (
+                <span
+                  className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold ${
+                    readinessScore.band === 'ready'
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                      : readinessScore.band === 'attention'
+                        ? 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300'
+                        : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                  }`}
+                >
+                  {readinessScore.score}
+                </span>
+              )}
+            </button>
           )}
 
           {/* Compartilhar (ação do trabalho aberto: só no editor) */}

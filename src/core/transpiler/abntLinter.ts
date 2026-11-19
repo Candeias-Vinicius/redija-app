@@ -42,6 +42,10 @@ export interface AbntWarning {
   severity: 'warning' | 'info';
   title: string;
   description: string;
+  /** ID do bloco relacionado no editor (para navegação direta). */
+  blockId?: string;
+  /** ID da referência relacionada (para navegação direta). */
+  referenceId?: string;
 }
 
 const SUPERSCRIPT_REVERSE: Record<string, string> = {
@@ -555,9 +559,10 @@ export function auditCitationsAndReferences(
         warnings.push({
           id: `missing-ref-token-${citeId}`,
           severity: 'warning',
-          title: `Citação vinculada a referência removida: ${label}`,
+          title: `Citação sem referência: ${label}`,
           description:
             'Esta citação aponta para uma referência que foi excluída. Remova a chamada ou vincule-a novamente.',
+          blockId: b.id,
         });
       }
     }
@@ -605,11 +610,13 @@ export function auditCitationsAndReferences(
       const isCitedByAuthor = Boolean(surname && fullBodyText.includes(surname));
       const isCitedByNumber = citedNumbers.has(refNum);
       if (!isCitedByToken && !isCitedByAuthor && !isCitedByNumber) {
+        const refLabel = ref.title?.trim() || `${surname || `[${refNum}]`} (${ref.year})`;
         warnings.push({
           id: `uncited-ref-${ref.id}`,
           severity: 'info',
-          title: `Referência não citada no texto: ${surname || `[${refNum}]`} (${ref.year})`,
+          title: `Referência não citada: ${refLabel}`,
           description: uncitedDescription,
+          referenceId: ref.id,
         });
       }
     });
@@ -640,9 +647,10 @@ export function auditCitationsAndReferences(
         warnings.push({
           id: `missing-ref-${b.id}`,
           severity: 'warning',
-          title: `Citação sem referência cadastrada: (${cited}, ${b.meta.year || 's.d.'})`,
+          title: `Citação sem referência: (${cited}, ${b.meta.year || 's.d.'})`,
           description:
             'Este autor foi citado em uma citação direta longa, mas não está cadastrado na seção de Referências.',
+          blockId: b.id,
         });
       }
     }
@@ -679,9 +687,10 @@ export function auditCitationsAndReferences(
           warnings.push({
             id: `missing-ref-intext-${s.toLowerCase()}`,
             severity: 'warning',
-            title: `Citação sem referência cadastrada: (${s}, ${yearPart})`,
+            title: `Citação sem referência: (${s}, ${yearPart})`,
             description:
               'Este autor foi citado no corpo do texto, mas não está cadastrado na seção de Referências.',
+            blockId: b.id,
           });
         }
       }
@@ -698,9 +707,10 @@ export function auditCitationsAndReferences(
           warnings.push({
             id: `missing-ref-intext-${s.toLowerCase()}`,
             severity: 'warning',
-            title: `Citação sem referência cadastrada: (${s} ${yearPart})`,
+            title: `Citação sem referência: (${s} ${yearPart})`,
             description:
               'Este autor foi citado no corpo do texto, mas não está cadastrado na seção de Referências.',
+            blockId: b.id,
           });
         }
       }
@@ -715,11 +725,12 @@ export function auditCitationsAndReferences(
           warnings.push({
             id: `missing-ref-numeric-${n}`,
             severity: 'warning',
-            title: `Citação numérica [${n}] sem referência correspondente`,
+            title: `Citação sem referência: [${n}]`,
             description:
               refCount === 0
                 ? 'O texto utiliza citação numérica, mas ainda não há referências cadastradas.'
                 : `O índice [${n}] ultrapassa o total de ${refCount} referência(s) cadastrada(s).`,
+            blockId: b.id,
           });
         }
       }
@@ -826,6 +837,7 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
           severity: 'warning',
           title: `Figura no bloco #${idx + 1} incompleta (NBR 14724)`,
           description: 'Toda ilustração deve possuir título/legenda na parte superior e fonte na parte inferior.',
+          blockId: b.id,
         });
       }
     }
@@ -837,6 +849,7 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
           severity: 'warning',
           title: `${label} no bloco #${idx + 1} incompleto (NBR 14724)`,
           description: `Todo ${label.toLowerCase()} deve possuir título na parte superior e fonte na parte inferior.`,
+          blockId: b.id,
         });
       }
     }

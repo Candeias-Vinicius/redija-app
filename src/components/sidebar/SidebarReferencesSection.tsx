@@ -80,7 +80,7 @@ export const SidebarReferencesSection: React.FC<SidebarReferencesSectionProps> =
   };
 
   return (
-    <div className="p-3">
+    <div id="sidebar-references" className="p-3">
       <div className="flex items-center justify-between py-1.5">
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -171,6 +171,7 @@ export const SidebarReferencesSection: React.FC<SidebarReferencesSectionProps> =
                 return (
                   <div
                     key={ref.id}
+                    data-ref-id={ref.id}
                     className="group p-2.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs space-y-1 transition-colors"
                   >
                     <div className="flex items-start justify-between gap-1.5">
