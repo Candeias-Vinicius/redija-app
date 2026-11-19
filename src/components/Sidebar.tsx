@@ -30,8 +30,11 @@ interface SidebarProps {
   onChangeMetadata: (meta: DocumentMetadata) => void;
   onChangeSidebarConfig?: (sidebarConfig?: SidebarConfig) => void;
   references: AcademicReference[];
+  activeOwner?: string;
   onOpenReferenceModal: () => void;
+  onOpenLibraryModal?: () => void;
   onEditReference?: (ref: AcademicReference) => void;
+  onUpdateReference?: (ref: AcademicReference) => void;
   onOpenTemplateCustomizer?: () => void;
   onOpenAbntGuide?: () => void;
   onOpenGuide?: (mode: ContextualGuideMode) => void;
@@ -53,8 +56,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onChangeMetadata,
   onChangeSidebarConfig,
   references,
+  activeOwner,
   onOpenReferenceModal,
+  onOpenLibraryModal,
   onEditReference,
+  onUpdateReference,
   onOpenTemplateCustomizer,
   onOpenAbntGuide,
   onOpenGuide,
@@ -67,10 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isFullBleed = isCompact || widthPx == null;
   const [isFieldCustomizerOpen, setIsFieldCustomizerOpen] = useState(false);
 
-  const updateField = <K extends keyof DocumentMetadata>(
-    field: K,
-    value: DocumentMetadata[K],
-  ) => {
+  const updateField = <K extends keyof DocumentMetadata>(field: K, value: DocumentMetadata[K]) => {
     onChangeMetadata({ ...metadata, [field]: value });
   };
 
@@ -173,8 +176,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <SidebarReferencesSection
             project={project}
             references={references}
+            activeOwner={activeOwner}
             onOpenReferenceModal={onOpenReferenceModal}
+            onOpenLibraryModal={onOpenLibraryModal}
             onEditReference={onEditReference}
+            onUpdateReference={onUpdateReference}
             onOpenTemplateCustomizer={onOpenTemplateCustomizer}
             onRemoveReference={onRemoveReference}
           />
@@ -193,9 +199,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <SidebarLinterSection
             capabilities={capabilities}
             lintReport={lintReport}
-            onOpenGuide={
-              onOpenGuide ?? (onOpenAbntGuide ? () => onOpenAbntGuide() : undefined)
-            }
+            onOpenGuide={onOpenGuide ?? (onOpenAbntGuide ? () => onOpenAbntGuide() : undefined)}
           />
         </div>
       </aside>

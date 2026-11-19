@@ -24,6 +24,11 @@ import {
   CUSTOM_TEMPLATES_SYNC_DEBOUNCE_MS,
   syncCustomTemplatesWithDrive,
 } from '@/core/storage/customTemplatesSync';
+import { subscribeReferenceLibraryMutations } from '@/core/storage/referenceLibrary';
+import {
+  REFERENCE_LIBRARY_SYNC_DEBOUNCE_MS,
+  syncReferenceLibraryWithDrive,
+} from '@/core/storage/referenceLibrarySync';
 import {
   deleteDriveProject,
   listDriveProjects,
@@ -49,6 +54,13 @@ export function getProjectContentSignature(p: DocumentProject): string {
 function syncCustomTemplatesInBackground(ownerEmail: string, token: string): void {
   syncCustomTemplatesWithDrive(ownerEmail, token).catch((err) => {
     console.warn('Não foi possível sincronizar os modelos personalizados com o Drive:', err);
+  });
+}
+
+/** Biblioteca de referências da conta ↔ `redija-biblioteca.json` no Drive (RDJ-07.4). */
+function syncReferenceLibraryInBackground(ownerEmail: string, token: string): void {
+  syncReferenceLibraryWithDrive(ownerEmail, token).catch((err) => {
+    console.warn('Não foi possível sincronizar a biblioteca de referências com o Drive:', err);
   });
 }
 
@@ -265,8 +277,9 @@ export function useDriveSyncOrchestrator({
         const token = await getValidAccessToken(interactive);
         if (!token) return;
 
-        // Modelos personalizados seguem em paralelo: uma falha neles não atrapalha os projetos.
+        // Modelos personalizados e biblioteca de referências seguem em paralelo.
         syncCustomTemplatesInBackground(user.email, token);
+        syncReferenceLibraryInBackground(user.email, token);
 
         const [driveSummaries, trashedDriveIds] = await Promise.all([
           listDriveProjects(token),
@@ -282,7 +295,8 @@ export function useDriveSyncOrchestrator({
         // 1. Exclusões definitivas pendentes / arquivos compartilhados escondidos pelo usuário
         const tombstones = readDriveTombstones(user.email);
         for (const [fileId, tomb] of Object.entries(tombstones)) {
-          const isStillOnDrive = activeDriveIds.has(fileId) || Boolean(trashedDriveIds?.has(fileId));
+          const isStillOnDrive =
+            activeDriveIds.has(fileId) || Boolean(trashedDriveIds?.has(fileId));
           if (!isStillOnDrive) {
             if (trashedDriveIds) removeDriveTombstone(user.email, fileId);
             continue;
@@ -487,6 +501,33 @@ export function useDriveSyncOrchestrator({
     };
   }, [isAuthenticated, user, isStorageReady, getValidAccessToken]);
 
+  // Envia ao Drive as alterações na biblioteca de referências (RDJ-07.4).
+  useEffect(() => {
+    if (!isAuthenticated || !user || !isStorageReady) return;
+    const ownerEmail = user.email;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const unsubscribe = subscribeReferenceLibraryMutations((changedOwner) => {
+      if (changedOwner !== ownerEmail) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(async () => {
+        timer = null;
+        const token = await getValidAccessToken();
+        if (token) syncReferenceLibraryInBackground(ownerEmail, token);
+      }, REFERENCE_LIBRARY_SYNC_DEBOUNCE_MS);
+    });
+
+    return () => {
+      unsubscribe();
+      if (timer) {
+        clearTimeout(timer);
+        void getValidAccessToken().then((token) => {
+          if (token) syncReferenceLibraryInBackground(ownerEmail, token);
+        });
+      }
+    };
+  }, [isAuthenticated, user, isStorageReady, getValidAccessToken]);
+
   // Sincroniza projetos do Google Drive automaticamente em segundo plano ao logar
   useEffect(() => {
     if (!isAuthenticated || !isStorageReady) return;
@@ -509,11 +550,18 @@ export function useDriveSyncOrchestrator({
     if (!isAuthenticated) return;
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        handleSyncFromDrive();
+        void handleSyncFromDrive();
       }
     };
+    const handleOnline = () => {
+      void handleSyncFromDrive();
+    };
     document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('online', handleOnline);
+    };
   }, [isAuthenticated, handleSyncFromDrive]);
 
   return {

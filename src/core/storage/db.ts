@@ -3,7 +3,7 @@
 // =====================================================================
 
 import Dexie, { type Table } from 'dexie';
-import { DocumentProject, RedijaBackupFile } from '@/types/document';
+import { DocumentProject, RedijaBackupFile, ReferenceType } from '@/types/document';
 import { validateProjectQuota } from './imageQuota';
 import { normalizeProject } from './schemaNormalizer';
 import { saveEmergencySnapshot } from './emergencyBackup';
@@ -43,10 +43,57 @@ export interface StoredCustomTemplate {
   deletedAt: string | null;
 }
 
+/**
+ * Referência bibliográfica do acervo pessoal do usuário ("Minha Biblioteca", RDJ-07), por perfil.
+ * `ownerEmail` é o e-mail da conta Google ou `'local'` no perfil local.
+ */
+export interface StoredLibraryReference {
+  id: string;
+  ownerEmail: string;
+  type?: ReferenceType;
+  authors: string;
+  title: string;
+  subtitle?: string;
+  edition?: string;
+  city: string;
+  publisher: string;
+  year: string;
+  journal?: string;
+  volume?: string;
+  issue?: string;
+  pages?: string;
+  institution?: string;
+  degree?: string;
+  url?: string;
+  accessDate?: string;
+  doi?: string;
+  isbn?: string;
+  folderId: string | null;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+  /** Tombstone para sincronização não destrutiva entre dispositivos (RDJ-07.4). */
+  deletedAt: string | null;
+}
+
+/**
+ * Pasta de organização da biblioteca de referências (RDJ-07.5), por perfil.
+ */
+export interface StoredLibraryFolder {
+  id: string;
+  ownerEmail: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
 export class RedijaDatabase extends Dexie {
   projects!: Table<DocumentProject, string>;
   universePackages!: Table<CachedUniversePackage, string>;
   customTemplates!: Table<StoredCustomTemplate, string>;
+  library!: Table<StoredLibraryReference, string>;
+  libraryFolders!: Table<StoredLibraryFolder, string>;
 
   constructor() {
     super('RedijaAppDB');
@@ -67,6 +114,13 @@ export class RedijaDatabase extends Dexie {
       projects: 'id, updatedAt, name, templateType, deletedAt, driveFileId, ownerEmail',
       universePackages: 'id, name, version, downloadedAt',
       customTemplates: 'id, ownerEmail, packageId',
+    });
+    this.version(6).stores({
+      projects: 'id, updatedAt, name, templateType, deletedAt, driveFileId, ownerEmail',
+      universePackages: 'id, name, version, downloadedAt',
+      customTemplates: 'id, ownerEmail, packageId',
+      library: 'id, ownerEmail, folderId, updatedAt',
+      libraryFolders: 'id, ownerEmail, updatedAt',
     });
   }
 }

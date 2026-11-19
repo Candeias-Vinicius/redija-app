@@ -4,6 +4,8 @@ import { deleteProject, listProjects } from '@/core/storage/db';
 import { deleteAllUserDriveProjects } from '@/core/storage/googleDriveService';
 import { deleteAllCustomTemplatesDriveFiles } from '@/core/storage/customTemplatesDrive';
 import { purgeCustomTemplatesForOwner } from '@/core/storage/customTemplates';
+import { deleteAllReferenceLibraryDriveFiles } from '@/core/storage/referenceLibraryDrive';
+import { purgeReferenceLibraryForOwner } from '@/core/storage/referenceLibrary';
 
 const GUEST_MODE_STORAGE_KEY = 'redija:guestMode';
 
@@ -102,6 +104,7 @@ export function useAuthSession({
       if (token) {
         await deleteAllUserDriveProjects(token);
         await deleteAllCustomTemplatesDriveFiles(token);
+        await deleteAllReferenceLibraryDriveFiles(token);
       }
     } catch (err) {
       console.warn('Erro ao deletar arquivos do Google Drive:', err);
@@ -114,6 +117,7 @@ export function useAuthSession({
           await deleteProject(p.id);
         }
         await purgeCustomTemplatesForOwner(user.email);
+        await purgeReferenceLibraryForOwner(user.email);
       }
       onResetWorkspace();
     } catch (err) {
