@@ -22,6 +22,8 @@ import { BackupNoticeBanner } from '@/components/BackupNoticeBanner';
 import { LoginScreen } from '@/components/LoginScreen';
 import { DocsPage } from '@/components/docs/DocsPage';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ImportProgressModal } from '@/components/import/ImportProgressModal';
+import { IMPORT_ACCEPT } from '@/core/storage/documentImporter';
 import { PaneRestoreRail } from '@/components/ui/PaneRestoreRail';
 import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
 import { isBetaNoticeDismissed } from '@/core/version';
@@ -176,6 +178,8 @@ export const App: React.FC = () => {
     reloadProjectLists,
     handleExportBackup,
     handleImportBackup,
+    importState,
+    cancelImport,
   } = useProjectWorkspace({
     project,
     setProject,
@@ -698,7 +702,7 @@ export const App: React.FC = () => {
       <input
         ref={importInputRef}
         type="file"
-        accept=".redija,.docx,.zip,.typ,.tex,.md,.markdown,.json"
+        accept={IMPORT_ACCEPT}
         className="hidden"
         aria-hidden="true"
         tabIndex={-1}
@@ -708,6 +712,7 @@ export const App: React.FC = () => {
           e.target.value = '';
         }}
       />
+      {importState && <ImportProgressModal state={importState} onCancel={cancelImport} />}
 
       <RenameProjectDialog
         project={renameTarget}

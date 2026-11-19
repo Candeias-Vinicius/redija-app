@@ -82,6 +82,10 @@ apontando para o alvo que o Railway mostra em **Settings → Networking** de cad
 
 - Uploads limitados (`MAX_UPLOAD_MB`), proteção contra zip bomb (tamanho declarado e real, número de arquivos)
   e contra caminhos que escapam da pasta (`../`, absolutos).
+- Nomes dentro do .zip são decodificados pela regra de cada compactador (`src/zipNames.ts`): UTF-8 com ou sem
+  a flag (Finder do macOS, em NFD), CP850 (Explorer do Windows), extra field Unicode Path (7-Zip/WinRAR) e
+  `\` como separador (PowerShell 5.1). `__MACOSX/`, `._*`, `.DS_Store`, `Thumbs.db`, `desktop.ini` e `.git/`
+  são ignorados. Fontes `.tex`/`.typ`/`.md`/`.bib` em Latin-1 ou UTF-16 são regravadas em UTF-8 antes do Pandoc.
 - Antes de chamar o Pandoc, `\input`, `\include` etc. (LaTeX) e `read()`, `#include` etc. (Typst)
   que apontem para fora do projeto são recusados.
 - Pandoc roda sem shell, com timeout, teto de memória (`+RTS -M`) e ambiente mínimo; o container roda sem root.

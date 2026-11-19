@@ -5,12 +5,13 @@ export function uint8ArrayToDataUrl(bytes: Uint8Array, ext: string): string {
   else if (ext.includes('svg')) mime = 'image/svg+xml';
   else if (ext.includes('gif')) mime = 'image/gif';
 
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  // Em blocos: concatenar byte a byte trava a aba com imagens de vários MB
+  const CHUNK = 0x8000;
+  const parts: string[] = [];
+  for (let i = 0; i < bytes.byteLength; i += CHUNK) {
+    parts.push(String.fromCharCode(...bytes.subarray(i, i + CHUNK)));
   }
-  return `data:${mime};base64,${btoa(binary)}`;
+  return `data:${mime};base64,${btoa(parts.join(''))}`;
 }
 
 /**

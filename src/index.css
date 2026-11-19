@@ -86,6 +86,19 @@
   --rdj-enter-y: -0.5rem;
 }
 
+/* Barra de progresso indeterminada (etapas sem porcentagem, ex.: conversão no servidor) */
+@keyframes rdj-indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+@utility animate-indeterminate {
+  animation: rdj-indeterminate 1.4s ease-in-out infinite;
+}
+
 @layer base {
   *,
   ::after,
