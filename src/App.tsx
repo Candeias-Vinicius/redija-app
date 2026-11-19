@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { FileEdit, Loader2, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Editor } from '@/components/Editor';
 import { PdfPreview } from '@/components/PdfPreview';
 import { ReferenceModal } from '@/components/ReferenceModal';
+import { WritingGoalsModal } from '@/components/goals/WritingGoalsModal';
 import { HomePage } from '@/components/home/HomePage';
 import {
   DeleteForeverDialog,
@@ -46,6 +47,12 @@ import {
 import { useDriveSyncOrchestrator } from '@/hooks/useDriveSyncOrchestrator';
 import { downloadProjectPdf, useDocumentExport } from '@/hooks/useDocumentExport';
 import { useCustomTemplates } from '@/hooks/useCustomTemplates';
+import { useWritingGoalReminder } from '@/hooks/useWritingGoalReminder';
+import {
+  countProjectWords,
+  estimateTextualPages,
+  evaluateWritingGoalStatus,
+} from '@/core/goals/writingGoals';
 import { uniqueProjectName } from '@/components/home/homeUtils';
 import { readInitialGuestMode, useAuthSession } from '@/hooks/useAuthSession';
 
@@ -74,6 +81,7 @@ export const App: React.FC = () => {
     () => !isBackupNoticeDismissed(),
   );
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isGoalsModalOpen, setIsGoalsModalOpen] = useState(false);
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
 
   // Autenticação Google e perfil convidado local
@@ -162,6 +170,9 @@ export const App: React.FC = () => {
     resetWorkspaceState,
     handleMetadataChange,
     handleChangeSidebarConfig,
+    handleUpdateWritingGoals,
+    handleUpdateCompiledTextualPages,
+    handleMarkReminderNotified,
     handleApplyTemplateCustomizer,
     handleBlocksChange,
     handleAddReference,
@@ -225,6 +236,35 @@ export const App: React.FC = () => {
     project,
     isAuthenticated,
     getValidAccessToken,
+  });
+
+  // Prazos e metas de escrita (RDJ-06)
+  const currentWordCount = useMemo(() => countProjectWords(project.blocks), [project.blocks]);
+  const goalStatus = useMemo(
+    () =>
+      evaluateWritingGoalStatus(
+        project.writingGoals,
+        currentWordCount,
+        project.writingGoals?.lastCompiledTextualPages,
+      ),
+    [project.writingGoals, currentWordCount],
+  );
+
+  const handleCompiledPagesChange = useCallback(
+    (totalCompiledPages: number) => {
+      const textualPages = estimateTextualPages(totalCompiledPages, project);
+      if (textualPages !== undefined) {
+        handleUpdateCompiledTextualPages(textualPages);
+      }
+    },
+    [project, handleUpdateCompiledTextualPages],
+  );
+
+  useWritingGoalReminder({
+    projectName: project.name,
+    reminder: project.writingGoals?.reminder,
+    goalStatus,
+    onMarkReminderNotified: handleMarkReminderNotified,
   });
 
   const handleResetSessionWorkspace = useCallback(() => {
@@ -462,6 +502,8 @@ export const App: React.FC = () => {
         isGuestMode={isGuestMode}
         onExitGuestMode={handleExitGuestMode}
         onOpenShareModal={() => setIsShareModalOpen(true)}
+        onOpenGoalsModal={() => setIsGoalsModalOpen(true)}
+        goalStatus={goalStatus}
         onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
         showLoginButton={!showBackupNotice}
       />
@@ -536,6 +578,7 @@ export const App: React.FC = () => {
                 }}
                 onRemoveReference={handleRemoveReference}
                 onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
+                onOpenGoalsModal={() => setIsGoalsModalOpen(true)}
                 onOpenAbntGuide={() => {
                   setWelcomeInitialTab('abnt');
                   setIsWelcomeModalOpen(true);
@@ -664,6 +707,7 @@ export const App: React.FC = () => {
                 onExportProjectZip={handleExportProjectZip}
                 onExportTypst={handleExportTypst}
                 isExportingProject={isExportingProject}
+                onCompiledPagesChange={handleCompiledPagesChange}
                 widthPx={previewWidth}
                 isFullWidth={isCompact || !showEditor}
                 isCompact={isCompact}
@@ -753,6 +797,14 @@ export const App: React.FC = () => {
         getAccessToken={getValidAccessToken}
         currentUserEmail={user?.email}
         onEnsureProjectSavedToDrive={handleEnsureProjectSavedToDrive}
+      />
+
+      <WritingGoalsModal
+        isOpen={isGoalsModalOpen}
+        onClose={() => setIsGoalsModalOpen(false)}
+        project={project}
+        goalStatus={goalStatus}
+        onSaveGoals={handleUpdateWritingGoals}
       />
 
       <AccountSettingsModal

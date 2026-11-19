@@ -5,6 +5,7 @@
 
 import { Block, DocumentProject, AcademicReference, DocumentMetadata } from '@/types/document';
 import { stripHtmlTags } from '@/core/transpiler/escape';
+import { mergeWritingGoals } from '@/core/goals/mergeWritingGoals';
 
 export interface MergeResult {
   mergedProject: DocumentProject;
@@ -206,11 +207,13 @@ export function autoMergeProjects(
   const mergedBlocks = mergeBlocks(local.blocks, remote.blocks);
   const mergedRefs = mergeReferences(local.references, remote.references);
   const mergedMeta = mergeMetadata(local.metadata, remote.metadata);
+  const mergedGoals = mergeWritingGoals(local.writingGoals, remote.writingGoals);
 
   const hasMergedRemoteChanges =
     mergedBlocks.length !== local.blocks.length ||
     mergedRefs.length !== local.references.length ||
-    JSON.stringify(mergedBlocks) !== JSON.stringify(local.blocks);
+    JSON.stringify(mergedBlocks) !== JSON.stringify(local.blocks) ||
+    JSON.stringify(mergedGoals) !== JSON.stringify(local.writingGoals);
 
   const mergedProject: DocumentProject = {
     ...local,
@@ -219,6 +222,7 @@ export function autoMergeProjects(
     references: mergedRefs,
     templateConfig: local.templateConfig || remote.templateConfig,
     sidebarConfig: local.sidebarConfig || remote.sidebarConfig,
+    ...(mergedGoals ? { writingGoals: mergedGoals } : {}),
     driveFileId: local.driveFileId || remote.driveFileId,
     driveSyncedAt: remote.driveSyncedAt || local.driveSyncedAt,
     updatedAt: new Date().toISOString(),

@@ -19,7 +19,7 @@ import { SidebarPreTextualsSection } from './sidebar/SidebarPreTextualsSection';
 import { SidebarAbstractSection } from './sidebar/SidebarAbstractSection';
 import { SidebarReferencesSection } from './sidebar/SidebarReferencesSection';
 import { SidebarPostTextualsSection } from './sidebar/SidebarPostTextualsSection';
-import { PanelLeftClose, Sliders, SlidersHorizontal } from 'lucide-react';
+import { PanelLeftClose, Sliders, SlidersHorizontal, Target } from 'lucide-react';
 import { PaneWindowControls } from '@/components/ui/PaneWindowControls';
 
 interface SidebarProps {
@@ -33,6 +33,7 @@ interface SidebarProps {
   onOpenReferenceModal: () => void;
   onEditReference?: (ref: AcademicReference) => void;
   onOpenTemplateCustomizer?: () => void;
+  onOpenGoalsModal?: () => void;
   onOpenAbntGuide?: () => void;
   onOpenGuide?: (mode: ContextualGuideMode) => void;
   onRemoveReference: (id: string) => void;
@@ -56,6 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenReferenceModal,
   onEditReference,
   onOpenTemplateCustomizer,
+  onOpenGoalsModal,
   onOpenAbntGuide,
   onOpenGuide,
   onRemoveReference,
@@ -112,7 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">{capabilities.headerSubtitle}</p>
-            {(onOpenTemplateCustomizer || onChangeSidebarConfig) && (
+            {(onOpenTemplateCustomizer || onChangeSidebarConfig || onOpenGoalsModal) && (
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 {onOpenTemplateCustomizer && (
                   <button
@@ -134,6 +136,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   >
                     <SlidersHorizontal className="w-3 h-3 text-brand-700" />
                     <span>Personalizar Campos</span>
+                  </button>
+                )}
+                {onOpenGoalsModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenGoalsModal}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 hover:bg-brand-50 hover:border-brand-300 text-xs font-medium text-slate-600 hover:text-brand-800 transition-colors"
+                    title="Definir prazo de entrega, meta de palavras ou páginas e marcos por capítulo"
+                  >
+                    <Target className="w-3 h-3 text-brand-700" />
+                    <span>Prazos &amp; Metas</span>
                   </button>
                 )}
               </div>

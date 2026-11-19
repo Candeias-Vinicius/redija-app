@@ -56,6 +56,7 @@ interface PdfPreviewProps {
   onExportProjectZip?: () => void;
   onExportTypst?: () => void;
   isExportingProject?: boolean;
+  onCompiledPagesChange?: (pageCount: number) => void;
 }
 
 export const PdfPreview: React.FC<PdfPreviewProps> = ({
@@ -76,7 +77,12 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
   onExportProjectZip,
   onExportTypst,
   isExportingProject = false,
+  onCompiledPagesChange,
 }) => {
+  const onCompiledPagesChangeRef = useRef(onCompiledPagesChange);
+  useEffect(() => {
+    onCompiledPagesChangeRef.current = onCompiledPagesChange;
+  }, [onCompiledPagesChange]);
   const [copied, setCopied] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -199,6 +205,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
           const pageInfos = result.pages || (await getVectorPagesInfo(result.artifact));
           if (currentId !== latestCompileId.current) return;
           setPages(pageInfos);
+          onCompiledPagesChangeRef.current?.(pageInfos.length);
           setIsInitialized(true);
         }
       } catch (err) {

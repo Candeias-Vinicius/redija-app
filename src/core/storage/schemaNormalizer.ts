@@ -28,6 +28,11 @@ import {
   ReferenceEntryFormat,
   BibliographyEngine,
   CslStyle,
+  WritingGoals,
+  WritingMilestone,
+  DailyWritingLogEntry,
+  DailyTargetLock,
+  WritingReminderConfig,
 } from '@/types/document';
 import {
   VALID_FONT_FAMILY_IDS,
@@ -556,12 +561,158 @@ export function normalizeProject(raw: unknown): DocumentProject {
     };
   }
 
+  // Configuração opcional de prazos, metas e histórico de escrita (RDJ-06)
+  const DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+  const TIME_HHMM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+  let writingGoals: WritingGoals | undefined = undefined;
+  if (data.writingGoals && typeof data.writingGoals === 'object') {
+    const rawGoals = data.writingGoals as Record<string, unknown>;
+    const deadlineDate =
+      typeof rawGoals.deadlineDate === 'string' && DATE_KEY_REGEX.test(rawGoals.deadlineDate.trim())
+        ? rawGoals.deadlineDate.trim()
+        : undefined;
+    const deadlineLabel: WritingGoals['deadlineLabel'] =
+      rawGoals.deadlineLabel === 'defesa'
+        ? 'defesa'
+        : rawGoals.deadlineLabel === 'entrega'
+          ? 'entrega'
+          : undefined;
+    const targetUnit: WritingGoals['targetUnit'] =
+      rawGoals.targetUnit === 'pages' ? 'pages' : 'words';
+    const targetValue =
+      typeof rawGoals.targetValue === 'number' &&
+      Number.isFinite(rawGoals.targetValue) &&
+      rawGoals.targetValue > 0
+        ? Math.round(rawGoals.targetValue)
+        : undefined;
+
+    const milestones: WritingMilestone[] = Array.isArray(rawGoals.milestones)
+      ? rawGoals.milestones
+          .filter((m): m is Record<string, unknown> => Boolean(m && typeof m === 'object'))
+          .filter(
+            (m) =>
+              typeof m.title === 'string' &&
+              m.title.trim().length > 0 &&
+              typeof m.dueDate === 'string' &&
+              DATE_KEY_REGEX.test(m.dueDate.trim()),
+          )
+          .map((m) => ({
+            id: typeof m.id === 'string' && m.id.trim() ? m.id.trim() : crypto.randomUUID(),
+            ...(typeof m.chapterBlockId === 'string' && m.chapterBlockId.trim()
+              ? { chapterBlockId: m.chapterBlockId.trim() }
+              : {}),
+            title: (m.title as string).trim().slice(0, 200),
+            dueDate: (m.dueDate as string).trim(),
+            ...(typeof m.completed === 'boolean' ? { completed: m.completed } : {}),
+            ...(typeof m.updatedAt === 'string' && !Number.isNaN(new Date(m.updatedAt).getTime())
+              ? { updatedAt: m.updatedAt }
+              : {}),
+          }))
+      : [];
+
+    const dailyHistory: DailyWritingLogEntry[] = Array.isArray(rawGoals.dailyHistory)
+      ? rawGoals.dailyHistory
+          .filter((entry): entry is Record<string, unknown> => Boolean(entry && typeof entry === 'object'))
+          .filter(
+            (entry) =>
+              typeof entry.date === 'string' &&
+              DATE_KEY_REGEX.test(entry.date.trim()) &&
+              typeof entry.totalWords === 'number' &&
+              Number.isFinite(entry.totalWords) &&
+              entry.totalWords >= 0,
+          )
+          .map((entry) => ({
+            date: (entry.date as string).trim(),
+            totalWords: Math.round(entry.totalWords as number),
+            netWords:
+              typeof entry.netWords === 'number' && Number.isFinite(entry.netWords)
+                ? Math.round(entry.netWords)
+                : 0,
+            updatedAt:
+              typeof entry.updatedAt === 'string' && !Number.isNaN(new Date(entry.updatedAt).getTime())
+                ? entry.updatedAt
+                : updatedAt,
+          }))
+      : [];
+
+    let dailyTargetLock: DailyTargetLock | undefined = undefined;
+    if (rawGoals.dailyTargetLock && typeof rawGoals.dailyTargetLock === 'object') {
+      const rawLock = rawGoals.dailyTargetLock as Record<string, unknown>;
+      if (
+        typeof rawLock.date === 'string' &&
+        DATE_KEY_REGEX.test(rawLock.date.trim()) &&
+        typeof rawLock.target === 'number' &&
+        Number.isFinite(rawLock.target) &&
+        rawLock.target >= 0
+      ) {
+        dailyTargetLock = {
+          date: rawLock.date.trim(),
+          target: Math.round(rawLock.target),
+          unit: rawLock.unit === 'pages' ? 'pages' : 'words',
+          ...(typeof rawLock.deadlineDate === 'string' && DATE_KEY_REGEX.test(rawLock.deadlineDate.trim())
+            ? { deadlineDate: rawLock.deadlineDate.trim() }
+            : {}),
+          ...(typeof rawLock.totalTarget === 'number' &&
+          Number.isFinite(rawLock.totalTarget) &&
+          rawLock.totalTarget > 0
+            ? { totalTarget: Math.round(rawLock.totalTarget) }
+            : {}),
+        };
+      }
+    }
+
+    let reminder: WritingReminderConfig | undefined = undefined;
+    if (rawGoals.reminder && typeof rawGoals.reminder === 'object') {
+      const rawRem = rawGoals.reminder as Record<string, unknown>;
+      reminder = {
+        enabled: Boolean(rawRem.enabled),
+        time:
+          typeof rawRem.time === 'string' && TIME_HHMM_REGEX.test(rawRem.time.trim())
+            ? rawRem.time.trim()
+            : '20:00',
+        ...(typeof rawRem.lastNotifiedDate === 'string' &&
+        DATE_KEY_REGEX.test(rawRem.lastNotifiedDate.trim())
+          ? { lastNotifiedDate: rawRem.lastNotifiedDate.trim() }
+          : {}),
+      };
+    }
+
+    writingGoals = {
+      ...(deadlineDate ? { deadlineDate } : {}),
+      ...(deadlineLabel ? { deadlineLabel } : {}),
+      targetUnit,
+      ...(targetValue !== undefined ? { targetValue } : {}),
+      milestones,
+      dailyHistory,
+      ...(typeof rawGoals.baselineWords === 'number' &&
+      Number.isFinite(rawGoals.baselineWords) &&
+      rawGoals.baselineWords >= 0
+        ? { baselineWords: Math.round(rawGoals.baselineWords) }
+        : {}),
+      ...(typeof rawGoals.baselineDate === 'string' && DATE_KEY_REGEX.test(rawGoals.baselineDate.trim())
+        ? { baselineDate: rawGoals.baselineDate.trim() }
+        : {}),
+      ...(dailyTargetLock ? { dailyTargetLock } : {}),
+      ...(reminder ? { reminder } : {}),
+      ...(typeof rawGoals.lastCompiledTextualPages === 'number' &&
+      Number.isFinite(rawGoals.lastCompiledTextualPages) &&
+      rawGoals.lastCompiledTextualPages >= 0
+        ? { lastCompiledTextualPages: Math.round(rawGoals.lastCompiledTextualPages) }
+        : {}),
+      ...(typeof rawGoals.updatedAt === 'string' && !Number.isNaN(new Date(rawGoals.updatedAt).getTime())
+        ? { updatedAt: rawGoals.updatedAt }
+        : {}),
+    };
+  }
+
   return {
     id,
     name,
     templateType,
     templateConfig,
     ...(sidebarConfig ? { sidebarConfig } : {}),
+    ...(writingGoals ? { writingGoals } : {}),
     metadata,
     blocks,
     references,

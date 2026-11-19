@@ -7,7 +7,15 @@ import {
   ProjectTemplateType,
   SidebarConfig,
   TemplateConfig,
+  WritingGoals,
 } from '@/types/document';
+import {
+  countProjectWords,
+  createEmptyWritingGoals,
+  DEFAULT_REMINDER_TIME,
+  initializeImportedProjectGoals,
+  recordDailyWritingSnapshot,
+} from '@/core/goals/writingGoals';
 import { type TemplateCustomizerApplyPayload } from '@/components/TemplateCustomizerModal';
 import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
 import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
@@ -280,21 +288,27 @@ export function useProjectWorkspace({
           setSaveStatus('saved');
           return;
         }
+        const totalWords = countProjectWords(project.blocks);
+        const updatedGoals = recordDailyWritingSnapshot(project.writingGoals, totalWords);
         const toSave: DocumentProject = {
           ...project,
+          writingGoals: updatedGoals,
           ownerEmail: project.ownerEmail || activeOwner,
         };
         const saved = await saveProject(toSave);
         const all = await listProjects(activeOwner);
         setProjects(all);
         setSaveStatus('saved');
-        // Mantém updatedAt sincronizado sem disparar novo ciclo de auto-save
-        if (saved.updatedAt !== project.updatedAt) {
+        // Mantém updatedAt e histórico diário sincronizados sem disparar novo ciclo de auto-save
+        const goalsChanged =
+          JSON.stringify(saved.writingGoals) !== JSON.stringify(project.writingGoals);
+        if (saved.updatedAt !== project.updatedAt || goalsChanged) {
           skipNextAutoSaveRef.current = true;
           setProject((prev) => ({
             ...prev,
             updatedAt: saved.updatedAt,
             ownerEmail: saved.ownerEmail,
+            ...(saved.writingGoals ? { writingGoals: saved.writingGoals } : {}),
           }));
         }
       } catch (err) {
@@ -336,6 +350,60 @@ export function useProjectWorkspace({
       });
     },
     [setProject, recordHistorySnapshot],
+  );
+
+  const handleUpdateWritingGoals = useCallback(
+    (writingGoals: WritingGoals) => {
+      setProject((prev) => {
+        if (JSON.stringify(prev.writingGoals) === JSON.stringify(writingGoals)) {
+          return prev;
+        }
+        return { ...prev, writingGoals };
+      });
+    },
+    [setProject],
+  );
+
+  const handleUpdateCompiledTextualPages = useCallback(
+    (textualPages: number) => {
+      setProject((prev) => {
+        if (prev.writingGoals?.lastCompiledTextualPages === textualPages) {
+          return prev;
+        }
+        const currentGoals = prev.writingGoals ?? createEmptyWritingGoals();
+        return {
+          ...prev,
+          writingGoals: {
+            ...currentGoals,
+            lastCompiledTextualPages: textualPages,
+          },
+        };
+      });
+    },
+    [setProject],
+  );
+
+  const handleMarkReminderNotified = useCallback(
+    (dateKey: string) => {
+      setProject((prev) => {
+        const currentGoals = prev.writingGoals ?? createEmptyWritingGoals();
+        if (currentGoals.reminder?.lastNotifiedDate === dateKey) {
+          return prev;
+        }
+        return {
+          ...prev,
+          writingGoals: {
+            ...currentGoals,
+            reminder: {
+              enabled: currentGoals.reminder?.enabled ?? true,
+              time: currentGoals.reminder?.time ?? DEFAULT_REMINDER_TIME,
+              lastNotifiedDate: dateKey,
+            },
+          },
+        };
+      });
+    },
+    [setProject],
   );
 
   const handleApplyTemplateCustomizer = useCallback(
@@ -700,8 +768,9 @@ export function useProjectWorkspace({
         if (controller.signal.aborted) throw new ImportCancelledError();
 
         reportProgress({ stage: 'saving' });
-        imported.ownerEmail = activeOwner;
-        await saveProject(imported, false);
+        const preparedImport = initializeImportedProjectGoals(imported);
+        preparedImport.ownerEmail = activeOwner;
+        await saveProject(preparedImport, false);
         const all = await listProjects(activeOwner);
         // Montar o editor de um trabalho longo ocupa a página por alguns segundos: a etapa
         // precisa estar na tela antes disso, senão o usuário vê "Salvando" congelado
@@ -710,11 +779,11 @@ export function useProjectWorkspace({
         setProjects(all);
         skipNextAutoSaveRef.current = true;
         clearHistory();
-        setProject(imported);
-        setActiveProjectId(imported.id, activeOwner);
-        onProjectImported(imported);
+        setProject(preparedImport);
+        setActiveProjectId(preparedImport.id, activeOwner);
+        onProjectImported(preparedImport);
 
-        toast.success(`"${imported.name}" foi importado.`);
+        toast.success(`"${preparedImport.name}" foi importado.`);
         const warningText = formatImportWarnings(warnings);
         if (warningText) toast.info(warningText, { durationMs: 15000 });
       } catch (err) {
@@ -757,6 +826,9 @@ export function useProjectWorkspace({
     resetWorkspaceState,
     handleMetadataChange,
     handleChangeSidebarConfig,
+    handleUpdateWritingGoals,
+    handleUpdateCompiledTextualPages,
+    handleMarkReminderNotified,
     handleApplyTemplateCustomizer,
     handleBlocksChange,
     handleAddReference,
