@@ -39,8 +39,12 @@ describe('describeImportProgress', () => {
     });
   });
 
-  it('não deixa cancelar durante a gravação final', () => {
+  it('não deixa cancelar depois que o projeto foi gravado', () => {
     expect(describeImportProgress({ stage: 'saving' }).cancellable).toBe(false);
+    expect(describeImportProgress({ stage: 'opening' })).toMatchObject({
+      label: 'Abrindo o trabalho…',
+      cancellable: false,
+    });
     expect(describeImportProgress({ stage: 'building' }).cancellable).toBe(true);
   });
 });

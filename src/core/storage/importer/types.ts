@@ -10,6 +10,7 @@ export interface ImportFileInput {
 /**
  * Etapas da importação, na ordem em que acontecem. Nem todo formato passa por todas:
  * `.redija` local não envia nada; `.zip` do Redija descompacta no navegador.
+ * `saving` e `opening` são da aplicação (gravar no IndexedDB e abrir o editor), não do importador.
  */
 export type ImportStage =
   | 'reading'
@@ -18,7 +19,8 @@ export type ImportStage =
   | 'converting'
   | 'downloading'
   | 'building'
-  | 'saving';
+  | 'saving'
+  | 'opening';
 
 export interface ImportProgress {
   stage: ImportStage;

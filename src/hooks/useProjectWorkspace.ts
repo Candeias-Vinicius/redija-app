@@ -43,6 +43,22 @@ import { toast } from '@/components/ui/toastStore';
 
 export const FALLBACK_INITIAL_PROJECT = createProjectFromTemplate('tcc');
 
+/**
+ * Resolve depois que o navegador pintar o próximo quadro (com teto de 200 ms: em aba oculta o
+ * requestAnimationFrame não dispara).
+ */
+function waitForNextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    const fallback = setTimeout(resolve, 200);
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        clearTimeout(fallback);
+        resolve();
+      }, 0),
+    );
+  });
+}
+
 const DEFAULT_PROJECT_NAME_BY_TEMPLATE: Record<ProjectTemplateType, string> = {
   tcc: 'Trabalho de Conclusão de Curso',
   artigo: 'Novo Artigo Científico',
@@ -687,6 +703,10 @@ export function useProjectWorkspace({
         imported.ownerEmail = activeOwner;
         await saveProject(imported, false);
         const all = await listProjects(activeOwner);
+        // Montar o editor de um trabalho longo ocupa a página por alguns segundos: a etapa
+        // precisa estar na tela antes disso, senão o usuário vê "Salvando" congelado
+        reportProgress({ stage: 'opening' });
+        await waitForNextPaint();
         setProjects(all);
         skipNextAutoSaveRef.current = true;
         clearHistory();

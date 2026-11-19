@@ -18,7 +18,7 @@ export interface ImportProgressView {
   /** Ex.: "54,0 MB de 120,0 MB". */
   detail?: string;
   hint?: string;
-  /** Na gravação final não dá mais para desfazer: o botão Cancelar fica desabilitado. */
+  /** Na gravação e abertura não dá mais para desfazer: o botão Cancelar fica desabilitado. */
   cancellable: boolean;
 }
 
@@ -30,7 +30,11 @@ const STAGE_LABELS: Record<ImportProgress['stage'], string> = {
   downloading: 'Recebendo o documento convertido…',
   building: 'Montando o projeto…',
   saving: 'Salvando no navegador…',
+  opening: 'Abrindo o trabalho…',
 };
+
+/** Etapas em que o projeto já foi gravado: cancelar não desfaria mais nada. */
+const NON_CANCELLABLE_STAGES = new Set<ImportProgress['stage']>(['saving', 'opening']);
 
 export function progressPercent(progress: ImportProgress): number | null {
   if (typeof progress.percent === 'number') return Math.min(100, Math.max(0, Math.floor(progress.percent)));
@@ -53,8 +57,11 @@ export function describeImportProgress(progress: ImportProgress): ImportProgress
   const view: ImportProgressView = {
     label: STAGE_LABELS[progress.stage],
     percent,
-    cancellable: progress.stage !== 'saving',
+    cancellable: !NON_CANCELLABLE_STAGES.has(progress.stage),
   };
+  if (progress.stage === 'opening') {
+    view.hint = 'Trabalhos longos levam alguns segundos para abrir no editor.';
+  }
   if (
     (progress.stage === 'uploading' || progress.stage === 'downloading') &&
     progress.loaded !== undefined &&
