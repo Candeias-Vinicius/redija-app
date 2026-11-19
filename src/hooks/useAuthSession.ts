@@ -2,6 +2,8 @@ import React, { useCallback } from 'react';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { deleteProject, listProjects } from '@/core/storage/db';
 import { deleteAllUserDriveProjects } from '@/core/storage/googleDriveService';
+import { deleteAllCustomTemplatesDriveFiles } from '@/core/storage/customTemplatesDrive';
+import { purgeCustomTemplatesForOwner } from '@/core/storage/customTemplates';
 
 const GUEST_MODE_STORAGE_KEY = 'redija:guestMode';
 
@@ -99,6 +101,7 @@ export function useAuthSession({
       const token = await getValidAccessToken(true);
       if (token) {
         await deleteAllUserDriveProjects(token);
+        await deleteAllCustomTemplatesDriveFiles(token);
       }
     } catch (err) {
       console.warn('Erro ao deletar arquivos do Google Drive:', err);
@@ -110,6 +113,7 @@ export function useAuthSession({
         for (const p of userProjects) {
           await deleteProject(p.id);
         }
+        await purgeCustomTemplatesForOwner(user.email);
       }
       onResetWorkspace();
     } catch (err) {

@@ -19,6 +19,11 @@ import {
   resolveRestoredProjectName,
 } from '@/core/storage/driveTrash';
 import { pushTrashStateToDrive } from '@/core/storage/driveTrashSync';
+import { subscribeCustomTemplateMutations } from '@/core/storage/customTemplates';
+import {
+  CUSTOM_TEMPLATES_SYNC_DEBOUNCE_MS,
+  syncCustomTemplatesWithDrive,
+} from '@/core/storage/customTemplatesSync';
 import {
   deleteDriveProject,
   listDriveProjects,
@@ -37,6 +42,13 @@ export function getProjectContentSignature(p: DocumentProject): string {
     references: p.references,
     templateConfig: p.templateConfig,
     sidebarConfig: p.sidebarConfig,
+  });
+}
+
+/** Modelos personalizados da conta ↔ `redija-modelos.json` no Drive (nunca o perfil local). */
+function syncCustomTemplatesInBackground(ownerEmail: string, token: string): void {
+  syncCustomTemplatesWithDrive(ownerEmail, token).catch((err) => {
+    console.warn('Não foi possível sincronizar os modelos personalizados com o Drive:', err);
   });
 }
 
@@ -253,6 +265,9 @@ export function useDriveSyncOrchestrator({
         const token = await getValidAccessToken(interactive);
         if (!token) return;
 
+        // Modelos personalizados seguem em paralelo: uma falha neles não atrapalha os projetos.
+        syncCustomTemplatesInBackground(user.email, token);
+
         const [driveSummaries, trashedDriveIds] = await Promise.all([
           listDriveProjects(token),
           listTrashedDriveProjectIds(token).catch((err) => {
@@ -442,6 +457,35 @@ export function useDriveSyncOrchestrator({
       onTrashStateChanged,
     ],
   );
+
+  // Envia ao Drive os modelos personalizados adicionados, removidos ou restaurados (com debounce).
+  // Só reage ao dono logado: alterações no perfil local nunca saem deste navegador.
+  useEffect(() => {
+    if (!isAuthenticated || !user || !isStorageReady) return;
+    const ownerEmail = user.email;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const unsubscribe = subscribeCustomTemplateMutations((changedOwner) => {
+      if (changedOwner !== ownerEmail) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(async () => {
+        timer = null;
+        const token = await getValidAccessToken();
+        if (token) syncCustomTemplatesInBackground(ownerEmail, token);
+      }, CUSTOM_TEMPLATES_SYNC_DEBOUNCE_MS);
+    });
+
+    return () => {
+      unsubscribe();
+      if (timer) {
+        // Alteração ainda não enviada: envia já (se ainda houver sessão) em vez de descartar.
+        clearTimeout(timer);
+        void getValidAccessToken().then((token) => {
+          if (token) syncCustomTemplatesInBackground(ownerEmail, token);
+        });
+      }
+    };
+  }, [isAuthenticated, user, isStorageReady, getValidAccessToken]);
 
   // Sincroniza projetos do Google Drive automaticamente em segundo plano ao logar
   useEffect(() => {

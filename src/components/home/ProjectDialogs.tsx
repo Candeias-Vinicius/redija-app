@@ -59,14 +59,6 @@ const DialogHeader: React.FC<{ id: string; title: string; subtitle?: string; onC
 
 const UNIVERSE_SEARCH_URL = 'https://typst.app/universe/search/?kind=templates';
 
-/**
- * Sugestões rápidas: só pacotes conferidos no repositório oficial. Parte da lista
- * POPULAR_UNIVERSE_TEMPLATES não existe no Typst Universe (404) e cairia no erro de
- * "pacote não encontrado" ao adicionar.
- */
-const VERIFIED_POPULAR_IDS = new Set(['@preview/charged-ieee:0.1.4', '@preview/touying:0.5.3']);
-const VERIFIED_POPULAR = POPULAR_UNIVERSE_TEMPLATES.filter((t) => VERIFIED_POPULAR_IDS.has(t.id));
-
 interface UniverseModelDialogProps {
   isOpen: boolean;
   existing: CustomTemplate[];
@@ -222,7 +214,7 @@ const UniverseModelDialogContent: React.FC<Omit<UniverseModelDialogProps, 'isOpe
                   )}
                   <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="Modelos populares">
                     <span className="text-xs text-fg-muted">Populares:</span>
-                    {VERIFIED_POPULAR.map((t) => (
+                    {POPULAR_UNIVERSE_TEMPLATES.map((t) => (
                       <button
                         key={t.id}
                         type="button"
