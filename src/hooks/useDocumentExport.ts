@@ -1,8 +1,15 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { DocumentProject } from '@/types/document';
 import { compileProjectToPdf, triggerBlobDownload } from '@/core/typst/projectCompiler';
 import { generateStandaloneTypst } from '@/core/transpiler/typstGenerator';
-import { exportTypstProjectZip, getCleanProjectSlug } from '@/core/transpiler/projectExporter';
+import {
+  dismissDocxConversionNotice,
+  DOCX_CONVERSION_NOTICE_TEXT,
+  exportProjectToDocx,
+  exportTypstProjectZip,
+  getCleanProjectSlug,
+  isDocxConversionNoticeDismissed,
+} from '@/core/transpiler/projectExporter';
 import { saveProjectPdfToDrive } from '@/core/storage/googleDriveService';
 import { toast } from '@/components/ui/toastStore';
 
@@ -52,13 +59,40 @@ export async function downloadProjectPdf(
   return true;
 }
 
+/**
+ * Converte um trabalho para Word (.docx) nas medidas da norma e dispara o download.
+ * Exibe o aviso de primeira conversão (com opção "Não mostrar novamente") e eventuais
+ * avisos sobre figuras indisponíveis, equações não suportadas ou citações órfãs.
+ */
+export async function downloadProjectDocx(project: DocumentProject): Promise<boolean> {
+  const result = await exportProjectToDocx(project);
+  triggerBlobDownload(result.blob, result.fileName);
+
+  if (!isDocxConversionNoticeDismissed()) {
+    toast.info(DOCX_CONVERSION_NOTICE_TEXT, {
+      action: {
+        label: 'Não mostrar novamente',
+        onClick: () => dismissDocxConversionNotice(),
+      },
+    });
+  }
+
+  if (result.warnings.length > 0) {
+    toast.info(result.warnings.join('\n'));
+  }
+
+  return true;
+}
+
 export function useDocumentExport({
   project,
   isAuthenticated,
   getValidAccessToken,
 }: UseDocumentExportOptions) {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingProject, setIsExportingProject] = useState(false);
+  const retryDocxRef = useRef<() => void>(() => {});
 
   const handleDownloadPdf = useCallback(async () => {
     setIsExportingPdf(true);
@@ -68,6 +102,34 @@ export function useDocumentExport({
       setIsExportingPdf(false);
     }
   }, [project, isAuthenticated, getValidAccessToken]);
+
+  const handleDownloadDocx = useCallback(async () => {
+    setIsExportingDocx(true);
+    try {
+      await downloadProjectDocx(project);
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Não foi possível exportar para .docx. Verifique sua conexão e tente novamente.';
+      toast.error(message, {
+        action: {
+          label: 'Tentar novamente',
+          onClick: () => {
+            retryDocxRef.current();
+          },
+        },
+      });
+    } finally {
+      setIsExportingDocx(false);
+    }
+  }, [project]);
+
+  useEffect(() => {
+    retryDocxRef.current = () => {
+      void handleDownloadDocx();
+    };
+  }, [handleDownloadDocx]);
 
   const handleExportProjectZip = useCallback(async () => {
     setIsExportingProject(true);
@@ -89,8 +151,10 @@ export function useDocumentExport({
 
   return {
     isExportingPdf,
+    isExportingDocx,
     isExportingProject,
     handleDownloadPdf,
+    handleDownloadDocx,
     handleExportProjectZip,
     handleExportTypst,
   };

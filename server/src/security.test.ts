@@ -5,6 +5,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { zipSync, strToU8 } from 'fflate';
 import { isOriginAllowed } from './app.ts';
+import { processDocxExport } from './export.ts';
 import {
   expandLatexPreamble,
   localPackageNames,
@@ -160,4 +161,26 @@ test('safeUnzip extrai arquivos e recusa zips grandes demais', async () => {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test('processDocxExport valida pacote OpenXML em pasta temporária e rejeita arquivos inválidos', async () => {
+  const validZip = zipSync({
+    '[Content_Types].xml': strToU8('<?xml version="1.0"?><Types/>'),
+    'word/document.xml': strToU8('<?xml version="1.0"?><w:document><w:body><w:p/></w:body></w:document>'),
+  });
+  const base64 = Buffer.from(validZip).toString('base64');
+  const res = await processDocxExport({
+    fileName: 'Meu Trabalho: 2026?.docx',
+    docxBase64: base64,
+    warnings: ['Aviso de teste'],
+  });
+  assert.equal(res.fileName, 'Meu Trabalho_ 2026_.docx');
+  assert.equal(res.docxBase64, base64);
+  assert.deepEqual(res.warnings, ['Aviso de teste']);
+
+  const invalidZip = zipSync({ 'outro.txt': strToU8('sem document.xml'.repeat(10)) });
+  await assert.rejects(
+    processDocxExport({ docxBase64: Buffer.from(invalidZip).toString('base64') }),
+    ImportError,
+  );
 });
