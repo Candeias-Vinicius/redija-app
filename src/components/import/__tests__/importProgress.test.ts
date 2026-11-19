@@ -16,7 +16,9 @@ const MB = 1024 * 1024;
 
 describe('describeImportProgress', () => {
   it('mostra porcentagem e quantidade enviada durante o envio', () => {
-    expect(describeImportProgress({ stage: 'uploading', loaded: 54 * MB, total: 120 * MB })).toEqual({
+    expect(
+      describeImportProgress({ stage: 'uploading', loaded: 54 * MB, total: 120 * MB }),
+    ).toEqual({
       label: 'Enviando o arquivo para conversão…',
       percent: 45,
       detail: '54,0 MB de 120,0 MB',
@@ -80,7 +82,9 @@ describe('describeImportError', () => {
   });
 
   it('não mostra detalhes técnicos de erros inesperados', () => {
-    const description = describeImportError(new TypeError("Cannot read properties of undefined (reading 'blocks')"));
+    const description = describeImportError(
+      new TypeError("Cannot read properties of undefined (reading 'blocks')"),
+    );
     expect(description?.message).toMatch(/^Não foi possível importar o arquivo/);
     expect(description?.message).not.toMatch(/undefined/);
   });

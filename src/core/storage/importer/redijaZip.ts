@@ -19,7 +19,9 @@ export function isSystemJunkEntry(name: string): boolean {
 /** O `.redija` do pacote exportado pelo próprio Redija (o mais próximo da raiz), se houver. */
 export function findRedijaEntry(zip: JSZip): string | undefined {
   return Object.keys(zip.files)
-    .filter((n) => !zip.files[n].dir && n.toLowerCase().endsWith('.redija') && !isSystemJunkEntry(n))
+    .filter(
+      (n) => !zip.files[n].dir && n.toLowerCase().endsWith('.redija') && !isSystemJunkEntry(n),
+    )
     .sort((a, b) => a.split('/').length - b.split('/').length)[0];
 }
 

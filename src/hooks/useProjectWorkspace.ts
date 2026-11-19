@@ -723,7 +723,9 @@ export function useProjectWorkspace({
           toast.info('Importação cancelada.');
           return;
         }
-        if (!(err instanceof ImportFailure)) console.error('Erro inesperado ao importar documento:', err);
+        if (!(err instanceof ImportFailure)) {
+          console.error('Erro inesperado ao importar documento:', err);
+        }
         toast.error(
           description.message,
           description.retriable

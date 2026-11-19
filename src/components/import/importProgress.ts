@@ -37,7 +37,8 @@ const STAGE_LABELS: Record<ImportProgress['stage'], string> = {
 const NON_CANCELLABLE_STAGES = new Set<ImportProgress['stage']>(['saving', 'opening']);
 
 export function progressPercent(progress: ImportProgress): number | null {
-  if (typeof progress.percent === 'number') return Math.min(100, Math.max(0, Math.floor(progress.percent)));
+  if (typeof progress.percent === 'number')
+    return Math.min(100, Math.max(0, Math.floor(progress.percent)));
   if (progress.loaded !== undefined && progress.total) {
     return Math.min(100, Math.floor((progress.loaded / progress.total) * 100));
   }

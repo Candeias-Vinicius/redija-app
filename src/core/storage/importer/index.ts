@@ -64,7 +64,10 @@ async function importRemote(
   const response = await convertWithImportService(file.name, body, options);
   throwIfCancelled(options.signal);
   options.onProgress?.({ stage: 'building' });
-  const project = pandocResponseToProject(response, projectNameFrom(file.name, 'Projeto Importado'));
+  const project = pandocResponseToProject(
+    response,
+    projectNameFrom(file.name, 'Projeto Importado'),
+  );
   assertWithinQuota(project);
   return { project, warnings: response.warnings ?? [] };
 }
@@ -97,12 +100,15 @@ async function openZip(buffer: ArrayBuffer): Promise<JSZip> {
       'O arquivo não é um .zip válido: ele pode estar corrompido ou ser de outro formato com a extensão trocada.',
     );
   }
-  if (signature === 'empty') throw new ImportFailure('O .zip está vazio: não há arquivos dentro dele.');
+  if (signature === 'empty')
+    throw new ImportFailure('O .zip está vazio: não há arquivos dentro dele.');
   try {
     return await JSZip.loadAsync(buffer);
   } catch (err) {
     if (err instanceof Error && /encrypt/i.test(err.message)) {
-      throw new ImportFailure('O .zip está protegido por senha. Compacte o projeto de novo, sem senha.');
+      throw new ImportFailure(
+        'O .zip está protegido por senha. Compacte o projeto de novo, sem senha.',
+      );
     }
     throw new ImportFailure(
       'Não foi possível abrir o .zip: o arquivo está corrompido ou incompleto (o download pode ter sido interrompido).',

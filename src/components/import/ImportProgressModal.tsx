@@ -3,7 +3,8 @@ import { FileUp } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { describeImportProgress, type ImportState } from './importProgress';
 
-const PANEL = 'w-full max-w-md rounded-2xl border border-line bg-surface shadow-2xl overflow-hidden';
+const PANEL =
+  'w-full max-w-md rounded-2xl border border-line bg-surface shadow-2xl overflow-hidden';
 const SECONDARY =
   'touch-target inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg border border-line text-slate-700 dark:text-slate-200 hover:bg-surface-sunken disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium transition-colors';
 
@@ -29,7 +30,10 @@ export const ImportProgressModal: React.FC<ImportProgressModalProps> = ({ state,
       <div className={PANEL} aria-busy="true">
         <div className="px-5 pt-5 pb-4">
           <div className="flex items-start gap-3">
-            <span className="shrink-0 rounded-full bg-brand-50 dark:bg-brand-950 p-2" aria-hidden="true">
+            <span
+              className="shrink-0 rounded-full bg-brand-50 dark:bg-brand-950 p-2"
+              aria-hidden="true"
+            >
               <FileUp className="w-5 h-5 text-brand-700 dark:text-brand-400" />
             </span>
             <div className="min-w-0">
@@ -71,14 +75,21 @@ export const ImportProgressModal: React.FC<ImportProgressModalProps> = ({ state,
                 <div className="h-full w-2/5 rounded-full bg-brand-700 animate-indeterminate" />
               )}
             </div>
-            {view.detail && <p className="mt-1.5 text-xs tabular-nums text-fg-muted">{view.detail}</p>}
+            {view.detail && (
+              <p className="mt-1.5 text-xs tabular-nums text-fg-muted">{view.detail}</p>
+            )}
           </div>
 
           {view.hint && <p className="mt-4 text-xs leading-relaxed text-fg-muted">{view.hint}</p>}
         </div>
 
         <div className="flex justify-end border-t border-line px-5 py-3">
-          <button type="button" onClick={onCancel} disabled={!view.cancellable} className={SECONDARY}>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={!view.cancellable}
+            className={SECONDARY}
+          >
             Cancelar importação
           </button>
         </div>

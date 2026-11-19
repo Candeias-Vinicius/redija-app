@@ -65,7 +65,9 @@ describe('Transporte do serviço de importação (XHR)', () => {
     it('um File do seletor vai direto para o envio, sem a etapa de leitura, e termina montando o projeto', async () => {
       const stages: string[] = [];
       void installFakeXhr((xhr) => xhr.respond(200, convertResponse()));
-      await importDocumentFile(new File(['# Oi'], 'notas.md'), { onProgress: (p) => stages.push(p.stage) });
+      await importDocumentFile(new File(['# Oi'], 'notas.md'), {
+        onProgress: (p) => stages.push(p.stage),
+      });
       expect(stages).toEqual(['uploading', 'building']);
     });
   });
@@ -131,9 +133,9 @@ describe('Transporte do serviço de importação (XHR)', () => {
       controller.abort();
       const xhrSpy = vi.fn();
       vi.stubGlobal('XMLHttpRequest', xhrSpy);
-      await expect(convertWithImportService('a.md', file, { signal: controller.signal })).rejects.toBeInstanceOf(
-        ImportCancelledError,
-      );
+      await expect(
+        convertWithImportService('a.md', file, { signal: controller.signal }),
+      ).rejects.toBeInstanceOf(ImportCancelledError);
       expect(xhrSpy).not.toHaveBeenCalled();
     });
   });
@@ -165,9 +167,13 @@ describe('Transporte do serviço de importação (XHR)', () => {
 
     it('502/503/504 e 429 permitem nova tentativa e usam a mensagem do serviço quando houver', async () => {
       const busy = await failWith((xhr) =>
-        xhr.respond(503, { error: 'O serviço de importação está ocupado. Tente novamente em instantes.' }),
+        xhr.respond(503, {
+          error: 'O serviço de importação está ocupado. Tente novamente em instantes.',
+        }),
       );
-      expect(busy.message).toBe('O serviço de importação está ocupado. Tente novamente em instantes.');
+      expect(busy.message).toBe(
+        'O serviço de importação está ocupado. Tente novamente em instantes.',
+      );
       expect(busy.retriable).toBe(true);
 
       const gateway = await failWith((xhr) => xhr.respond(502, null));
@@ -177,7 +183,9 @@ describe('Transporte do serviço de importação (XHR)', () => {
 
     it('erro do documento (422) mostra a explicação do serviço e não oferece nova tentativa', async () => {
       const err = await failWith((xhr) =>
-        xhr.respond(422, { error: 'Nenhum documento .tex, .typ, .md ou .docx foi encontrado no .zip.' }),
+        xhr.respond(422, {
+          error: 'Nenhum documento .tex, .typ, .md ou .docx foi encontrado no .zip.',
+        }),
       );
       expect(err.message).toBe('Nenhum documento .tex, .typ, .md ou .docx foi encontrado no .zip.');
       expect(err.retriable).toBe(false);

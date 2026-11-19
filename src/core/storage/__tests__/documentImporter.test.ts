@@ -36,7 +36,8 @@ async function redijaExportZip(blockIds: string[], extra?: (zip: JSZip) => void)
   const zip = new JSZip();
   extra?.(zip);
   zip.file('meu_tcc/meu_tcc.redija', serializeBackup(original));
-  for (const id of blockIds) zip.file(`meu_tcc/assets/img_${id}.png`, new Uint8Array([...PNG, id.length]));
+  for (const id of blockIds)
+    zip.file(`meu_tcc/assets/img_${id}.png`, new Uint8Array([...PNG, id.length]));
   return zip.generateAsync({ type: 'arraybuffer' });
 }
 
@@ -64,7 +65,9 @@ describe('Document Importer (.redija, ZIP do Redija e serviço de importação)'
 
     it('aceita o backup salvo como .json e recusa um JSON que não é projeto do Redija', async () => {
       const original = createProjectFromTemplate('artigo', 'Backup em JSON');
-      const { project } = await importDocumentFile(fileFrom('backup.json', serializeBackup(original)));
+      const { project } = await importDocumentFile(
+        fileFrom('backup.json', serializeBackup(original)),
+      );
       expect(project.name).toBe('Backup em JSON');
 
       await expect(importDocumentFile(fileFrom('dados.json', '{"foo": 1}'))).rejects.toThrow(
@@ -73,13 +76,15 @@ describe('Document Importer (.redija, ZIP do Redija e serviço de importação)'
     });
 
     it('explica que o arquivo está vazio em vez de falar em JSON inválido', async () => {
-      await expect(importDocumentFile(fileFrom('vazio.redija', ''))).rejects.toThrow(/está vazio \(0 bytes\)/);
+      await expect(importDocumentFile(fileFrom('vazio.redija', ''))).rejects.toThrow(
+        /está vazio \(0 bytes\)/,
+      );
     });
 
     it('rejeita extensões desconhecidas com mensagem explicativa', async () => {
-      await expect(importDocumentFile(fileFrom('documento.txt', new ArrayBuffer(0)))).rejects.toThrow(
-        /Formato de arquivo não suportado/,
-      );
+      await expect(
+        importDocumentFile(fileFrom('documento.txt', new ArrayBuffer(0))),
+      ).rejects.toThrow(/Formato de arquivo não suportado/);
     });
   });
 
@@ -113,7 +118,9 @@ describe('Document Importer (.redija, ZIP do Redija e serviço de importação)'
         fileFrom('meu_tcc.zip', await redijaExportZip(['b10', 'b1'])),
       );
       const imageOf = (id: string) =>
-        atob(project.blocks.find((b) => b.id === id)!.meta!.imageDataUrl!.split(',')[1]).charCodeAt(4);
+        atob(project.blocks.find((b) => b.id === id)!.meta!.imageDataUrl!.split(',')[1]).charCodeAt(
+          4,
+        );
       expect(imageOf('b1')).toBe(2);
       expect(imageOf('b10')).toBe(3);
     });
@@ -138,15 +145,26 @@ describe('Document Importer (.redija, ZIP do Redija e serviço de importação)'
 
     it('explica arquivo vazio, de outro formato e .zip sem arquivos', async () => {
       await expectFailure(new ArrayBuffer(0), /está vazio \(0 bytes\)/);
-      await expectFailure(new TextEncoder().encode('%PDF-1.7').buffer as ArrayBuffer, /não é um \.zip válido/);
-      await expectFailure(await new JSZip().generateAsync({ type: 'arraybuffer' }), /\.zip está vazio/);
+      await expectFailure(
+        new TextEncoder().encode('%PDF-1.7').buffer as ArrayBuffer,
+        /não é um \.zip válido/,
+      );
+      await expectFailure(
+        await new JSZip().generateAsync({ type: 'arraybuffer' }),
+        /\.zip está vazio/,
+      );
     });
 
     it('explica .zip corrompido ou baixado pela metade, sem a mensagem técnica do JSZip', async () => {
       const zip = new JSZip();
       zip.file('main.tex', '\\documentclass{article}'.repeat(200));
-      const full = new Uint8Array(await zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' }));
-      await expectFailure(full.slice(0, Math.floor(full.length * 0.6)).buffer, /corrompido ou incompleto/);
+      const full = new Uint8Array(
+        await zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' }),
+      );
+      await expectFailure(
+        full.slice(0, Math.floor(full.length * 0.6)).buffer,
+        /corrompido ou incompleto/,
+      );
     });
 
     it('explica .zip protegido por senha', async () => {
@@ -194,10 +212,15 @@ describe('Document Importer (.redija, ZIP do Redija e serviço de importação)'
     it('envia o arquivo ao serviço, converte o AST devolvido e repassa os avisos', async () => {
       vi.stubEnv('VITE_IMPORT_API_URL', 'http://localhost:8080/');
       const sent = installFakeXhr((xhr) =>
-        xhr.respond(200, convertResponse({ warnings: ['Formato de imagem não suportado: grafico.pdf'] })),
+        xhr.respond(
+          200,
+          convertResponse({ warnings: ['Formato de imagem não suportado: grafico.pdf'] }),
+        ),
       );
 
-      const { project: imported, warnings } = await importDocumentFile(fileFrom('notas.md', '# Introdução'));
+      const { project: imported, warnings } = await importDocumentFile(
+        fileFrom('notas.md', '# Introdução'),
+      );
       const xhr = await sent;
       expect(xhr.method).toBe('POST');
       expect(xhr.url).toBe('http://localhost:8080/convert');
@@ -225,34 +248,54 @@ describe('Document Importer (.redija, ZIP do Redija e serviço de importação)'
       vi.stubGlobal('XMLHttpRequest', xhrSpy);
       const huge = { ...fileFrom('tese.docx', new ArrayBuffer(8)), size: 300 * 1024 * 1024 };
 
-      await expect(importDocumentFile(huge)).rejects.toThrow(/300,0 MB, acima do limite de 250,0 MB/);
+      await expect(importDocumentFile(huge)).rejects.toThrow(
+        /300,0 MB, acima do limite de 250,0 MB/,
+      );
       expect(xhrSpy).not.toHaveBeenCalled();
     });
   });
 
   describe('Detecção heurística de modelo', () => {
     it('detecta modelo no texto de Word/Markdown (TCC vs Relatório vs Artigo)', () => {
-      expect(detectDocxTemplate('<h1>Folha de Aprovação</h1><p>Trabalho de Conclusão de Curso</p>')).toBe('tcc');
+      expect(
+        detectDocxTemplate('<h1>Folha de Aprovação</h1><p>Trabalho de Conclusão de Curso</p>'),
+      ).toBe('tcc');
       expect(detectDocxTemplate('<h1>Relatório de Estágio Supervisionado</h1>')).toBe('relatorio');
       expect(detectDocxTemplate('Projeto de Pesquisa\nJustificativa')).toBe('projeto_pesquisa');
       expect(detectDocxTemplate('<h1>Introdução</h1><p>Artigo simples.</p>')).toBe('artigo');
     });
 
     it('identifica IEEEtran, SBC, Pôster, abntex2 artigo e artigo genérico no LaTeX', () => {
-      expect(detectLatexTemplate('\\documentclass[conference]{IEEEtran}\\begin{document}\\end{document}')).toBe('ieee');
-      expect(detectLatexTemplate('\\documentclass{article}\\usepackage{sbc-template}\\begin{document}\\end{document}')).toBe('sbc');
-      expect(detectLatexTemplate('\\documentclass{tikzposter}\\begin{document}\\end{document}')).toBe('poster');
-      expect(detectLatexTemplate('\\documentclass[article]{abntex2}\\tipotrabalho{Artigo Científico}')).toBe('artigo');
+      expect(
+        detectLatexTemplate(
+          '\\documentclass[conference]{IEEEtran}\\begin{document}\\end{document}',
+        ),
+      ).toBe('ieee');
+      expect(
+        detectLatexTemplate(
+          '\\documentclass{article}\\usepackage{sbc-template}\\begin{document}\\end{document}',
+        ),
+      ).toBe('sbc');
+      expect(
+        detectLatexTemplate('\\documentclass{tikzposter}\\begin{document}\\end{document}'),
+      ).toBe('poster');
+      expect(
+        detectLatexTemplate('\\documentclass[article]{abntex2}\\tipotrabalho{Artigo Científico}'),
+      ).toBe('artigo');
       expect(detectLatexTemplate('\\documentclass{abntex2}\\chapter{Introdução}')).toBe('tcc');
       expect(detectLatexTemplate('\\documentclass{article}\\section{Intro}')).toBe('artigo');
     });
 
     it('detecta projetos Typst nativos (SBC, IEEE, Pôster, ABNT) e do Typst Universe', () => {
-      expect(detectTypstTemplate('#import "abnt.typ": *\n#show: abnt.with(titulo: "TCC")')).toBe('tcc');
+      expect(detectTypstTemplate('#import "abnt.typ": *\n#show: abnt.with(titulo: "TCC")')).toBe(
+        'tcc',
+      );
       expect(detectTypstTemplate('#show: abnt.with(incluir-capa: false)')).toBe('artigo');
       expect(detectTypstTemplate('#show: ieee-article.with(titulo: "Paper")')).toBe('ieee');
       expect(detectTypstTemplate('#show: academic-poster.with(titulo: "Banner")')).toBe('poster');
-      expect(detectTypstTemplate('#import "@preview/charged-ieee:0.1.1": *')).toBe('universe_custom');
+      expect(detectTypstTemplate('#import "@preview/charged-ieee:0.1.1": *')).toBe(
+        'universe_custom',
+      );
       expect(detectTypstTemplate('= Só título\n\nParágrafo simples.')).toBe('artigo');
     });
   });

@@ -55,7 +55,9 @@ export function interpretConvertResponse(status: number, body: unknown): Convert
     );
   }
   if (status < 200 || status >= 300) {
-    throw new ImportFailure(serverMessage(body) ?? `Falha ao converter o documento (HTTP ${status}).`);
+    throw new ImportFailure(
+      serverMessage(body) ?? `Falha ao converter o documento (HTTP ${status}).`,
+    );
   }
   if (!isConvertResponse(body)) {
     throw new ImportServiceUnavailableError(
