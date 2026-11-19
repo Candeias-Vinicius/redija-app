@@ -114,7 +114,7 @@ export const SidebarLinterSection: React.FC<SidebarLinterSectionProps> = ({
 
   const renderSectionTitle = () => {
     if (lintReport.isPausedAbnt) {
-      return 'Verificação pausada';
+      return 'Verificador ABNT (Pausado)';
     }
     return `${lintReport.title} (${lintReport.warnings.length})`;
   };
