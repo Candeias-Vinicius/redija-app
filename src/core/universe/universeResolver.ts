@@ -5,7 +5,16 @@
 // =====================================================================
 
 import { db, CachedUniversePackage } from '@/core/storage/db';
+import type { DocumentProject, UniverseTemplateProfile } from '@/types/document';
 import { extractTemplateThumbnail } from './packageThumbnail';
+import {
+  analyzeUniversePackage,
+  collectTemplateFiles,
+  readUniversePackage,
+  UNIVERSE_PROFILE_VERSION,
+  type UniversePackageManifest,
+  type UniverseTemplateFiles,
+} from './templateProfile';
 import {
   buildVirtualUniversePackageFiles,
   isValidTarGzBytes,
@@ -217,12 +226,83 @@ export function getUniversePackageThumbnail(packageId: string): Promise<PackageT
 
 const SAFE_UNIVERSE_PKG_REGEX = /^@[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+:[0-9.]+$/;
 
+export interface UniversePackageAnalysis {
+  profile: UniverseTemplateProfile;
+  manifest: UniversePackageManifest;
+  /** Arquivos da pasta do modelo (logos, `config.typ`) para o projeto compilado. */
+  templateFiles: UniverseTemplateFiles;
+}
+
+const analysisRequests = new Map<string, Promise<UniversePackageAnalysis | null>>();
+
+async function loadPackageAnalysis(fullId: string): Promise<UniversePackageAnalysis | null> {
+  let cached = await getCachedPackage(fullId);
+  if (!cached?.tarGzBytes) {
+    await resolveUniversePackage(fullId);
+    cached = await getCachedPackage(fullId);
+  }
+  if (!cached?.tarGzBytes || !isValidTarGzBytes(cached.tarGzBytes)) return null;
+  const contents = await readUniversePackage(cached.tarGzBytes);
+  if (!contents) return null;
+  return {
+    profile: analyzeUniversePackage(contents, fullId),
+    manifest: contents.manifest,
+    templateFiles: collectTemplateFiles(contents),
+  };
+}
+
 /**
- * Resolve ativos de pacote Typst Universe apenas quando um pacote está ativo.
+ * Lê o pacote real (baixa se ainda não estiver em cache) e descobre como usar o modelo:
+ * versão do Typst, tipo, exemplo e assinatura. Resultado guardado em memória por pacote.
+ * Retorna `null` sem conexão ou para pacotes que não existem no Typst Universe.
+ */
+export function analyzeUniversePackageById(packageId: string): Promise<UniversePackageAnalysis | null> {
+  const { fullId } = parsePackageId(packageId);
+  const pending = analysisRequests.get(fullId);
+  if (pending) return pending;
+  const request = loadPackageAnalysis(fullId).catch((err) => {
+    console.warn(`Não foi possível analisar o pacote ${fullId}:`, err);
+    return null;
+  });
+  analysisRequests.set(fullId, request);
+  // Sem resultado (ex.: offline), a próxima chamada tenta de novo
+  void request.then((result) => {
+    if (!result) analysisRequests.delete(fullId);
+  });
+  return request;
+}
+
+/** Perfil do modelo (ou `null` sem conexão / pacote inexistente). */
+export async function getUniverseTemplateProfile(packageId: string): Promise<UniverseTemplateProfile | null> {
+  return (await analyzeUniversePackageById(packageId))?.profile ?? null;
+}
+
+/** O projeto ainda não tem o perfil do pacote configurado (ou tem um de versão antiga)? */
+export function needsUniverseProfile(cfg?: { universePackage?: string; universeProfile?: UniverseTemplateProfile }): boolean {
+  const pkg = cfg?.universePackage?.trim();
+  if (!pkg) return false;
+  const profile = cfg?.universeProfile;
+  return !profile || profile.packageId !== parsePackageId(pkg).fullId || profile.version < UNIVERSE_PROFILE_VERSION;
+}
+
+/** Projeto com o perfil do pacote, quando o salvo falta ou é de outro pacote/versão do analisador. */
+export function withUniverseProfile(
+  project: DocumentProject,
+  profile: UniverseTemplateProfile | null | undefined,
+): DocumentProject {
+  if (!profile || !project.templateConfig || !needsUniverseProfile(project.templateConfig)) return project;
+  return { ...project, templateConfig: { ...project.templateConfig, universeProfile: profile } };
+}
+
+/**
+ * Resolve ativos de pacote Typst Universe apenas quando um pacote está ativo: o pacote,
+ * os arquivos da pasta do modelo e o perfil (para projetos que ainda não o têm).
  */
 export async function resolveProjectUniverseAssets(packageId?: string): Promise<{
   extraFiles?: Record<string, string>;
+  binaryFiles?: Record<string, Uint8Array>;
   packageArchives?: Record<string, Uint8Array>;
+  profile?: UniverseTemplateProfile;
 }> {
   const trimmed = packageId?.trim();
   if (!trimmed) {
@@ -233,8 +313,16 @@ export async function resolveProjectUniverseAssets(packageId?: string): Promise<
     : '@preview/charged-ieee:0.1.4';
   const parsed = parsePackageId(safePkgId);
   const resolved = await resolveUniversePackage(parsed.fullId);
+  const analysis = resolved.tarGzBytes ? await analyzeUniversePackageById(parsed.fullId) : null;
+  const extraFiles = {
+    ...(analysis?.templateFiles.textFiles ?? {}),
+    ...resolved.files,
+  };
+  const binaryFiles = analysis?.templateFiles.binaryFiles;
   return {
-    extraFiles: Object.keys(resolved.files).length > 0 ? resolved.files : undefined,
+    extraFiles: Object.keys(extraFiles).length > 0 ? extraFiles : undefined,
+    binaryFiles: binaryFiles && Object.keys(binaryFiles).length > 0 ? binaryFiles : undefined,
     packageArchives: resolved.tarGzBytes ? { [parsed.fullId]: resolved.tarGzBytes } : undefined,
+    profile: analysis?.profile,
   };
 }

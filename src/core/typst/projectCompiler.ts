@@ -1,6 +1,6 @@
 import { DocumentProject } from '@/types/document';
 import { getTemplateCapabilities } from '@/core/templates/templateCapabilities';
-import { resolveProjectUniverseAssets } from '@/core/universe/universeResolver';
+import { resolveProjectUniverseAssets, withUniverseProfile } from '@/core/universe/universeResolver';
 import { generateTypstFiles, extractBinaryAssets } from '@/core/transpiler/typstGenerator';
 import { compileToPdf, type PdfCompileOutput } from './typstClient';
 
@@ -17,8 +17,10 @@ export async function compileProjectToPdf(project: DocumentProject): Promise<Pdf
         )
       : {};
 
-  const files = generateTypstFiles(project, pkgAssets.extraFiles);
-  const binaryFiles = extractBinaryAssets(project);
+  const source = withUniverseProfile(project, pkgAssets.profile);
+  const files = generateTypstFiles(source, pkgAssets.extraFiles);
+  // Imagens do trabalho têm prioridade sobre arquivos de mesmo nome da pasta do modelo
+  const binaryFiles = { ...(pkgAssets.binaryFiles ?? {}), ...extractBinaryAssets(source) };
 
   return compileToPdf(
     files,

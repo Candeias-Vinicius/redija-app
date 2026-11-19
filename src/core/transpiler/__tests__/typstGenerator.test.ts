@@ -481,7 +481,7 @@ describe('Typst compilation integration', () => {
     expect(standalone).toContain('GLOSSÁRIO');
     expect(standalone).toContain('==== Subseção Quaternária');
     expect(standalone).toContain('===== Subseção Quinária');
-    expect(standalone).toContain('#heading(numbering: none)[AGRADECIMENTOS ESPECIAIS]');
+    expect(standalone).toContain('#heading(depth: 1, numbering: none)[AGRADECIMENTOS ESPECIAIS]');
     expect(standalone).toContain('$ f(x) = sum_(i=1)^n (x_i - mu)^2 / sigma^2 $');
     expect(standalone).toContain('#codigo(');
     expect(standalone).toContain('#quadro(');
@@ -994,8 +994,11 @@ describe('Typst compilation integration', () => {
       const { [MAIN_FILE]: main } = generateTypstFiles(abntlyProj);
 
       expect(main).toContain(
-        '#import "abnt.typ": *\n#import "@preview/abntly:0.1.1": abntly, config-info, cover, title-page, abstract, keywords',
+        '#import "@preview/abntly:0.1.1": abntly, config-info, cover, title-page, abstract, keywords',
       );
+      // As funções do corpo vêm do abnt.typ depois do pacote: o `quadro` do abntly não as substitui
+      expect(main).toContain('#import "abnt.typ": figura, tabela, quadro, codigo, citacao, referencias');
+      expect(main.indexOf('#import "abnt.typ"')).toBeGreaterThan(main.indexOf('#import "@preview/abntly'));
       expect(main).not.toContain('#import "@preview/abntly:0.1.1": *');
       expect(main).toContain('#show: abntly.with(\n  info: config-info(\n    title: "Análise de Sistemas Web",');
       expect(main).toContain('subtitle: "Estudo de caso com Typst"');

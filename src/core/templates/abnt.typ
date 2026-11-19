@@ -136,7 +136,7 @@
   ..itens
 ) = {
   let heading-title = if titulo != auto { titulo } else [Referências]
-  heading(numbering: none)[#heading-title]
+  heading(depth: 1, numbering: none)[#heading-title]
   set par(
     justify: alinhamento == "justify",
     first-line-indent: 0pt,

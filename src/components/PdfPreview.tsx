@@ -6,7 +6,7 @@ import {
   getTemplateFileName,
 } from '@/core/transpiler/typstGenerator';
 import { getTemplateCapabilities } from '@/core/templates/templateCapabilities';
-import { resolveProjectUniverseAssets } from '@/core/universe/universeResolver';
+import { resolveProjectUniverseAssets, withUniverseProfile } from '@/core/universe/universeResolver';
 import { exportToBibtex, getOrderedReferences } from '@/core/transpiler/abntLinter';
 import {
   compileToVector,
@@ -163,16 +163,21 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
       try {
         let extraFiles: Record<string, string> | undefined = undefined;
         let packageArchives: Record<string, Uint8Array> | undefined = undefined;
+        let templateBinaryFiles: Record<string, Uint8Array> | undefined = undefined;
+        let source = project;
         if (capabilities.effectiveType === 'universe_custom') {
           const pkgAssets = await resolveProjectUniverseAssets(
             project.templateConfig?.universePackage || '@preview/charged-ieee:0.1.4',
           );
           extraFiles = pkgAssets.extraFiles;
           packageArchives = pkgAssets.packageArchives;
+          templateBinaryFiles = pkgAssets.binaryFiles;
+          source = withUniverseProfile(project, pkgAssets.profile);
         }
 
-        const files = generateTypstFiles(project, extraFiles);
-        const binaryFiles = extractBinaryAssets(project);
+        const files = generateTypstFiles(source, extraFiles);
+        // Imagens do trabalho têm prioridade sobre arquivos de mesmo nome da pasta do modelo
+        const binaryFiles = { ...(templateBinaryFiles ?? {}), ...extractBinaryAssets(source) };
         const result = await compileToVector(
           files,
           binaryFiles,

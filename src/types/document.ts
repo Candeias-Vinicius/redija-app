@@ -190,6 +190,62 @@ export interface TemplateConfig {
   // Configurações de Conexão com o Typst Universe
   universePackage?: string;
   universeEntrypoint?: string;
+  /**
+   * O que o RedijaApp leu do pacote (exemplo do modelo e assinatura da função de entrada).
+   * Fica no projeto para o documento compilar igual em outro aparelho, sem reler o pacote.
+   */
+  universeProfile?: UniverseTemplateProfile;
+  /** Valores dos campos próprios do modelo (painel "Configuração do modelo"), por argumento. */
+  universeOverrides?: Record<string, string | boolean | number>;
+  /** Código do topo editado à mão no painel "Configuração do modelo"; substitui o gerado. */
+  universeCustomHeader?: string;
+}
+
+/**
+ * Tipo de modelo pelo `categories` do `typst.toml`: documento (paper, thesis, report e
+ * outros), apresentação, currículo, pôster/flyer, ou pacote sem `[template]` (biblioteca).
+ */
+export type UniverseTemplateKind = 'document' | 'presentation' | 'cv' | 'poster' | 'library';
+
+/** Forma da regra `#show` do exemplo: `f.with(...)`, `doc => f(..., doc)`, `f(...)` ou `f`. */
+export type UniverseShowForm = 'with' | 'closure' | 'factory' | 'bare';
+
+/** Página pré-textual que o modelo monta com uma chamada própria, ex.: `#abstract[...]`. */
+export type UniverseFrontField = 'abstract' | 'foreignAbstract' | 'dedication' | 'acknowledgments' | 'epigraph';
+
+export interface UniverseFrontCall {
+  /** Chamada sem o bloco de conteúdo, ex.: `#title-slide()` ou `#abstract(lang: "en")`. */
+  call: string;
+  /** Campo do trabalho que vai no bloco de conteúdo; ausente nas chamadas sem conteúdo. */
+  field?: UniverseFrontField;
+}
+
+export interface UniverseTemplateProfile {
+  /** Versão do analisador que gerou o perfil (perfis antigos são refeitos). */
+  version: number;
+  /** Pacote analisado, ex.: `@preview/modern-usp-thesis:0.2.0`. */
+  packageId: string;
+  kind: UniverseTemplateKind;
+  categories: string[];
+  /** Versão mínima do Typst declarada no `typst.toml` (`compiler`). */
+  compiler?: string;
+  /** Função de entrada (ex.: `thesis`, `ppgsi.thesis`). */
+  entry?: string;
+  form?: UniverseShowForm;
+  /** Nome do corpo nas regras `doc => f(..., doc)`. */
+  bodyVar?: string;
+  /** Trecho do exemplo antes da regra `#show` (imports, `#let`, `#set`), sem comentários. */
+  preamble?: string;
+  /** Regra `#show` do exemplo, como está no arquivo. */
+  showRule?: string;
+  /**
+   * Chamadas que o exemplo faz logo depois do `#show`, antes do primeiro título: capa ou
+   * slide de título (repetidas como estão) e páginas com texto (resumo, dedicatória...),
+   * que recebem o texto do trabalho no lugar do texto de exemplo.
+   */
+  frontCalls?: UniverseFrontCall[];
+  /** Assinatura da função de entrada: nomes dos parâmetros. */
+  signature?: { named: string[]; positional: string[]; sink: boolean };
 }
 
 export const DEFAULT_TEMPLATE_CONFIG: TemplateConfig = {

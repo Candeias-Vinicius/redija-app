@@ -16,6 +16,8 @@ import {
   MAIN_FILE,
 } from './typstGenerator';
 import { exportToBibtex } from './abntLinter';
+import { analyzeUniversePackageById, withUniverseProfile } from '@/core/universe/universeResolver';
+import type { UniverseTemplateFiles } from '@/core/universe/templateProfile';
 import { serializeBackup } from '../storage/db';
 
 export {
@@ -116,13 +118,23 @@ Este pacote contém o código-fonte completo do seu trabalho acadêmico, incluin
  * Empacota o projeto em um arquivo .zip contendo `main.typ`, o módulo `.typ` efetivo
  * do template selecionado, imagens reais na pasta `assets/`, BibTeX, cópia `.redija` e `README.md`.
  */
-export async function exportTypstProjectZip(project: DocumentProject): Promise<Blob> {
+export async function exportTypstProjectZip(sourceProject: DocumentProject): Promise<Blob> {
   const zip = new JSZip();
-  const capabilities = getTemplateCapabilities(project);
+  const capabilities = getTemplateCapabilities(sourceProject);
   const templateFile = getTemplateFileName(capabilities.effectiveType);
 
+  // Modelo do Typst Universe: arquivos da pasta do modelo (logos, config.typ) e perfil do pacote
+  let project = sourceProject;
+  let templateFiles: UniverseTemplateFiles | undefined;
+  const universePackage = sourceProject.templateConfig?.universePackage?.trim();
+  if (capabilities.effectiveType === 'universe_custom' && universePackage) {
+    const analysis = await analyzeUniversePackageById(universePackage).catch(() => null);
+    templateFiles = analysis?.templateFiles;
+    project = withUniverseProfile(sourceProject, analysis?.profile);
+  }
+
   // 1. Arquivos fonte Typst
-  const files = generateTypstFiles(project);
+  const files = generateTypstFiles(project, templateFiles?.textFiles);
   // Converte caminhos virtuais absolutos "/assets/..." e "/refs.bib" em relativos para portabilidade CLI
   const portableMainTyp = files[MAIN_FILE]
     .replace(/(image\(\s*["'])\/assets\//g, '$1assets/')
@@ -134,6 +146,12 @@ export async function exportTypstProjectZip(project: DocumentProject): Promise<B
   }
   if (capabilities.effectiveType === 'universe_custom' && files['abnt.typ']) {
     zip.file('abnt.typ', files['abnt.typ']);
+  }
+  for (const [rel, content] of Object.entries(templateFiles?.textFiles ?? {})) {
+    zip.file(rel, content);
+  }
+  for (const [rel, bytes] of Object.entries(templateFiles?.binaryFiles ?? {})) {
+    zip.file(rel.replace(/^\//, ''), bytes);
   }
 
   // 2. Extrai imagens reais do projeto e salva na pasta assets/

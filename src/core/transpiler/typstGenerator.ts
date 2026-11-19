@@ -39,6 +39,13 @@ import {
   sanitizeCustomFontFamily,
 } from '@/core/typst/fontCatalog';
 import { getBlockImages } from '@/core/storage/imageQuota';
+import { findUniverseAdapter } from '@/core/universe/adapters';
+import {
+  ABNT_HELPERS_IMPORT,
+  buildCustomUniverseHeader,
+  buildUniverseHeaderFromProfile,
+  type UniverseHeaderResult,
+} from '@/core/universe/universeHeader';
 import abntTemplate from '@/core/templates/abnt.typ?raw';
 import sbcTemplate from '@/core/templates/sbc.typ?raw';
 import ieeeTemplate from '@/core/templates/ieee.typ?raw';
@@ -196,6 +203,8 @@ export function generateTypstFiles(
   const currentTemplateFile = getTemplateFileName(effectiveType);
   const currentTemplateContent = getTemplateRawContent(effectiveType);
   const useTypstCsl = cfg.bibliographyEngine === 'typst_csl' && orderedRefs.length > 0;
+  // Modelos do Typst Universe podem receber a bibliografia por parâmetro (refs.bib)
+  const includeRefsBib = orderedRefs.length > 0 && (useTypstCsl || effectiveType === 'universe_custom');
 
   return {
     [currentTemplateFile]: currentTemplateContent,
@@ -203,7 +212,7 @@ export function generateTypstFiles(
     'sbc.typ': sbcTemplate,
     'ieee.typ': ieeeTemplate,
     'poster.typ': posterTemplate,
-    ...(useTypstCsl ? { 'refs.bib': exportToBibtex(orderedRefs) } : {}),
+    ...(includeRefsBib ? { 'refs.bib': exportToBibtex(orderedRefs) } : {}),
     ...(extraFiles || {}),
     [MAIN_FILE]: generateMain(project, true),
   };
@@ -302,7 +311,13 @@ export function generateStandaloneTypst(project: DocumentProject): string {
   const currentTemplateFile = getTemplateFileName(effectiveType);
   const currentTemplateContent = getTemplateRawContent(effectiveType);
   const importLine = `#import "${currentTemplateFile}": *`;
-  let main = generateMain(project, false).replace(importLine, '').trim();
+  const generated = generateMain(project, false);
+  // Universe: o abnt.typ entra no lugar do import das funções do corpo, depois do pacote,
+  // para um nome igual exportado pelo pacote (o `quadro` do abntly) não valer no corpo.
+  const inlineHelpers = effectiveType === 'universe_custom' && generated.includes(ABNT_HELPERS_IMPORT);
+  let main = inlineHelpers
+    ? generated.replace(ABNT_HELPERS_IMPORT, () => `// ===== abnt.typ =====\n${abntTemplate}\n// ====================`).trim()
+    : generated.replace(importLine, '').trim();
 
   if (cfg.bibliographyEngine === 'typst_csl' && project.references.length > 0) {
     const orderedRefs = getOrderedReferences(
@@ -317,6 +332,7 @@ export function generateStandaloneTypst(project: DocumentProject): string {
     );
   }
 
+  if (inlineHelpers) return main;
   return `${currentTemplateContent}\n// ===================== DOCUMENTO =====================\n${main}`;
 }
 
@@ -339,34 +355,24 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
     bibKeyMap,
   };
 
-  let importLine = `#import "${getTemplateFileName(effectiveType)}": *`;
-  if (effectiveType === 'universe_custom') {
-    const pkg = resolveUniversePackageId(cfg);
-    if (pkg.startsWith('@preview/touying:')) {
-      importLine = `#import "abnt.typ": *\n#import "${pkg}": *\n#import themes.simple: *`;
-    } else if (isAbntlyPackage(pkg)) {
-      // O abntly exporta um `quadro` próprio, com outra assinatura. Com `*` ele
-      // substituiria o `quadro` do abnt.typ usado pelos blocos gerados (também na
-      // exportação em arquivo único, onde o abnt.typ vem antes). Por isso só entram
-      // as funções que o adaptador usa.
-      importLine = `#import "abnt.typ": *\n#import "${pkg}": ${ABNTLY_IMPORTS.join(', ')}`;
-    } else {
-      importLine = `#import "abnt.typ": *\n#import "${pkg}": *`;
-    }
-  }
+  // No modo Universe, o topo (imports, regra #show e o import das funções do corpo) vem
+  // inteiro de generateUniverseHeader.
+  const universeHeader =
+    effectiveType === 'universe_custom'
+      ? generateUniverseHeader(project, cfg, includeBinaryImages, orderedRefs, effectiveType)
+      : null;
+  const importLine = universeHeader ? '' : `#import "${getTemplateFileName(effectiveType)}": *`;
 
-  const parts: string[] = [
-    importLine,
-    generateShowRule(project, cfg, includeBinaryImages, capabilities),
-    '',
-  ];
+  const parts: string[] = universeHeader
+    ? [universeHeader.code, '']
+    : [importLine, generateShowRule(project, cfg, includeBinaryImages, capabilities), ''];
 
   for (const block of project.blocks) {
     const code = transpileBlock(block, includeBinaryImages, cfg, orderedRefs, refIndexMap, richCtx);
     if (code !== null) parts.push(code, '');
   }
 
-  if (orderedRefs.length > 0) {
+  if (orderedRefs.length > 0 && !universeHeader?.consumesBibliography) {
     parts.push(transpileReferences(orderedRefs, cfg, effectiveType));
   }
 
@@ -387,7 +393,7 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
       parts.push(
         '',
         '#pagebreak(weak: true)',
-        `#heading(numbering: none)[${labels.glossary}]`,
+        `#heading(depth: 1, numbering: none)[${labels.glossary}]`,
         escapeMarkup(project.metadata.glossary.trim()),
       );
     }
@@ -396,7 +402,7 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
       parts.push(
         '',
         '#pagebreak(weak: true)',
-        `#heading(numbering: none)[${labels.appendices}]`,
+        `#heading(depth: 1, numbering: none)[${labels.appendices}]`,
         escapeMarkup(project.metadata.appendices.trim()),
       );
     }
@@ -405,7 +411,7 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
       parts.push(
         '',
         '#pagebreak(weak: true)',
-        `#heading(numbering: none)[${labels.annexes}]`,
+        `#heading(depth: 1, numbering: none)[${labels.annexes}]`,
         escapeMarkup(project.metadata.annexes.trim()),
       );
     }
@@ -537,7 +543,7 @@ function generateShowRule(
     case 'poster':
       return generatePosterShowRule(project, cfg, includeBinaryImages);
     case 'universe_custom':
-      return generateUniverseShowRule(project, cfg, includeBinaryImages);
+      return generateUniverseHeader(project, cfg, includeBinaryImages, [], 'universe_custom').code;
     default:
       return generateAbntShowRule(project, cfg, includeBinaryImages, capabilities);
   }
@@ -714,155 +720,106 @@ function resolveUniversePackageId(cfg: TemplateConfig): string {
   return SAFE_PKG_REGEX.test(raw) ? raw : DEFAULT_UNIVERSE_PACKAGE;
 }
 
-function isAbntlyPackage(pkg: string): boolean {
-  return pkg.startsWith('@preview/abntly:');
+/** `#set text(font: ...)` para a fonte do Customizer (sempre, ou só se não for a padrão). */
+function universeFontRule(cfg: TemplateConfig, fallback: 'serif' | 'sans', always = false): string | null {
+  const custom = cfg.fontFamily && cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily;
+  const valid = cfg.fontFamily !== 'custom' || Boolean(sanitizeCustomFontFamily(cfg.customFontFamily));
+  if (!always && !(custom && valid)) return null;
+  return `#set text(font: ${buildNativeTypstFontTuple(cfg, fallback)})`;
 }
 
-/** Funções do abntly chamadas por `generateAbntlyShowRule`. */
-const ABNTLY_IMPORTS = ['abntly', 'config-info', 'cover', 'title-page', 'abstract', 'keywords'];
-
 /**
- * Adaptador do `@preview/abntly` (ABNT NBR 14724). O pacote não recebe `title`/`authors`
- * na função principal: os dados do trabalho vão em `info: config-info(...)`, e capa,
- * folha de rosto e resumo são chamadas explícitas, como no modelo oficial do pacote.
+ * Topo do documento no modo Typst Universe, na ordem:
+ * 1. código editado à mão no painel "Configuração do modelo";
+ * 2. adaptador do pacote (`core/universe/adapters`);
+ * 3. exemplo do modelo, lido do pacote (`universeProfile`), com os dados do trabalho;
+ * 4. forma antiga (`title`, `authors`, `abstract`), para pacotes ainda não analisados.
  */
-function generateAbntlyShowRule(
+function generateUniverseHeader(
   project: DocumentProject,
   cfg: TemplateConfig,
   includeBinaryImages: boolean,
-): string {
-  const m = project.metadata;
-  const text = (value?: string): string => value?.trim() ?? '';
+  orderedRefs: AcademicReference[],
+  effectiveType: ProjectTemplateType,
+): UniverseHeaderResult {
+  const pkg = resolveUniversePackageId(cfg);
+  const profile = cfg.universeProfile?.packageId === pkg ? cfg.universeProfile : undefined;
 
-  const authors = text(m.author)
-    .split(';')
-    .map((a) => a.trim())
-    .filter(Boolean);
-  // Um autor vai como texto, para o abntly separar o sobrenome na ficha catalográfica;
-  // vários vão como conteúdo (um por linha), que o pacote imprime sem inverter.
-  const authorExpr =
-    authors.length > 1
-      ? `[${authors.map(escapeMarkup).join(' \\ ')}]`
-      : typstString(authors[0] ?? 'Autor');
+  if (cfg.universeCustomHeader?.trim()) {
+    return buildCustomUniverseHeader(project, cfg, cfg.universeCustomHeader);
+  }
 
-  const info: string[] = [`title: ${typstString(text(m.title))}`];
-  if (text(m.subtitle)) info.push(`subtitle: ${typstString(text(m.subtitle))}`);
-  info.push(`author: ${authorExpr}`);
-  if (text(m.advisor)) info.push(`advisor: ${typstString(text(m.advisor))}`);
-  if (text(m.coadvisor)) info.push(`co-advisor: ${typstString(text(m.coadvisor))}`);
-  if (text(m.institution)) info.push(`institution: ${typstString(text(m.institution))}`);
-  if (text(m.course)) info.push(`program: ${typstString(text(m.course))}`);
-  if (text(m.location)) info.push(`location: ${typstString(text(m.location))}`);
-  if (text(m.year)) info.push(`year: ${typstString(text(m.year))}`);
-  if (includeBinaryImages && m.institutionLogoDataUrl) {
-    const parsedLogo = parseDataUrl(m.institutionLogoDataUrl);
-    if (parsedLogo) {
-      info.push(`logo: image(${typstString(`/assets/logo_instituicao.${parsedLogo.ext}`)}, width: 2cm)`);
+  const adapter = findUniverseAdapter(pkg);
+  if (adapter) {
+    const parsedLogo =
+      includeBinaryImages && project.metadata.institutionLogoDataUrl
+        ? parseDataUrl(project.metadata.institutionLogoDataUrl)
+        : null;
+    const code = adapter.build({
+      project,
+      cfg,
+      packageId: pkg,
+      fontRule: (fallback, always) => universeFontRule(cfg, fallback, always),
+      logoPath: parsedLogo ? `/assets/logo_instituicao.${parsedLogo.ext}` : undefined,
+    });
+    return { code: `${code}\n${ABNT_HELPERS_IMPORT}`, consumesBibliography: false, filled: [] };
+  }
+
+  if (profile) {
+    // O modelo que recebe a bibliografia por parâmetro recebe a do trabalho (refs.bib). No
+    // motor do RedijaApp, o estilo CSL equivalente à norma escolhida.
+    const bibliography =
+      orderedRefs.length === 0
+        ? undefined
+        : {
+            call:
+              cfg.bibliographyEngine === 'typst_csl'
+                ? transpileReferences(orderedRefs, cfg, effectiveType).replace(/^#/, '')
+                : `bibliography("refs.bib", full: true, style: ${typstString(toTypstCslStyleName(resolveCslStyle(cfg, effectiveType)))})`,
+            hasReferences: true,
+          };
+    const fromProfile = buildUniverseHeaderFromProfile(project, cfg, profile, { bibliography });
+    if (fromProfile) {
+      const font = universeFontRule(cfg, 'serif');
+      if (font) fromProfile.code = fromProfile.code.replace(ABNT_HELPERS_IMPORT, `${font}\n${ABNT_HELPERS_IMPORT}`);
+      return fromProfile;
     }
+    // Pacote analisado, mas o exemplo não usa `#show:` (monta o documento com chamadas
+    // próprias): o texto compila sem o modelo, e o painel do modelo permite ajustar.
+    const code = [`#import "${pkg}": *`, universeFontRule(cfg, 'serif'), ABNT_HELPERS_IMPORT]
+      .filter(Boolean)
+      .join('\n');
+    return { code, consumesBibliography: false, filled: [] };
   }
 
-  const options = [`info: config-info(\n    ${info.join(',\n    ')},\n  )`];
-  // O abntly traz textos fixos em português e inglês; outros idiomas ficam em "pt".
-  if (cfg.documentLanguage === 'en') options.push('lang: "en"');
-
-  const lines = [`#show: abntly.with(\n  ${options.join(',\n  ')},\n)`];
-  if (cfg.fontFamily && cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {
-    if (cfg.fontFamily !== 'custom' || sanitizeCustomFontFamily(cfg.customFontFamily)) {
-      lines.push(`#set text(font: ${buildNativeTypstFontTuple(cfg, 'serif')})`);
-    }
-  }
-
-  if (cfg.includeCoverPage) lines.push('#cover()');
-  if (cfg.includeTitlePage) lines.push(`#title-page${typstContent(text(m.nature))}`);
-
-  const abstractPage = (body: string, keywords: string[] | undefined, lang?: string): string => {
-    const kws = (keywords ?? []).map((k) => k.trim()).filter(Boolean);
-    const kwLine = kws.length > 0 ? `\n  #keywords(${kws.map(typstContent).join(', ')})` : '';
-    const langArg = lang ? `(lang: ${typstString(lang)})` : '';
-    return `#abstract${langArg}[\n  ${escapeMarkup(body)}${kwLine}\n]`;
-  };
-  if (text(m.abstract)) lines.push(abstractPage(text(m.abstract), m.keywords));
-  if (text(m.foreignAbstract)) {
-    lines.push(abstractPage(text(m.foreignAbstract), m.foreignKeywords, 'en'));
-  }
-
-  if (cfg.includeToc) lines.push('#outline()');
-  return lines.join('\n');
+  return { code: generateLegacyUniverseShowRule(project, cfg, pkg), consumesBibliography: false, filled: [] };
 }
 
-function generateUniverseShowRule(
-  project: DocumentProject,
-  cfg: TemplateConfig,
-  includeBinaryImages = false,
-): string {
+/** Forma antiga: função de entrada pelo nome e `title`/`authors`/`abstract`. */
+function generateLegacyUniverseShowRule(project: DocumentProject, cfg: TemplateConfig, pkg: string): string {
   const m = project.metadata;
-  const pkg = resolveUniversePackageId(cfg);
-  if (isAbntlyPackage(pkg)) {
-    return generateAbntlyShowRule(project, cfg, includeBinaryImages);
-  }
   const SAFE_ENTRY_REGEX = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
   const rawEntry = cfg.universeEntrypoint?.trim() ?? '';
   const entry = SAFE_ENTRY_REGEX.test(rawEntry) ? rawEntry : 'article';
-
   const rawAuthors = (m.author || 'Autor')
     .split(';')
     .map((a) => a.trim())
     .filter(Boolean);
   const safeAuthors = rawAuthors.length > 0 ? rawAuthors : ['Autor'];
 
-  if (pkg.startsWith('@preview/touying:')) {
-    const lines = ['#show: simple-theme.with(aspect-ratio: "16-9")'];
-    if (cfg.fontFamily && cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {
-      if (cfg.fontFamily !== 'custom' || sanitizeCustomFontFamily(cfg.customFontFamily)) {
-        lines.push(`#set text(font: ${buildNativeTypstFontTuple(cfg, 'sans')})`);
-      }
-    }
-    return lines.join('\n');
-  }
-
-  const isChargedIeee = pkg.includes('charged-ieee') || entry === 'ieee';
-  if (isChargedIeee) {
-    const authorItems = safeAuthors.map((name) => {
-      const fields = [`name: ${typstString(name)}`];
-      if (m.institution?.trim()) {
-        fields.push(`organization: ${typstContent(m.institution.trim())}`);
-      }
-      if (m.location?.trim()) {
-        fields.push(`location: ${typstContent(m.location.trim())}`);
-      }
-      return `(${fields.join(', ')})`;
-    });
-    const authorsExpr =
-      authorItems.length === 1 ? `(${authorItems[0]},)` : `(${authorItems.join(', ')})`;
-
-    const args: string[] = [
-      `title: ${typstString(m.title)}`,
-      `authors: ${authorsExpr}`,
-    ];
-    if (m.abstract.trim()) args.push(`abstract: ${typstContent(m.abstract)}`);
-    const keywords = m.keywords.map((k) => k.trim()).filter(Boolean);
-    if (keywords.length > 0) {
-      args.push(`index-terms: (${keywords.map(typstString).join(', ')},)`);
-    }
-    if (cfg.paperSize === 'a4') {
-      args.push('paper-size: "a4"');
-    }
-
-    return `#show: ${entry}.with(\n  ${args.join(',\n  ')},\n)\n#set text(font: ${buildNativeTypstFontTuple(cfg, 'serif')})`;
-  }
-
   const args: string[] = [
     `title: ${typstString(m.title)}`,
     `authors: (${safeAuthors.map(typstString).join(', ')},)`,
   ];
   if (m.abstract.trim()) args.push(`abstract: ${typstContent(m.abstract)}`);
-  const lines = [`#show: ${entry}.with(\n  ${args.join(',\n  ')},\n)`];
-  if (cfg.fontFamily && cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {
-    if (cfg.fontFamily !== 'custom' || sanitizeCustomFontFamily(cfg.customFontFamily)) {
-      lines.push(`#set text(font: ${buildNativeTypstFontTuple(cfg, 'serif')})`);
-    }
-  }
-  return lines.join('\n');
+  return [
+    `#import "${pkg}": *`,
+    `#show: ${entry}.with(\n  ${args.join(',\n  ')},\n)`,
+    universeFontRule(cfg, 'serif'),
+    ABNT_HELPERS_IMPORT,
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 function generateAbntShowRule(
@@ -1032,7 +989,7 @@ function transpileBlock(
     case 'unnumbered_heading': {
       const title = stripManualNumbering(plainText);
       if (!title) return null;
-      return `#heading(numbering: none)[${escapeMarkup(title.toUpperCase())}]`;
+      return `#heading(depth: 1, numbering: none)[${escapeMarkup(title.toUpperCase())}]`;
     }
 
     case 'paragraph':
