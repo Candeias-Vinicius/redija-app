@@ -112,7 +112,7 @@ export function createProjectFromTemplate(
         location: 'São Paulo',
         year: currentYear,
         abstract:
-          'Apresente aqui o resumo informativo do artigo contendo objetivo, método, principais resultados e conclusões (entre 100 e 250 palavras conforme NBR 6028).',
+          'Este artigo apresenta um estudo estruturado em conformidade com a ABNT NBR 6022, delimitando o problema de pesquisa, a justificativa científica e o objetivo central da investigação. Na fundamentação teórica, discutem-se os principais conceitos e contribuições recentes da literatura especializada que sustentam a análise proposta. A metodologia descreve os procedimentos de coleta, organização e interpretação dos dados, garantindo rigor analítico e clareza na apresentação dos resultados. Os achados obtidos evidenciam avanços relevantes para a área investigada e respondem diretamente às questões formuladas. Por fim, as considerações finais sintetizam as principais contribuições do estudo, apontam limitações observadas e indicam caminhos para pesquisas futuras.',
         keywords: ['Artigo Científico', 'Pesquisa', 'ABNT'],
       },
       blocks: [
@@ -121,7 +121,7 @@ export function createProjectFromTemplate(
           id: crypto.randomUUID(),
           type: 'paragraph',
           content:
-            'Contextualize o tema do artigo, apresentando o problema de pesquisa e o objetivo central da investigação.',
+            'Contextualize o tema do artigo, apresentando o problema de pesquisa, o objetivo central da investigação e o alinhamento com as normas de documentação da ABNT (2018).',
         },
         { id: crypto.randomUUID(), type: 'h1', content: 'Referencial Teórico' },
         {
@@ -148,7 +148,7 @@ export function createProjectFromTemplate(
       references: [
         {
           id: crypto.randomUUID(),
-          authors: 'ASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS',
+          authors: 'ABNT, Associação Brasileira de Normas Técnicas',
           title: 'NBR 6023: Informação e documentação: Referências: Elaboração',
           city: 'Rio de Janeiro',
           publisher: 'ABNT',
@@ -176,7 +176,7 @@ export function createProjectFromTemplate(
         location: 'São Paulo',
         year: currentYear,
         abstract:
-          'Este relatório descreve as atividades técnicas desenvolvidas durante o período avaliado, detalhando o ambiente de trabalho, as ferramentas empregadas e os resultados alcançados.',
+          'Este relatório técnico descreve de forma sistematizada as atividades acadêmicas e profissionais desenvolvidas durante o período de acompanhamento semestral, seguindo rigorosamente as diretrizes da ABNT NBR 10719. Inicialmente, contextualiza-se o ambiente institucional ou laboratorial em que as tarefas foram executadas, apresentando a estrutura organizacional, a equipe de supervisão, os recursos tecnológicos disponíveis e os objetivos definidos no plano de trabalho aprovado. Em seguida, detalham-se os procedimentos técnicos adotados, as ferramentas utilizadas no cotidiano operacional e a evolução cronológica das entregas realizadas ao longo do período avaliado. Também são discutidos os principais desafios encontrados durante a execução das atividades e as soluções implementadas para assegurar a qualidade, a confiabilidade e a rastreabilidade dos resultados obtidos. Por fim, apresenta-se uma avaliação crítica das competências técnicas e comportamentais consolidadas, destacando a contribuição prática da experiência para a formação acadêmica e profissional do estudante, bem como recomendações construtivas para o aprimoramento contínuo dos processos acompanhados na instituição.',
         keywords: ['Relatório Técnico', 'Atividades Práticas', 'Formação'],
       },
       blocks: [
@@ -224,7 +224,7 @@ export function createProjectFromTemplate(
         location: 'São Paulo',
         year: currentYear,
         abstract:
-          'Resumo da proposta de pesquisa delimitando o tema, o problema investigado, a hipótese central, os objetivos gerais e específicos e os procedimentos metodológicos planejados.',
+          'Este projeto de pesquisa apresenta uma proposta estruturada de investigação científica em conformidade com a ABNT NBR 15287, delimitando o tema central, o problema investigado, o recorte metodológico e as hipóteses norteadoras do estudo. A justificativa fundamenta a relevância acadêmica, técnica e social da investigação, evidenciando lacunas identificadas na literatura especializada recente que motivam a condução do trabalho proposto. São definidos de forma objetiva o objetivo geral e os objetivos específicos que orientarão cada etapa do desenvolvimento da pesquisa ao longo do período previsto. A metodologia classifica o estudo quanto à abordagem, natureza e procedimentos técnicos planejados para coleta, organização, tratamento e análise dos dados, assegurando viabilidade operacional, transparência analítica e rigor científico. Além disso, descrevem-se os recursos materiais e computacionais necessários, o cronograma estimado de execução das atividades e os resultados esperados ao término do percurso investigativo, fornecendo base sólida para avaliação pela banca de qualificação ou coordenação acadêmica responsável pelo acompanhamento do projeto.',
         keywords: ['Projeto de Pesquisa', 'Metodologia Científica', 'ABNT'],
       },
       blocks: [
@@ -333,7 +333,7 @@ export function createProjectFromTemplate(
           id: crypto.randomUUID(),
           type: 'paragraph',
           content:
-            'Diversas pesquisas na literatura recente exploram técnicas correlatas, apresentando vantagens e limitações que motivaram a presente proposta.',
+            'Diversas pesquisas na literatura recente exploram técnicas correlatas em computação distribuída e tolerância a falhas, conforme discutido por Silva e Santos (2023), apresentando vantagens e limitações que motivaram a presente proposta.',
         },
         { id: crypto.randomUUID(), type: 'h1', content: '3 Metodologia e Arquitetura Proposta' },
         {
@@ -413,7 +413,7 @@ export function createProjectFromTemplate(
         location: 'São Paulo, Brazil',
         year: currentYear,
         abstract:
-          'This paper presents a distributed edge computing framework designed to reduce latency in real-time sensor stream processing. Experimental validation demonstrates significant throughput enhancements.',
+          'This paper presents a distributed edge computing framework designed to reduce end-to-end latency and improve reliability in real-time sensor stream processing environments. As Internet-of-Things deployments scale across industrial and urban infrastructures, centralized cloud pipelines suffer from bandwidth saturation and unpredictable response times. To address these limitations, we formulate a modular scheduling and zero-copy data transfer architecture that dynamically balances workloads across heterogeneous edge nodes. Experimental validation conducted on a multi-node testbed demonstrates significant throughput enhancements and a 42% reduction in average processing latency compared to centralized cloud baselines, confirming the practical viability of the proposed approach for mission-critical real-time applications.',
         keywords: ['Edge Computing', 'Sensor Networks', 'Real-time Processing', 'Throughput'],
       },
       blocks: [
@@ -422,7 +422,7 @@ export function createProjectFromTemplate(
           id: crypto.randomUUID(),
           type: 'paragraph',
           content:
-            'The proliferation of Internet-of-Things (IoT) devices has created unprecedented demands on modern network backbones. Decentralized edge processing offers a compelling paradigm to mitigate bandwidth bottlenecks.',
+            'The proliferation of Internet-of-Things (IoT) devices has created unprecedented demands on modern network backbones. Decentralized edge processing offers a compelling paradigm to mitigate bandwidth bottlenecks [1].',
         },
         { id: crypto.randomUUID(), type: 'h1', content: 'II. System Model and Formulation' },
         {
@@ -680,9 +680,13 @@ export function createProjectFromTemplate(
       course: 'Bacharelado em Ciência da Computação',
       location: 'São Paulo',
       year: currentYear,
+      includeApprovalPage: true,
       abstract:
-        'Este projeto apresenta a concepção e implementação do RedijaApp, uma plataforma web focada em simplificar a escrita acadêmica para estudantes universitários. Utilizando o compilador Typst executado via WebAssembly no navegador e uma interface intuitiva orientada a blocos, o sistema automatiza a formatação rigorosa exigida pela ABNT, eliminando a barreira técnica associada a ferramentas como LaTeX.',
+        'Este projeto apresenta a concepção e implementação do RedijaApp, uma plataforma web focada em simplificar a escrita acadêmica para estudantes universitários brasileiros de graduação e pós-graduação. Utilizando o compilador Typst executado via WebAssembly diretamente no navegador e uma interface visual intuitiva orientada a blocos, o sistema automatiza a formatação rigorosa exigida pela Associação Brasileira de Normas Técnicas (ABNT), eliminando a barreira técnica associada a ferramentas tradicionais como LaTeX e reduzindo retrabalhos comuns em editores convencionais de texto. A metodologia adotada contempla a modelagem estruturada dos elementos pré-textuais, textuais e pós-textuais, a transpilação determinística para código Typst e a verificação normativa contínua de citações, referências bibliográficas, ilustrações, tabelas e resumos acadêmicos. Os resultados obtidos demonstram compilação rápida em tempo real, elevada fidelidade tipográfica na geração de documentos PDF prontos para impressão e maior segurança formal para o estudante na entrega de trabalhos de conclusão de curso, dissertações, teses e artigos científicos, promovendo produtividade, clareza estrutural e rigor metodológico.',
       keywords: ['ABNT', 'Typst', 'WebAssembly', 'Editor Acadêmico', 'Produtividade'],
+      foreignAbstract:
+        'This project presents the design and implementation of RedijaApp, a web platform focused on simplifying academic writing for university students. Using the Typst compiler running via WebAssembly directly in the browser alongside an intuitive block-based visual interface, the system automates strict ABNT formatting rules while eliminating the steep technical barrier associated with traditional LaTeX workflows.',
+      foreignKeywords: ['ABNT', 'Typst', 'WebAssembly', 'Academic Editor', 'Productivity'],
     },
     blocks: [
       {
@@ -694,7 +698,7 @@ export function createProjectFromTemplate(
         id: crypto.randomUUID(),
         type: 'paragraph',
         content:
-          '<p>A elaboração de trabalhos acadêmicos no Brasil impõe aos estudantes um duplo desafio: a pesquisa científica e o cumprimento rigoroso das diretrizes de diagramação estabelecidas pela Associação Brasileira de Normas Técnicas (ABNT). Ferramentas como o Microsoft Word demandam ajustes manuais suscetíveis a erros, enquanto o ecossistema LaTeX apresenta uma curva de aprendizado íngreme para pesquisadores sem formação em computação.</p>',
+          '<p>A elaboração de trabalhos acadêmicos no Brasil impõe aos estudantes um duplo desafio: a pesquisa científica e o cumprimento rigoroso das diretrizes de diagramação estabelecidas pela Associação Brasileira de Normas Técnicas — ABNT (2011). Ferramentas como o Microsoft Word demandam ajustes manuais suscetíveis a erros, enquanto o ecossistema LaTeX apresenta uma curva de aprendizado íngreme para pesquisadores sem formação em computação.</p>',
       },
       {
         id: crypto.randomUUID(),
@@ -742,7 +746,7 @@ export function createProjectFromTemplate(
     references: [
       {
         id: crypto.randomUUID(),
-        authors: 'ASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS',
+        authors: 'ABNT, Associação Brasileira de Normas Técnicas',
         title: 'NBR 14724: Informação e documentação: Trabalhos acadêmicos: Apresentação',
         city: 'Rio de Janeiro',
         publisher: 'ABNT',

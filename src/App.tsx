@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { FileEdit, Loader2, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
@@ -14,6 +14,7 @@ import {
 import { toast } from '@/components/ui/toastStore';
 import { WelcomeModal } from '@/components/WelcomeModal';
 import { TemplateCustomizerModal } from '@/components/TemplateCustomizerModal';
+import { ReadinessCheckModal } from '@/components/ReadinessCheckModal';
 import { BugReportModal } from '@/components/BugReportModal';
 import { BetaNoticeModal, BetaNoticeToast } from '@/components/BetaNoticeModal';
 import { ShareModal } from '@/components/ShareModal';
@@ -34,7 +35,16 @@ import {
   DocumentProject,
   ProjectTemplateType,
 } from '@/types/document';
-import { type ContextualGuideMode } from '@/core/templates/templateCapabilities';
+import {
+  getTemplateCapabilities,
+  type ContextualGuideMode,
+} from '@/core/templates/templateCapabilities';
+import { runDocumentLinter } from '@/core/transpiler/linters';
+import {
+  buildReadinessReport,
+  type ChecklistNavigationTarget,
+} from '@/core/transpiler/readiness';
+import { scrollBehavior } from '@/core/motion';
 import { useAppRoute } from '@/hooks/useAppRoute';
 import { MIN_PREVIEW_WIDTH, MIN_SIDEBAR_WIDTH, usePaneLayout } from '@/hooks/usePaneLayout';
 import { useUndoRedoHistory } from '@/hooks/useUndoRedoHistory';
@@ -67,6 +77,7 @@ export const App: React.FC = () => {
     'overview',
   );
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
+  const [isReadinessCheckOpen, setIsReadinessCheckOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [isBetaNoticeOpen, setIsBetaNoticeOpen] = useState(false);
   const [isBetaToastVisible, setIsBetaToastVisible] = useState(false);
@@ -355,6 +366,59 @@ export const App: React.FC = () => {
     [handleRestoreFromTrash],
   );
 
+  const readinessReport = useMemo(() => {
+    const caps = getTemplateCapabilities(project);
+    const lint = runDocumentLinter(project, caps);
+    return buildReadinessReport(project, caps, lint);
+  }, [project]);
+
+  const handleNavigateToChecklistTarget = useCallback(
+    (target: ChecklistNavigationTarget) => {
+      if (target.kind === 'customizer') {
+        setIsCustomizerOpen(true);
+        return;
+      }
+
+      if (target.kind === 'block') {
+        if (isCompact) selectPane('editor');
+        else if (!showEditor) toggleEditor();
+      } else {
+        if (isCompact) selectPane('sidebar');
+        else if (!showSidebar) toggleSidebar();
+      }
+
+      const highlightAndFocus = (el: HTMLElement | null) => {
+        if (!el) return;
+        el.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
+        el.classList.add('ring-2', 'ring-brand-600', 'ring-offset-2');
+        if (typeof el.focus === 'function') {
+          el.focus({ preventScroll: true });
+        }
+        window.setTimeout(() => {
+          el.classList.remove('ring-2', 'ring-brand-600', 'ring-offset-2');
+        }, 2200);
+      };
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (target.kind === 'block') {
+            const el = document.querySelector<HTMLElement>(`[data-block-id="${target.blockId}"]`);
+            highlightAndFocus(el);
+          } else if (target.kind === 'sidebar-field') {
+            const el = document.getElementById(target.elementId);
+            highlightAndFocus(el);
+          } else if (target.kind === 'references') {
+            const el = target.referenceId
+              ? document.querySelector<HTMLElement>(`[data-ref-id="${target.referenceId}"]`)
+              : document.getElementById('sidebar-references');
+            highlightAndFocus(el ?? document.getElementById('sidebar-references'));
+          }
+        });
+      });
+    },
+    [isCompact, selectPane, showEditor, toggleEditor, showSidebar, toggleSidebar],
+  );
+
   const handleResizerKeyDown = (pane: 'sidebar' | 'preview') => (e: React.KeyboardEvent) => {
     const step = e.shiftKey ? 64 : 16;
     // Divisor da sidebar: seta para a direita alarga; divisor do PDF: seta para a esquerda alarga.
@@ -437,6 +501,8 @@ export const App: React.FC = () => {
         view={isEditorView ? 'editor' : 'home'}
         onGoHome={goHome}
         onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
+        onOpenReadinessCheck={() => setIsReadinessCheckOpen(true)}
+        readinessScore={readinessReport.scoreResult}
         onOpenBugReportModal={() => setIsBugReportOpen(true)}
         onOpenBetaNoticeModal={() => setIsBetaNoticeOpen(true)}
         onOpenWelcomeModal={() => {
@@ -536,6 +602,8 @@ export const App: React.FC = () => {
                 }}
                 onRemoveReference={handleRemoveReference}
                 onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
+                onOpenReadinessCheck={() => setIsReadinessCheckOpen(true)}
+                readinessReport={readinessReport}
                 onOpenAbntGuide={() => {
                   setWelcomeInitialTab('abnt');
                   setIsWelcomeModalOpen(true);
@@ -782,6 +850,16 @@ export const App: React.FC = () => {
         templateType={project.templateType}
         blocks={project.blocks}
         onApply={handleApplyTemplateCustomizer}
+      />
+
+      <ReadinessCheckModal
+        isOpen={isReadinessCheckOpen}
+        projectName={project.name}
+        report={readinessReport}
+        isExportingPdf={isExportingPdf}
+        onClose={() => setIsReadinessCheckOpen(false)}
+        onDownloadPdf={() => void handleDownloadPdf()}
+        onNavigateToTarget={handleNavigateToChecklistTarget}
       />
 
       <BugReportModal

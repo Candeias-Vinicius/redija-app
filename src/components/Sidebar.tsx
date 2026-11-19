@@ -6,6 +6,7 @@ import {
   SidebarConfig,
 } from '@/types/document';
 import { runDocumentLinter } from '@/core/transpiler/linters';
+import { buildReadinessReport, ReadinessReport } from '@/core/transpiler/readiness';
 import {
   ContextualGuideMode,
   getPreservedHiddenFields,
@@ -35,6 +36,8 @@ interface SidebarProps {
   onOpenTemplateCustomizer?: () => void;
   onOpenAbntGuide?: () => void;
   onOpenGuide?: (mode: ContextualGuideMode) => void;
+  onOpenReadinessCheck?: () => void;
+  readinessReport?: ReadinessReport;
   onRemoveReference: (id: string) => void;
   onMinimize?: () => void;
   /** Deixa só este painel visível (desktop). */
@@ -58,6 +61,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenTemplateCustomizer,
   onOpenAbntGuide,
   onOpenGuide,
+  onOpenReadinessCheck,
+  readinessReport: externalReadinessReport,
   onRemoveReference,
   onMinimize,
   onMaximize,
@@ -82,6 +87,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const lintReport = useMemo(
     () => runDocumentLinter(project, capabilities),
     [project, capabilities],
+  );
+  const readinessReport = useMemo(
+    () =>
+      externalReadinessReport ?? buildReadinessReport(project, capabilities, lintReport),
+    [externalReadinessReport, project, capabilities, lintReport],
   );
 
   return (
@@ -193,6 +203,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <SidebarLinterSection
             capabilities={capabilities}
             lintReport={lintReport}
+            readinessReport={readinessReport}
+            onOpenReadinessCheck={onOpenReadinessCheck}
             onOpenGuide={
               onOpenGuide ?? (onOpenAbntGuide ? () => onOpenAbntGuide() : undefined)
             }

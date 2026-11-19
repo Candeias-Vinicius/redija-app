@@ -52,6 +52,7 @@ export const SidebarPreTextualsSection: React.FC<SidebarPreTextualsSectionProps>
                 <>
                   <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-medium">
                     <input
+                      id="sb-pre-folha-de-aprovacao"
                       type="checkbox"
                       checked={Boolean(metadata.includeApprovalPage)}
                       onChange={(e) => onUpdateField('includeApprovalPage', e.target.checked)}
