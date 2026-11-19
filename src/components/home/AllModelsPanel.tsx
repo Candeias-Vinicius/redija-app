@@ -5,6 +5,7 @@ import type { CustomTemplate } from '@/core/storage/customTemplates';
 import { PROJECT_TEMPLATES } from '@/core/storage/projectTemplates';
 import { parsePackageId } from '@/core/universe/virtualPackage';
 import { ProjectCover } from './ProjectCover';
+import { CustomTemplateCover } from './CustomTemplateCover';
 
 export const ALL_MODELS_PANEL_ID = 'home-all-models';
 export const NEW_PROJECT_NAME_INPUT_ID = 'home-new-project-name';
@@ -143,7 +144,7 @@ export const AllModelsPanel: React.FC<AllModelsPanelProps> = ({
               className={`${TILE} ${isNew ? 'border-brand-600 ring-2 ring-brand-600/30' : ''}`}
               aria-label={`Criar ${tpl.name}`}
             >
-              <ProjectCover project={coverFor('universe_custom', tpl.name)} />
+              <CustomTemplateCover template={tpl} />
               <span className="min-w-0">
                 <span className="block text-sm font-semibold text-fg leading-tight line-clamp-2">{tpl.name}</span>
                 <span

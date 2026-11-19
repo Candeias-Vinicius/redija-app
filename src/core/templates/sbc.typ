@@ -271,6 +271,7 @@
   )
 
   show figure.caption: set text(size: 0.85em)
+  set math.equation(numbering: "(1)")
 
   // Formatação de títulos no padrão SBC
   show heading: it => {

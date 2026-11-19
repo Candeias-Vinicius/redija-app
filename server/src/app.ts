@@ -3,6 +3,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { cors } from 'hono/cors';
 import { config } from './config.ts';
 import { convertUpload, formatFromFileName } from './convert.ts';
+import { processDocxExport, type ExportRequestPayload } from './export.ts';
 import { getPandocVersion } from './pandoc.ts';
 import { ImportError } from './zip.ts';
 
@@ -104,6 +105,49 @@ export function createApp() {
         // Não registra conteúdo do documento, só o tipo do erro
         console.error(JSON.stringify({ evt: 'convert_error', message: (err as Error).message?.slice(0, 200) }));
         return c.json({ error: 'Erro inesperado ao converter o documento.' }, 500);
+      } finally {
+        runningJobs -= 1;
+      }
+    },
+  );
+
+  app.post(
+    '/export',
+    bodyLimit({
+      maxSize: config.maxUploadBytes + 64 * 1024,
+      onError: (c) =>
+        c.json({ error: `Projeto grande demais para exportação (limite: ${Math.round(config.maxUploadBytes / 1024 / 1024)} MB).` }, 413),
+    }),
+    async (c) => {
+      const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'local';
+      if (!allowRequest(ip)) {
+        return c.json({ error: 'Muitas exportações em sequência. Aguarde um minuto e tente de novo.' }, 429);
+      }
+      if (runningJobs >= config.maxConcurrentJobs) {
+        return c.json({ error: 'O serviço de conversão está ocupado. Tente novamente em instantes.' }, 503);
+      }
+
+      let payload: ExportRequestPayload;
+      try {
+        payload = (await c.req.json()) as ExportRequestPayload;
+      } catch {
+        return c.json({ error: 'Corpo JSON inválido para exportação .docx.' }, 400);
+      }
+
+      runningJobs += 1;
+      const startedAt = Date.now();
+      try {
+        const result = await processDocxExport(payload);
+        console.log(
+          JSON.stringify({ evt: 'export_docx', ms: Date.now() - startedAt }),
+        );
+        return c.json(result);
+      } catch (err) {
+        if (err instanceof ImportError) {
+          return c.json({ error: err.message }, err.status as 400);
+        }
+        console.error(JSON.stringify({ evt: 'export_error', message: (err as Error).message?.slice(0, 200) }));
+        return c.json({ error: 'Erro inesperado ao exportar o documento para .docx.' }, 500);
       } finally {
         runningJobs -= 1;
       }

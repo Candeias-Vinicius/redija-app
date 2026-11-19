@@ -13,7 +13,7 @@ import type {
 import {
   buildVirtualUniversePackageFiles,
   isValidTarGzBytes,
-  POPULAR_UNIVERSE_TEMPLATES,
+  knownUniverseEntrypoint,
 } from '@/core/universe/virtualPackage';
 
 export interface SplitTypstFilesResult {
@@ -190,8 +190,7 @@ export class WorkerPackageRegistry implements PackageRegistry {
 
     // 6. Síntese resiliente offline para qualquer pacote `@preview/...`
     if (spec.namespace === 'preview') {
-      const known = POPULAR_UNIVERSE_TEMPLATES.find((t) => t.name === spec.name);
-      const fallbackEntry = known?.entrypoint || spec.name;
+      const fallbackEntry = knownUniverseEntrypoint(spec.name) || spec.name;
       const syntheticFiles = buildVirtualUniversePackageFiles(spec, fallbackEntry);
       this.insertVirtualFiles(previewDir, spec, syntheticFiles);
       this.virtualCache.set(pkgId, previewDir);

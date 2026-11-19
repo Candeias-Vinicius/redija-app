@@ -1095,6 +1095,9 @@ function transpileBlock(
       // Escapa delimitadores internos $ para não fechar modo matemático
       // e neutraliza # para evitar execução de comandos/macros do Typst
       const sanitizedExpr = expr.replace(/\$/g, '\\$').replace(/#/g, '\\#');
+      if (block.meta?.equationNumbered === false) {
+        return `#math.equation(block: true, numbering: none)[$ ${sanitizedExpr} $]`;
+      }
       return `$ ${sanitizedExpr} $`;
     }
 

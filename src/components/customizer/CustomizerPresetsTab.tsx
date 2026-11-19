@@ -154,7 +154,7 @@ export const CustomizerPresetsTab: React.FC<CustomizerPresetsTabProps> = ({
               id="template-universe-package"
               type="text"
               value={config.universePackage || ''}
-              placeholder="Ex: @preview/charged-ieee:0.1.4 ou @preview/modern-sbc:0.1.0"
+              placeholder="Ex: @preview/charged-ieee:0.1.4 ou @preview/touying:0.5.3"
               onChange={(e) => onUniversePackageInput(e.target.value)}
               className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-brand-600 font-mono"
             />

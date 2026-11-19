@@ -13,6 +13,10 @@ export interface UniverseTemplateInfo {
   entrypoint: string;
 }
 
+/**
+ * Pacotes sugeridos na interface. Todos conferidos no repositório oficial do Typst Universe
+ * (typst/packages): um pacote que não existe lá cairia no erro de "pacote não encontrado".
+ */
 export const POPULAR_UNIVERSE_TEMPLATES: UniverseTemplateInfo[] = [
   {
     id: '@preview/charged-ieee:0.1.4',
@@ -25,35 +29,6 @@ export const POPULAR_UNIVERSE_TEMPLATES: UniverseTemplateInfo[] = [
     entrypoint: 'ieee',
   },
   {
-    id: '@preview/modern-sbc:0.1.0',
-    name: 'modern-sbc',
-    version: '0.1.0',
-    title: 'SBC — Sociedade Brasileira de Computação',
-    description: 'Template para congressos e periódicos de computação e informática brasileiros.',
-    category: 'conferencia',
-    entrypoint: 'sbc-article',
-  },
-  {
-    id: '@preview/poster-template:0.1.0',
-    name: 'poster-template',
-    version: '0.1.0',
-    title: 'Pôster Acadêmico A0 / A1',
-    description:
-      'Banner científico em grande formato para mostras, simpósios e encontros de iniciação científica.',
-    category: 'poster',
-    entrypoint: 'poster',
-  },
-  {
-    id: '@preview/academic-cv:0.1.0',
-    name: 'academic-cv',
-    version: '0.1.0',
-    title: 'Currículo Acadêmico / Lattes Estilizado',
-    description:
-      'Estrutura elegante e tipográfica para histórico acadêmico, publicações e bolsas.',
-    category: 'artigo',
-    entrypoint: 'cv',
-  },
-  {
     id: '@preview/touying:0.5.3',
     name: 'touying',
     version: '0.5.3',
@@ -64,6 +39,25 @@ export const POPULAR_UNIVERSE_TEMPLATES: UniverseTemplateInfo[] = [
     entrypoint: 'simple-theme',
   },
 ];
+
+/**
+ * Pacotes que já estiveram no catálogo acima, mas não existem no Typst Universe (404).
+ * Saíram das sugestões; a função de entrada fica registrada só para projetos antigos que os
+ * usam continuarem compilando com o pacote virtual (ex.: `#show: sbc-article.with(...)`).
+ */
+const LEGACY_VIRTUAL_ENTRYPOINTS: Record<string, string> = {
+  'modern-sbc': 'sbc-article',
+  'poster-template': 'poster',
+  'academic-cv': 'cv',
+};
+
+/** Função de entrada conhecida de um pacote (catálogo ou pacote legado), pelo nome. */
+export function knownUniverseEntrypoint(packageName: string): string | undefined {
+  return (
+    POPULAR_UNIVERSE_TEMPLATES.find((t) => t.name === packageName)?.entrypoint ??
+    LEGACY_VIRTUAL_ENTRYPOINTS[packageName]
+  );
+}
 
 export interface ParsedPackageId {
   namespace: string;
@@ -155,9 +149,8 @@ export function buildVirtualUniversePackageFiles(
 ): Record<string, string> {
   const safePkgName = spec.name.replace(/[^a-zA-Z0-9_-]/g, '') || 'custom-template';
   const safeVersion = spec.version.replace(/[^0-9.]/g, '') || '0.1.0';
-  const known = POPULAR_UNIVERSE_TEMPLATES.find((t) => t.name === safePkgName);
   const safeEntry = sanitizeTypstIdent(
-    entrypoint || known?.entrypoint || safePkgName,
+    entrypoint || knownUniverseEntrypoint(safePkgName) || safePkgName,
     'article',
   );
 
