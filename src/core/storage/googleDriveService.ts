@@ -79,7 +79,7 @@ interface GoogleDrivePermissionApi {
  */
 export async function findDriveFileForProject(
   project: DocumentProject,
-  accessToken: string
+  accessToken: string,
 ): Promise<{ id: string; modifiedTime: string } | null> {
   if (accessToken.startsWith('mock_dev_token')) {
     return null;
@@ -91,13 +91,13 @@ export async function findDriveFileForProject(
   // 1. Tenta buscar por appProperties (vínculo unívoco pelo ID do projeto)
   try {
     const propQuery = encodeURIComponent(
-      `appProperties has { key='redijaProjectId' and value='${project.id}' } and trashed = false`
+      `appProperties has { key='redijaProjectId' and value='${project.id}' } and trashed = false`,
     );
     const propRes = await fetch(
       `https://www.googleapis.com/drive/v3/files?q=${propQuery}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
-      }
+      },
     );
     if (propRes.ok) {
       const data = await propRes.json();
@@ -122,7 +122,7 @@ export async function findDriveFileForProject(
       `https://www.googleapis.com/drive/v3/files?q=${nameQuery}&fields=files(id,modifiedTime,appProperties)&orderBy=modifiedTime desc`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
-      }
+      },
     );
     if (nameRes.ok) {
       const data = await nameRes.json();
@@ -148,9 +148,7 @@ export async function findDriveFileForProject(
  * Garante que a pasta principal "RedijaApp" exista no Google Drive do usuário.
  * Retorna o ID da pasta raiz "RedijaApp".
  */
-export async function getOrCreateRedijaAppRootFolder(
-  accessToken: string,
-): Promise<string | null> {
+export async function getOrCreateRedijaAppRootFolder(accessToken: string): Promise<string | null> {
   if (accessToken.startsWith('mock_dev_token')) {
     return 'mock_root_folder_redija';
   }
@@ -312,7 +310,7 @@ export async function getOrCreateProjectFolder(
  */
 export async function saveProjectToDrive(
   project: DocumentProject,
-  accessToken: string
+  accessToken: string,
 ): Promise<{ fileId: string; modifiedTime: string }> {
   // Simulação para testes de desenvolvimento local sem credencial configurada
   if (accessToken.startsWith('mock_dev_token')) {
@@ -382,7 +380,7 @@ export async function saveProjectToDrive(
             'Content-Type': REDIJA_MIME_TYPE,
           },
           body: fileContent,
-        }
+        },
       );
 
       if (updateRes.ok) {
@@ -419,7 +417,7 @@ export async function saveProjectToDrive(
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
       body: form,
-    }
+    },
   );
 
   if (!createRes.ok) {
@@ -603,14 +601,14 @@ export async function listDriveProjects(accessToken: string): Promise<DriveProje
 
   const query = encodeURIComponent("name contains '.redija' and trashed = false");
   const fields = encodeURIComponent(
-    'files(id, name, modifiedTime, sharedWithMeTime, sharingUser, owners, appProperties)'
+    'files(id, name, modifiedTime, sharedWithMeTime, sharingUser, owners, appProperties)',
   );
 
   const response = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&orderBy=modifiedTime desc`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
-    }
+    },
   );
 
   if (!response.ok) {
@@ -620,9 +618,11 @@ export async function listDriveProjects(accessToken: string): Promise<DriveProje
 
   const data = await response.json();
 
-  // `name contains '.redija'` também pode casar com `redija-modelos.json` (modelos personalizados).
+  // `name contains '.redija'` também pode casar com `redija-modelos.json` ou `redija-biblioteca.json`.
   const projectFiles = ((data.files || []) as GoogleDriveApiFile[]).filter(
-    (f) => f.appProperties?.isRedijaCustomTemplates !== 'true',
+    (f) =>
+      f.appProperties?.isRedijaCustomTemplates !== 'true' &&
+      f.appProperties?.isRedijaReferenceLibrary !== 'true',
   );
 
   return projectFiles.map((f: GoogleDriveApiFile) => {
@@ -677,7 +677,11 @@ export async function listTrashedDriveProjectIds(accessToken: string): Promise<S
   const data = await response.json();
   return new Set(
     ((data.files || []) as Pick<GoogleDriveApiFile, 'id' | 'appProperties'>[])
-      .filter((f) => f.appProperties?.isRedijaCustomTemplates !== 'true')
+      .filter(
+        (f) =>
+          f.appProperties?.isRedijaCustomTemplates !== 'true' &&
+          f.appProperties?.isRedijaReferenceLibrary !== 'true',
+      )
       .map((f) => f.id),
   );
 }
@@ -687,14 +691,11 @@ export async function listTrashedDriveProjectIds(accessToken: string): Promise<S
  */
 export async function loadProjectFromDrive(
   fileId: string,
-  accessToken: string
+  accessToken: string,
 ): Promise<DocumentProject> {
-  const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
-  );
+  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -870,7 +871,7 @@ export async function deleteAllUserDriveProjects(accessToken: string): Promise<n
 export async function inviteCollaborator(
   fileId: string,
   emailAddress: string,
-  accessToken: string
+  accessToken: string,
 ): Promise<void> {
   if (accessToken.startsWith('mock_dev_token')) {
     await new Promise((r) => setTimeout(r, 400));
@@ -890,7 +891,7 @@ export async function inviteCollaborator(
         type: 'user',
         emailAddress: emailAddress.trim(),
       }),
-    }
+    },
   );
 
   if (!res.ok) {
@@ -904,7 +905,7 @@ export async function inviteCollaborator(
  */
 export async function listCollaborators(
   fileId: string,
-  accessToken: string
+  accessToken: string,
 ): Promise<Collaborator[]> {
   if (accessToken.startsWith('mock_dev_token')) {
     return [
@@ -928,7 +929,7 @@ export async function listCollaborators(
     `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?fields=${fields}`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
-    }
+    },
   );
 
   if (!res.ok) {
@@ -952,7 +953,7 @@ export async function listCollaborators(
 export async function removeCollaborator(
   fileId: string,
   permissionId: string,
-  accessToken: string
+  accessToken: string,
 ): Promise<void> {
   if (accessToken.startsWith('mock_dev_token')) {
     await new Promise((r) => setTimeout(r, 300));
@@ -963,7 +964,7 @@ export async function removeCollaborator(
     {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${accessToken}` },
-    }
+    },
   );
 
   if (!res.ok) {
@@ -971,4 +972,3 @@ export async function removeCollaborator(
     throw new Error(err.error?.message || 'Erro ao remover colaborador.');
   }
 }
-

@@ -4,7 +4,7 @@ import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Editor } from '@/components/Editor';
 import { PdfPreview } from '@/components/PdfPreview';
-import { ReferenceModal } from '@/components/ReferenceModal';
+import { ReferenceModal, type ReferenceModalTab } from '@/components/ReferenceModal';
 import { HomePage } from '@/components/home/HomePage';
 import {
   DeleteForeverDialog,
@@ -39,10 +39,7 @@ import { useAppRoute } from '@/hooks/useAppRoute';
 import { MIN_PREVIEW_WIDTH, MIN_SIDEBAR_WIDTH, usePaneLayout } from '@/hooks/usePaneLayout';
 import { useUndoRedoHistory } from '@/hooks/useUndoRedoHistory';
 import { useRealtimeCollab } from '@/hooks/useRealtimeCollab';
-import {
-  FALLBACK_INITIAL_PROJECT,
-  useProjectWorkspace,
-} from '@/hooks/useProjectWorkspace';
+import { FALLBACK_INITIAL_PROJECT, useProjectWorkspace } from '@/hooks/useProjectWorkspace';
 import { useDriveSyncOrchestrator } from '@/hooks/useDriveSyncOrchestrator';
 import { downloadProjectPdf, useDocumentExport } from '@/hooks/useDocumentExport';
 import { useCustomTemplates } from '@/hooks/useCustomTemplates';
@@ -55,6 +52,7 @@ export const App: React.FC = () => {
   // Estado de modais e interface local
   const [showCode, setShowCode] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [referenceModalTab, setReferenceModalTab] = useState<ReferenceModalTab>('form');
   const [editingReference, setEditingReference] = useState<AcademicReference | null>(null);
   // Home (lista de trabalhos) e seus diálogos
   const [renameTarget, setRenameTarget] = useState<DocumentProject | null>(null);
@@ -122,26 +120,16 @@ export const App: React.FC = () => {
     toggleDarkMode,
   } = usePaneLayout();
 
-  const {
-    canUndo,
-    canRedo,
-    recordHistorySnapshot,
-    handleUndo,
-    handleRedo,
-    clearHistory,
-  } = useUndoRedoHistory(setProject);
+  const { canUndo, canRedo, recordHistorySnapshot, handleUndo, handleRedo, clearHistory } =
+    useUndoRedoHistory(setProject);
 
-  const {
-    activeCollaborators,
-    broadcastCursor,
-    broadcastBlocksSync,
-    broadcastBlockUpdate,
-  } = useRealtimeCollab({
-    isAuthenticated,
-    user,
-    driveFileId: project.driveFileId,
-    setProject,
-  });
+  const { activeCollaborators, broadcastCursor, broadcastBlocksSync, broadcastBlockUpdate } =
+    useRealtimeCollab({
+      isAuthenticated,
+      user,
+      driveFileId: project.driveFileId,
+      setProject,
+    });
 
   // Sem trabalhos, a própria Home mostra o estado vazio (não há modal para abrir)
   const handleEmptyWorkspace = useCallback(() => {}, []);
@@ -195,23 +183,19 @@ export const App: React.FC = () => {
     getDriveAccessToken: isAuthenticated && user ? getValidAccessToken : null,
   });
 
-  const {
-    driveSyncStatus,
-    isSyncingDrive,
-    handleSyncFromDrive,
-    handleEnsureProjectSavedToDrive,
-  } = useDriveSyncOrchestrator({
-    project,
-    setProject,
-    projectsCount: projects.length,
-    setProjects,
-    isStorageReady,
-    isAuthenticated,
-    user,
-    login,
-    getValidAccessToken,
-    onTrashStateChanged: reloadProjectLists,
-  });
+  const { driveSyncStatus, isSyncingDrive, handleSyncFromDrive, handleEnsureProjectSavedToDrive } =
+    useDriveSyncOrchestrator({
+      project,
+      setProject,
+      projectsCount: projects.length,
+      setProjects,
+      isStorageReady,
+      isAuthenticated,
+      user,
+      login,
+      getValidAccessToken,
+      onTrashStateChanged: reloadProjectLists,
+    });
 
   const {
     isExportingPdf,
@@ -279,7 +263,15 @@ export const App: React.FC = () => {
       goHomeRoute({ replace: true });
       toast.info('Esse trabalho não está mais disponível.');
     }
-  }, [isSessionActive, isStorageReady, projectId, project.id, projects, handleSelectProject, goHomeRoute]);
+  }, [
+    isSessionActive,
+    isStorageReady,
+    projectId,
+    project.id,
+    projects,
+    handleSelectProject,
+    goHomeRoute,
+  ]);
 
   const openProject = useCallback(
     (target: DocumentProject) => {
@@ -305,7 +297,11 @@ export const App: React.FC = () => {
     (template: { name: string; packageId: string }, name?: string) =>
       void createAndOpenProject(
         'universe_custom',
-        name || uniqueProjectName(template.name, projects.map((p) => p.name)),
+        name ||
+          uniqueProjectName(
+            template.name,
+            projects.map((p) => p.name),
+          ),
         template.packageId,
       ),
     [projects, createAndOpenProject],
@@ -498,7 +494,10 @@ export const App: React.FC = () => {
           onConnectGoogle={handleLoginClick}
         />
       ) : !isEditorReady ? (
-        <main className="flex-1 flex items-center justify-center gap-2 text-sm text-fg-muted" aria-busy="true">
+        <main
+          className="flex-1 flex items-center justify-center gap-2 text-sm text-fg-muted"
+          aria-busy="true"
+        >
           <Loader2 className="w-4 h-4 animate-spin" />
           Abrindo trabalho…
         </main>
@@ -526,14 +525,23 @@ export const App: React.FC = () => {
                 onChangeMetadata={handleMetadataChange}
                 onChangeSidebarConfig={handleChangeSidebarConfig}
                 references={project.references}
+                activeOwner={activeOwner}
                 onOpenReferenceModal={() => {
                   setEditingReference(null);
+                  setReferenceModalTab('form');
+                  setIsModalOpen(true);
+                }}
+                onOpenLibraryModal={() => {
+                  setEditingReference(null);
+                  setReferenceModalTab('library');
                   setIsModalOpen(true);
                 }}
                 onEditReference={(ref) => {
                   setEditingReference(ref);
+                  setReferenceModalTab('form');
                   setIsModalOpen(true);
                 }}
+                onUpdateReference={handleUpdateReference}
                 onRemoveReference={handleRemoveReference}
                 onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
                 onOpenAbntGuide={() => {
@@ -600,7 +608,9 @@ export const App: React.FC = () => {
                 blocks={project.blocks}
                 metadata={project.metadata}
                 references={project.references}
-                citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
+                citationStyle={
+                  project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle
+                }
                 citationFormat={project.templateConfig?.citationFormat}
                 referenceOrdering={project.templateConfig?.referenceOrdering}
                 isFullWidth={isCompact || (!showSidebar && !showPreview)}
@@ -608,6 +618,7 @@ export const App: React.FC = () => {
                 activeCollaborators={activeCollaborators}
                 onOpenReferenceModal={() => {
                   setEditingReference(null);
+                  setReferenceModalTab('form');
                   setIsModalOpen(true);
                 }}
                 onChangeBlocks={handleBlocksChange}
@@ -692,7 +703,11 @@ export const App: React.FC = () => {
           setIsModalOpen(false);
           setEditingReference(null);
         }}
+        initialTab={referenceModalTab}
         editingReference={editingReference}
+        projectReferences={project.references}
+        activeOwner={activeOwner}
+        isAuthenticated={isAuthenticated}
         onAddReference={handleAddReference}
         onUpdateReference={handleUpdateReference}
         onAddMultipleReferences={handleAddMultipleReferences}

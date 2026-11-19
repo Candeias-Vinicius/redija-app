@@ -29,10 +29,7 @@ import {
   BibliographyEngine,
   CslStyle,
 } from '@/types/document';
-import {
-  VALID_FONT_FAMILY_IDS,
-  sanitizeCustomFontFamily,
-} from '@/core/typst/fontCatalog';
+import { VALID_FONT_FAMILY_IDS, sanitizeCustomFontFamily } from '@/core/typst/fontCatalog';
 
 /**
  * Normaliza e valida um objeto desconhecido para o schema DocumentProject estrito.
@@ -46,10 +43,7 @@ export function normalizeProject(raw: unknown): DocumentProject {
   const data = raw as Record<string, unknown>;
 
   // ID do projeto
-  const id =
-    typeof data.id === 'string' && data.id.trim()
-      ? data.id.trim()
-      : crypto.randomUUID();
+  const id = typeof data.id === 'string' && data.id.trim() ? data.id.trim() : crypto.randomUUID();
 
   // Nome do projeto
   const name =
@@ -76,10 +70,9 @@ export function normalizeProject(raw: unknown): DocumentProject {
       : 'tcc';
 
   // Metadados
-  const rawMeta = (data.metadata && typeof data.metadata === 'object' ? data.metadata : {}) as Record<
-    string,
-    unknown
-  >;
+  const rawMeta = (
+    data.metadata && typeof data.metadata === 'object' ? data.metadata : {}
+  ) as Record<string, unknown>;
 
   const DEMO_TCC_TITLE =
     'Desenvolvimento de uma Plataforma Automatizada para Redação Científica em Conformidade com as Normas da ABNT';
@@ -87,8 +80,7 @@ export function normalizeProject(raw: unknown): DocumentProject {
   const rawAuthor = typeof rawMeta.author === 'string' ? rawMeta.author : 'Nome do Autor';
   // Migra o nome do autor do documento de exemplo legado (antes usava o nome do mantenedor).
   const isLegacyDemoAuthor =
-    rawTitle === DEMO_TCC_TITLE &&
-    /^vin[ií]cius\s+candeias$/i.test(rawAuthor.trim());
+    rawTitle === DEMO_TCC_TITLE && /^vin[ií]cius\s+candeias$/i.test(rawAuthor.trim());
 
   const metadata: DocumentMetadata = {
     title: rawTitle,
@@ -121,8 +113,7 @@ export function normalizeProject(raw: unknown): DocumentProject {
     acknowledgments:
       typeof rawMeta.acknowledgments === 'string' ? rawMeta.acknowledgments : undefined,
     epigraph: typeof rawMeta.epigraph === 'string' ? rawMeta.epigraph : undefined,
-    epigraphAuthor:
-      typeof rawMeta.epigraphAuthor === 'string' ? rawMeta.epigraphAuthor : undefined,
+    epigraphAuthor: typeof rawMeta.epigraphAuthor === 'string' ? rawMeta.epigraphAuthor : undefined,
     foreignAbstract:
       typeof rawMeta.foreignAbstract === 'string' ? rawMeta.foreignAbstract : undefined,
     foreignKeywords: Array.isArray(rawMeta.foreignKeywords)
@@ -143,9 +134,9 @@ export function normalizeProject(raw: unknown): DocumentProject {
   };
 
   // Configuração do Template com validação estrita e coerção de tipos
-  const rawConfig = (data.templateConfig && typeof data.templateConfig === 'object'
-    ? data.templateConfig
-    : {}) as Record<string, unknown>;
+  const rawConfig = (
+    data.templateConfig && typeof data.templateConfig === 'object' ? data.templateConfig : {}
+  ) as Record<string, unknown>;
 
   const SAFE_PKG_REGEX = /^@[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+:[0-9.]+$/;
   const SAFE_IDENT_REGEX = /^[a-zA-Z0-9_-]+$/;
@@ -196,7 +187,7 @@ export function normalizeProject(raw: unknown): DocumentProject {
         ? 'abnt_upper'
         : sanitizedPreset === 'ieee'
           ? 'ieee_numeric'
-          : DEFAULT_TEMPLATE_CONFIG.citationFormat ?? 'abnt_titlecase';
+          : (DEFAULT_TEMPLATE_CONFIG.citationFormat ?? 'abnt_titlecase');
 
   const sanitizedCitationStyle: 'uppercase' | 'titlecase' =
     rawConfig.citationStyle === 'uppercase'
@@ -258,7 +249,10 @@ export function normalizeProject(raw: unknown): DocumentProject {
 
   const sanitizedRunningHeader =
     typeof rawConfig.runningHeader === 'string'
-      ? rawConfig.runningHeader.replace(/[\r\n\t]+/g, ' ').trim().slice(0, 120)
+      ? rawConfig.runningHeader
+          .replace(/[\r\n\t]+/g, ' ')
+          .trim()
+          .slice(0, 120)
       : undefined;
 
   const templateConfig: TemplateConfig = {
@@ -272,23 +266,33 @@ export function normalizeProject(raw: unknown): DocumentProject {
         ? rawConfig.lineSpacing
         : '1.5',
     paragraphIndentCm:
-      typeof rawConfig.paragraphIndentCm === 'number' && Number.isFinite(rawConfig.paragraphIndentCm) && rawConfig.paragraphIndentCm >= 0
+      typeof rawConfig.paragraphIndentCm === 'number' &&
+      Number.isFinite(rawConfig.paragraphIndentCm) &&
+      rawConfig.paragraphIndentCm >= 0
         ? rawConfig.paragraphIndentCm
         : DEFAULT_TEMPLATE_CONFIG.paragraphIndentCm,
     marginTopCm:
-      typeof rawConfig.marginTopCm === 'number' && Number.isFinite(rawConfig.marginTopCm) && rawConfig.marginTopCm >= 0
+      typeof rawConfig.marginTopCm === 'number' &&
+      Number.isFinite(rawConfig.marginTopCm) &&
+      rawConfig.marginTopCm >= 0
         ? rawConfig.marginTopCm
         : DEFAULT_TEMPLATE_CONFIG.marginTopCm,
     marginLeftCm:
-      typeof rawConfig.marginLeftCm === 'number' && Number.isFinite(rawConfig.marginLeftCm) && rawConfig.marginLeftCm >= 0
+      typeof rawConfig.marginLeftCm === 'number' &&
+      Number.isFinite(rawConfig.marginLeftCm) &&
+      rawConfig.marginLeftCm >= 0
         ? rawConfig.marginLeftCm
         : DEFAULT_TEMPLATE_CONFIG.marginLeftCm,
     marginBottomCm:
-      typeof rawConfig.marginBottomCm === 'number' && Number.isFinite(rawConfig.marginBottomCm) && rawConfig.marginBottomCm >= 0
+      typeof rawConfig.marginBottomCm === 'number' &&
+      Number.isFinite(rawConfig.marginBottomCm) &&
+      rawConfig.marginBottomCm >= 0
         ? rawConfig.marginBottomCm
         : DEFAULT_TEMPLATE_CONFIG.marginBottomCm,
     marginRightCm:
-      typeof rawConfig.marginRightCm === 'number' && Number.isFinite(rawConfig.marginRightCm) && rawConfig.marginRightCm >= 0
+      typeof rawConfig.marginRightCm === 'number' &&
+      Number.isFinite(rawConfig.marginRightCm) &&
+      rawConfig.marginRightCm >= 0
         ? rawConfig.marginRightCm
         : DEFAULT_TEMPLATE_CONFIG.marginRightCm,
     columns: rawConfig.columns === 3 ? 3 : rawConfig.columns === 2 ? 2 : 1,
@@ -347,9 +351,7 @@ export function normalizeProject(raw: unknown): DocumentProject {
     validHeadingNumberings.includes(rawConfig.headingNumbering as HeadingNumberingStyle)
       ? { headingNumbering: rawConfig.headingNumbering as HeadingNumberingStyle }
       : {}),
-    ...(typeof rawConfig.h1PageBreak === 'boolean'
-      ? { h1PageBreak: rawConfig.h1PageBreak }
-      : {}),
+    ...(typeof rawConfig.h1PageBreak === 'boolean' ? { h1PageBreak: rawConfig.h1PageBreak } : {}),
     ...(typeof rawConfig.referenceOrdering === 'string' &&
     validRefOrderings.includes(rawConfig.referenceOrdering as ReferenceOrdering)
       ? { referenceOrdering: rawConfig.referenceOrdering as ReferenceOrdering }
@@ -373,7 +375,11 @@ export function normalizeProject(raw: unknown): DocumentProject {
           ? 'a0'
           : undefined,
     posterOrientation:
-      rawConfig.posterOrientation === 'landscape' ? 'landscape' : rawConfig.posterOrientation === 'portrait' ? 'portrait' : undefined,
+      rawConfig.posterOrientation === 'landscape'
+        ? 'landscape'
+        : rawConfig.posterOrientation === 'portrait'
+          ? 'portrait'
+          : undefined,
     posterColumns:
       rawConfig.posterColumns === 2 || rawConfig.posterColumns === 3
         ? rawConfig.posterColumns
@@ -386,11 +392,13 @@ export function normalizeProject(raw: unknown): DocumentProject {
         ? rawConfig.posterTheme
         : undefined,
     universePackage:
-      typeof rawConfig.universePackage === 'string' && SAFE_PKG_REGEX.test(rawConfig.universePackage.trim())
+      typeof rawConfig.universePackage === 'string' &&
+      SAFE_PKG_REGEX.test(rawConfig.universePackage.trim())
         ? rawConfig.universePackage.trim()
         : undefined,
     universeEntrypoint:
-      typeof rawConfig.universeEntrypoint === 'string' && SAFE_IDENT_REGEX.test(rawConfig.universeEntrypoint.trim())
+      typeof rawConfig.universeEntrypoint === 'string' &&
+      SAFE_IDENT_REGEX.test(rawConfig.universeEntrypoint.trim())
         ? rawConfig.universeEntrypoint.trim()
         : undefined,
   };
@@ -422,7 +430,8 @@ export function normalizeProject(raw: unknown): DocumentProject {
     blocks = data.blocks
       .filter((b): b is Record<string, unknown> => Boolean(b && typeof b === 'object'))
       .map((b) => {
-        const rawMeta = (b.meta && typeof b.meta === 'object' ? b.meta : undefined) as Record<string, unknown> | undefined;
+        const rawMeta = (b.meta && typeof b.meta === 'object' ? b.meta : undefined) as
+          Record<string, unknown> | undefined;
         let sanitizedMeta: Block['meta'] = undefined;
         if (rawMeta) {
           sanitizedMeta = {
@@ -431,13 +440,18 @@ export function normalizeProject(raw: unknown): DocumentProject {
             page: typeof rawMeta.page === 'string' ? rawMeta.page : undefined,
             caption: typeof rawMeta.caption === 'string' ? rawMeta.caption : undefined,
             source: typeof rawMeta.source === 'string' ? rawMeta.source : undefined,
-            imageDataUrl: typeof rawMeta.imageDataUrl === 'string' ? rawMeta.imageDataUrl : undefined,
+            imageDataUrl:
+              typeof rawMeta.imageDataUrl === 'string' ? rawMeta.imageDataUrl : undefined,
             imageMime: typeof rawMeta.imageMime === 'string' ? rawMeta.imageMime : undefined,
             imageWidthPct:
-              rawMeta.imageWidthPct === 50 || rawMeta.imageWidthPct === 75 || rawMeta.imageWidthPct === 100
+              rawMeta.imageWidthPct === 50 ||
+              rawMeta.imageWidthPct === 75 ||
+              rawMeta.imageWidthPct === 100
                 ? rawMeta.imageWidthPct
-                : typeof rawMeta.imageWidthPct === 'number' && Number.isFinite(rawMeta.imageWidthPct)
-                  ? (Math.min(100, Math.max(10, Math.round(rawMeta.imageWidthPct))) as 50 | 75 | 100)
+                : typeof rawMeta.imageWidthPct === 'number' &&
+                    Number.isFinite(rawMeta.imageWidthPct)
+                  ? (Math.min(100, Math.max(10, Math.round(rawMeta.imageWidthPct))) as
+                      50 | 75 | 100)
                   : undefined,
             imageLayout:
               rawMeta.imageLayout === 'auto' ||
@@ -448,14 +462,13 @@ export function normalizeProject(raw: unknown): DocumentProject {
                 : undefined,
             subImages: Array.isArray(rawMeta.subImages)
               ? rawMeta.subImages
-                  .filter(
-                    (item): item is Record<string, unknown> =>
-                      Boolean(
-                        item &&
-                          typeof item === 'object' &&
-                          typeof (item as Record<string, unknown>).dataUrl === 'string' &&
-                          (item as Record<string, unknown>).dataUrl,
-                      ),
+                  .filter((item): item is Record<string, unknown> =>
+                    Boolean(
+                      item &&
+                      typeof item === 'object' &&
+                      typeof (item as Record<string, unknown>).dataUrl === 'string' &&
+                      (item as Record<string, unknown>).dataUrl,
+                    ),
                   )
                   .slice(0, 4)
                   .map((item, idx) => ({
@@ -471,7 +484,8 @@ export function normalizeProject(raw: unknown): DocumentProject {
             equationNumbered:
               typeof rawMeta.equationNumbered === 'boolean' ? rawMeta.equationNumbered : undefined,
             language:
-              typeof rawMeta.language === 'string' && /^[a-zA-Z0-9_-]+$/.test(rawMeta.language.trim())
+              typeof rawMeta.language === 'string' &&
+              /^[a-zA-Z0-9_-]+$/.test(rawMeta.language.trim())
                 ? rawMeta.language.trim()
                 : undefined,
             headers: Array.isArray(rawMeta.headers)
@@ -480,7 +494,9 @@ export function normalizeProject(raw: unknown): DocumentProject {
             rows: Array.isArray(rawMeta.rows)
               ? rawMeta.rows
                   .filter((row): row is unknown[] => Array.isArray(row))
-                  .map((row) => row.map((cell) => (typeof cell === 'string' ? cell : String(cell ?? ''))))
+                  .map((row) =>
+                    row.map((cell) => (typeof cell === 'string' ? cell : String(cell ?? ''))),
+                  )
               : undefined,
           };
         }
@@ -491,7 +507,10 @@ export function normalizeProject(raw: unknown): DocumentProject {
             ? b.type
             : 'paragraph') as Block['type'],
           content: typeof b.content === 'string' ? b.content : '',
-          updatedAt: typeof b.updatedAt === 'number' && Number.isFinite(b.updatedAt) ? b.updatedAt : Date.now(),
+          updatedAt:
+            typeof b.updatedAt === 'number' && Number.isFinite(b.updatedAt)
+              ? b.updatedAt
+              : Date.now(),
           meta: sanitizedMeta,
         };
       });
@@ -521,6 +540,9 @@ export function normalizeProject(raw: unknown): DocumentProject {
         url: typeof r.url === 'string' ? r.url : undefined,
         accessDate: typeof r.accessDate === 'string' ? r.accessDate : undefined,
         doi: typeof r.doi === 'string' ? r.doi : undefined,
+        isbn: typeof r.isbn === 'string' ? r.isbn : undefined,
+        libraryRefId: typeof r.libraryRefId === 'string' ? r.libraryRefId : undefined,
+        librarySyncedAt: typeof r.librarySyncedAt === 'string' ? r.librarySyncedAt : undefined,
       }));
   }
 
@@ -571,7 +593,7 @@ export function normalizeProject(raw: unknown): DocumentProject {
     data.driveTrashSync === 'pending-restore' ||
     data.driveTrashSync === 'local-only' ||
     data.driveTrashSync === 'synced'
-      ?{ driveTrashSync: data.driveTrashSync }
+      ? { driveTrashSync: data.driveTrashSync }
       : {}),
     ownerEmail: typeof data.ownerEmail === 'string' ? data.ownerEmail : undefined,
     driveFileId: typeof data.driveFileId === 'string' ? data.driveFileId : undefined,

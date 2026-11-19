@@ -142,8 +142,7 @@ export const SBC_GUIDELINES_DOCS: StandardDocSection[] = [
   {
     code: 'SBC • Formato Oficial de Simpósios',
     title: 'Sociedade Brasileira de Computação (Artigos Completos e Resumidos)',
-    summary:
-      'Padrão oficial brasileiro utilizado no CSBC, SBES, SBRC, SBSI e workshops da SBC.',
+    summary: 'Padrão oficial brasileiro utilizado no CSBC, SBES, SBRC, SBSI e workshops da SBC.',
     rulesApplied: [
       'Margens oficiais SBC: superior 3,5 cm, laterais 3,0 cm e inferior 2,5 cm em coluna única (12 pt, entrelinha simples).',
       'Cabeçalho direto na página 1 com título, autores, afiliação institucional e blocos bilíngues (Resumo e Abstract).',
@@ -251,13 +250,14 @@ export const DOCS_SECTIONS: DocTrackSection[] = [
       },
       {
         id: 'referencias-doi',
-        badge: 'Referências',
-        title: 'Cadastro Automático por DOI, ISBN e BibTeX (.bib)',
+        badge: 'Referências & Biblioteca',
+        title: 'Minha Biblioteca, Busca por Título e Importação (.bib, .ris, CSL-JSON)',
         summary:
-          'Central universal de referências integrada ao editor e às chamadas normativas.',
+          'Acervo pessoal de referências sincronizado pelo Google Drive, com busca online por título ou autor e importação do Zotero e Mendeley.',
         bullets: [
-          'Informe um DOI para preencher título, autores, periódico e ano automaticamente via CrossRef.',
-          'Importe lotes completos de arquivos .bib ou escolha entre 5 estilos de chamada: (SILVA, 2023), (Silva, 2023), numérico [1], sobrescrito ¹ e APA.',
+          'Busque obras pelo título ou autor (OpenAlex e Crossref, com deduplicação automática) ou pelo código DOI/ISBN para preencher os campos instantaneamente.',
+          'Guarde referências em "Minha Biblioteca" (organizadas em pastas e tags) e insira cópias independentes em qualquer trabalho; quando editar uma obra na biblioteca, escolha se deseja atualizar cada projeto vendo as diferenças campo a campo.',
+          'Importe arquivos .ris, CSL-JSON (.json) e BibTeX (.bib) do Zotero ou Mendeley escolhendo o destino (projeto atual, biblioteca ou ambos). Mapeamento de tipos: JOUR/CONF/article-journal/paper-conference → Artigo (article); THES/thesis → Tese/Dissertação/TCC (thesis); ELEC/WEB/webpage/post-weblog → Site (website); STAT/BILL/STAND/legislation/standard → Legislação/Norma (legislation); BOOK/CHAP/RPRT/book/chapter/report → Livro (book).',
         ],
       },
     ],
@@ -383,8 +383,7 @@ export const DOCS_SECTIONS: DocTrackSection[] = [
         id: 'como-contribuir-resumo',
         badge: 'Open Source',
         title: 'Repositório Oficial, Issues e Guia de Contribuição',
-        summary:
-          'Encontrou uma regra acadêmica para aprimorar ou quer rodar o projeto localmente?',
+        summary: 'Encontrou uma regra acadêmica para aprimorar ou quer rodar o projeto localmente?',
         bullets: [
           'Código-fonte completo disponível no GitHub (React 19, TypeScript 6, Vite 8, Typst WASM).',
           'Abra Issues para relatar bugs de diagramação ou sugerir normas institucionais e templates do Typst Universe.',

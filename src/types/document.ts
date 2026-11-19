@@ -114,11 +114,7 @@ export type FontFamilyId =
   | 'custom';
 
 export type CitationFormat =
-  | 'abnt_upper'
-  | 'abnt_titlecase'
-  | 'ieee_numeric'
-  | 'superscript'
-  | 'author_date';
+  'abnt_upper' | 'abnt_titlecase' | 'ieee_numeric' | 'superscript' | 'author_date';
 
 export type ReferenceHighlight = 'bold' | 'italic' | 'underline' | 'none';
 export type ReferenceAlignment = 'left' | 'justify';
@@ -235,6 +231,11 @@ export interface AcademicReference {
   url?: string;
   accessDate?: string;
   doi?: string;
+  isbn?: string;
+  /** Identificador da referência de origem na biblioteca pessoal (RDJ-07.6). */
+  libraryRefId?: string;
+  /** Timestamp ISO da última versão da biblioteca sincronizada ou reconhecida no projeto (RDJ-07.6). */
+  librarySyncedAt?: string;
 }
 
 export type ProjectTemplateType =

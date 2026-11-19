@@ -2,12 +2,7 @@
 // RedijaApp — Busca Automática de Referências por DOI / ISBN e Linter ABNT
 // =====================================================================
 
-import {
-  AcademicReference,
-  Block,
-  DocumentProject,
-  ReferenceOrdering,
-} from '@/types/document';
+import { AcademicReference, Block, DocumentProject, ReferenceOrdering } from '@/types/document';
 import { stripHtmlTags } from './escape';
 import {
   getPrimarySurname,
@@ -339,6 +334,7 @@ export async function lookupByDoiOrIsbn(query: string): Promise<Partial<Academic
     city: book.publish_places?.[0]?.name || 'São Paulo',
     publisher: book.publishers?.[0]?.name || 'Editora',
     year: yearMatch ? yearMatch[1] : String(new Date().getFullYear()),
+    isbn,
   };
 }
 
@@ -530,7 +526,8 @@ export function auditCitationsAndReferences(
   const citedNumbers = new Set<number>();
   const citedRefIds = new Set<string>();
   const reportedMissingTokens = new Set<string>();
-  const numericCitationRegex = /(?:^|[\s([{"'“])\[(\d{1,3}(?:\s*,\s*\d{1,3})*)(?:,\s*p\.\s*\d+(?:-\d+)?)?\](?=[\s.,;:!?)\]}"'”]|$)/g;
+  const numericCitationRegex =
+    /(?:^|[\s([{"'“])\[(\d{1,3}(?:\s*,\s*\d{1,3})*)(?:,\s*p\.\s*\d+(?:-\d+)?)?\](?=[\s.,;:!?)\]}"'”]|$)/g;
   const htmlSupRegex = /<sup[^>]*>(\d{1,3}(?:\s*,\s*\d{1,3})*)<\/sup>/gi;
   const unicodeSupRegex = /([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g;
 
@@ -780,9 +777,7 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
       ? project.templateConfig.preset
       : project.templateType;
   const isArticle =
-    effectiveTemplate === 'artigo' ||
-    effectiveTemplate === 'sbc' ||
-    effectiveTemplate === 'ieee';
+    effectiveTemplate === 'artigo' || effectiveTemplate === 'sbc' || effectiveTemplate === 'ieee';
   const minWords = isArticle ? 100 : 150;
   const maxWords = isArticle ? 250 : 500;
 
@@ -813,7 +808,8 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
       id: 'keywords-empty',
       severity: 'warning',
       title: 'Palavras-chave ausentes (NBR 6028)',
-      description: 'O trabalho acadêmico deve conter palavras-chave representativas do conteúdo do documento.',
+      description:
+        'O trabalho acadêmico deve conter palavras-chave representativas do conteúdo do documento.',
     });
   }
 
@@ -825,7 +821,8 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
           id: `fig-meta-${b.id}`,
           severity: 'warning',
           title: `Figura no bloco #${idx + 1} incompleta (NBR 14724)`,
-          description: 'Toda ilustração deve possuir título/legenda na parte superior e fonte na parte inferior.',
+          description:
+            'Toda ilustração deve possuir título/legenda na parte superior e fonte na parte inferior.',
         });
       }
     }
