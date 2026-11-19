@@ -976,6 +976,92 @@ describe('Typst compilation integration', () => {
       expect(touyingMain).toContain('#show: simple-theme.with(aspect-ratio: "16-9")');
     });
 
+    it('gera info: config-info(...) e as páginas pré-textuais para @preview/abntly, sem importar o quadro do pacote', () => {
+      const abntlyProj = createSampleProject({
+        templateType: 'universe_custom',
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          preset: 'universe_custom',
+          universePackage: '@preview/abntly:0.1.1',
+          universeEntrypoint: 'abntly',
+          documentLanguage: 'en',
+        },
+        metadata: {
+          ...createSampleProject().metadata,
+          coadvisor: 'Profa. Dra. Ana Lima',
+        },
+      });
+      const { [MAIN_FILE]: main } = generateTypstFiles(abntlyProj);
+
+      expect(main).toContain(
+        '#import "abnt.typ": *\n#import "@preview/abntly:0.1.1": abntly, config-info, cover, title-page, abstract, keywords',
+      );
+      expect(main).not.toContain('#import "@preview/abntly:0.1.1": *');
+      expect(main).toContain('#show: abntly.with(\n  info: config-info(\n    title: "Análise de Sistemas Web",');
+      expect(main).toContain('subtitle: "Estudo de caso com Typst"');
+      expect(main).toContain('author: "Maria Silva"');
+      expect(main).toContain('advisor: "Prof. Dr. João Souza"');
+      expect(main).toContain('co-advisor: "Profa. Dra. Ana Lima"');
+      expect(main).toContain('institution: "Universidade Federal"');
+      expect(main).toContain('program: "Ciência da Computação"');
+      expect(main).toContain('location: "São Paulo"');
+      expect(main).toContain('year: "2026"');
+      expect(main).toContain('lang: "en"');
+      expect(main).not.toContain('authors:');
+      expect(main).toContain('#cover()');
+      expect(main).toContain('#title-page[Trabalho de Conclusão de Curso apresentado');
+      expect(main).toContain('#keywords([ABNT], [Typst], [WebAssembly])');
+      expect(main).toContain('#abstract(lang: "en")[');
+      expect(main).toContain('#outline()');
+
+      const withoutPreText = generateMain({
+        ...abntlyProj,
+        metadata: { ...abntlyProj.metadata, author: 'Alice Silva; Bruno Costa', foreignAbstract: '' },
+        templateConfig: {
+          ...abntlyProj.templateConfig!,
+          includeCoverPage: false,
+          includeTitlePage: false,
+          includeToc: false,
+        },
+      });
+      expect(withoutPreText).toContain('author: [Alice Silva \\ Bruno Costa]');
+      expect(withoutPreText).not.toContain('#cover()');
+      expect(withoutPreText).not.toContain('#title-page');
+      expect(withoutPreText).not.toContain('#outline()');
+      expect(withoutPreText).not.toContain('#abstract(lang: "en")');
+    });
+
+    it('embute o Typst 0.15 ou mais novo no compilador Node usado nos testes', () => {
+      const compiler = NodeCompiler.create();
+      const res = compiler.compile({
+        mainFileContent: '#assert(sys.version >= version(0, 15, 0), message: "Typst " + str(sys.version))',
+      });
+      const err = res.takeError();
+      expect(err ? compiler.fetchDiagnostics(err) : []).toEqual([]);
+    });
+
+    it('troca o estilo CSL vancouver pelo nome atual do Typst (nlm-citation-sequence) sem aviso de depreciação', () => {
+      const proj = createSampleProject({
+        templateConfig: {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          bibliographyEngine: 'typst_csl',
+          cslStyle: 'vancouver',
+        },
+      });
+      const standalone = generateStandaloneTypst(proj);
+      expect(standalone).toContain('style: "nlm-citation-sequence"');
+      expect(standalone).not.toContain('"vancouver"');
+
+      const compiler = NodeCompiler.create();
+      const res = compiler.compile({ mainFileContent: standalone });
+      expect(res.hasError()).toBe(false);
+      const warnings = res.takeWarnings();
+      const messages = (warnings ? compiler.fetchDiagnostics(warnings) : []).map(
+        (d: { message: string }) => d.message,
+      );
+      expect(messages.filter((m: string) => m.includes('deprecated'))).toEqual([]);
+    });
+
     it('transpila e compila figuras compostas com até 4 imagens em grade 2x2, lado a lado (row) e empilhadas (stack)', () => {
       const tinyPng =
         'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';

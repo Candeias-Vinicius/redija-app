@@ -259,6 +259,26 @@ async function getCompiler(): Promise<TypstCompiler> {
   return compilerPromise;
 }
 
+/**
+ * Idade máxima (em compilações) dos resultados memoizados pelo Typst. O editor
+ * recompila a cada alteração, como um modo watch; 30 é o valor que o typst.ts
+ * sugere para esse uso.
+ */
+const COMPILE_CACHE_MAX_AGE = 30;
+
+/**
+ * Sem esta limpeza, os resultados memoizados de cada versão compilada ficam na
+ * memória do WASM e uma sessão longa de edição pode esgotá-la. O typst.ts expõe
+ * `evictCache` a partir da 0.8.
+ */
+async function evictCompilerCache(compiler: TypstCompiler): Promise<void> {
+  try {
+    await compiler.evictCache(COMPILE_CACHE_MAX_AGE);
+  } catch (err) {
+    console.warn('[Typst] Falha ao limpar o cache de compilação:', err);
+  }
+}
+
 async function getRenderer(): Promise<TypstRenderer> {
   if (!rendererPromise) {
     rendererPromise = (async () => {
@@ -312,6 +332,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       });
 
       const compileTimeMs = Math.round(performance.now() - start);
+      await evictCompilerCache(compiler);
       const artifact = compileResult.result;
       const diagnostics = (compileResult.diagnostics ?? []) as TypstDiagnostic[];
 

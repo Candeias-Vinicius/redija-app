@@ -183,6 +183,53 @@ entrypoint = "lib.typ"
     };
   }
 
+  if (safePkgName === 'abntly') {
+    // Mesmas funções que o adaptador do RedijaApp chama (typstGenerator), com a
+    // formatação mínima da ABNT, para o documento compilar sem o pacote real.
+    const libCode = `// Pacote virtual offline para @preview/abntly:${safeVersion}
+#let _info = state("abntly-virtual-info", (:))
+#let config-info(..fields) = fields.named()
+#let abntly(info: (:), lang: "pt", ..rest, body) = {
+  set page(paper: "a4", margin: (top: 3cm, left: 3cm, bottom: 2cm, right: 2cm), numbering: "1")
+  set text(size: 12pt, lang: lang)
+  set par(justify: true, leading: 0.9em, first-line-indent: (amount: 1.25cm, all: true))
+  set heading(numbering: "1.1")
+  _info.update(info)
+  body
+}
+#let cover(..rest) = context {
+  let info = _info.get()
+  align(center)[
+    #upper(info.at("institution", default: ""))
+    #v(1fr)
+    #upper(info.at("author", default: ""))
+    #v(1fr)
+    #strong(upper(info.at("title", default: "")))
+    #v(1fr)
+    #info.at("location", default: "") \\ #info.at("year", default: "")
+  ]
+  pagebreak(weak: true)
+}
+#let title-page(body, ..rest) = context {
+  let info = _info.get()
+  align(center)[#upper(info.at("author", default: "")) #v(2cm) #strong(info.at("title", default: ""))]
+  v(1cm)
+  align(right, block(width: 50%, align(left, body)))
+  pagebreak(weak: true)
+}
+#let keywords(..words) = par[*Palavras-chave*: #words.pos().join("; ").]
+#let abstract(body, lang: auto, ..rest) = {
+  align(center, strong(if lang == "en" [ABSTRACT] else [RESUMO]))
+  body
+  pagebreak(weak: true)
+}
+`;
+    return {
+      'typst.toml': toml,
+      'lib.typ': libCode,
+    };
+  }
+
   const isPoster = safePkgName === 'poster-template' || safeEntry === 'poster';
   const isTwoCol = safePkgName === 'charged-ieee' || safeEntry === 'ieee';
   const pageConfig = isPoster

@@ -103,7 +103,7 @@ O projeto adota processamento *local-first* e separação clara entre thread de 
 | Camada | Tecnologias |
 | :--- | :--- |
 | **Interface & Editor** | React 19, Tailwind CSS v4, TipTap 3, Lucide Icons |
-| **Motor Tipográfico** | Typst WASM (`typst-ts ^0.7.0`: `typst-ts-web-compiler` + `typst-ts-renderer`) |
+| **Motor Tipográfico** | Typst 0.15 WASM (`typst-ts 0.8.0-rc4`: `typst-ts-web-compiler` + `typst-ts-renderer`) |
 | **Linguagem & Build** | TypeScript 6.0, Vite 8 |
 | **Armazenamento & P2P** | Dexie 4 (IndexedDB), Google Identity Services / Drive API, PeerJS, JSZip |
 | **Importação (servidor)** | Node 24, Hono 4, Pandoc 3.6, Docker, Railway (Infrastructure as Code) |
