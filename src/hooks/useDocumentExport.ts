@@ -84,6 +84,40 @@ export async function downloadProjectDocx(project: DocumentProject): Promise<boo
   return true;
 }
 
+export const PROJECT_ZIP_EXPORT_ERROR_MESSAGE =
+  'Não foi possível exportar o projeto (.zip). Tente novamente.';
+
+interface DownloadProjectZipOptions {
+  /** Ação do botão "Tentar novamente" da notificação de erro. Padrão: repete a exportação. */
+  onRetry?: () => void;
+}
+
+/**
+ * Empacota o trabalho como projeto Typst (.zip) e dispara o download.
+ * Se a exportação falhar, avisa o usuário com a opção de tentar de novo, em vez de
+ * só encerrar o carregamento sem baixar nada.
+ */
+export async function downloadProjectZip(
+  project: DocumentProject,
+  { onRetry }: DownloadProjectZipOptions = {},
+): Promise<boolean> {
+  try {
+    const zipBlob = await exportTypstProjectZip(project);
+    triggerBlobDownload(zipBlob, `${getCleanProjectSlug(project.name)}_typst.zip`);
+    return true;
+  } catch (err) {
+    // O detalhe técnico (JSZip, geração do Typst) fica no console; o usuário recebe a mensagem
+    console.error('Erro ao exportar pacote do projeto:', err);
+    toast.error(PROJECT_ZIP_EXPORT_ERROR_MESSAGE, {
+      action: {
+        label: 'Tentar novamente',
+        onClick: onRetry ?? (() => void downloadProjectZip(project)),
+      },
+    });
+    return false;
+  }
+}
+
 export function useDocumentExport({
   project,
   isAuthenticated,
@@ -93,6 +127,7 @@ export function useDocumentExport({
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingProject, setIsExportingProject] = useState(false);
   const retryDocxRef = useRef<() => void>(() => {});
+  const retryProjectZipRef = useRef<() => void>(() => {});
 
   const handleDownloadPdf = useCallback(async () => {
     setIsExportingPdf(true);
@@ -134,14 +169,18 @@ export function useDocumentExport({
   const handleExportProjectZip = useCallback(async () => {
     setIsExportingProject(true);
     try {
-      const zipBlob = await exportTypstProjectZip(project);
-      triggerBlobDownload(zipBlob, `${getCleanProjectSlug(project.name)}_typst.zip`);
-    } catch (err) {
-      console.error('Erro ao exportar pacote do projeto:', err);
+      // A nova tentativa passa pelo handler mais recente para reexibir o carregamento
+      await downloadProjectZip(project, { onRetry: () => retryProjectZipRef.current() });
     } finally {
       setIsExportingProject(false);
     }
   }, [project]);
+
+  useEffect(() => {
+    retryProjectZipRef.current = () => {
+      void handleExportProjectZip();
+    };
+  }, [handleExportProjectZip]);
 
   const handleExportTypst = useCallback(() => {
     const code = generateStandaloneTypst(project);
