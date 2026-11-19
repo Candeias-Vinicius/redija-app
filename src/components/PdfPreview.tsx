@@ -51,6 +51,8 @@ interface PdfPreviewProps {
   isMaximized?: boolean;
   onDownloadPdf?: () => void;
   isExportingPdf?: boolean;
+  onDownloadDocx?: () => void;
+  isExportingDocx?: boolean;
   onExportProjectZip?: () => void;
   onExportTypst?: () => void;
   isExportingProject?: boolean;
@@ -69,6 +71,8 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
   isMaximized = false,
   onDownloadPdf,
   isExportingPdf = false,
+  onDownloadDocx,
+  isExportingDocx = false,
   onExportProjectZip,
   onExportTypst,
   isExportingProject = false,
@@ -77,7 +81,7 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const exportMenuId = useId();
-  const hasExtraExports = Boolean(onExportProjectZip || onExportTypst);
+  const hasExtraExports = Boolean(onDownloadDocx || onExportProjectZip || onExportTypst);
 
   // Fecha o menu de exportação ao clicar fora ou com Esc
   useEffect(() => {
@@ -359,10 +363,10 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
                 aria-label={hasExtraExports ? 'Baixar trabalho' : 'Baixar PDF'}
                 aria-expanded={hasExtraExports ? isExportMenuOpen : undefined}
                 aria-controls={hasExtraExports ? exportMenuId : undefined}
-                title={hasExtraExports ? 'Baixar: PDF, projeto completo ou código Typst' : 'Baixar o PDF'}
+                title={hasExtraExports ? 'Baixar: PDF, Word (.docx), projeto completo ou código Typst' : 'Baixar o PDF'}
                 className="touch-target flex items-center justify-center p-1.5 rounded-md border border-transparent bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-white shadow-xs transition-colors"
               >
-                {isExportingPdf || isExportingProject ? (
+                {isExportingPdf || isExportingDocx || isExportingProject ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <Download className="w-3.5 h-3.5" />
@@ -393,6 +397,29 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
                       <span className="block text-xs text-slate-500">Documento final nas normas, pronto para entregar</span>
                     </span>
                   </button>
+                  {onDownloadDocx && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExportMenuOpen(false);
+                        onDownloadDocx();
+                      }}
+                      disabled={isExportingDocx}
+                      className="touch-target w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      {isExportingDocx ? (
+                        <Loader2 className="w-4 h-4 mt-0.5 animate-spin text-brand-700" />
+                      ) : (
+                        <FileText className="w-4 h-4 mt-0.5 text-blue-700" />
+                      )}
+                      <span>
+                        <span className="block font-medium text-slate-800">Baixar .docx (Word)</span>
+                        <span className="block text-xs text-slate-500">
+                          Documento editável nas medidas da norma para Word e LibreOffice
+                        </span>
+                      </span>
+                    </button>
+                  )}
                   {onExportProjectZip && (
                     <button
                       type="button"

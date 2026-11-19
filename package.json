@@ -17,9 +17,9 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.{json,js,ts,md}\""
   },
   "dependencies": {
-    "@myriaddreamin/typst-ts-renderer": "^0.7.0",
-    "@myriaddreamin/typst-ts-web-compiler": "^0.7.0",
-    "@myriaddreamin/typst.ts": "^0.7.0",
+    "@myriaddreamin/typst-ts-renderer": "0.8.0-rc4",
+    "@myriaddreamin/typst-ts-web-compiler": "0.8.0-rc4",
+    "@myriaddreamin/typst.ts": "0.8.0-rc4",
     "@tiptap/extension-placeholder": "^3.33.0",
     "@tiptap/extension-subscript": "^3.33.0",
     "@tiptap/extension-superscript": "^3.33.0",
@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@myriaddreamin/typst-ts-node-compiler": "^0.7.0",
+    "@myriaddreamin/typst-ts-node-compiler": "0.8.0-rc4",
     "@playwright/test": "^1.65.0",
     "@tailwindcss/vite": "^4.3.5",
     "@types/node": "^26.6.6",

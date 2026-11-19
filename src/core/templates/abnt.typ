@@ -375,6 +375,7 @@
   show figure.caption: set text(size: 0.85em)
   show figure: set par(first-line-indent: 0pt)
   show figure: set block(above: 1.5em, below: 1.5em)
+  set math.equation(numbering: "(1)")
 
   let titulo-completo = if subtitulo != none and subtitulo != "" [
     #upper(titulo): #subtitulo

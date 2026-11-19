@@ -62,6 +62,8 @@ interface HeaderProps {
   onOpenFullDocs?: () => void;
   onDownloadPdf?: () => void;
   isExportingPdf?: boolean;
+  onDownloadDocx?: () => void;
+  isExportingDocx?: boolean;
   onExportTypst?: () => void;
   onExportProjectZip?: () => void;
   isExportingProject?: boolean;

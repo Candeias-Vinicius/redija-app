@@ -620,7 +620,12 @@ export async function listDriveProjects(accessToken: string): Promise<DriveProje
 
   const data = await response.json();
 
-  return (data.files || []).map((f: GoogleDriveApiFile) => {
+  // `name contains '.redija'` também pode casar com `redija-modelos.json` (modelos personalizados).
+  const projectFiles = ((data.files || []) as GoogleDriveApiFile[]).filter(
+    (f) => f.appProperties?.isRedijaCustomTemplates !== 'true',
+  );
+
+  return projectFiles.map((f: GoogleDriveApiFile) => {
     const isShared = Boolean(f.sharedWithMeTime);
     const owner = f.owners?.[0];
     const sharing = f.sharingUser;
@@ -654,8 +659,9 @@ export async function listTrashedDriveProjectIds(accessToken: string): Promise<S
   }
 
   const query = encodeURIComponent("name contains '.redija' and trashed = true");
+  const fields = encodeURIComponent('files(id, appProperties)');
   const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id)&pageSize=1000`,
+    `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&pageSize=1000`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
 
@@ -669,7 +675,11 @@ export async function listTrashedDriveProjectIds(accessToken: string): Promise<S
   }
 
   const data = await response.json();
-  return new Set(((data.files || []) as { id: string }[]).map((f) => f.id));
+  return new Set(
+    ((data.files || []) as Pick<GoogleDriveApiFile, 'id' | 'appProperties'>[])
+      .filter((f) => f.appProperties?.isRedijaCustomTemplates !== 'true')
+      .map((f) => f.id),
+  );
 }
 
 /**

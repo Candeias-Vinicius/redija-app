@@ -16,7 +16,18 @@ import {
   getInstitutionalTemplateBySlug,
 } from '@/core/templates/institutions';
 import { getCachedInstitutionLogo } from '@/core/storage/institutionLogoCache';
-import { importDocumentFile } from '@/core/storage/documentImporter';
+import {
+  importDocumentFile,
+  ImportCancelledError,
+  ImportFailure,
+  type ImportProgress,
+} from '@/core/storage/documentImporter';
+import {
+  describeImportError,
+  formatImportWarnings,
+  progressKey,
+  type ImportState,
+} from '@/components/import/importProgress';
 import { triggerBlobDownload } from '@/core/typst/projectCompiler';
 import {
   loadInitialActiveProject,
@@ -36,6 +47,22 @@ import { pushTrashStateToDrive, purgeProjectFromDrive } from '@/core/storage/dri
 import { toast } from '@/components/ui/toastStore';
 
 export const FALLBACK_INITIAL_PROJECT = createProjectFromTemplate('tcc');
+
+/**
+ * Resolve depois que o navegador pintar o próximo quadro (com teto de 200 ms: em aba oculta o
+ * requestAnimationFrame não dispara).
+ */
+function waitForNextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    const fallback = setTimeout(resolve, 200);
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        clearTimeout(fallback);
+        resolve();
+      }, 0),
+    );
+  });
+}
 
 const DEFAULT_PROJECT_NAME_BY_TEMPLATE: Record<ProjectTemplateType, string> = {
   tcc: 'Trabalho de Conclusão de Curso',
@@ -196,6 +223,10 @@ export function useProjectWorkspace({
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
 
   const skipNextAutoSaveRef = useRef(true);
+  /** Importação em andamento (exibida pelo ImportProgressModal); `null` quando não há nenhuma. */
+  const [importState, setImportState] = useState<ImportState | null>(null);
+  const importControllerRef = useRef<AbortController | null>(null);
+  const retryImportRef = useRef<(file: File) => void>(() => {});
 
   const resetWorkspaceState = useCallback(() => {
     skipNextAutoSaveRef.current = true;
@@ -705,23 +736,76 @@ export function useProjectWorkspace({
 
   const handleImportBackup = useCallback(
     async (file: File) => {
+      if (importControllerRef.current) {
+        toast.info('Aguarde: já existe uma importação em andamento.');
+        return;
+      }
+      const controller = new AbortController();
+      importControllerRef.current = controller;
+      let lastProgressKey = '';
+      const reportProgress = (progress: ImportProgress) => {
+        const key = progressKey(progress);
+        if (key === lastProgressKey) return;
+        lastProgressKey = key;
+        setImportState({ fileName: file.name, progress });
+      };
+
+      reportProgress({ stage: 'reading' });
       try {
-        const imported = await importDocumentFile(file);
+        const { project: imported, warnings } = await importDocumentFile(file, {
+          signal: controller.signal,
+          onProgress: reportProgress,
+        });
+        if (controller.signal.aborted) throw new ImportCancelledError();
+
+        reportProgress({ stage: 'saving' });
         imported.ownerEmail = activeOwner;
         await saveProject(imported, false);
         const all = await listProjects(activeOwner);
+        // Montar o editor de um trabalho longo ocupa a página por alguns segundos: a etapa
+        // precisa estar na tela antes disso, senão o usuário vê "Salvando" congelado
+        reportProgress({ stage: 'opening' });
+        await waitForNextPaint();
         setProjects(all);
         skipNextAutoSaveRef.current = true;
         clearHistory();
         setProject(imported);
         setActiveProjectId(imported.id, activeOwner);
         onProjectImported(imported);
+
+        toast.success(`"${imported.name}" foi importado.`);
+        const warningText = formatImportWarnings(warnings);
+        if (warningText) toast.info(warningText, { durationMs: 15000 });
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Erro ao importar documento.');
+        const description = describeImportError(err);
+        if (!description) {
+          toast.info('Importação cancelada.');
+          return;
+        }
+        if (!(err instanceof ImportFailure)) {
+          console.error('Erro inesperado ao importar documento:', err);
+        }
+        toast.error(
+          description.message,
+          description.retriable
+            ? { action: { label: 'Tentar novamente', onClick: () => retryImportRef.current(file) } }
+            : undefined,
+        );
+      } finally {
+        importControllerRef.current = null;
+        setImportState(null);
       }
     },
     [activeOwner, clearHistory, setProject, onProjectImported],
   );
+
+  useEffect(() => {
+    retryImportRef.current = (file) => {
+      void handleImportBackup(file);
+    };
+  }, [handleImportBackup]);
+
+  const cancelImport = useCallback(() => importControllerRef.current?.abort(), []);
 
   return {
     projects,
@@ -749,5 +833,7 @@ export function useProjectWorkspace({
     reloadProjectLists,
     handleExportBackup,
     handleImportBackup,
+    importState,
+    cancelImport,
   };
 }

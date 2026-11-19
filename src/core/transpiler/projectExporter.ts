@@ -18,6 +18,25 @@ import {
 import { exportToBibtex } from './abntLinter';
 import { serializeBackup } from '../storage/db';
 
+export {
+  buildDocxArchive,
+  dismissDocxConversionNotice,
+  DOCX_CONVERSION_NOTICE_KEY,
+  DOCX_CONVERSION_NOTICE_TEXT,
+  DOCX_MIME_TYPE,
+  DocxExportUnavailableError,
+  exportProjectToDocx,
+  getDocxFileName,
+  isDocxConversionNoticeDismissed,
+  resetDocxConversionNotice,
+  resolveEffectiveDocxLayout,
+  type DocxExportResult,
+  type FailedEquationReport,
+  type MissingCitationReport,
+  type MissingImageReport,
+  type ResolvedDocxLayout,
+} from './docxExporter';
+
 export function getCleanProjectSlug(name: string): string {
   const clean = name
     .replace(/\.redija$/i, '')

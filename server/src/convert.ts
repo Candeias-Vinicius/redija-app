@@ -55,6 +55,36 @@ const IMAGE_MIME: Record<string, string> = {
   '.svg': 'image/svg+xml',
 };
 
+/** Arquivos de texto que o Pandoc lê (principal, incluídos, pacotes e bibliografia). */
+const TEXT_SOURCE_FILE = /\.(tex|latex|typ|md|markdown|bib|sty|cls)$/i;
+/** Os que o serviço também lê para escolher o principal e validar includes. */
+const CACHED_TEXT_FILE = /\.(tex|latex|typ|md|markdown)$/i;
+
+const strictUtf8 = new TextDecoder('utf-8', { fatal: true });
+
+/**
+ * Decodifica um arquivo de texto do upload. O Pandoc só aceita UTF-8 ("Cannot decode byte '\xe3'"),
+ * mas projetos LaTeX antigos ou feitos no Windows (`\usepackage[latin1]{inputenc}`) vêm em
+ * Latin-1/Windows-1252, e o Bloco de Notas pode salvar em UTF-16. `transcoded` indica que o
+ * arquivo precisa ser regravado em UTF-8 (sem BOM) antes de chamar o Pandoc.
+ */
+export function decodeTextSource(bytes: Uint8Array): { text: string; transcoded: boolean } {
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return { text: new TextDecoder('utf-8').decode(bytes.subarray(3)), transcoded: true };
+  }
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return { text: new TextDecoder('utf-16le').decode(bytes.subarray(2)), transcoded: true };
+  }
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) {
+    return { text: new TextDecoder('utf-16be').decode(bytes.subarray(2)), transcoded: true };
+  }
+  try {
+    return { text: strictUtf8.decode(bytes), transcoded: false };
+  } catch {
+    return { text: new TextDecoder('windows-1252').decode(bytes), transcoded: true };
+  }
+}
+
 export function formatFromFileName(name: string): SourceFormat | 'zip' | null {
   const ext = path.extname(name).toLowerCase();
   if (ext === '.zip') return 'zip';
@@ -429,9 +459,12 @@ export async function convertUpload(fileName: string, bytes: Uint8Array): Promis
     const textCache = new Map<string, string>();
     const readText = (f: string): string => textCache.get(f) ?? '';
     for (const f of files) {
-      if (/\.(tex|latex|typ|md|markdown)$/i.test(f)) {
-        textCache.set(f, (await readFile(path.join(root, f))).toString('utf8'));
-      }
+      if (!TEXT_SOURCE_FILE.test(f)) continue;
+      const abs = path.join(root, f);
+      const { text, transcoded } = decodeTextSource(await readFile(abs));
+      // O Pandoc lê do disco os arquivos incluídos (\input, .bib): a cópia no tmp precisa estar em UTF-8
+      if (transcoded) await writeFile(abs, text, 'utf8');
+      if (CACHED_TEXT_FILE.test(f)) textCache.set(f, text);
     }
 
     const mainFile = pickMainFile(files, readText);

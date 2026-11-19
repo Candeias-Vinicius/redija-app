@@ -21,6 +21,26 @@ export interface CachedUniversePackage {
   files: Record<string, string>;
   tarGzBytes?: Uint8Array;
   downloadedAt: string;
+  /**
+   * Capa do modelo (`[template] thumbnail` do `typst.toml`), extraída do `.tar.gz`.
+   * `undefined`: ainda não verificada; `null`: o pacote não traz capa.
+   */
+  thumbnail?: { bytes: Uint8Array; mime: string } | null;
+}
+
+/**
+ * Modelo personalizado do usuário (pacote do Typst Universe com nome próprio), por perfil.
+ * `ownerEmail` é o e-mail da conta Google ou `'local'` no perfil local.
+ */
+export interface StoredCustomTemplate {
+  id: string;
+  ownerEmail: string;
+  name: string;
+  packageId: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Marca de exclusão: o modelo some da lista, mas a remoção chega aos outros aparelhos. */
+  deletedAt: string | null;
 }
 
 export interface CachedInstitutionLogo {
@@ -32,6 +52,7 @@ export interface CachedInstitutionLogo {
 export class RedijaDatabase extends Dexie {
   projects!: Table<DocumentProject, string>;
   universePackages!: Table<CachedUniversePackage, string>;
+  customTemplates!: Table<StoredCustomTemplate, string>;
   institutionLogos!: Table<CachedInstitutionLogo, string>;
 
   constructor() {
@@ -52,6 +73,12 @@ export class RedijaDatabase extends Dexie {
     this.version(5).stores({
       projects: 'id, updatedAt, name, templateType, deletedAt, driveFileId, ownerEmail',
       universePackages: 'id, name, version, downloadedAt',
+      customTemplates: 'id, ownerEmail, packageId',
+    });
+    this.version(6).stores({
+      projects: 'id, updatedAt, name, templateType, deletedAt, driveFileId, ownerEmail',
+      universePackages: 'id, name, version, downloadedAt',
+      customTemplates: 'id, ownerEmail, packageId',
       institutionLogos: 'institutionKey, updatedAt',
     });
   }

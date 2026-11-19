@@ -73,6 +73,20 @@ export function resolveCslStyle(
   return 'associacao-brasileira-de-normas-tecnicas';
 }
 
+/**
+ * Nomes de estilos CSL que o Typst renomeou. O app guarda o identificador antigo
+ * (projetos salvos e o seletor do Customizer continuam iguais) e só traduz ao gerar
+ * o `#bibliography`. Typst 0.15: `vancouver` virou `nlm-citation-sequence`.
+ */
+const TYPST_CSL_STYLE_NAMES: Partial<Record<CslStyle, string>> = {
+  vancouver: 'nlm-citation-sequence',
+};
+
+/** Nome do estilo CSL embutido no compilador Typst atual. */
+function toTypstCslStyleName(style: CslStyle): string {
+  return TYPST_CSL_STYLE_NAMES[style] ?? style;
+}
+
 export function resolveReferenceEntryFormat(
   cfg: TemplateConfig = DEFAULT_TEMPLATE_CONFIG,
   effectiveType?: ProjectTemplateType,
@@ -328,13 +342,15 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
 
   let importLine = `#import "${getTemplateFileName(effectiveType)}": *`;
   if (effectiveType === 'universe_custom') {
-    const SAFE_PKG_REGEX = /^@[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+:[0-9.]+$/;
-    const pkg =
-      cfg.universePackage && SAFE_PKG_REGEX.test(cfg.universePackage.trim())
-        ? cfg.universePackage.trim()
-        : '@preview/charged-ieee:0.1.4';
+    const pkg = resolveUniversePackageId(cfg);
     if (pkg.startsWith('@preview/touying:')) {
       importLine = `#import "abnt.typ": *\n#import "${pkg}": *\n#import themes.simple: *`;
+    } else if (isAbntlyPackage(pkg)) {
+      // O abntly exporta um `quadro` próprio, com outra assinatura. Com `*` ele
+      // substituiria o `quadro` do abnt.typ usado pelos blocos gerados (também na
+      // exportação em arquivo único, onde o abnt.typ vem antes). Por isso só entram
+      // as funções que o adaptador usa.
+      importLine = `#import "abnt.typ": *\n#import "${pkg}": ${ABNTLY_IMPORTS.join(', ')}`;
     } else {
       importLine = `#import "abnt.typ": *\n#import "${pkg}": *`;
     }
@@ -522,7 +538,7 @@ function generateShowRule(
     case 'poster':
       return generatePosterShowRule(project, cfg, includeBinaryImages);
     case 'universe_custom':
-      return generateUniverseShowRule(project, cfg);
+      return generateUniverseShowRule(project, cfg, includeBinaryImages);
     default:
       return generateAbntShowRule(project, cfg, includeBinaryImages, capabilities);
   }
@@ -690,13 +706,101 @@ function buildNativeTypstFontTuple(
   return `(${stack.map(typstString).join(', ')})`;
 }
 
-function generateUniverseShowRule(project: DocumentProject, cfg: TemplateConfig): string {
-  const m = project.metadata;
+const DEFAULT_UNIVERSE_PACKAGE = '@preview/charged-ieee:0.1.4';
+
+/** Pacote do Typst Universe configurado no projeto (ou o padrão, se o valor for inseguro). */
+function resolveUniversePackageId(cfg: TemplateConfig): string {
   const SAFE_PKG_REGEX = /^@[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+:[0-9.]+$/;
-  const pkg =
-    cfg.universePackage && SAFE_PKG_REGEX.test(cfg.universePackage.trim())
-      ? cfg.universePackage.trim()
-      : '@preview/charged-ieee:0.1.4';
+  const raw = cfg.universePackage?.trim() ?? '';
+  return SAFE_PKG_REGEX.test(raw) ? raw : DEFAULT_UNIVERSE_PACKAGE;
+}
+
+function isAbntlyPackage(pkg: string): boolean {
+  return pkg.startsWith('@preview/abntly:');
+}
+
+/** Funções do abntly chamadas por `generateAbntlyShowRule`. */
+const ABNTLY_IMPORTS = ['abntly', 'config-info', 'cover', 'title-page', 'abstract', 'keywords'];
+
+/**
+ * Adaptador do `@preview/abntly` (ABNT NBR 14724). O pacote não recebe `title`/`authors`
+ * na função principal: os dados do trabalho vão em `info: config-info(...)`, e capa,
+ * folha de rosto e resumo são chamadas explícitas, como no modelo oficial do pacote.
+ */
+function generateAbntlyShowRule(
+  project: DocumentProject,
+  cfg: TemplateConfig,
+  includeBinaryImages: boolean,
+): string {
+  const m = project.metadata;
+  const text = (value?: string): string => value?.trim() ?? '';
+
+  const authors = text(m.author)
+    .split(';')
+    .map((a) => a.trim())
+    .filter(Boolean);
+  // Um autor vai como texto, para o abntly separar o sobrenome na ficha catalográfica;
+  // vários vão como conteúdo (um por linha), que o pacote imprime sem inverter.
+  const authorExpr =
+    authors.length > 1
+      ? `[${authors.map(escapeMarkup).join(' \\ ')}]`
+      : typstString(authors[0] ?? 'Autor');
+
+  const info: string[] = [`title: ${typstString(text(m.title))}`];
+  if (text(m.subtitle)) info.push(`subtitle: ${typstString(text(m.subtitle))}`);
+  info.push(`author: ${authorExpr}`);
+  if (text(m.advisor)) info.push(`advisor: ${typstString(text(m.advisor))}`);
+  if (text(m.coadvisor)) info.push(`co-advisor: ${typstString(text(m.coadvisor))}`);
+  if (text(m.institution)) info.push(`institution: ${typstString(text(m.institution))}`);
+  if (text(m.course)) info.push(`program: ${typstString(text(m.course))}`);
+  if (text(m.location)) info.push(`location: ${typstString(text(m.location))}`);
+  if (text(m.year)) info.push(`year: ${typstString(text(m.year))}`);
+  if (includeBinaryImages && m.institutionLogoDataUrl) {
+    const parsedLogo = parseDataUrl(m.institutionLogoDataUrl);
+    if (parsedLogo) {
+      info.push(`logo: image(${typstString(`/assets/logo_instituicao.${parsedLogo.ext}`)}, width: 2cm)`);
+    }
+  }
+
+  const options = [`info: config-info(\n    ${info.join(',\n    ')},\n  )`];
+  // O abntly traz textos fixos em português e inglês; outros idiomas ficam em "pt".
+  if (cfg.documentLanguage === 'en') options.push('lang: "en"');
+
+  const lines = [`#show: abntly.with(\n  ${options.join(',\n  ')},\n)`];
+  if (cfg.fontFamily && cfg.fontFamily !== DEFAULT_TEMPLATE_CONFIG.fontFamily) {
+    if (cfg.fontFamily !== 'custom' || sanitizeCustomFontFamily(cfg.customFontFamily)) {
+      lines.push(`#set text(font: ${buildNativeTypstFontTuple(cfg, 'serif')})`);
+    }
+  }
+
+  if (cfg.includeCoverPage) lines.push('#cover()');
+  if (cfg.includeTitlePage) lines.push(`#title-page${typstContent(text(m.nature))}`);
+
+  const abstractPage = (body: string, keywords: string[] | undefined, lang?: string): string => {
+    const kws = (keywords ?? []).map((k) => k.trim()).filter(Boolean);
+    const kwLine = kws.length > 0 ? `\n  #keywords(${kws.map(typstContent).join(', ')})` : '';
+    const langArg = lang ? `(lang: ${typstString(lang)})` : '';
+    return `#abstract${langArg}[\n  ${escapeMarkup(body)}${kwLine}\n]`;
+  };
+  if (text(m.abstract)) lines.push(abstractPage(text(m.abstract), m.keywords));
+  if (text(m.foreignAbstract)) {
+    lines.push(abstractPage(text(m.foreignAbstract), m.foreignKeywords, 'en'));
+  }
+
+  if (cfg.includeToc) lines.push('#outline()');
+  return lines.join('\n');
+}
+
+function generateUniverseShowRule(
+  project: DocumentProject,
+  cfg: TemplateConfig,
+  includeBinaryImages = false,
+): string {
+  const m = project.metadata;
+  const pkg = resolveUniversePackageId(cfg);
+  if (isAbntlyPackage(pkg)) {
+    return generateAbntlyShowRule(project, cfg, includeBinaryImages);
+  }
   const SAFE_ENTRY_REGEX = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
   const rawEntry = cfg.universeEntrypoint?.trim() ?? '';
   const entry = SAFE_ENTRY_REGEX.test(rawEntry) ? rawEntry : 'article';
@@ -1004,6 +1108,9 @@ function transpileBlock(
       // Escapa delimitadores internos $ para não fechar modo matemático
       // e neutraliza # para evitar execução de comandos/macros do Typst
       const sanitizedExpr = expr.replace(/\$/g, '\\$').replace(/#/g, '\\#');
+      if (block.meta?.equationNumbered === false) {
+        return `#math.equation(block: true, numbering: none)[$ ${sanitizedExpr} $]`;
+      }
       return `$ ${sanitizedExpr} $`;
     }
 
@@ -1259,7 +1366,7 @@ function transpileReferences(
   effectiveType?: ProjectTemplateType,
 ): string {
   if (cfg.bibliographyEngine === 'typst_csl') {
-    const style = resolveCslStyle(cfg, effectiveType);
+    const style = toTypstCslStyleName(resolveCslStyle(cfg, effectiveType));
     const defaultLang: DocumentLanguage = effectiveType === 'ieee' ? 'en' : 'pt';
     const labels = getLocalizedLabels(cfg.documentLanguage ?? defaultLang);
     return `#bibliography("refs.bib", style: ${typstString(style)}, full: true, title: [${escapeMarkup(labels.references)}])`;

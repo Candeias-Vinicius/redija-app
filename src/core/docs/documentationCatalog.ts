@@ -193,6 +193,8 @@ export const GENERAL_GUIDELINES_DOCS: StandardDocSection[] = [
     summary:
       'Conecte qualquer pacote público do Typst Universe informando identificador e entrypoint na barra lateral.',
     rulesApplied: [
+      'Compilador Typst 0.15: pacotes que exigem a versão 0.15 (como o @preview/abntly) compilam direto no navegador.',
+      '@preview/abntly (ABNT): título, autor, orientador, instituição, curso, local e ano preenchem os dados do trabalho; capa, folha de rosto e sumário seguem a aba Estrutura do Customizer.',
       'Se o compilador estiver offline, o RedijaApp utiliza automaticamente um layout fallback seguro para não perder seu rascunho.',
     ],
   },
@@ -310,19 +312,20 @@ export const DOCS_SECTIONS: DocTrackSection[] = [
     id: 'importacao-exportacao',
     label: 'Importação & Exportação',
     description:
-      'Migre trabalhos prontos em poucos segundos e exporte o documento final em PDF vetorial, código Typst ou backup portátil.',
+      'Migre trabalhos prontos e exporte o documento final em PDF vetorial, código Typst ou backup portátil.',
     articles: [
       {
         id: 'importadores',
         badge: 'Importar',
-        title: 'Word (.docx), Overleaf/LaTeX (.tex/.zip), Typst (.typ) e Backup (.redija)',
+        title: 'Word (.docx), Overleaf/LaTeX (.tex/.zip), Typst (.typ) e Backup (.redija/.json)',
         summary:
-          'O importador identifica automaticamente o modelo compatível e extrai título, autores, resumo, seções, imagens e bibliografia.',
+          'O importador identifica automaticamente o modelo compatível e extrai título, autores, resumo, seções, imagens e bibliografia. Uma tela mostra cada etapa (envio, conversão, montagem) e permite cancelar.',
         bullets: [
           'Microsoft Word (.docx): converte títulos hierárquicos, tabelas, listas e figuras embutidas com sanitização de HTML.',
-          'LaTeX / Overleaf (.tex ou .zip): extrai capítulos, equações, pacotes, imagens em subpastas e entradas .bib.',
+          'LaTeX / Overleaf (.tex ou .zip): extrai capítulos, equações, pacotes, imagens em subpastas e entradas .bib. Aceita .zip compactado no Windows ou no macOS (nomes com acento) e fontes em Latin-1.',
           'Typst (.typ ou .zip): lê estrutura de blocos, referências e diretivas @preview/... do Typst Universe.',
-          'Backup Redija (.redija): restaura integralmente blocos, imagens em base64/blob, metadados e configurações.',
+          'Backup Redija (.redija ou .json) e .zip exportado pelo Redija: restaura integralmente blocos, imagens, metadados e configurações, sem enviar nada ao servidor.',
+          'Limite de 250 MB por arquivo enviado para conversão. Figuras em PDF ou EPS não entram no editor: o importador avisa quais ficaram de fora para você convertê-las em PNG ou JPG.',
         ],
       },
       {

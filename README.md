@@ -39,7 +39,7 @@ O **RedijaApp** combina uma interface visual em blocos (estilo Notion, baseada e
 ## Novidades da versão 0.5.0-beta
 
 - **Nova tela inicial:** substitui a lista de projetos em modal. Traz o cartão "Continuar de onde parou", os trabalhos em grade ou lista com capas ilustradas, ações rápidas (abrir, baixar PDF, duplicar, renomear, mover para a Lixeira) e busca com Ctrl/⌘K. O endereço `/` abre a tela inicial e `/?p=<id>` abre o trabalho direto no editor.
-- **Modelos do Typst Universe na tela inicial:** "Mais modelos" mostra todos os modelos sem sair da tela, e "Buscar novos modelos" explica o Typst Universe, valida o pacote e o guarda em "Seus modelos", neste navegador e por perfil.
+- **Modelos do Typst Universe na tela inicial:** "Mais modelos" mostra todos os modelos sem sair da tela, e "Buscar novos modelos" explica o Typst Universe, valida o pacote e o guarda em "Seus modelos", com a capa oficial do pacote. Com login Google, os modelos acompanham a conta em todos os aparelhos (arquivo `redija-modelos.json` na pasta `RedijaApp` do Drive); no perfil local, ficam só neste navegador.
 - **Painéis mais flexíveis:** abaixo de 1280 px, Estrutura, Texto e PDF viram abas. Cada painel pode ser maximizado, minimizado (vira uma barra lateral) e restaurado, e as larguras acompanham o tamanho da janela.
 - **Cabeçalho e barra do PDF mais enxutos:** "Relatar problema ou sugestão" passa para o menu do perfil, o login segue o padrão do Google ("Conectar") e a barra do PDF fica só com ícones. "Baixar" oferece PDF, projeto completo (`.zip`) e código Typst (`.typ`).
 - **Acessibilidade:** modais com foco preso e Esc, contraste AA, alvos de toque de 44 px, divisores ajustáveis pelo teclado, mover blocos com Ctrl+Shift+↑/↓ e respeito a `prefers-reduced-motion` e ao tema do sistema, sem piscar ao abrir.
@@ -103,7 +103,7 @@ O projeto adota processamento *local-first* e separação clara entre thread de 
 | Camada | Tecnologias |
 | :--- | :--- |
 | **Interface & Editor** | React 19, Tailwind CSS v4, TipTap 3, Lucide Icons |
-| **Motor Tipográfico** | Typst WASM (`typst-ts ^0.7.0`: `typst-ts-web-compiler` + `typst-ts-renderer`) |
+| **Motor Tipográfico** | Typst 0.15 WASM (`typst-ts 0.8.0-rc4`: `typst-ts-web-compiler` + `typst-ts-renderer`) |
 | **Linguagem & Build** | TypeScript 6.0, Vite 8 |
 | **Armazenamento & P2P** | Dexie 4 (IndexedDB), Google Identity Services / Drive API, PeerJS, JSZip |
 | **Importação (servidor)** | Node 24, Hono 4, Pandoc 3.6, Docker, Railway (Infrastructure as Code) |

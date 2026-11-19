@@ -13,6 +13,10 @@ export interface UniverseTemplateInfo {
   entrypoint: string;
 }
 
+/**
+ * Pacotes sugeridos na interface. Todos conferidos no repositório oficial do Typst Universe
+ * (typst/packages): um pacote que não existe lá cairia no erro de "pacote não encontrado".
+ */
 export const POPULAR_UNIVERSE_TEMPLATES: UniverseTemplateInfo[] = [
   {
     id: '@preview/charged-ieee:0.1.4',
@@ -25,35 +29,6 @@ export const POPULAR_UNIVERSE_TEMPLATES: UniverseTemplateInfo[] = [
     entrypoint: 'ieee',
   },
   {
-    id: '@preview/modern-sbc:0.1.0',
-    name: 'modern-sbc',
-    version: '0.1.0',
-    title: 'SBC — Sociedade Brasileira de Computação',
-    description: 'Template para congressos e periódicos de computação e informática brasileiros.',
-    category: 'conferencia',
-    entrypoint: 'sbc-article',
-  },
-  {
-    id: '@preview/poster-template:0.1.0',
-    name: 'poster-template',
-    version: '0.1.0',
-    title: 'Pôster Acadêmico A0 / A1',
-    description:
-      'Banner científico em grande formato para mostras, simpósios e encontros de iniciação científica.',
-    category: 'poster',
-    entrypoint: 'poster',
-  },
-  {
-    id: '@preview/academic-cv:0.1.0',
-    name: 'academic-cv',
-    version: '0.1.0',
-    title: 'Currículo Acadêmico / Lattes Estilizado',
-    description:
-      'Estrutura elegante e tipográfica para histórico acadêmico, publicações e bolsas.',
-    category: 'artigo',
-    entrypoint: 'cv',
-  },
-  {
     id: '@preview/touying:0.5.3',
     name: 'touying',
     version: '0.5.3',
@@ -64,6 +39,25 @@ export const POPULAR_UNIVERSE_TEMPLATES: UniverseTemplateInfo[] = [
     entrypoint: 'simple-theme',
   },
 ];
+
+/**
+ * Pacotes que já estiveram no catálogo acima, mas não existem no Typst Universe (404).
+ * Saíram das sugestões; a função de entrada fica registrada só para projetos antigos que os
+ * usam continuarem compilando com o pacote virtual (ex.: `#show: sbc-article.with(...)`).
+ */
+const LEGACY_VIRTUAL_ENTRYPOINTS: Record<string, string> = {
+  'modern-sbc': 'sbc-article',
+  'poster-template': 'poster',
+  'academic-cv': 'cv',
+};
+
+/** Função de entrada conhecida de um pacote (catálogo ou pacote legado), pelo nome. */
+export function knownUniverseEntrypoint(packageName: string): string | undefined {
+  return (
+    POPULAR_UNIVERSE_TEMPLATES.find((t) => t.name === packageName)?.entrypoint ??
+    LEGACY_VIRTUAL_ENTRYPOINTS[packageName]
+  );
+}
 
 export interface ParsedPackageId {
   namespace: string;
@@ -155,9 +149,8 @@ export function buildVirtualUniversePackageFiles(
 ): Record<string, string> {
   const safePkgName = spec.name.replace(/[^a-zA-Z0-9_-]/g, '') || 'custom-template';
   const safeVersion = spec.version.replace(/[^0-9.]/g, '') || '0.1.0';
-  const known = POPULAR_UNIVERSE_TEMPLATES.find((t) => t.name === safePkgName);
   const safeEntry = sanitizeTypstIdent(
-    entrypoint || known?.entrypoint || safePkgName,
+    entrypoint || knownUniverseEntrypoint(safePkgName) || safePkgName,
     'article',
   );
 
@@ -186,6 +179,53 @@ entrypoint = "lib.typ"
       'typst.toml': toml,
       'themes/simple.typ': simpleThemeCode,
       'themes.typ': themesIndexCode,
+      'lib.typ': libCode,
+    };
+  }
+
+  if (safePkgName === 'abntly') {
+    // Mesmas funções que o adaptador do RedijaApp chama (typstGenerator), com a
+    // formatação mínima da ABNT, para o documento compilar sem o pacote real.
+    const libCode = `// Pacote virtual offline para @preview/abntly:${safeVersion}
+#let _info = state("abntly-virtual-info", (:))
+#let config-info(..fields) = fields.named()
+#let abntly(info: (:), lang: "pt", ..rest, body) = {
+  set page(paper: "a4", margin: (top: 3cm, left: 3cm, bottom: 2cm, right: 2cm), numbering: "1")
+  set text(size: 12pt, lang: lang)
+  set par(justify: true, leading: 0.9em, first-line-indent: (amount: 1.25cm, all: true))
+  set heading(numbering: "1.1")
+  _info.update(info)
+  body
+}
+#let cover(..rest) = context {
+  let info = _info.get()
+  align(center)[
+    #upper(info.at("institution", default: ""))
+    #v(1fr)
+    #upper(info.at("author", default: ""))
+    #v(1fr)
+    #strong(upper(info.at("title", default: "")))
+    #v(1fr)
+    #info.at("location", default: "") \\ #info.at("year", default: "")
+  ]
+  pagebreak(weak: true)
+}
+#let title-page(body, ..rest) = context {
+  let info = _info.get()
+  align(center)[#upper(info.at("author", default: "")) #v(2cm) #strong(info.at("title", default: ""))]
+  v(1cm)
+  align(right, block(width: 50%, align(left, body)))
+  pagebreak(weak: true)
+}
+#let keywords(..words) = par[*Palavras-chave*: #words.pos().join("; ").]
+#let abstract(body, lang: auto, ..rest) = {
+  align(center, strong(if lang == "en" [ABSTRACT] else [RESUMO]))
+  body
+  pagebreak(weak: true)
+}
+`;
+    return {
+      'typst.toml': toml,
       'lib.typ': libCode,
     };
   }

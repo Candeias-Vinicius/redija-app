@@ -9,11 +9,11 @@ Como aplicação web executada diretamente no navegador do usuário (*local-firs
 
 | Componente | Projeto / Autor | Versão | Licença | Repositório |
 | :--- | :--- | :---: | :--- | :--- |
-| **Typst Engine** | The Typst Project | Integrado via `typst-ts` | `Apache-2.0` | https://github.com/typst/typst |
-| **`@myriaddreamin/typst.ts`** | Myriad-Dreamin | `^0.7.0` | `Apache-2.0` | https://github.com/Myriad-Dreamin/typst.ts |
-| **`@myriaddreamin/typst-ts-web-compiler`** | Myriad-Dreamin | `^0.7.0` | `Apache-2.0` | https://github.com/Myriad-Dreamin/typst.ts |
-| **`@myriaddreamin/typst-ts-renderer`** | Myriad-Dreamin | `^0.7.0` | `Apache-2.0` | https://github.com/Myriad-Dreamin/typst.ts |
-| **`@myriaddreamin/typst-ts-node-compiler`** | Myriad-Dreamin *(dev/testes)* | `^0.7.0` | `Apache-2.0` | https://github.com/Myriad-Dreamin/typst.ts |
+| **Typst Engine** | The Typst Project | `0.15.1` (via `typst-ts`) | `Apache-2.0` | https://github.com/typst/typst |
+| **`@myriaddreamin/typst.ts`** | Myriad-Dreamin | `0.8.0-rc4` | `Apache-2.0` | https://github.com/Myriad-Dreamin/typst.ts |
+| **`@myriaddreamin/typst-ts-web-compiler`** | Myriad-Dreamin | `0.8.0-rc4` | `Apache-2.0` | https://github.com/Myriad-Dreamin/typst.ts |
+| **`@myriaddreamin/typst-ts-renderer`** | Myriad-Dreamin | `0.8.0-rc4` | `Apache-2.0` | https://github.com/Myriad-Dreamin/typst.ts |
+| **`@myriaddreamin/typst-ts-node-compiler`** | Myriad-Dreamin *(dev/testes)* | `0.8.0-rc4` | `Apache-2.0` | https://github.com/Myriad-Dreamin/typst.ts |
 
 > O RedijaApp utiliza o compilador e renderizador **Typst** em WebAssembly sem modificações no núcleo do compilador, preservando os direitos autorais e a licença `Apache-2.0` dos projetos originais. O uso do motor não implica endosso oficial do projeto Typst ao RedijaApp.
 

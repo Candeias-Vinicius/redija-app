@@ -23,6 +23,8 @@ import { LoginScreen } from '@/components/LoginScreen';
 import { DocsPage } from '@/components/docs/DocsPage';
 import { ModelsPublicPages } from '@/components/modelos/ModelsPublicPages';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ImportProgressModal } from '@/components/import/ImportProgressModal';
+import { IMPORT_ACCEPT } from '@/core/storage/documentImporter';
 import { PaneRestoreRail } from '@/components/ui/PaneRestoreRail';
 import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
 import { isBetaNoticeDismissed } from '@/core/version';
@@ -190,6 +192,8 @@ export const App: React.FC = () => {
     reloadProjectLists,
     handleExportBackup,
     handleImportBackup,
+    importState,
+    cancelImport,
   } = useProjectWorkspace({
     project,
     setProject,
@@ -225,8 +229,10 @@ export const App: React.FC = () => {
 
   const {
     isExportingPdf,
+    isExportingDocx,
     isExportingProject,
     handleDownloadPdf,
+    handleDownloadDocx,
     handleExportProjectZip,
     handleExportTypst,
   } = useDocumentExport({
@@ -497,6 +503,8 @@ export const App: React.FC = () => {
         onOpenFullDocs={() => handleOpenFullDocs()}
         onDownloadPdf={handleDownloadPdf}
         isExportingPdf={isExportingPdf}
+        onDownloadDocx={handleDownloadDocx}
+        isExportingDocx={isExportingDocx}
         onExportTypst={handleExportTypst}
         onExportProjectZip={handleExportProjectZip}
         isExportingProject={isExportingProject}
@@ -712,6 +720,8 @@ export const App: React.FC = () => {
                 onToggleCode={() => setShowCode(!showCode)}
                 onDownloadPdf={handleDownloadPdf}
                 isExportingPdf={isExportingPdf}
+                onDownloadDocx={handleDownloadDocx}
+                isExportingDocx={isExportingDocx}
                 onExportProjectZip={handleExportProjectZip}
                 onExportTypst={handleExportTypst}
                 isExportingProject={isExportingProject}
@@ -753,7 +763,7 @@ export const App: React.FC = () => {
       <input
         ref={importInputRef}
         type="file"
-        accept=".redija,.docx,.zip,.typ,.tex,.md,.markdown,.json"
+        accept={IMPORT_ACCEPT}
         className="hidden"
         aria-hidden="true"
         tabIndex={-1}
@@ -763,6 +773,7 @@ export const App: React.FC = () => {
           e.target.value = '';
         }}
       />
+      {importState && <ImportProgressModal state={importState} onCancel={cancelImport} />}
 
       <RenameProjectDialog
         project={renameTarget}
