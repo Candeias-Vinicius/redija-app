@@ -35,6 +35,7 @@ export async function compileProjectToPdf(project: DocumentProject): Promise<Pdf
  * Dispara o download de um Blob no navegador liberando a URL de objeto em seguida.
  */
 export function triggerBlobDownload(blob: Blob, filename: string): void {
+  if (typeof document === 'undefined' || typeof URL.createObjectURL !== 'function') return;
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

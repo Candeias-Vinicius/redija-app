@@ -255,6 +255,7 @@
   )
 
   show figure.caption: set text(size: 0.9em)
+  set math.equation(numbering: "(1)")
 
   // Formatação de títulos no estilo IEEE
   show heading: it => {

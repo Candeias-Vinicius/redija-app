@@ -66,14 +66,26 @@ test.describe('RedijaApp: Jornada Completa do Estudante', () => {
     await page.getByRole('button', { name: 'Mostrar painel Estrutura' }).click();
     await expect(page.getByPlaceholder(/Ex: Nome do Autor/i)).toBeVisible();
 
-    // 10. Testa o botão Baixar: só o ícone, abre o menu com os formatos
+    // 10. Testa o botão Baixar: só o ícone, abre o menu com os formatos (incluindo .docx)
     const downloadBtn = page.getByRole('button', { name: 'Baixar trabalho' });
     await expect(downloadBtn).toBeVisible();
     await downloadBtn.click();
     await expect(downloadBtn).toHaveAttribute('aria-expanded', 'true');
     await expect(page.getByRole('button', { name: /PDF \(\.pdf\)/ })).toBeEnabled();
+    const docxBtn = page.getByRole('button', { name: /Baixar \.docx/i });
+    await expect(docxBtn).toBeVisible();
     await expect(page.getByRole('button', { name: /Projeto completo \(\.zip\)/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /Código Typst \(\.typ\)/ })).toBeVisible();
+
+    // 11. Clica em "Baixar .docx", valida o arquivo baixado e o aviso de primeira conversão
+    const downloadPromise = page.waitForEvent('download');
+    await docxBtn.click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe('TCC de Inteligência Artificial 2026.docx');
+    await expect(
+      page.getByText(/O \.docx é uma conversão\. O PDF continua sendo a versão de referência/i),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Não mostrar novamente' })).toBeVisible();
   });
 
   test('abre modal de personalização de normas (Template Customizer)', async ({ page }) => {
