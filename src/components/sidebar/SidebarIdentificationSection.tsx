@@ -1,9 +1,29 @@
-import React, { useState } from 'react';
-import { Building, ChevronDown, ChevronRight, Globe, Palette } from 'lucide-react';
-import { DocumentMetadata, TemplateConfig } from '@/types/document';
+import React, { useRef, useState } from 'react';
+import {
+  Building,
+  ChevronDown,
+  ChevronRight,
+  Globe,
+  ImagePlus,
+  Palette,
+  Trash2,
+  Upload,
+} from 'lucide-react';
+import { DocumentMetadata, DocumentProject, TemplateConfig } from '@/types/document';
 import { IdentificacaoFieldId, TemplateCapabilities } from '@/core/templates/templateCapabilities';
+import { getInstitutionalTemplateBySlug } from '@/core/templates/institutions/registry';
+import {
+  calculateProjectImageBytes,
+  getDataUrlByteSize,
+  validateInstitutionLogoUpload,
+} from '@/core/storage/imageQuota';
+import {
+  removeCachedInstitutionLogo,
+  saveCachedInstitutionLogo,
+} from '@/core/storage/institutionLogoCache';
 
 interface SidebarIdentificationSectionProps {
+  project?: DocumentProject;
   metadata: DocumentMetadata;
   templateConfig?: TemplateConfig;
   capabilities: TemplateCapabilities;
@@ -15,6 +35,7 @@ interface SidebarIdentificationSectionProps {
 }
 
 export const SidebarIdentificationSection: React.FC<SidebarIdentificationSectionProps> = ({
+  project,
   metadata,
   templateConfig,
   capabilities,
@@ -22,8 +43,66 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
   onOpenTemplateCustomizer,
 }) => {
   const [isOpen, setIsOpen] = useState(true);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const hasField = (fieldId: IdentificacaoFieldId) =>
     capabilities.identificacaoFields.includes(fieldId);
+
+  const institutionalModel = getInstitutionalTemplateBySlug(project?.institutionalTemplateSlug);
+  const showLogoField =
+    Boolean(institutionalModel?.cover?.showLogo) ||
+    Boolean(metadata.institutionLogoDataUrl) ||
+    (capabilities.isAbntFamily && templateConfig?.includeCoverPage !== false) ||
+    capabilities.effectiveType === 'poster';
+
+  const institutionCacheKey =
+    institutionalModel?.institutionAcronym ||
+    project?.institutionAcronym ||
+    metadata.institution;
+
+  const handleLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    const currentProjectBytes = project
+      ? calculateProjectImageBytes(project.blocks, project.metadata)
+      : getDataUrlByteSize(metadata.institutionLogoDataUrl);
+    const currentLogoBytes = getDataUrlByteSize(metadata.institutionLogoDataUrl);
+    const bytesWithoutLogo = Math.max(0, currentProjectBytes - currentLogoBytes);
+
+    const check = validateInstitutionLogoUpload(file, bytesWithoutLogo);
+    if (!check.valid) {
+      setLogoError(check.error ?? 'Arquivo inválido para brasão.');
+      return;
+    }
+
+    setLogoError(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+      if (!dataUrl) {
+        setLogoError('Não foi possível ler o arquivo selecionado.');
+        return;
+      }
+      onUpdateField('institutionLogoDataUrl', dataUrl);
+      if (institutionCacheKey) {
+        void saveCachedInstitutionLogo(institutionCacheKey, dataUrl);
+      }
+    };
+    reader.onerror = () => {
+      setLogoError('Erro ao ler a imagem do brasão.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoError(null);
+    onUpdateField('institutionLogoDataUrl', undefined);
+    if (institutionCacheKey) {
+      void removeCachedInstitutionLogo(institutionCacheKey);
+    }
+  };
 
   return (
     <div className="p-3">
@@ -194,6 +273,83 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
                 className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-md focus:outline-none focus:border-brand-600"
                 placeholder="Ex: Universidade Federal..."
               />
+            </div>
+          )}
+
+          {showLogoField && (
+            <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/70 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <label
+                  htmlFor="sb-id-brasao-instituicao"
+                  className="text-xs font-medium text-slate-700 flex items-center gap-1.5"
+                >
+                  <ImagePlus className="w-3.5 h-3.5 text-brand-700" />
+                  <span>Brasão da instituição</span>
+                </label>
+                {institutionalModel?.cover?.showLogo && !metadata.institutionLogoDataUrl && (
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 border border-brand-200">
+                    Previsto na capa
+                  </span>
+                )}
+              </div>
+
+              <input
+                ref={logoInputRef}
+                id="sb-id-brasao-instituicao"
+                type="file"
+                accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml"
+                onChange={handleLogoFileChange}
+                className="sr-only"
+              />
+
+              {metadata.institutionLogoDataUrl ? (
+                <div className="flex items-center gap-2.5">
+                  <div className="w-12 h-12 rounded-md border border-slate-200 bg-white flex items-center justify-center p-1 shrink-0 overflow-hidden">
+                    <img
+                      src={metadata.institutionLogoDataUrl}
+                      alt="Prévia do brasão da instituição"
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      className="inline-flex items-center justify-center gap-1.5 px-2 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 text-xs font-medium text-slate-700 transition-colors"
+                    >
+                      <Upload className="w-3 h-3" />
+                      Trocar brasão
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
+                      className="inline-flex items-center justify-center gap-1.5 px-2 py-1 rounded border border-red-200 bg-white hover:bg-red-50 text-xs font-medium text-red-700 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Remover
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  className="w-full py-2 px-2.5 rounded-md border border-dashed border-slate-300 bg-white hover:border-brand-600 hover:bg-brand-50/40 text-xs font-medium text-slate-600 hover:text-brand-800 flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Enviar brasão (PNG, JPG ou SVG)
+                </button>
+              )}
+
+              <p className="text-[11px] text-slate-500 leading-snug">
+                PNG, JPG ou SVG de até 2 MB. Fica salvo no seu dispositivo e no seu Drive.
+              </p>
+
+              {logoError && (
+                <p role="alert" className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1.5">
+                  {logoError}
+                </p>
+              )}
             </div>
           )}
 

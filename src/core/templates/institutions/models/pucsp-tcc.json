@@ -1,0 +1,80 @@
+{
+  "slug": "pucsp-tcc",
+  "institutionName": "Pontifícia Universidade Católica de São Paulo",
+  "institutionAcronym": "PUC-SP",
+  "cityState": "São Paulo / SP",
+  "workTypes": ["TCC", "Monografia", "Dissertação", "Tese"],
+  "displayTitle": "TCC / Dissertação PUC-SP",
+  "description": "Modelo estruturado conforme o Guia de Normalização de Trabalhos Acadêmicos da Biblioteca Nadir Gouvêa Kfouri (PUC-SP), com capa, folha de rosto, folha de aprovação, resumo, abstract e sumário.",
+  "manualUrl": "https://www.pucsp.br/biblioteca/normalizacao",
+  "manualVersion": "2023",
+  "author": "Comunidade RedijaApp",
+  "aliases": ["PUC", "PUCSP", "Pontificia Universidade Catolica", "Sao Paulo"],
+  "basePreset": "abnt_classic",
+  "baseTemplateType": "tcc",
+  "templateConfigOverrides": {
+    "fontFamily": "serif",
+    "fontSizePt": 12,
+    "lineSpacing": "1.5",
+    "paragraphIndentCm": 1.25,
+    "marginTopCm": 3,
+    "marginLeftCm": 3,
+    "marginBottomCm": 2,
+    "marginRightCm": 2,
+    "includeCoverPage": true,
+    "includeTitlePage": true,
+    "includeToc": true
+  },
+  "cover": {
+    "showLogo": true,
+    "logoPosition": "top",
+    "logoHeightCm": 2.2,
+    "uppercaseInstitution": true,
+    "uppercaseTitle": true,
+    "showCourse": true
+  },
+  "titlePage": {
+    "natureWidthPct": 50,
+    "showInstitution": false,
+    "showAdvisor": true,
+    "showCoadvisor": true
+  },
+  "preTextualOrder": [
+    "approval_page",
+    "dedicatory",
+    "acknowledgments",
+    "epigraph",
+    "abstract",
+    "foreign_abstract",
+    "figures_list",
+    "boxes_list",
+    "tables_list",
+    "abbreviations",
+    "symbols",
+    "toc"
+  ],
+  "defaultMetadata": {
+    "institution": "Pontifícia Universidade Católica de São Paulo",
+    "course": "Faculdade / Programa de Estudos Pós-Graduados",
+    "location": "São Paulo",
+    "nature": "Trabalho acadêmico apresentado à Pontifícia Universidade Católica de São Paulo como exigência parcial para obtenção do título.",
+    "includeApprovalPage": true
+  },
+  "requiredFields": [
+    "title",
+    "author",
+    "institution",
+    "course",
+    "advisor",
+    "nature",
+    "abstract",
+    "keywords",
+    "foreignAbstract",
+    "includeApprovalPage"
+  ],
+  "linterOverrides": {
+    "requireApprovalPage": true,
+    "requireForeignAbstract": true,
+    "requireKeywords": true
+  }
+}

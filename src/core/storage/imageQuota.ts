@@ -33,6 +33,18 @@ export const ALLOWED_IMAGE_MIMES = [
 ];
 
 /**
+ * Limite máximo para o brasão da instituição na capa (RDJ-02.4): 2 MB.
+ */
+export const MAX_INSTITUTION_LOGO_BYTES = 2 * 1024 * 1024; // 2 MB
+
+export const ALLOWED_INSTITUTION_LOGO_MIMES = [
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/svg+xml',
+];
+
+/**
  * Estima o tamanho real em bytes de uma Data URL (`data:image/...;base64,...`).
  */
 export function getDataUrlByteSize(dataUrl?: string | null): number {
@@ -189,6 +201,49 @@ export function validateMultipleImageUploadsForProject(
     const check = validateImageUploadForProject(file, runningBytes);
     if (!check.valid) return check;
     runningBytes += file.size;
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Valida o envio de brasão/logotipo da instituição (RDJ-02.4):
+ * - Formatos aceitos: PNG, JPG ou SVG
+ * - Tamanho máximo: 2 MB
+ * - Respeita a cota geral de 250 MB de imagens do projeto
+ */
+export function validateInstitutionLogoUpload(
+  file: File,
+  currentProjectBytesWithoutLogo: number,
+): { valid: boolean; error?: string } {
+  const mime = (file.type || '').toLowerCase();
+  const ext = (file.name || '').toLowerCase().split('.').pop() ?? '';
+  const hasAllowedMime = ALLOWED_INSTITUTION_LOGO_MIMES.includes(mime);
+  const hasAllowedExt = ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'svg';
+
+  if (!hasAllowedMime && !(mime === '' && hasAllowedExt)) {
+    return {
+      valid: false,
+      error: 'Formato não suportado para o brasão. Envie uma imagem PNG, JPG ou SVG de até 2 MB.',
+    };
+  }
+
+  if (file.size > MAX_INSTITUTION_LOGO_BYTES) {
+    return {
+      valid: false,
+      error: `O brasão excede o limite de 2 MB (arquivo selecionado: ${formatBytes(file.size)}). Envie uma imagem PNG, JPG ou SVG de até 2 MB.`,
+    };
+  }
+
+  const nextTotalBytes = currentProjectBytesWithoutLogo + file.size;
+  if (nextTotalBytes > MAX_PROJECT_IMAGE_BYTES) {
+    const availableBytes = Math.max(0, MAX_PROJECT_IMAGE_BYTES - currentProjectBytesWithoutLogo);
+    return {
+      valid: false,
+      error: `Limite de 250 MB de imagens por projeto excedido. O brasão tem ${formatBytes(
+        file.size,
+      )}, mas restam apenas ${formatBytes(availableBytes)} livres no projeto.`,
+    };
   }
 
   return { valid: true };

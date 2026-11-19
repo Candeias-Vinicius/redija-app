@@ -1,0 +1,78 @@
+{
+  "slug": "ifsp-tcc",
+  "institutionName": "Instituto Federal de São Paulo",
+  "institutionAcronym": "IFSP",
+  "cityState": "São Paulo / SP",
+  "workTypes": ["TCC", "Monografia"],
+  "displayTitle": "TCC IFSP",
+  "description": "Modelo oficial baseado no Manual de Normalização de Trabalhos Acadêmicos do IFSP (ABNT NBR 14724), voltado para TCC de cursos técnicos e superiores com capa, folha de rosto, folha de aprovação, resumo e sumário.",
+  "manualUrl": "https://www.ifsp.edu.br/component/content/article/17-ultimas-noticias/3649-manual-de-normalizacao",
+  "manualVersion": "2023",
+  "author": "Comunidade RedijaApp",
+  "aliases": ["Instituto Federal", "Sao Paulo", "Instituto Federal de Educacao Ciencia e Tecnologia de Sao Paulo"],
+  "basePreset": "abnt_classic",
+  "baseTemplateType": "tcc",
+  "templateConfigOverrides": {
+    "fontFamily": "sans",
+    "fontSizePt": 12,
+    "lineSpacing": "1.5",
+    "paragraphIndentCm": 1.25,
+    "marginTopCm": 3,
+    "marginLeftCm": 3,
+    "marginBottomCm": 2,
+    "marginRightCm": 2,
+    "includeCoverPage": true,
+    "includeTitlePage": true,
+    "includeToc": true
+  },
+  "cover": {
+    "showLogo": true,
+    "logoPosition": "top",
+    "logoHeightCm": 2.4,
+    "uppercaseInstitution": true,
+    "uppercaseTitle": true,
+    "showCourse": true
+  },
+  "titlePage": {
+    "natureWidthPct": 50,
+    "showInstitution": false,
+    "showAdvisor": true,
+    "showCoadvisor": true
+  },
+  "preTextualOrder": [
+    "approval_page",
+    "dedicatory",
+    "acknowledgments",
+    "epigraph",
+    "abstract",
+    "foreign_abstract",
+    "figures_list",
+    "boxes_list",
+    "tables_list",
+    "abbreviations",
+    "symbols",
+    "toc"
+  ],
+  "defaultMetadata": {
+    "institution": "Instituto Federal de Educação, Ciência e Tecnologia de São Paulo",
+    "course": "Curso Superior / Técnico",
+    "location": "São Paulo",
+    "nature": "Trabalho de Conclusão de Curso apresentado ao Instituto Federal de Educação, Ciência e Tecnologia de São Paulo (IFSP), como requisito parcial para obtenção do título.",
+    "includeApprovalPage": true
+  },
+  "requiredFields": [
+    "title",
+    "author",
+    "institution",
+    "course",
+    "advisor",
+    "nature",
+    "abstract",
+    "keywords",
+    "includeApprovalPage"
+  ],
+  "linterOverrides": {
+    "requireApprovalPage": true,
+    "requireKeywords": true
+  }
+}

@@ -151,6 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="divide-y divide-slate-100 flex-1 pb-12">
           <SidebarIdentificationSection
+            project={project}
             metadata={metadata}
             templateConfig={project.templateConfig}
             capabilities={capabilities}

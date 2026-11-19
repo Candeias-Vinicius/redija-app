@@ -75,6 +75,44 @@ Sugestão de nomenclatura para branches:
 
 ---
 
+## Como contribuir com um modelo institucional
+
+Qualquer estudante ou contribuidor pode adicionar o modelo de normalização de uma universidade, instituto federal ou faculdade sem alterar o motor de templates do RedijaApp.
+
+### Passo a passo
+
+1. **Consulte o schema e o exemplo completo** em [`src/core/templates/institutions/README.md`](src/core/templates/institutions/README.md).
+2. **Crie um arquivo JSON** em `src/core/templates/institutions/models/<slug>.json`, seguindo o padrão `<sigla>-<tipo-de-trabalho>` em minúsculas e sem acentos (ex.: `ifsp-tcc.json`).
+   - Declare a norma base (`basePreset`, ex.: `"abnt_classic"`) e sobrescreva apenas o que o manual oficial exige (margens, tipografia, capa, folha de rosto, ordem dos pré-textuais, textos padrão e campos obrigatórios).
+   - **Importante (jurídico):** nunca embuta brasões ou logotipos de terceiros no repositório (`data:image/...` ou arquivos de imagem). Caso o manual preveja brasão na capa, configure `"cover": { "showLogo": true }` — o próprio estudante envia a imagem no editor.
+3. **Valide automaticamente com os testes:**
+   ```bash
+   npm test
+   ```
+   A suíte Vitest descobre seu arquivo automaticamente, valida todos os campos do schema, compila o PDF real via Typst WASM e garante **zero falsos positivos** nos linters.
+4. **Confira a prévia visual localmente:**
+   ```bash
+   npm run dev
+   ```
+   - Abra `http://localhost:3000`, busque sua instituição no campo **Sua instituição (opcional)** na tela **Novo trabalho** e crie um projeto de teste.
+   - Confira a página pública em `http://localhost:3000/modelos/<slug>`.
+   - Rode `npm run build` para garantir que a página estática em `dist/modelos/<slug>/index.html` e o `dist/sitemap.xml` sejam gerados sem erros.
+5. **Abra o Pull Request para `develop`** incluindo:
+   - Link oficial e versão/ano do manual usado como referência;
+   - Tipos de trabalho cobertos (ex.: TCC, Dissertação, Tese);
+   - Prints do PDF gerado pelo RedijaApp ao lado das páginas correspondentes do manual oficial (capa, folha de rosto e folha de aprovação, quando houver).
+
+### Checklist de revisão para mantenedores
+
+Antes de aprovar um PR de modelo institucional, verifique:
+- [ ] O link do manual oficial (`manualUrl`) está acessível e corresponde à versão/ano informada (`manualVersion`).
+- [ ] Capa, folha de rosto, folha de aprovação (se exigida), margens e ordem dos pré-textuais no PDF gerado conferem com o manual oficial.
+- [ ] O slug segue o padrão `<sigla>-<tipo-de-trabalho>` em minúsculas e sem acentos.
+- [ ] Nenhum brasão ou logotipo de terceiros foi embutido no repositório.
+- [ ] `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` passaram sem erros e o modelo nasce com **0 avisos** nos linters.
+
+---
+
 ## Verificações Obrigatórias Antes do PR
 
 Antes de submeter um Pull Request, execute localmente os mesmos checks exigidos pela pipeline do GitHub Actions:

@@ -1,17 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { scrollBehavior } from '@/core/motion';
 
-export type AppRoute = 'app' | 'docs';
+export type AppRoute = 'app' | 'docs' | 'modelos';
 
 export interface ResolvedAppRoute {
   route: AppRoute;
   sectionId?: string;
   /** Trabalho aberto no editor (`/?p=<id>`). Sem ele, o app mostra a Home. */
   projectId?: string;
+  /** Slug da página pública de modelo (`/modelos/<slug>`). */
+  modelSlug?: string;
+  /** Slug de modelo institucional pendente para criação automática (`/?modelo=<slug>`). */
+  pendingModelSlug?: string;
 }
 
 const VALID_DOCS_PATH_PREFIX = /^\/docs(?:\/([^/]+))?\/?$/i;
+const VALID_MODELS_PATH_PREFIX = /^\/modelos(?:\/([^/]+))?\/?$/i;
 const PROJECT_PARAM = 'p';
+const MODEL_PARAM = 'modelo';
 
 export function resolveRouteFromLocation(
   pathname: string,
@@ -19,6 +25,12 @@ export function resolveRouteFromLocation(
   hash: string,
 ): ResolvedAppRoute {
   const cleanHash = hash.replace(/^#/, '').trim();
+  const modelsMatch = pathname.match(VALID_MODELS_PATH_PREFIX);
+  if (modelsMatch) {
+    const modelSlug = modelsMatch[1] ? decodeURIComponent(modelsMatch[1]).trim() : undefined;
+    return modelSlug ? { route: 'modelos', modelSlug } : { route: 'modelos' };
+  }
+
   const pathMatch = pathname.match(VALID_DOCS_PATH_PREFIX);
 
   if (pathMatch) {
@@ -47,7 +59,12 @@ export function resolveRouteFromLocation(
   }
 
   const projectId = params.get(PROJECT_PARAM)?.trim() || undefined;
-  return projectId ? { route: 'app', projectId } : { route: 'app' };
+  const pendingModelSlug = params.get(MODEL_PARAM)?.trim().toLowerCase() || undefined;
+  return {
+    route: 'app',
+    ...(projectId ? { projectId } : {}),
+    ...(pendingModelSlug ? { pendingModelSlug } : {}),
+  };
 }
 
 function readCurrentLocation(): ResolvedAppRoute {
@@ -113,12 +130,36 @@ export function useAppRoute() {
     setLocationState({ route: 'app' });
   }, []);
 
+  /** Navega para o catálogo público `/modelos` ou para um modelo específico `/modelos/<slug>`. */
+  const navigateToModels = useCallback((slug?: string) => {
+    if (typeof window === 'undefined') return;
+    const cleanSlug = slug?.trim();
+    const nextUrl = cleanSlug ? `/modelos/${encodeURIComponent(cleanSlug)}` : '/modelos';
+    window.history.pushState({}, '', nextUrl);
+    setLocationState(cleanSlug ? { route: 'modelos', modelSlug: cleanSlug } : { route: 'modelos' });
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
+  }, []);
+
+  /** Abre o app com intenção de criar um projeto a partir de um modelo institucional (`/?modelo=<slug>`). */
+  const useModelRoute = useCallback((slug: string) => {
+    if (typeof window === 'undefined') return;
+    const cleanSlug = slug.trim().toLowerCase();
+    const nextUrl = `/?${MODEL_PARAM}=${encodeURIComponent(cleanSlug)}`;
+    window.history.pushState({}, '', nextUrl);
+    setLocationState({ route: 'app', pendingModelSlug: cleanSlug });
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
+  }, []);
+
   return {
     route: locationState.route,
     sectionId: locationState.sectionId,
     projectId: locationState.projectId,
+    modelSlug: locationState.modelSlug,
+    pendingModelSlug: locationState.pendingModelSlug,
     navigateTo,
     openProjectRoute,
     goHomeRoute,
+    navigateToModels,
+    useModelRoute,
   };
 }

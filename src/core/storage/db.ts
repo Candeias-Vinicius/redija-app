@@ -43,10 +43,17 @@ export interface StoredCustomTemplate {
   deletedAt: string | null;
 }
 
+export interface CachedInstitutionLogo {
+  institutionKey: string;
+  dataUrl: string;
+  updatedAt: string;
+}
+
 export class RedijaDatabase extends Dexie {
   projects!: Table<DocumentProject, string>;
   universePackages!: Table<CachedUniversePackage, string>;
   customTemplates!: Table<StoredCustomTemplate, string>;
+  institutionLogos!: Table<CachedInstitutionLogo, string>;
 
   constructor() {
     super('RedijaAppDB');
@@ -67,6 +74,12 @@ export class RedijaDatabase extends Dexie {
       projects: 'id, updatedAt, name, templateType, deletedAt, driveFileId, ownerEmail',
       universePackages: 'id, name, version, downloadedAt',
       customTemplates: 'id, ownerEmail, packageId',
+    });
+    this.version(6).stores({
+      projects: 'id, updatedAt, name, templateType, deletedAt, driveFileId, ownerEmail',
+      universePackages: 'id, name, version, downloadedAt',
+      customTemplates: 'id, ownerEmail, packageId',
+      institutionLogos: 'institutionKey, updatedAt',
     });
   }
 }
