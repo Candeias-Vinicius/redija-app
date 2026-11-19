@@ -1,0 +1,80 @@
+{
+  "slug": "usp-tcc",
+  "institutionName": "Universidade de São Paulo",
+  "institutionAcronym": "USP",
+  "cityState": "São Paulo / SP",
+  "workTypes": ["TCC", "Dissertação", "Tese"],
+  "displayTitle": "TCC / Dissertação / Tese USP",
+  "description": "Modelo baseado nas Diretrizes para apresentação de dissertações e teses da USP (ABCD/SIBiUSP, Parte I - ABNT), com capa, folha de rosto, folha de aprovação, resumo, abstract e sumário.",
+  "manualUrl": "https://www.livrosabertos.abcd.usp.br/portaldelivrosUSP/catalog/book/459",
+  "manualVersion": "4ª edição (2020)",
+  "author": "Comunidade RedijaApp",
+  "aliases": ["Sao Paulo", "SIBiUSP", "ABCD USP", "Universidade de Sao Paulo"],
+  "basePreset": "abnt_classic",
+  "baseTemplateType": "tcc",
+  "templateConfigOverrides": {
+    "fontFamily": "serif",
+    "fontSizePt": 12,
+    "lineSpacing": "1.5",
+    "paragraphIndentCm": 1.25,
+    "marginTopCm": 3,
+    "marginLeftCm": 3,
+    "marginBottomCm": 2,
+    "marginRightCm": 2,
+    "includeCoverPage": true,
+    "includeTitlePage": true,
+    "includeToc": true
+  },
+  "cover": {
+    "showLogo": true,
+    "logoPosition": "top",
+    "logoHeightCm": 2.4,
+    "uppercaseInstitution": true,
+    "uppercaseTitle": true,
+    "showCourse": true
+  },
+  "titlePage": {
+    "natureWidthPct": 50,
+    "showInstitution": false,
+    "showAdvisor": true,
+    "showCoadvisor": true
+  },
+  "preTextualOrder": [
+    "approval_page",
+    "dedicatory",
+    "acknowledgments",
+    "epigraph",
+    "abstract",
+    "foreign_abstract",
+    "figures_list",
+    "boxes_list",
+    "tables_list",
+    "abbreviations",
+    "symbols",
+    "toc"
+  ],
+  "defaultMetadata": {
+    "institution": "Universidade de São Paulo",
+    "course": "Programa de Graduação / Pós-Graduação",
+    "location": "São Paulo",
+    "nature": "Trabalho acadêmico apresentado à Universidade de São Paulo como parte dos requisitos para obtenção do título.",
+    "includeApprovalPage": true
+  },
+  "requiredFields": [
+    "title",
+    "author",
+    "institution",
+    "course",
+    "advisor",
+    "nature",
+    "abstract",
+    "keywords",
+    "foreignAbstract",
+    "includeApprovalPage"
+  ],
+  "linterOverrides": {
+    "requireApprovalPage": true,
+    "requireForeignAbstract": true,
+    "requireKeywords": true
+  }
+}

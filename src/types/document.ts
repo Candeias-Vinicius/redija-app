@@ -268,6 +268,10 @@ export interface DocumentProject {
   id: string;
   name: string;
   templateType?: ProjectTemplateType;
+  /** Slug do modelo institucional (ex.: 'ifsp-tcc'), quando criado a partir de um modelo de instituição. */
+  institutionalTemplateSlug?: string;
+  /** Sigla ou nome da instituição vinculada ao trabalho. */
+  institutionAcronym?: string;
   templateConfig?: TemplateConfig;
   sidebarConfig?: SidebarConfig;
   metadata: DocumentMetadata;

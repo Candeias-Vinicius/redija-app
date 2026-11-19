@@ -19,6 +19,7 @@ import {
   getDefaultFieldIdsForTemplate,
   resolveVisibleFieldSet,
 } from './fieldRegistry';
+import { getInstitutionalTemplateBySlug } from './institutions/registry';
 
 export type {
   IdentificacaoFieldId,
@@ -256,17 +257,27 @@ export function getTemplateCapabilities(project: DocumentProject): TemplateCapab
   const isModified =
     (preset === 'custom' && effectiveType !== 'em_branco') || isSidebarCustomized;
 
+  const institutionalModel = getInstitutionalTemplateBySlug(project.institutionalTemplateSlug);
+
   let badgeLabel = isModified ? profile.modifiedBadge : profile.defaultBadge;
-  if (isAbntFamily && !isModified && preset === 'abnt_2023') {
+  if (institutionalModel && !isModified) {
+    badgeLabel = `${institutionalModel.institutionAcronym} · ${profile.defaultBadge}`;
+  } else if (isAbntFamily && !isModified && preset === 'abnt_2023') {
     badgeLabel = 'NBR 10520:2023';
   } else if (isApaPreset) {
     badgeLabel = isSidebarCustomized ? 'APA 7ª Modificada' : 'APA 7ª Ed.';
   }
 
-  const headerTitle = isApaPreset ? 'Estrutura Acadêmica (APA 7)' : profile.headerTitle;
+  const headerTitle = isApaPreset
+    ? 'Estrutura Acadêmica (APA 7)'
+    : institutionalModel
+      ? `${institutionalModel.displayTitle}`
+      : profile.headerTitle;
   const headerSubtitle = isApaPreset
     ? 'Identificação, abstract e referências APA.'
-    : profile.headerSubtitle;
+    : institutionalModel
+      ? `${institutionalModel.institutionName} — Manual ${institutionalModel.manualVersion}.`
+      : profile.headerSubtitle;
 
   const baseFieldIds = getDefaultFieldIdsForTemplate(effectiveType);
   const visibleSet = resolveVisibleFieldSet(baseFieldIds, project.sidebarConfig);

@@ -190,6 +190,8 @@
   local: "",
   ano: "",
   logo: none,
+  logo-posicao: "top",
+  largura-natureza: 50%,
   incluir-folha-aprovacao: false,
   data-aprovacao: none,
   banca: (),
@@ -382,7 +384,7 @@
   if incluir-capa {
     set par(first-line-indent: 0pt, justify: false)
     align(center)[
-      #if logo != none {
+      #if logo != none and logo-posicao != "below_institution" {
         logo
         v(0.8em)
       }
@@ -392,6 +394,10 @@
       #if curso != "" [
         #upper(curso)
       ]
+      #if logo != none and logo-posicao == "below_institution" {
+        v(0.8em)
+        logo
+      }
 
       #v(1fr)
       #text(weight: "bold")[#upper(autor)]
@@ -426,7 +432,7 @@
     ]
     v(1fr)
     if natureza != none {
-      align(right, block(width: 50%, {
+      align(right, block(width: largura-natureza, {
         set par(leading: entrelinha-simples, justify: true)
         set text(size: 0.92em)
         natureza

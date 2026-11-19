@@ -11,6 +11,11 @@ import {
 import { type TemplateCustomizerApplyPayload } from '@/components/TemplateCustomizerModal';
 import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
 import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
+import {
+  createProjectFromInstitutionalTemplate,
+  getInstitutionalTemplateBySlug,
+} from '@/core/templates/institutions';
+import { getCachedInstitutionLogo } from '@/core/storage/institutionLogoCache';
 import { importDocumentFile } from '@/core/storage/documentImporter';
 import { triggerBlobDownload } from '@/core/typst/projectCompiler';
 import {
@@ -477,6 +482,60 @@ export function useProjectWorkspace({
     [projects, activeOwner, clearHistory, setProject],
   );
 
+  const handleCreateInstitutionalProject = useCallback(
+    async (slug: string, customName?: string): Promise<DocumentProject | null> => {
+      const model = getInstitutionalTemplateBySlug(slug);
+      if (!model) {
+        toast.error('Modelo institucional não encontrado.');
+        return null;
+      }
+
+      let finalName = (customName || '').trim();
+      if (finalName) {
+        const alreadyExists = projects.some(
+          (p) => p.name.trim().toLowerCase() === finalName.toLowerCase(),
+        );
+        if (alreadyExists) {
+          toast.error(
+            `Já existe um trabalho ativo com o nome "${finalName}". Escolha um nome diferente para evitar substituição.`,
+          );
+          return null;
+        }
+      } else {
+        const base = model.displayTitle;
+        const lowerNames = new Set(projects.map((p) => p.name.trim().toLowerCase()));
+        if (!lowerNames.has(base.toLowerCase())) {
+          finalName = base;
+        } else {
+          let counter = 2;
+          while (lowerNames.has(`${base} (${counter})`.toLowerCase())) {
+            counter += 1;
+          }
+          finalName = `${base} (${counter})`;
+        }
+      }
+
+      const cachedLogo =
+        (await getCachedInstitutionLogo(model.institutionAcronym)) ??
+        (await getCachedInstitutionLogo(model.institutionName));
+
+      const newProj = createProjectFromInstitutionalTemplate(model, {
+        customName: finalName,
+        institutionLogoDataUrl: cachedLogo,
+      });
+      newProj.ownerEmail = activeOwner;
+      await saveProject(newProj, false);
+      const all = await listProjects(activeOwner);
+      setProjects(all);
+      skipNextAutoSaveRef.current = true;
+      clearHistory();
+      setProject(newProj);
+      setActiveProjectId(newProj.id, activeOwner);
+      return newProj;
+    },
+    [projects, activeOwner, clearHistory, setProject],
+  );
+
   const handleRenameProject = useCallback(
     async (id: string, newName: string) => {
       const trimmed = newName.trim();
@@ -681,6 +740,7 @@ export function useProjectWorkspace({
     handleRemoveReference,
     handleSelectProject,
     handleCreateProject,
+    handleCreateInstitutionalProject,
     handleRenameProject,
     handleDuplicateProject,
     handleMoveToTrash,

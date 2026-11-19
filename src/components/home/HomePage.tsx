@@ -19,6 +19,11 @@ import { ProjectCover } from './ProjectCover';
 import { ContinueCard } from './ContinueCard';
 import { ProjectCard, TrashProjectCard, type ProjectCardActions } from './ProjectCard';
 import { AllModelsPanel, ALL_MODELS_PANEL_ID, NEW_PROJECT_NAME_INPUT_ID } from './AllModelsPanel';
+import { InstitutionPicker } from './InstitutionPicker';
+import {
+  getHighlightedInstitutionalModels,
+  readLastInstitution,
+} from './institutionHelpers';
 import { HomeSearchField } from './HomeSearchField';
 import { UniverseModelDialog } from './ProjectDialogs';
 import type { CustomTemplate } from '@/core/storage/customTemplates';
@@ -66,6 +71,8 @@ export interface HomePageProps extends ProjectCardActions {
   isSyncingDrive?: boolean;
   onSyncFromDrive?: () => void;
   onQuickCreate: (templateType: ProjectTemplateType, name?: string) => void;
+  onCreateFromInstitutional: (slug: string, name?: string) => void;
+  onOpenModelsCatalog?: () => void;
   customTemplates: CustomTemplate[];
   onAddCustomTemplate: (input: { name: string; packageId: string }) => CustomTemplate;
   onRemoveCustomTemplate: (template: CustomTemplate) => void;
@@ -90,6 +97,8 @@ export const HomePage: React.FC<HomePageProps> = ({
   isSyncingDrive = false,
   onSyncFromDrive,
   onQuickCreate,
+  onCreateFromInstitutional,
+  onOpenModelsCatalog,
   customTemplates,
   onAddCustomTemplate,
   onRemoveCustomTemplate,
@@ -107,11 +116,16 @@ export const HomePage: React.FC<HomePageProps> = ({
   const [query, setQuery] = useState('');
   const isSearching = query.trim().length > 0;
 
-  // "Mais modelos" expandido, nome do novo trabalho e janela do Typst Universe
+  // "Mais modelos" expandido, nome do novo trabalho, instituição e janela do Typst Universe
   const [modelsOpen, setModelsOpen] = useState(false);
   const [newName, setNewName] = useState('');
+  const [selectedInstitution, setSelectedInstitution] = useState<string>(readLastInstitution);
   const [universeOpen, setUniverseOpen] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const highlightedInstitutionalModels = useMemo(
+    () => getHighlightedInstitutionalModels(selectedInstitution),
+    [selectedInstitution],
+  );
   const trimmedNewName = newName.trim();
   const newNameTaken =
     trimmedNewName.length > 0 &&
@@ -227,7 +241,48 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </button>
               </div>
 
+              <div className="mt-3">
+                <InstitutionPicker
+                  id="home-institution-quick"
+                  selectedAcronym={selectedInstitution}
+                  onSelectInstitution={setSelectedInstitution}
+                  compact
+                />
+              </div>
+
               <ul className="mt-3 -mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-5 sm:overflow-visible xl:grid-cols-6 2xl:grid-cols-8">
+                {highlightedInstitutionalModels.map((model) => (
+                  <li key={model.slug} className="w-28 shrink-0 snap-start sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => onCreateFromInstitutional(model.slug)}
+                      className={`${TILE} border-brand-500/70 bg-brand-50/40 dark:bg-brand-950/30`}
+                      aria-label={`Criar ${model.displayTitle}`}
+                    >
+                      <ProjectCover
+                        project={{
+                          name: model.displayTitle,
+                          templateType: model.baseTemplateType,
+                          metadata: {
+                            title: model.displayTitle,
+                            institution: model.institutionName,
+                          } as DocumentProject['metadata'],
+                        }}
+                      />
+                      <span className="min-w-0">
+                        <span className="inline-block mb-0.5 rounded bg-brand-700 px-1.5 py-0.5 text-[0.65rem] font-semibold text-white">
+                          Modelo da instituição
+                        </span>
+                        <span className="block text-sm font-semibold text-fg leading-tight line-clamp-2">
+                          {model.displayTitle}
+                        </span>
+                        <span className="mt-0.5 block font-mono text-[0.7rem] font-semibold uppercase text-brand-700 dark:text-brand-400">
+                          {model.institutionAcronym}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
                 <li className="w-28 shrink-0 snap-start sm:w-auto">
                   <button type="button" onClick={() => onQuickCreate('em_branco')} className={TILE}>
                     <span className="flex aspect-[1/1.414] w-full items-center justify-center rounded-[2px] border-2 border-dashed border-slate-300 dark:border-slate-600 text-slate-500 group-hover/tile:border-brand-600 group-hover/tile:text-brand-700">
@@ -304,6 +359,15 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <Globe className="w-4 h-4" />
                   Buscar novos modelos
                 </button>
+                {onOpenModelsCatalog && (
+                  <button
+                    type="button"
+                    onClick={onOpenModelsCatalog}
+                    className="inline-flex items-center gap-1.5 font-medium text-brand-700 dark:text-brand-400 hover:underline"
+                  >
+                    Catálogo por instituição
+                  </button>
+                )}
               </div>
             </section>
           </section>
@@ -314,8 +378,13 @@ export const HomePage: React.FC<HomePageProps> = ({
             highlightId={highlightId}
             projectName={newName}
             nameTaken={newNameTaken}
+            selectedInstitution={selectedInstitution}
+            onSelectInstitution={setSelectedInstitution}
             onProjectNameChange={setNewName}
             onCreate={(type) => guardName() && onQuickCreate(type, trimmedNewName || undefined)}
+            onCreateFromInstitutional={(slug) =>
+              guardName() && onCreateFromInstitutional(slug, trimmedNewName || undefined)
+            }
             onCreateFromCustom={(tpl) => guardName() && onCreateFromCustom(tpl, trimmedNewName || undefined)}
             onRemoveCustom={onRemoveCustomTemplate}
             onOpenUniverse={() => setUniverseOpen(true)}

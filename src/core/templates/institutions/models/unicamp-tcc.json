@@ -1,0 +1,80 @@
+{
+  "slug": "unicamp-tcc",
+  "institutionName": "Universidade Estadual de Campinas",
+  "institutionAcronym": "UNICAMP",
+  "cityState": "Campinas / SP",
+  "workTypes": ["TCC", "Dissertação", "Tese"],
+  "displayTitle": "TCC / Dissertação / Tese UNICAMP",
+  "description": "Modelo estruturado conforme o Manual para Elaboração de Teses e Dissertações da UNICAMP (SBU), baseado na ABNT NBR 14724 com capa, folha de rosto, folha de aprovação, resumo e abstract.",
+  "manualUrl": "https://www.sbu.unicamp.br/sbu/normalizacao/",
+  "manualVersion": "2023",
+  "author": "Comunidade RedijaApp",
+  "aliases": ["Campinas", "SBU", "Universidade Estadual de Campinas"],
+  "basePreset": "abnt_classic",
+  "baseTemplateType": "tcc",
+  "templateConfigOverrides": {
+    "fontFamily": "serif",
+    "fontSizePt": 12,
+    "lineSpacing": "1.5",
+    "paragraphIndentCm": 1.25,
+    "marginTopCm": 3,
+    "marginLeftCm": 3,
+    "marginBottomCm": 2,
+    "marginRightCm": 2,
+    "includeCoverPage": true,
+    "includeTitlePage": true,
+    "includeToc": true
+  },
+  "cover": {
+    "showLogo": true,
+    "logoPosition": "top",
+    "logoHeightCm": 2.4,
+    "uppercaseInstitution": true,
+    "uppercaseTitle": true,
+    "showCourse": true
+  },
+  "titlePage": {
+    "natureWidthPct": 50,
+    "showInstitution": false,
+    "showAdvisor": true,
+    "showCoadvisor": true
+  },
+  "preTextualOrder": [
+    "approval_page",
+    "dedicatory",
+    "acknowledgments",
+    "epigraph",
+    "abstract",
+    "foreign_abstract",
+    "figures_list",
+    "boxes_list",
+    "tables_list",
+    "abbreviations",
+    "symbols",
+    "toc"
+  ],
+  "defaultMetadata": {
+    "institution": "Universidade Estadual de Campinas",
+    "course": "Instituto / Faculdade",
+    "location": "Campinas",
+    "nature": "Trabalho acadêmico apresentado à Universidade Estadual de Campinas como parte dos requisitos exigidos para a obtenção do título.",
+    "includeApprovalPage": true
+  },
+  "requiredFields": [
+    "title",
+    "author",
+    "institution",
+    "course",
+    "advisor",
+    "nature",
+    "abstract",
+    "keywords",
+    "foreignAbstract",
+    "includeApprovalPage"
+  ],
+  "linterOverrides": {
+    "requireApprovalPage": true,
+    "requireForeignAbstract": true,
+    "requireKeywords": true
+  }
+}

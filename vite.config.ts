@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import fs from 'fs';
 import path from 'path';
+import { institutionalPagesPlugin } from './scripts/vitePluginInstitutionalPages.ts';
 
 const projectRoot = import.meta.dirname;
 const fsAllowList = [searchForWorkspaceRoot(projectRoot), projectRoot];
@@ -21,6 +22,7 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    institutionalPagesPlugin(projectRoot),
     {
       name: 'dev-api-feedback-mock',
       configureServer(server) {

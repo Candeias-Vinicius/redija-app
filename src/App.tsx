@@ -21,6 +21,7 @@ import { AccountSettingsModal } from '@/components/AccountSettingsModal';
 import { BackupNoticeBanner } from '@/components/BackupNoticeBanner';
 import { LoginScreen } from '@/components/LoginScreen';
 import { DocsPage } from '@/components/docs/DocsPage';
+import { ModelsPublicPages } from '@/components/modelos/ModelsPublicPages';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PaneRestoreRail } from '@/components/ui/PaneRestoreRail';
 import { useGoogleAuth } from '@/core/auth/GoogleAuthContext';
@@ -91,7 +92,19 @@ export const App: React.FC = () => {
 
   const activeOwner = isAuthenticated && user ? user.email : 'local';
   const isSessionActive = isAuthenticated || isGuestMode;
-  const { route, sectionId, projectId, navigateTo, openProjectRoute, goHomeRoute } = useAppRoute();
+  const {
+    route,
+    sectionId,
+    projectId,
+    modelSlug,
+    pendingModelSlug,
+    navigateTo,
+    openProjectRoute,
+    goHomeRoute,
+    navigateToModels,
+    useModelRoute,
+  } = useAppRoute();
+  const consumedPendingModelRef = useRef<string | null>(null);
   const handleOpenFullDocs = useCallback(
     (targetSectionId?: string) => navigateTo('/docs', targetSectionId),
     [navigateTo],
@@ -168,6 +181,7 @@ export const App: React.FC = () => {
     handleRemoveReference,
     handleSelectProject,
     handleCreateProject,
+    handleCreateInstitutionalProject,
     handleRenameProject,
     handleDuplicateProject,
     handleMoveToTrash,
@@ -293,6 +307,35 @@ export const App: React.FC = () => {
     [handleCreateProject, openProjectRoute],
   );
 
+  const createAndOpenInstitutionalProject = useCallback(
+    async (slug: string, name?: string) => {
+      const created = await handleCreateInstitutionalProject(slug, name);
+      if (created) openProjectRoute(created.id);
+    },
+    [handleCreateInstitutionalProject, openProjectRoute],
+  );
+
+  // Consome `/?modelo=<slug>` (vindo de `/modelos/<slug>` -> "Usar este modelo") após login/guest
+  useEffect(() => {
+    if (!isSessionActive || !isStorageReady || !pendingModelSlug) return;
+    if (consumedPendingModelRef.current === pendingModelSlug) return;
+    consumedPendingModelRef.current = pendingModelSlug;
+    void handleCreateInstitutionalProject(pendingModelSlug).then((created) => {
+      if (created) {
+        openProjectRoute(created.id, { replace: true });
+      } else {
+        goHomeRoute({ replace: true });
+      }
+    });
+  }, [
+    isSessionActive,
+    isStorageReady,
+    pendingModelSlug,
+    handleCreateInstitutionalProject,
+    openProjectRoute,
+    goHomeRoute,
+  ]);
+
   const customTemplates = useCustomTemplates(activeOwner);
 
   const createFromCustomTemplate = useCallback(
@@ -370,6 +413,20 @@ export const App: React.FC = () => {
         isSessionActive={isSessionActive}
         initialSectionId={sectionId}
         onNavigateApp={() => navigateTo('/')}
+      />
+    );
+  }
+
+  if (route === 'modelos') {
+    return (
+      <ModelsPublicPages
+        modelSlug={modelSlug}
+        darkMode={darkMode}
+        onToggleDarkMode={toggleDarkMode}
+        onNavigateHome={() => navigateTo('/')}
+        onNavigateDocs={() => navigateTo('/docs')}
+        onNavigateToModels={navigateToModels}
+        onUseModel={useModelRoute}
       />
     );
   }
@@ -469,6 +526,10 @@ export const App: React.FC = () => {
           isSyncingDrive={isSyncingDrive}
           onSyncFromDrive={() => void handleSyncFromDrive(true)}
           onQuickCreate={(type, name) => void createAndOpenProject(type, name)}
+          onCreateFromInstitutional={(slug, name) =>
+            void createAndOpenInstitutionalProject(slug, name)
+          }
+          onOpenModelsCatalog={() => navigateToModels()}
           customTemplates={customTemplates.templates}
           onAddCustomTemplate={customTemplates.add}
           onRemoveCustomTemplate={(template) => {

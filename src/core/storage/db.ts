@@ -23,9 +23,16 @@ export interface CachedUniversePackage {
   downloadedAt: string;
 }
 
+export interface CachedInstitutionLogo {
+  institutionKey: string;
+  dataUrl: string;
+  updatedAt: string;
+}
+
 export class RedijaDatabase extends Dexie {
   projects!: Table<DocumentProject, string>;
   universePackages!: Table<CachedUniversePackage, string>;
+  institutionLogos!: Table<CachedInstitutionLogo, string>;
 
   constructor() {
     super('RedijaAppDB');
@@ -41,6 +48,11 @@ export class RedijaDatabase extends Dexie {
     this.version(4).stores({
       projects: 'id, updatedAt, name, templateType, deletedAt, driveFileId, ownerEmail',
       universePackages: 'id, name, version, downloadedAt',
+    });
+    this.version(5).stores({
+      projects: 'id, updatedAt, name, templateType, deletedAt, driveFileId, ownerEmail',
+      universePackages: 'id, name, version, downloadedAt',
+      institutionLogos: 'institutionKey, updatedAt',
     });
   }
 }

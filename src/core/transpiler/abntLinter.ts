@@ -8,6 +8,11 @@ import {
   DocumentProject,
   ReferenceOrdering,
 } from '@/types/document';
+import type { InstitutionalTemplateDefinition } from '@/core/templates/institutions';
+import {
+  resolveProjectInstitutionalModel,
+  runInstitutionalLinterRules,
+} from './linters/institutionalRules';
 import { stripHtmlTags } from './escape';
 import {
   getPrimarySurname,
@@ -768,8 +773,12 @@ export function auditCitationsAndReferences(
  * - Citações no texto sem referência correspondente na lista final (NBR 10520 / NBR 6023)
  * - Referências cadastradas mas nunca citadas no corpo do texto
  */
-export function runAbntLinter(project: DocumentProject): AbntWarning[] {
+export function runAbntLinter(
+  project: DocumentProject,
+  institutionalModelOverride?: InstitutionalTemplateDefinition | null,
+): AbntWarning[] {
   const warnings: AbntWarning[] = [];
+  const institutionalModel = resolveProjectInstitutionalModel(project, institutionalModelOverride);
 
   // 1. Contagem de palavras do resumo (NBR 6028: 150 a 500 palavras para TCC/monografias, 100 a 250 para artigos)
   const effectiveTemplate =
@@ -783,8 +792,8 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
     effectiveTemplate === 'artigo' ||
     effectiveTemplate === 'sbc' ||
     effectiveTemplate === 'ieee';
-  const minWords = isArticle ? 100 : 150;
-  const maxWords = isArticle ? 250 : 500;
+  const minWords = institutionalModel?.linterOverrides?.abstractMinWords ?? (isArticle ? 100 : 150);
+  const maxWords = institutionalModel?.linterOverrides?.abstractMaxWords ?? (isArticle ? 250 : 500);
 
   const abstractWords = countWords(project.metadata.abstract);
   if (abstractWords === 0) {
@@ -795,14 +804,20 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
       description: 'O trabalho não possui texto de resumo preenchido.',
     });
   } else if (abstractWords < minWords || abstractWords > maxWords) {
-    const rangeText = isArticle
-      ? 'entre 100 e 250 palavras para artigos de periódicos'
-      : 'entre 150 e 500 palavras para trabalhos acadêmicos (e 100 a 250 para artigos)';
+    const rangeText = institutionalModel?.linterOverrides?.abstractMinWords !== undefined ||
+      institutionalModel?.linterOverrides?.abstractMaxWords !== undefined
+      ? `entre ${minWords} e ${maxWords} palavras conforme o manual da ${institutionalModel.institutionAcronym} (${institutionalModel.manualVersion})`
+      : isArticle
+        ? 'entre 100 e 250 palavras para artigos de periódicos'
+        : 'entre 150 e 500 palavras para trabalhos acadêmicos (e 100 a 250 para artigos)';
     warnings.push({
       id: 'abstract-length',
       severity: 'info',
-      title: `Resumo com ${abstractWords} palavras (NBR 6028)`,
-      description: `A ABNT NBR 6028 recomenda ${rangeText}.`,
+      title: `Resumo com ${abstractWords} palavras (${institutionalModel ? institutionalModel.institutionAcronym : 'NBR 6028'})`,
+      description: institutionalModel?.linterOverrides?.abstractMinWords !== undefined ||
+        institutionalModel?.linterOverrides?.abstractMaxWords !== undefined
+        ? `O manual da ${institutionalModel.institutionName} recomenda ${rangeText}.`
+        : `A ABNT NBR 6028 recomenda ${rangeText}.`,
     });
   }
 
@@ -867,6 +882,11 @@ export function runAbntLinter(project: DocumentProject): AbntWarning[] {
       description:
         'A ABNT cancelou a NBR 10520:2002 e a substituiu pela NBR 10520:2023. No padrão vigente, as chamadas entre parênteses devem ser em caixa mista: (Silva, 2023). Altere para NBR 10520:2023 no Customizador.',
     });
+  }
+
+  // 7. Regras específicas do manual institucional (quando o projeto usa modelo institucional)
+  if (institutionalModel) {
+    warnings.push(...runInstitutionalLinterRules(project, institutionalModel));
   }
 
   return warnings;

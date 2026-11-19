@@ -34,6 +34,7 @@ import {
   getTemplateCapabilities,
   TemplateCapabilities,
 } from '@/core/templates/templateCapabilities';
+import { getInstitutionalTemplateBySlug } from '@/core/templates/institutions/registry';
 import {
   getTypstFontStack,
   sanitizeCustomFontFamily,
@@ -789,12 +790,24 @@ function generateAbntShowRule(
     `ano: ${hasField('year') ? typstString(m.year) : '""'}`,
   );
 
+  const institutionalModel = getInstitutionalTemplateBySlug(project.institutionalTemplateSlug);
+
   if (includeBinaryImages && m.institutionLogoDataUrl) {
     const parsedLogo = parseDataUrl(m.institutionLogoDataUrl);
     if (parsedLogo) {
       const logoPath = `/assets/logo_instituicao.${parsedLogo.ext}`;
-      args.push(`logo: image(${typstString(logoPath)}, height: 2.2cm)`);
+      const logoHeightCm = institutionalModel?.cover?.logoHeightCm ?? 2.2;
+      args.push(`logo: image(${typstString(logoPath)}, height: ${logoHeightCm}cm)`);
+      if (institutionalModel?.cover?.logoPosition === 'below_institution') {
+        args.push('logo-posicao: "below_institution"');
+      }
     }
+  }
+  if (
+    institutionalModel?.titlePage?.natureWidthPct &&
+    institutionalModel.titlePage.natureWidthPct !== 50
+  ) {
+    args.push(`largura-natureza: ${institutionalModel.titlePage.natureWidthPct}%`);
   }
 
   if (hasField('includeApprovalPage') && m.includeApprovalPage) {

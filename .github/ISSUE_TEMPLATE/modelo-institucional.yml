@@ -1,0 +1,74 @@
+name: Solicitar/Enviar modelo da minha instituição
+description: Peça um novo modelo institucional ou envie o manual de normalização da sua faculdade/universidade para a comunidade publicar no RedijaApp.
+title: "[Modelo Institucional] <Sigla> - <Tipo de trabalho>"
+labels:
+  - "area: templates"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por ajudar a expandir o catálogo comunitário de modelos institucionais do **RedijaApp**!
+        Preencha as informações abaixo. Você não precisa saber programar para solicitar um modelo.
+
+  - type: input
+    id: instituicao
+    attributes:
+      label: Nome completo da instituição
+      description: Nome oficial da universidade, instituto federal ou faculdade.
+      placeholder: "Ex.: Instituto Federal de São Paulo"
+    validations:
+      required: true
+
+  - type: input
+    id: sigla
+    attributes:
+      label: Sigla da instituição
+      description: Sigla pela qual a instituição é mais conhecida.
+      placeholder: "Ex.: IFSP, USP, UNICAMP, UFMG, PUC-SP"
+    validations:
+      required: true
+
+  - type: input
+    id: cidade_uf
+    attributes:
+      label: Cidade / UF
+      description: Município e estado da instituição ou campus principal.
+      placeholder: "Ex.: São Paulo / SP"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: tipos_trabalho
+    attributes:
+      label: Tipo(s) de trabalho
+      description: Selecione os tipos de trabalho cobertos pelo manual.
+      options:
+        - label: TCC / Monografia
+        - label: Dissertação (Mestrado)
+        - label: Tese (Doutorado)
+        - label: Artigo Científico
+        - label: Relatório Técnico / Estágio
+        - label: Projeto de Pesquisa
+
+  - type: textarea
+    id: manual
+    attributes:
+      label: Link ou PDF do manual oficial de normalização
+      description: Cole a URL do manual no site oficial da biblioteca/instituição (ou arraste o PDF aqui) e informe o ano ou edição vigente.
+      placeholder: "Ex.: https://www.instituicao.edu.br/biblioteca/manual-tcc.pdf (Edição 2024)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: observacoes
+    attributes:
+      label: Observações e diferenças em relação à ABNT padrão
+      description: Opcional. Conte se a sua banca cobra algo específico (ex.: margens diferentes, folha de aprovação obrigatória, fonte específica, posição do brasão na capa).
+      placeholder: "Ex.: Exige fonte Arial 12pt, folha de aprovação obrigatória e brasão acima do nome da instituição."
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        > **Aviso jurídico sobre brasões:** por questões de marca, o repositório não embute logotipos ou brasões de instituições sem autorização expressa. No RedijaApp, cada estudante pode enviar o brasão diretamente na barra lateral do editor (ele fica salvo apenas no navegador e no Google Drive do próprio usuário).

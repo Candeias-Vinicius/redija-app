@@ -556,10 +556,21 @@ export function normalizeProject(raw: unknown): DocumentProject {
     };
   }
 
+  const institutionalTemplateSlug =
+    typeof data.institutionalTemplateSlug === 'string' && data.institutionalTemplateSlug.trim()
+      ? data.institutionalTemplateSlug.trim()
+      : undefined;
+  const institutionAcronym =
+    typeof data.institutionAcronym === 'string' && data.institutionAcronym.trim()
+      ? data.institutionAcronym.trim()
+      : undefined;
+
   return {
     id,
     name,
     templateType,
+    ...(institutionalTemplateSlug ? { institutionalTemplateSlug } : {}),
+    ...(institutionAcronym ? { institutionAcronym } : {}),
     templateConfig,
     ...(sidebarConfig ? { sidebarConfig } : {}),
     metadata,

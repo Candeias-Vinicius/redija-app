@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Globe, Plus, Upload, X } from 'lucide-react';
 import type { DocumentProject, ProjectTemplateType } from '@/types/document';
 import type { CustomTemplate } from '@/core/storage/customTemplates';
 import { PROJECT_TEMPLATES } from '@/core/storage/projectTemplates';
+import { getAllInstitutionalTemplates } from '@/core/templates/institutions';
 import { parsePackageId } from '@/core/universe/virtualPackage';
 import { ProjectCover } from './ProjectCover';
+import { InstitutionPicker } from './InstitutionPicker';
+import { getHighlightedInstitutionalModels } from './institutionHelpers';
 
 export const ALL_MODELS_PANEL_ID = 'home-all-models';
 export const NEW_PROJECT_NAME_INPUT_ID = 'home-new-project-name';
@@ -24,8 +27,11 @@ interface AllModelsPanelProps {
   highlightId?: string | null;
   projectName: string;
   nameTaken: boolean;
+  selectedInstitution: string;
+  onSelectInstitution: (acronym: string) => void;
   onProjectNameChange: (value: string) => void;
   onCreate: (type: ProjectTemplateType) => void;
+  onCreateFromInstitutional: (slug: string) => void;
   onCreateFromCustom: (template: CustomTemplate) => void;
   onRemoveCustom: (template: CustomTemplate) => void;
   onOpenUniverse: () => void;
@@ -34,8 +40,8 @@ interface AllModelsPanelProps {
 }
 
 /**
- * "Mais modelos" expandido: todos os modelos como capas, os modelos personalizados do
- * usuário (pacotes do Typst Universe com nome próprio) e o atalho para buscar novos.
+ * "Mais modelos" expandido: todos os modelos como capas, os modelos institucionais,
+ * os modelos personalizados do usuário e o atalho para buscar novos.
  * Clicar num modelo cria o trabalho na hora, com o nome digitado (ou um nome padrão).
  */
 export const AllModelsPanel: React.FC<AllModelsPanelProps> = ({
@@ -43,14 +49,32 @@ export const AllModelsPanel: React.FC<AllModelsPanelProps> = ({
   highlightId,
   projectName,
   nameTaken,
+  selectedInstitution,
+  onSelectInstitution,
   onProjectNameChange,
   onCreate,
+  onCreateFromInstitutional,
   onCreateFromCustom,
   onRemoveCustom,
   onOpenUniverse,
   onImport,
   onClose,
-}) => (
+}) => {
+  const allInstitutional = useMemo(() => getAllInstitutionalTemplates(), []);
+  const highlightedInstitutional = useMemo(
+    () => getHighlightedInstitutionalModels(selectedInstitution),
+    [selectedInstitution],
+  );
+  const highlightedSlugs = useMemo(
+    () => new Set(highlightedInstitutional.map((m) => m.slug)),
+    [highlightedInstitutional],
+  );
+  const otherInstitutional = useMemo(
+    () => allInstitutional.filter((m) => !highlightedSlugs.has(m.slug)),
+    [allInstitutional, highlightedSlugs],
+  );
+
+  return (
   <section
     id={ALL_MODELS_PANEL_ID}
     aria-labelledby="all-models-title"
@@ -62,7 +86,7 @@ export const AllModelsPanel: React.FC<AllModelsPanelProps> = ({
           Todos os modelos
         </h2>
         <p className="mt-0.5 text-sm text-fg-muted">
-          Clique em um modelo para criar o trabalho. Os modelos que você adicionar ficam salvos aqui.
+          Escolha sua instituição para destacar os modelos dela ou clique em qualquer modelo abaixo.
         </p>
       </div>
       <button
@@ -75,30 +99,80 @@ export const AllModelsPanel: React.FC<AllModelsPanelProps> = ({
       </button>
     </div>
 
-    <div className="mt-4 max-w-md">
-      <label htmlFor={NEW_PROJECT_NAME_INPUT_ID} className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
-        Nome do novo trabalho <span className="font-normal text-fg-muted">(opcional)</span>
-      </label>
-      <input
-        id={NEW_PROJECT_NAME_INPUT_ID}
-        type="text"
-        value={projectName}
-        onChange={(e) => onProjectNameChange(e.target.value)}
-        placeholder="Ex: TCC Engenharia de Software 2026"
-        aria-invalid={nameTaken}
-        aria-describedby={nameTaken ? `${NEW_PROJECT_NAME_INPUT_ID}-error` : undefined}
-        className={`w-full rounded-lg border bg-surface px-3 py-2 text-sm focus:outline-none ${
-          nameTaken ? 'border-red-500' : 'border-slate-300'
-        }`}
+    <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <InstitutionPicker
+        id="all-models-institution-search"
+        selectedAcronym={selectedInstitution}
+        onSelectInstitution={onSelectInstitution}
       />
-      {nameTaken && (
-        <p id={`${NEW_PROJECT_NAME_INPUT_ID}-error`} className="mt-1 text-xs text-red-700 dark:text-red-400">
-          Já existe um trabalho com esse nome. Escolha outro.
-        </p>
-      )}
+
+      <div className="max-w-md">
+        <label htmlFor={NEW_PROJECT_NAME_INPUT_ID} className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
+          Nome do novo trabalho <span className="font-normal text-fg-muted">(opcional)</span>
+        </label>
+        <input
+          id={NEW_PROJECT_NAME_INPUT_ID}
+          type="text"
+          value={projectName}
+          onChange={(e) => onProjectNameChange(e.target.value)}
+          placeholder="Ex: TCC Engenharia de Software 2026"
+          aria-invalid={nameTaken}
+          aria-describedby={nameTaken ? `${NEW_PROJECT_NAME_INPUT_ID}-error` : undefined}
+          className={`w-full rounded-lg border bg-surface px-3 py-2 text-sm focus:outline-none ${
+            nameTaken ? 'border-red-500' : 'border-slate-300'
+          }`}
+        />
+        {nameTaken && (
+          <p id={`${NEW_PROJECT_NAME_INPUT_ID}-error`} className="mt-1 text-xs text-red-700 dark:text-red-400">
+            Já existe um trabalho com esse nome. Escolha outro.
+          </p>
+        )}
+      </div>
     </div>
 
-    <h3 className="mt-5 text-sm font-semibold text-fg">Modelos do Redija</h3>
+    {highlightedInstitutional.length > 0 && (
+      <>
+        <h3 className="mt-5 text-sm font-semibold text-brand-800 dark:text-brand-300">
+          Modelos da sua instituição ({selectedInstitution})
+        </h3>
+        <ul className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
+          {highlightedInstitutional.map((model) => (
+            <li key={model.slug}>
+              <button
+                type="button"
+                onClick={() => onCreateFromInstitutional(model.slug)}
+                className={`${TILE} border-brand-500/70 bg-brand-50/40 dark:bg-brand-950/30`}
+                aria-label={`Criar ${model.displayTitle}`}
+              >
+                <ProjectCover
+                  project={{
+                    name: model.displayTitle,
+                    templateType: model.baseTemplateType,
+                    metadata: {
+                      title: model.displayTitle,
+                      institution: model.institutionName,
+                    } as DocumentProject['metadata'],
+                  }}
+                />
+                <span className="min-w-0">
+                  <span className="inline-block mb-0.5 rounded bg-brand-700 px-1.5 py-0.5 text-[0.65rem] font-semibold text-white">
+                    Modelo da instituição
+                  </span>
+                  <span className="block text-sm font-semibold text-fg leading-tight line-clamp-2">
+                    {model.displayTitle}
+                  </span>
+                  <span className="mt-0.5 block font-mono text-[0.7rem] font-semibold uppercase text-brand-700 dark:text-brand-400">
+                    {model.institutionAcronym} · {model.manualVersion}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </>
+    )}
+
+    <h3 className="mt-5 text-sm font-semibold text-fg">Modelos genéricos do Redija</h3>
     <ul className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(132px,1fr))]">
       <li>
         <button type="button" onClick={() => onCreate('em_branco')} className={TILE} aria-label="Criar Em branco">
@@ -124,6 +198,43 @@ export const AllModelsPanel: React.FC<AllModelsPanelProps> = ({
         </li>
       ))}
     </ul>
+
+    {otherInstitutional.length > 0 && (
+      <>
+        <h3 className="mt-6 text-sm font-semibold text-fg">Modelos por instituição</h3>
+        <ul className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))]">
+          {otherInstitutional.map((model) => (
+            <li key={model.slug}>
+              <button
+                type="button"
+                onClick={() => onCreateFromInstitutional(model.slug)}
+                className={TILE}
+                aria-label={`Criar ${model.displayTitle}`}
+              >
+                <ProjectCover
+                  project={{
+                    name: model.displayTitle,
+                    templateType: model.baseTemplateType,
+                    metadata: {
+                      title: model.displayTitle,
+                      institution: model.institutionName,
+                    } as DocumentProject['metadata'],
+                  }}
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-fg leading-tight line-clamp-2">
+                    {model.displayTitle}
+                  </span>
+                  <span className="mt-0.5 block font-mono text-[0.7rem] font-semibold uppercase text-fg-muted">
+                    {model.institutionAcronym}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </>
+    )}
 
     <h3 className="mt-6 text-sm font-semibold text-fg">Seus modelos</h3>
     {customTemplates.length === 0 && (
@@ -193,4 +304,5 @@ export const AllModelsPanel: React.FC<AllModelsPanelProps> = ({
       </button>
     </div>
   </section>
-);
+  );
+};
