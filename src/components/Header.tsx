@@ -21,7 +21,9 @@ import {
   Loader2,
   BookOpen,
   PanelLeft,
+  Target,
 } from 'lucide-react';
+import { type WritingGoalStatus } from '@/core/goals/writingGoals';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
 import { GITHUB_REPO_URL } from '@/core/links';
@@ -77,6 +79,8 @@ interface HeaderProps {
   onLogin: () => void;
   onLogout: () => void;
   onOpenShareModal: () => void;
+  onOpenGoalsModal?: () => void;
+  goalStatus?: WritingGoalStatus;
   onOpenAccountSettings: () => void;
   isGuestMode?: boolean;
   onExitGuestMode?: () => void;
@@ -122,6 +126,8 @@ export const Header: React.FC<HeaderProps> = ({
   onLogin,
   onLogout,
   onOpenShareModal,
+  onOpenGoalsModal,
+  goalStatus,
   onOpenAccountSettings,
   isGuestMode = false,
   onExitGuestMode,
@@ -441,6 +447,36 @@ export const Header: React.FC<HeaderProps> = ({
                 {activeCollaborators.length} online
               </span>
             </div>
+          )}
+
+          {/* Prazos e Metas (RDJ-06: só no editor) */}
+          {view === 'editor' && onOpenGoalsModal && (
+            <button
+              type="button"
+              onClick={onOpenGoalsModal}
+              className={`touch-target flex items-center justify-center gap-1.5 p-1.5 md:px-2.5 text-sm font-medium rounded-lg border transition-colors ${
+                goalStatus?.state === 'today_reached' || goalStatus?.state === 'total_reached'
+                  ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100/80 dark:hover:bg-emerald-950/60'
+                  : goalStatus?.state === 'deadline_passed'
+                    ? 'border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 hover:bg-amber-100/80'
+                    : 'border-line bg-surface text-slate-700 dark:text-slate-200 hover:bg-surface-sunken'
+              }`}
+              title={goalStatus?.statusMessage ?? 'Abrir painel de prazos e metas de escrita'}
+              aria-label="Abrir painel de prazos e metas"
+            >
+              <Target className="w-4 h-4 text-brand-700 dark:text-brand-400 shrink-0" />
+              <span className="hidden md:inline whitespace-nowrap">
+                {goalStatus?.state === 'today_reached'
+                  ? 'Meta concluída'
+                  : goalStatus?.state === 'total_reached'
+                    ? 'Meta total atingida'
+                    : goalStatus?.state === 'deadline_passed'
+                      ? 'Prazo encerrado'
+                      : goalStatus?.state === 'in_progress' && goalStatus.dailyTarget
+                        ? `${Math.max(0, goalStatus.todayNetWords).toLocaleString('pt-BR')}/${goalStatus.dailyTarget.toLocaleString('pt-BR')}`
+                        : 'Metas'}
+              </span>
+            </button>
           )}
 
           {/* Compartilhar (ação do trabalho aberto: só no editor) */}

@@ -254,6 +254,64 @@ export interface SidebarConfig {
   hiddenFieldIds?: string[];
 }
 
+export type WritingGoalUnit = 'words' | 'pages';
+
+export interface WritingMilestone {
+  id: string;
+  chapterBlockId?: string;
+  title: string;
+  dueDate: string;
+  completed?: boolean;
+  updatedAt?: string;
+}
+
+export interface DailyWritingLogEntry {
+  /** Data local no formato YYYY-MM-DD */
+  date: string;
+  /** Total de palavras do projeto no último salvamento deste dia */
+  totalWords: number;
+  /** Palavras líquidas escritas neste dia */
+  netWords: number;
+  /** Timestamp ISO da última atualização deste registro */
+  updatedAt: string;
+}
+
+export interface DailyTargetLock {
+  /** Data local YYYY-MM-DD em que a meta diária foi fixada */
+  date: string;
+  /** Meta diária fixada na primeira abertura do dia */
+  target: number;
+  unit: WritingGoalUnit;
+  deadlineDate?: string;
+  totalTarget?: number;
+}
+
+export interface WritingReminderConfig {
+  enabled: boolean;
+  /** Horário local HH:mm (padrão "20:00") */
+  time: string;
+  /** Última data local YYYY-MM-DD em que o lembrete foi enviado */
+  lastNotifiedDate?: string;
+}
+
+export interface WritingGoals {
+  /** Data de entrega ou defesa no formato YYYY-MM-DD */
+  deadlineDate?: string;
+  deadlineLabel?: 'entrega' | 'defesa';
+  targetUnit: WritingGoalUnit;
+  targetValue?: number;
+  milestones: WritingMilestone[];
+  dailyHistory: DailyWritingLogEntry[];
+  /** Ponto de partida em palavras (ex.: importação) para não inflar o primeiro dia */
+  baselineWords?: number;
+  baselineDate?: string;
+  dailyTargetLock?: DailyTargetLock;
+  reminder?: WritingReminderConfig;
+  /** Última contagem conhecida de páginas textuais do PDF compilado */
+  lastCompiledTextualPages?: number;
+  updatedAt?: string;
+}
+
 /**
  * Estado da lixeira de um projeto em relação ao Google Drive:
  * - `pending-trash`: está na lixeira local, mas o Drive ainda não confirmou o envio à lixeira.
@@ -270,6 +328,7 @@ export interface DocumentProject {
   templateType?: ProjectTemplateType;
   templateConfig?: TemplateConfig;
   sidebarConfig?: SidebarConfig;
+  writingGoals?: WritingGoals;
   metadata: DocumentMetadata;
   blocks: Block[];
   references: AcademicReference[];
