@@ -5,6 +5,10 @@ import {
   BlockType,
   CitationFormat,
   DocumentMetadata,
+  DocumentProject,
+  PresentationAspectRatio,
+  PresentationTheme,
+  ProjectTemplateType,
   ReferenceOrdering,
   SubImageItem,
 } from '@/types/document';
@@ -17,8 +21,18 @@ import {
   MAX_IMAGES_PER_BLOCK,
   validateMultipleImageUploadsForProject,
 } from '@/core/storage/imageQuota';
-import { FileEdit, Minus, Plus } from 'lucide-react';
+import { copyVisualBlockToPresentation } from '@/core/transpiler/slideGenerator';
+import {
+  ArrowUpRight,
+  FileEdit,
+  Image as ImageIcon,
+  Minus,
+  Palette,
+  Plus,
+  Presentation,
+} from 'lucide-react';
 import { PaneWindowControls } from '@/components/ui/PaneWindowControls';
+import { toast } from '@/components/ui/toastStore';
 import {
   SlashCommandType,
   computeSectionNumbers,
@@ -28,6 +42,7 @@ import {
 } from './editor/blockHelpers';
 import { BlockControlsGutter } from './editor/BlockControlsGutter';
 import { SlashCommandMenu } from './editor/SlashCommandMenu';
+import { SourceFigurePickerModal } from './editor/SourceFigurePickerModal';
 import { HeadingBlockItem } from './editor/blocks/HeadingBlockItem';
 import { RichTextBlockItems } from './editor/blocks/RichTextBlockItems';
 import { CodeAndMathBlockItems } from './editor/blocks/CodeAndMathBlockItems';
@@ -38,6 +53,11 @@ interface EditorProps {
   blocks: Block[];
   metadata?: DocumentMetadata;
   references: AcademicReference[];
+  templateType?: ProjectTemplateType;
+  presentationTheme?: PresentationTheme;
+  presentationAspectRatio?: PresentationAspectRatio;
+  sourceProject?: DocumentProject | null;
+  sourceProjectName?: string;
   citationStyle?: 'uppercase' | 'titlecase';
   citationFormat?: CitationFormat;
   referenceOrdering?: ReferenceOrdering;
@@ -46,6 +66,11 @@ interface EditorProps {
   activeCollaborators?: CollaboratorPresence[];
   onOpenReferenceModal?: () => void;
   onChangeBlocks: (blocks: Block[]) => void;
+  onChangePresentationSettings?: (settings: {
+    presentationTheme?: PresentationTheme;
+    presentationAspectRatio?: PresentationAspectRatio;
+  }) => void;
+  onOpenSourceProject?: (sourceProject: DocumentProject) => void;
   onFocusBlock?: (blockId: string) => void;
   onMinimize?: () => void;
   /** Deixa só este painel visível (desktop). */
@@ -60,6 +85,11 @@ export const Editor: React.FC<EditorProps> = ({
   blocks,
   metadata,
   references,
+  templateType,
+  presentationTheme = 'institucional',
+  presentationAspectRatio = '16:9',
+  sourceProject = null,
+  sourceProjectName,
   citationStyle = 'titlecase',
   citationFormat,
   referenceOrdering = 'alphabetical',
@@ -68,6 +98,8 @@ export const Editor: React.FC<EditorProps> = ({
   activeCollaborators = [],
   onOpenReferenceModal,
   onChangeBlocks,
+  onChangePresentationSettings,
+  onOpenSourceProject,
   onFocusBlock,
   onMinimize,
   onMaximize,
@@ -82,6 +114,13 @@ export const Editor: React.FC<EditorProps> = ({
   const [dragOverBlockId, setDragOverBlockId] = useState<string | null>(null);
   const [imageErrorByBlock, setImageErrorByBlock] = useState<Record<string, string | null>>({});
   const [moveAnnouncement, setMoveAnnouncement] = useState('');
+  const [isSourceFigurePickerOpen, setIsSourceFigurePickerOpen] = useState(false);
+
+  const isPresentation = templateType === 'presentation';
+  const slideCount = useMemo(
+    () => (isPresentation ? blocks.filter((b) => b.type === 'h1').length : 0),
+    [isPresentation, blocks],
+  );
 
   const refIndexMap = useMemo(
     () => getReferenceIndexMap(references, referenceOrdering, blocks),
@@ -128,6 +167,40 @@ export const Editor: React.FC<EditorProps> = ({
     setFocusedBlockId(newId);
   };
 
+  const addNewSlide = () => {
+    const titleId = crypto.randomUUID();
+    const bulletId = crypto.randomUUID();
+    const nextSlideNumber = slideCount + 1;
+    const newSlideTitle: Block = {
+      id: titleId,
+      type: 'h1',
+      content: `Novo Slide ${nextSlideNumber}`,
+    };
+    const newSlideBullet: Block = {
+      id: bulletId,
+      type: 'bullet',
+      content: 'Tópico principal deste slide.',
+    };
+    onChangeBlocks([...blocks, newSlideTitle, newSlideBullet]);
+    setFocusedBlockId(titleId);
+  };
+
+  const handleInsertVisualFromSource = (sourceBlock: Block) => {
+    const insertAfterId = focusedBlockId || blocks[blocks.length - 1]?.id;
+    const result = copyVisualBlockToPresentation(
+      { blocks, metadata: metadata ?? ({} as DocumentMetadata) },
+      sourceBlock,
+      insertAfterId,
+    );
+    if (!result.ok || result.error) {
+      toast.error(result.error || 'Não foi possível inserir a figura neste slide.');
+      return;
+    }
+
+    onChangeBlocks(result.updatedBlocks);
+    setFocusedBlockId(result.clonedBlock.id);
+  };
+
   const removeBlock = (id: string) => {
     if (blocks.length <= 1) return;
     const index = blocks.findIndex((b) => b.id === id);
@@ -165,10 +238,10 @@ export const Editor: React.FC<EditorProps> = ({
       blocks.map((b) =>
         b.id === id
           ? {
-              ...b,
-              type,
-              meta: createDefaultMetaForType(type) ?? b.meta,
-            }
+            ...b,
+            type,
+            meta: createDefaultMetaForType(type) ?? b.meta,
+          }
           : b,
       ),
     );
@@ -321,9 +394,12 @@ export const Editor: React.FC<EditorProps> = ({
         <HeadingBlockItem
           block={block}
           sectionNumber={sectionNumbers[block.id]}
+          isPresentation={isPresentation}
           autoFocus={autoFocus}
           onUpdateContent={updateBlockContent}
-          onAddParagraphBelow={(afterId) => addBlock(afterId, 'paragraph')}
+          onAddParagraphBelow={(afterId) =>
+            addBlock(afterId, isPresentation ? 'bullet' : 'paragraph')
+          }
           onRemoveBlock={removeBlock}
         />
       );
@@ -411,129 +487,276 @@ export const Editor: React.FC<EditorProps> = ({
       )}
 
       <div
-        className={`@container flex-1 min-h-0 overflow-y-auto flex justify-center ${
-          isCompact ? 'px-4 py-4' : 'py-8 pl-24 pr-6 @3xl:pl-28 @3xl:pr-14'
-        }`}
+        className={`@container flex-1 min-h-0 overflow-y-auto flex justify-center ${isCompact ? 'px-4 py-4' : 'py-8 pl-24 pr-6 @3xl:pl-28 @3xl:pr-14'
+          }`}
       >
-      <p className="sr-only" role="status" aria-live="polite">
-        {moveAnnouncement}
-      </p>
-      <div
-        className={`w-full ${
-          isFullWidth || isCompact ? 'max-w-5xl' : 'max-w-2xl'
-        } space-y-2 sm:space-y-3 pb-28 transition-all duration-200`}
-      >
-        {blocks.map((block, blockIndex) => {
-          const activeCollab = activeCollaborators.find((c) => c.activeBlockId === block.id);
-          return (
-            <div
-              key={block.id}
-              data-block-id={block.id}
-              onFocus={() => {
-                setFocusedBlockId(block.id);
-                onFocusBlock?.(block.id);
-              }}
-              onKeyDown={(e) => {
-                // Alternativa ao arrastar: Ctrl/Cmd + Shift + ↑/↓ move o bloco
-                if (
-                  (e.ctrlKey || e.metaKey) &&
-                  e.shiftKey &&
-                  (e.key === 'ArrowUp' || e.key === 'ArrowDown')
-                ) {
-                  e.preventDefault();
-                  moveBlock(block.id, e.key === 'ArrowUp' ? -1 : 1);
-                }
-              }}
-              onDragOver={(e) => {
-                if (!draggedBlockId || draggedBlockId === block.id) return;
-                e.preventDefault();
-                setDragOverBlockId(block.id);
-              }}
-              onDragLeave={() => {
-                if (dragOverBlockId === block.id) setDragOverBlockId(null);
-              }}
-              onDrop={(e) => {
-                if (!draggedBlockId) return;
-                e.preventDefault();
-                onChangeBlocks(reorderBlocks(blocks, draggedBlockId, block.id));
-                setDraggedBlockId(null);
-                setDragOverBlockId(null);
-              }}
-              className={`group relative rounded-lg transition-all hover:bg-slate-50/80 dark:hover:bg-slate-900/50 ${
-                isCompact
-                  ? 'flex flex-col px-1 py-1.5'
-                  : 'flex items-start gap-2.5 -ml-24 pl-24 pr-3 py-1.5'
-              } ${draggedBlockId === block.id ? 'opacity-40' : ''} ${
-                dragOverBlockId === block.id
-                  ? 'border-t-2 border-brand-500 bg-brand-50/30'
-                  : ''
-              } ${activeCollab ? 'ring-1 ring-brand-400/80 bg-brand-50/15' : ''}`}
-            >
-              {/* Badge Flutuante do Colaborador Ativo no Bloco */}
-              {activeCollab && (
-                <div
-                  className="absolute -top-2.5 right-3 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-brand-100 text-brand-800 border border-brand-300 shadow-xs animate-in fade-in zoom-in-95 duration-150"
-                  title={`${activeCollab.user.name} (${activeCollab.user.email}) está editando este bloco`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" />
-                  <span>{activeCollab.user.name.split(' ')[0]} está aqui</span>
+        <p className="sr-only" role="status" aria-live="polite">
+          {moveAnnouncement}
+        </p>
+        <div
+          className={`w-full ${isFullWidth || isCompact ? 'max-w-5xl' : 'max-w-2xl'
+            } space-y-2 sm:space-y-3 pb-28 transition-all duration-200`}
+        >
+          {/* Barra Contextual de Apresentação de Defesa (RDJ-09.2, RDJ-09.3, RDJ-09.4, RDJ-09.5) */}
+          {isPresentation && (
+            <div className="mb-4 p-3 rounded-xl border border-brand-200 bg-brand-50/60 flex flex-col gap-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-brand-700 text-white text-xs font-bold uppercase tracking-wide shrink-0">
+                    <Presentation className="w-3.5 h-3.5" />
+                    <span>{slideCount} Slides (+ Capa)</span>
+                  </span>
+                  {(sourceProjectName || sourceProject?.name) && (
+                    <span
+                      data-testid="generated-from-banner"
+                      className="text-xs text-brand-900 truncate flex items-center gap-1"
+                    >
+                      <span>
+                        Gerado a partir de{' '}
+                        <strong className="font-semibold">
+                          {sourceProject?.name || sourceProjectName}
+                        </strong>
+                      </span>
+                      {sourceProject && onOpenSourceProject && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenSourceProject(sourceProject)}
+                          className="inline-flex items-center gap-0.5 text-brand-700 hover:underline font-semibold ml-1"
+                          title="Abrir trabalho acadêmico de origem"
+                        >
+                          <span>Abrir origem</span>
+                          <ArrowUpRight className="w-3 h-3" />
+                        </button>
+                      )}
+                    </span>
+                  )}
                 </div>
-              )}
 
-              <BlockControlsGutter
-                blockId={block.id}
-                isMenuOpen={activeMenuBlockId === block.id}
-                isCompact={isCompact}
-                isActive={focusedBlockId === block.id || activeMenuBlockId === block.id}
-                canDelete={blocks.length > 1}
-                canMoveUp={blockIndex > 0}
-                canMoveDown={blockIndex < blocks.length - 1}
-                onMoveUp={(id) => moveBlock(id, -1)}
-                onMoveDown={(id) => moveBlock(id, 1)}
-                onAddBelow={(id) => addBlock(id)}
-                onToggleMenu={(id) => {
-                  setActiveMenuBlockId(activeMenuBlockId === id ? null : id);
-                  setMenuSearch('');
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {onChangePresentationSettings && (
+                    <>
+                      <div className="inline-flex items-center gap-1 bg-white border border-brand-200 rounded-lg px-2 py-1 text-xs">
+                        <Palette className="w-3 h-3 text-brand-700 shrink-0" />
+                        <select
+                          aria-label="Tema dos slides"
+                          value={presentationTheme}
+                          onChange={(e) =>
+                            onChangePresentationSettings({
+                              presentationTheme: e.target.value as PresentationTheme,
+                            })
+                          }
+                          className="bg-transparent font-medium text-slate-700 focus:outline-none cursor-pointer"
+                        >
+                          <option value="institucional">Tema Institucional</option>
+                          <option value="sobrio">Tema Sóbrio</option>
+                          <option value="dark">Tema Escuro</option>
+                        </select>
+                      </div>
+
+                      <div className="inline-flex items-center gap-1 bg-white border border-brand-200 rounded-lg px-2 py-1 text-xs">
+                        <select
+                          aria-label="Proporção dos slides"
+                          value={presentationAspectRatio}
+                          onChange={(e) =>
+                            onChangePresentationSettings({
+                              presentationAspectRatio: e.target.value as PresentationAspectRatio,
+                            })
+                          }
+                          className="bg-transparent font-semibold text-slate-700 focus:outline-none cursor-pointer"
+                        >
+                          <option value="16:9">16:9 (Widescreen)</option>
+                          <option value="4:3">4:3 (Tradicional)</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {(sourceProject || sourceProjectName) && (
+                    <button
+                      type="button"
+                      onClick={() => setIsSourceFigurePickerOpen(true)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-brand-300 hover:bg-brand-100 text-brand-800 text-xs font-semibold transition-colors"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5 text-brand-700" />
+                      <span>Inserir figura do trabalho</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={addNewSlide}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold shadow-xs transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Novo Slide</span>
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-brand-800">
+                Cada título <strong>Slide N (H1)</strong> inicia um novo slide no PDF. Reordene blocos
+                arrastando pela lateral ou digite <kbd className="px-1 py-0.5 bg-white border rounded font-mono">/</kbd> para inserir tópicos, figuras, tabelas ou equações.
+              </p>
+            </div>
+          )}
+
+          {/* Banner de Origem para Pôster A0 gerado em 1 clique (RDJ-09.7) */}
+          {!isPresentation && (sourceProjectName || sourceProject?.name) && (
+            <div
+              data-testid="generated-from-banner"
+              className="mb-3 px-3 py-2 rounded-xl border border-brand-200 bg-brand-50/50 text-xs text-brand-900 flex items-center justify-between gap-2"
+            >
+              <span>
+                Gerado a partir de{' '}
+                <strong className="font-semibold">
+                  {sourceProject?.name || sourceProjectName}
+                </strong>
+              </span>
+              {sourceProject && onOpenSourceProject && (
+                <button
+                  type="button"
+                  onClick={() => onOpenSourceProject(sourceProject)}
+                  className="inline-flex items-center gap-1 text-brand-700 hover:underline font-semibold"
+                >
+                  <span>Abrir trabalho de origem</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {blocks.map((block, blockIndex) => {
+            const activeCollab = activeCollaborators.find((c) => c.activeBlockId === block.id);
+            return (
+              <div
+                key={block.id}
+                data-block-id={block.id}
+                onFocus={() => {
+                  setFocusedBlockId(block.id);
+                  onFocusBlock?.(block.id);
                 }}
-                onRemove={removeBlock}
-                onDragStart={(id) => setDraggedBlockId(id)}
-                onDragEnd={() => {
+                onKeyDown={(e) => {
+                  // Alternativa ao arrastar: Ctrl/Cmd + Shift + ↑/↓ move o bloco
+                  if (
+                    (e.ctrlKey || e.metaKey) &&
+                    e.shiftKey &&
+                    (e.key === 'ArrowUp' || e.key === 'ArrowDown')
+                  ) {
+                    e.preventDefault();
+                    moveBlock(block.id, e.key === 'ArrowUp' ? -1 : 1);
+                  }
+                }}
+                onDragOver={(e) => {
+                  if (!draggedBlockId || draggedBlockId === block.id) return;
+                  e.preventDefault();
+                  setDragOverBlockId(block.id);
+                }}
+                onDragLeave={() => {
+                  if (dragOverBlockId === block.id) setDragOverBlockId(null);
+                }}
+                onDrop={(e) => {
+                  if (!draggedBlockId) return;
+                  e.preventDefault();
+                  onChangeBlocks(reorderBlocks(blocks, draggedBlockId, block.id));
                   setDraggedBlockId(null);
                   setDragOverBlockId(null);
                 }}
-              />
+                className={`group relative rounded-lg transition-all hover:bg-slate-50/80 dark:hover:bg-slate-900/50 ${isCompact
+                  ? 'flex flex-col px-1 py-1.5'
+                  : 'flex items-start gap-2.5 -ml-24 pl-24 pr-3 py-1.5'
+                  } ${draggedBlockId === block.id ? 'opacity-40' : ''} ${dragOverBlockId === block.id
+                    ? 'border-t-2 border-brand-500 bg-brand-50/30'
+                    : ''
+                  } ${activeCollab ? 'ring-1 ring-brand-400/80 bg-brand-50/15' : ''}`}
+              >
+                {/* Badge Flutuante do Colaborador Ativo no Bloco */}
+                {activeCollab && (
+                  <div
+                    className="absolute -top-2.5 right-3 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-brand-100 text-brand-800 border border-brand-300 shadow-xs animate-in fade-in zoom-in-95 duration-150"
+                    title={`${activeCollab.user.name} (${activeCollab.user.email}) está editando este bloco`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" />
+                    <span>{activeCollab.user.name.split(' ')[0]} está aqui</span>
+                  </div>
+                )}
 
-              {activeMenuBlockId === block.id && (
-                <SlashCommandMenu
+                <BlockControlsGutter
                   blockId={block.id}
-                  searchQuery={menuSearch}
-                  onChangeSearch={setMenuSearch}
-                  onClose={() => setActiveMenuBlockId(null)}
-                  onSelect={handleSelectSlashOption}
-                  onMoveUp={blockIndex > 0 ? () => moveBlock(block.id, -1) : undefined}
-                  onMoveDown={
-                    blockIndex < blocks.length - 1 ? () => moveBlock(block.id, 1) : undefined
-                  }
+                  isMenuOpen={activeMenuBlockId === block.id}
+                  isCompact={isCompact}
+                  isActive={focusedBlockId === block.id || activeMenuBlockId === block.id}
+                  canDelete={blocks.length > 1}
+                  canMoveUp={blockIndex > 0}
+                  canMoveDown={blockIndex < blocks.length - 1}
+                  onMoveUp={(id) => moveBlock(id, -1)}
+                  onMoveDown={(id) => moveBlock(id, 1)}
+                  onAddBelow={(id) => addBlock(id)}
+                  onToggleMenu={(id) => {
+                    setActiveMenuBlockId(activeMenuBlockId === id ? null : id);
+                    setMenuSearch('');
+                  }}
+                  onRemove={removeBlock}
+                  onDragStart={(id) => setDraggedBlockId(id)}
+                  onDragEnd={() => {
+                    setDraggedBlockId(null);
+                    setDragOverBlockId(null);
+                  }}
                 />
-              )}
 
-              {/* Conteúdo do bloco */}
-              <div className="flex-1 min-w-0 w-full">{renderBlockContent(block)}</div>
-            </div>
-          );
-        })}
+                {activeMenuBlockId === block.id && (
+                  <SlashCommandMenu
+                    blockId={block.id}
+                    searchQuery={menuSearch}
+                    templateType={templateType}
+                    onChangeSearch={setMenuSearch}
+                    onClose={() => setActiveMenuBlockId(null)}
+                    onSelect={handleSelectSlashOption}
+                    onMoveUp={blockIndex > 0 ? () => moveBlock(block.id, -1) : undefined}
+                    onMoveDown={
+                      blockIndex < blocks.length - 1 ? () => moveBlock(block.id, 1) : undefined
+                    }
+                  />
+                )}
 
-        {/* Botão para adicionar bloco no final */}
-        <button
-          type="button"
-          onClick={() => addBlock(blocks[blocks.length - 1]?.id ?? '', 'paragraph')}
-          className="mt-4 flex items-center gap-1.5 text-xs text-slate-500 hover:text-brand-600 py-2 px-3 rounded-md hover:bg-slate-50 transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Adicionar parágrafo</span>
-        </button>
+                {/* Conteúdo do bloco */}
+                <div className="flex-1 min-w-0 w-full">{renderBlockContent(block)}</div>
+              </div>
+            );
+          })}
+
+          {/* Botão para adicionar bloco no final */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                addBlock(blocks[blocks.length - 1]?.id ?? '', isPresentation ? 'bullet' : 'paragraph')
+              }
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-brand-600 py-2 px-3 rounded-md hover:bg-slate-50 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>{isPresentation ? 'Adicionar tópico ao slide' : 'Adicionar parágrafo'}</span>
+            </button>
+
+            {isPresentation && (
+              <button
+                type="button"
+                onClick={addNewSlide}
+                className="flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-800 py-2 px-3 rounded-md bg-brand-50 hover:bg-brand-100 transition-colors"
+              >
+                <Presentation className="w-3.5 h-3.5" />
+                <span>Adicionar Slide</span>
+              </button>
+            )}
+          </div>
+        </div>
       </div>
-      </div>
+
+      <SourceFigurePickerModal
+        isOpen={isSourceFigurePickerOpen}
+        onClose={() => setIsSourceFigurePickerOpen(false)}
+        sourceProject={sourceProject ?? null}
+        sourceProjectName={sourceProjectName}
+        onInsertVisualBlock={handleInsertVisualFromSource}
+      />
     </section>
   );
 };

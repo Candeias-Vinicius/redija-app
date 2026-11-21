@@ -55,6 +55,12 @@ export const PROJECT_TEMPLATES: ProjectTemplateInfo[] = [
     badge: 'A0 / BANNER',
   },
   {
+    type: 'presentation',
+    label: 'Apresentação de Defesa (Slides 16:9 / 4:3)',
+    description: 'Apresentação de slides para banca de TCC, mestrado ou congresso, onde cada seção vira um slide diagramado automaticamente.',
+    badge: 'SLIDES',
+  },
+  {
     type: 'universe_custom',
     label: 'Typst Universe (Template Comunitário)',
     description: 'Conecte qualquer modelo da loja oficial do Typst Universe colando o identificador do pacote (ex: @preview/charged-ieee:0.1.4).',
@@ -568,6 +574,79 @@ export function createProjectFromTemplate(
           year: '2024',
         },
       ],
+    };
+  }
+
+  if (templateType === 'presentation') {
+    return {
+      id,
+      name: customName || 'Apresentação de Defesa',
+      templateType: 'presentation',
+      templateConfig: {
+        ...DEFAULT_TEMPLATE_CONFIG,
+        preset: 'presentation',
+        fontFamily: 'sans',
+        fontSizePt: 18,
+        presentationTheme: 'institucional',
+        presentationAspectRatio: '16:9',
+        citationFormat: 'abnt_titlecase',
+        referenceAlignment: 'left',
+        includeCoverPage: true,
+        includeTitlePage: false,
+        includeToc: false,
+      },
+      updatedAt: now,
+      metadata: {
+        title: 'Apresentação de Defesa de Trabalho de Conclusão de Curso',
+        subtitle: 'Síntese dos objetivos, metodologia, resultados e contribuições',
+        author: 'Nome do Estudante',
+        advisor: 'Prof. Dr. Nome do Orientador',
+        nature: 'Apresentação para banca examinadora.',
+        institution: 'Universidade Federal de Tecnologia',
+        course: 'Bacharelado em Ciência da Computação',
+        location: 'São Paulo',
+        year: currentYear,
+        abstract: '',
+        keywords: ['Defesa', 'TCC', 'Apresentação'],
+      },
+      blocks: [
+        { id: crypto.randomUUID(), type: 'h1', content: 'Introdução e Contextualização' },
+        {
+          id: crypto.randomUUID(),
+          type: 'bullet',
+          content: 'Contextualização do problema investigado e motivação da pesquisa.',
+        },
+        {
+          id: crypto.randomUUID(),
+          type: 'bullet',
+          content: 'Objetivo geral e contribuição proposta para a área.',
+        },
+        { id: crypto.randomUUID(), type: 'h1', content: 'Metodologia' },
+        {
+          id: crypto.randomUUID(),
+          type: 'bullet',
+          content: 'Etapas do desenvolvimento, ferramentas utilizadas e protocolo de avaliação.',
+        },
+        { id: crypto.randomUUID(), type: 'h1', content: 'Resultados e Discussão' },
+        {
+          id: crypto.randomUUID(),
+          type: 'bullet',
+          content: 'Principais indicadores obtidos nos experimentos e comparação com a literatura.',
+        },
+        { id: crypto.randomUUID(), type: 'h1', content: 'Considerações Finais' },
+        {
+          id: crypto.randomUUID(),
+          type: 'bullet',
+          content: 'Síntese das entregas concluídas e sugestões para trabalhos futuros.',
+        },
+        { id: crypto.randomUUID(), type: 'h1', content: 'Agradecimentos' },
+        {
+          id: crypto.randomUUID(),
+          type: 'paragraph',
+          content: 'Obrigado à banca examinadora, ao orientador e à instituição pelo apoio.',
+        },
+      ],
+      references: [],
     };
   }
 

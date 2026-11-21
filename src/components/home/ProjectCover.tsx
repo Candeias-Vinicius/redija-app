@@ -1,7 +1,7 @@
 import React from 'react';
 import type { DocumentProject, ProjectTemplateType } from '@/types/document';
 
-type CoverFamily = 'abnt' | 'artigo' | 'duas_colunas' | 'poster' | 'branco';
+type CoverFamily = 'abnt' | 'artigo' | 'duas_colunas' | 'poster' | 'presentation' | 'branco';
 
 function coverFamily(type?: ProjectTemplateType): CoverFamily {
   switch (type) {
@@ -13,6 +13,8 @@ function coverFamily(type?: ProjectTemplateType): CoverFamily {
       return 'duas_colunas';
     case 'poster':
       return 'poster';
+    case 'presentation':
+      return 'presentation';
     case 'em_branco':
       return 'branco';
     default:
@@ -134,6 +136,24 @@ export const ProjectCover: React.FC<ProjectCoverProps> = ({ project, className =
               </span>
             ))}
           </span>
+        </div>
+      )}
+
+      {family === 'presentation' && (
+        <div className="absolute inset-0 flex flex-col justify-center gap-[5cqw] bg-[#f8fafc] p-[7cqw] font-sans">
+          {/* Slide 16:9 de capa */}
+          <div className="aspect-[16/9] w-full rounded-[3px] bg-brand-800 text-white p-[6cqw] flex flex-col justify-between shadow-xs">
+            <p className="text-[3cqw] uppercase tracking-wider opacity-80 line-clamp-1">
+              {institution || 'Defesa Acadêmica'}
+            </p>
+            <p className="text-[4.6cqw] font-bold leading-tight line-clamp-2">{title}</p>
+            <p className="text-[2.8cqw] opacity-85 line-clamp-1">{author || 'Autoria'}</p>
+          </div>
+          {/* Mini-slide de conteúdo */}
+          <div className="aspect-[16/9] w-full rounded-[3px] bg-white ring-1 ring-black/10 p-[5cqw] flex flex-col gap-[2.5cqw]">
+            <Line width="55%" strong />
+            <Paragraph lines={3} />
+          </div>
         </div>
       )}
 

@@ -97,8 +97,12 @@ export type NormPresetId =
   | 'sbc'
   | 'ieee'
   | 'poster'
+  | 'presentation'
   | 'universe_custom'
   | 'custom';
+
+export type PresentationTheme = 'sobrio' | 'institucional' | 'dark';
+export type PresentationAspectRatio = '16:9' | '4:3';
 
 export type FontFamilyId =
   | 'serif'
@@ -187,6 +191,10 @@ export interface TemplateConfig {
   posterColumns?: 2 | 3;
   posterTheme?: 'emerald' | 'blue' | 'classic_dark' | 'clean';
 
+  // Configurações Específicas de Apresentação de Defesa (Slides — RDJ-09)
+  presentationTheme?: PresentationTheme;
+  presentationAspectRatio?: PresentationAspectRatio;
+
   // Configurações de Conexão com o Typst Universe
   universePackage?: string;
   universeEntrypoint?: string;
@@ -246,7 +254,15 @@ export type ProjectTemplateType =
   | 'sbc'
   | 'ieee'
   | 'poster'
+  | 'presentation'
   | 'universe_custom';
+
+export interface SourceProjectOrigin {
+  id: string;
+  name: string;
+  sourceProjectId?: string;
+  sourceProjectName?: string;
+}
 
 export interface SidebarConfig {
   isCustomized?: boolean;
@@ -277,6 +293,11 @@ export interface DocumentProject {
   deletedAt?: string | null;
   /** Ausente/`null` quando a lixeira local e o Drive estão de acordo. */
   driveTrashSync?: DriveTrashSyncState | null;
+
+  // Vínculo com o trabalho de origem (ex.: Slides de defesa ou Pôster gerados em 1 clique — RDJ-09)
+  sourceProjectId?: string;
+  sourceProjectName?: string;
+  generatedFrom?: SourceProjectOrigin;
 
   // Gestão de Usuário e Google Drive Sync
   ownerEmail?: string;

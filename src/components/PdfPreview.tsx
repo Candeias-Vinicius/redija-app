@@ -7,6 +7,7 @@ import {
 } from '@/core/transpiler/typstGenerator';
 import { getTemplateCapabilities } from '@/core/templates/templateCapabilities';
 import { resolveProjectUniverseAssets } from '@/core/universe/universeResolver';
+import { ensurePresentationSlidesPackageReady } from '@/core/typst/projectCompiler';
 import { exportToBibtex, getOrderedReferences } from '@/core/transpiler/abntLinter';
 import {
   compileToVector,
@@ -163,6 +164,9 @@ export const PdfPreview: React.FC<PdfPreviewProps> = ({
       try {
         let extraFiles: Record<string, string> | undefined = undefined;
         let packageArchives: Record<string, Uint8Array> | undefined = undefined;
+        if (capabilities.effectiveType === 'presentation') {
+          await ensurePresentationSlidesPackageReady();
+        }
         if (capabilities.effectiveType === 'universe_custom') {
           const pkgAssets = await resolveProjectUniverseAssets(
             project.templateConfig?.universePackage || '@preview/charged-ieee:0.1.4',

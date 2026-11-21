@@ -284,7 +284,13 @@ export function resolveDraftTemplateType(
   baseType?: ProjectTemplateType,
 ): ProjectTemplateType {
   const p = cfg.preset;
-  if (p === 'sbc' || p === 'ieee' || p === 'poster' || p === 'universe_custom') {
+  if (
+    p === 'sbc' ||
+    p === 'ieee' ||
+    p === 'poster' ||
+    p === 'presentation' ||
+    p === 'universe_custom'
+  ) {
     return p;
   }
   if (p === 'article_1col' || p === 'article_2col') {
@@ -312,6 +318,7 @@ export function resolveActiveLayoutPresetId(
     templateType === 'sbc' ||
     templateType === 'ieee' ||
     templateType === 'poster' ||
+    templateType === 'presentation' ||
     templateType === 'universe_custom'
   ) {
     return templateType;

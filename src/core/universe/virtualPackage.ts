@@ -165,6 +165,14 @@ entrypoint = "lib.typ"
 #let simple-theme(aspect-ratio: "16-9", ..rest, body) = {
   set page(paper: "presentation-" + aspect-ratio, margin: 2em)
   set text(size: 16pt)
+  let first = state("touying-first-slide", true)
+  show heading.where(level: 1): it => {
+    context {
+      if not first.get() { pagebreak(weak: true) }
+    }
+    first.update(false)
+    block(below: 0.8em, text(size: 1.35em, weight: "bold", it.body))
+  }
   body
 }
 `;

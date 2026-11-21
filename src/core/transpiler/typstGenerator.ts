@@ -43,6 +43,7 @@ import abntTemplate from '@/core/templates/abnt.typ?raw';
 import sbcTemplate from '@/core/templates/sbc.typ?raw';
 import ieeeTemplate from '@/core/templates/ieee.typ?raw';
 import posterTemplate from '@/core/templates/poster.typ?raw';
+import presentationTemplate from '@/core/templates/presentation.typ?raw';
 
 export {
   buildBibKeyMap,
@@ -153,6 +154,8 @@ export function getTemplateFileName(templateType?: ProjectTemplateType): string 
       return 'ieee.typ';
     case 'poster':
       return 'poster.typ';
+    case 'presentation':
+      return 'presentation.typ';
     default:
       return 'abnt.typ';
   }
@@ -166,6 +169,8 @@ export function getTemplateRawContent(templateType?: ProjectTemplateType): strin
       return ieeeTemplate;
     case 'poster':
       return posterTemplate;
+    case 'presentation':
+      return presentationTemplate;
     default:
       return abntTemplate;
   }
@@ -203,6 +208,7 @@ export function generateTypstFiles(
     'sbc.typ': sbcTemplate,
     'ieee.typ': ieeeTemplate,
     'poster.typ': posterTemplate,
+    'presentation.typ': presentationTemplate,
     ...(useTypstCsl ? { 'refs.bib': exportToBibtex(orderedRefs) } : {}),
     ...(extraFiles || {}),
     [MAIN_FILE]: generateMain(project, true),
@@ -373,6 +379,7 @@ export function generateMain(project: DocumentProject, includeBinaryImages = fal
   // Elementos Pós-Textuais Opcionais (NBR 14724): Glossário, Apêndices e Anexos
   const canRenderPostTextuals =
     effectiveType !== 'poster' &&
+    effectiveType !== 'presentation' &&
     effectiveType !== 'ieee' &&
     effectiveType !== 'sbc';
 
@@ -536,6 +543,8 @@ function generateShowRule(
       return generateIeeeShowRule(project, cfg, includeBinaryImages);
     case 'poster':
       return generatePosterShowRule(project, cfg, includeBinaryImages);
+    case 'presentation':
+      return generatePresentationShowRule(project, cfg, includeBinaryImages);
     case 'universe_custom':
       return generateUniverseShowRule(project, cfg, includeBinaryImages);
     default:
@@ -691,6 +700,59 @@ function generatePosterShowRule(
   }
 
   return `#show: academic-poster.with(\n  ${args.join(',\n  ')},\n)`;
+}
+
+function generatePresentationShowRule(
+  project: DocumentProject,
+  cfg: TemplateConfig,
+  includeBinaryImages = false,
+): string {
+  const m = project.metadata;
+  const args: string[] = [
+    `titulo: ${typstString(m.title)}`,
+    `autor: ${typstString(m.author)}`,
+    `instituicao: ${typstString(m.institution)}`,
+    `curso: ${typstString(m.course)}`,
+    `local: ${typstString(m.location)}`,
+    `ano: ${typstString(m.year)}`,
+  ];
+  if (m.subtitle?.trim()) args.push(`subtitulo: ${typstString(m.subtitle)}`);
+  if (m.advisor?.trim()) args.push(`orientador: ${typstString(m.advisor)}`);
+  if (m.coadvisor?.trim()) args.push(`coorientador: ${typstString(m.coadvisor)}`);
+
+  if (includeBinaryImages && m.institutionLogoDataUrl) {
+    const parsedLogo = parseDataUrl(m.institutionLogoDataUrl);
+    if (parsedLogo) {
+      const logoPath = `/assets/logo_instituicao.${parsedLogo.ext}`;
+      args.push(`logo: image(${typstString(logoPath)}, height: 1.5cm)`);
+    }
+  }
+
+  const safeTheme =
+    cfg.presentationTheme === 'sobrio' ||
+    cfg.presentationTheme === 'institucional' ||
+    cfg.presentationTheme === 'dark'
+      ? cfg.presentationTheme
+      : 'institucional';
+  const safeRatio = cfg.presentationAspectRatio === '4:3' ? '4-3' : '16-9';
+
+  args.push(`tema: ${typstString(safeTheme)}`);
+  args.push(`proporcao: ${typstString(safeRatio)}`);
+  if (cfg.fontFamily) args.push(`fonte: ${buildTypstFontValue(cfg, 'sans')}`);
+  if (cfg.fontSizePt >= 12 && cfg.fontSizePt !== 18) {
+    args.push(`tamanho-fonte: ${clampFontSizePt(cfg.fontSizePt, 18)}pt`);
+  }
+  if (cfg.documentLanguage && cfg.documentLanguage !== 'pt') {
+    args.push(`idioma: ${typstString(cfg.documentLanguage)}`);
+  }
+  if (cfg.headingNumbering && cfg.headingNumbering !== 'none') {
+    args.push(`numeracao-secoes: ${typstString(cfg.headingNumbering)}`);
+  }
+  if (cfg.includeCoverPage === false) {
+    args.push('incluir-capa: false');
+  }
+
+  return `#show: defense-presentation.with(\n  ${args.join(',\n  ')},\n)`;
 }
 
 function buildNativeTypstFontTuple(

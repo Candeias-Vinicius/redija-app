@@ -80,6 +80,7 @@ export interface CustomizerScope {
 
   // Visibilidade contextual por Padrão de Layout (exibe apenas o que faz sentido no layout ativo)
   showPosterSettings: boolean;
+  showPresentationSettings?: boolean;
   showPreTextualStructureToggles: boolean;
   showTextColumnsControl: boolean;
   showStandardPageSettings: boolean;
@@ -183,6 +184,15 @@ const TEMPLATE_PROFILES: Record<ProjectTemplateType, TemplateProfile> = {
     headerSubtitle: 'Cabeçalho do banner, formato A0/A1 e referências.',
     identificacaoTitle: 'Cabeçalho do Pôster',
   },
+  presentation: {
+    isAbntFamily: false,
+    supportsSidebarFieldPdfSync: false,
+    defaultBadge: 'Slides de Defesa',
+    modifiedBadge: 'Slides Modificado',
+    headerTitle: 'Apresentação de Defesa',
+    headerSubtitle: 'Capa da apresentação, tema visual, proporção e referências.',
+    identificacaoTitle: 'Capa da Apresentação',
+  },
   universe_custom: {
     isAbntFamily: false,
     supportsSidebarFieldPdfSync: false,
@@ -212,6 +222,7 @@ export function resolveEffectiveTemplateType(project: DocumentProject): ProjectT
     preset === 'sbc' ||
     preset === 'ieee' ||
     preset === 'poster' ||
+    preset === 'presentation' ||
     preset === 'universe_custom'
   ) {
     return preset;
@@ -344,6 +355,7 @@ const BOILERPLATE_DEFAULTS: Partial<Record<keyof DocumentMetadata, ReadonlySet<s
   nature: new Set([
     'Artigo científico submetido ao Curso de Graduação como requisito avaliativo.',
     'Pôster acadêmico apresentado no Simpósio de Pesquisa e Iniciação Científica.',
+    'Apresentação para banca examinadora.',
   ]),
   institution: new Set(['Universidade / Instituição', 'Nome da Instituição de Ensino']),
   location: new Set(['São Paulo', 'Cidade - UF']),
@@ -416,11 +428,14 @@ export function getPreservedHiddenFields(
     const isPosterDefault =
       capabilities.effectiveType === 'poster' &&
       kws.join(',') === 'Pôster,Iniciação Científica,Inovação,Pesquisa';
+    const isPresentationDefault =
+      capabilities.effectiveType === 'presentation' &&
+      kws.join(',') === 'Defesa,TCC,Apresentação';
     const isUniverseDefault =
       capabilities.effectiveType === 'universe_custom' &&
       kws.join(',') === 'Typst Universe,Template Comunitário';
 
-    if (kws.length > 0 && !isPosterDefault && !isUniverseDefault) {
+    if (kws.length > 0 && !isPosterDefault && !isPresentationDefault && !isUniverseDefault) {
       hidden.push({ id: 'keywords', label: 'Palavras-chave', preview: kws.join(', '), kind: 'list' });
     }
   }
@@ -447,9 +462,10 @@ export function getCustomizerScope(
   isManuallyUnlocked = false,
 ): CustomizerScope {
   const isPoster = effectiveType === 'poster';
+  const isPresentation = effectiveType === 'presentation';
   const isCompactArticle =
     effectiveType === 'artigo' || effectiveType === 'sbc' || effectiveType === 'ieee';
-  const hasPreTextualStructure = !isPoster && !isCompactArticle;
+  const hasPreTextualStructure = !isPoster && !isPresentation && !isCompactArticle;
 
   const allCitations: CitationFormat[] = [
     'abnt_titlecase',
@@ -472,15 +488,16 @@ export function getCustomizerScope(
     isFullyUnrestricted: true,
     isManuallyUnlocked,
     showPosterSettings: isPoster,
+    showPresentationSettings: isPresentation,
     showPreTextualStructureToggles: hasPreTextualStructure,
-    showTextColumnsControl: !isPoster,
-    showStandardPageSettings: !isPoster,
+    showTextColumnsControl: !isPoster && !isPresentation,
+    showStandardPageSettings: !isPoster && !isPresentation,
     showPreTextualPaginationToggles: hasPreTextualStructure,
-    allowColumnChange: !isPoster,
+    allowColumnChange: !isPoster && !isPresentation,
     allowMarginChange: true,
-    allowPaperSizeChange: !isPoster,
-    allowOrientationChange: !isPoster,
-    allowCoverToggle: hasPreTextualStructure,
+    allowPaperSizeChange: !isPoster && !isPresentation,
+    allowOrientationChange: !isPoster && !isPresentation,
+    allowCoverToggle: hasPreTextualStructure || isPresentation,
     allowTitlePageToggle: hasPreTextualStructure,
     allowTocToggle: hasPreTextualStructure,
     allowH1PageBreakToggle: hasPreTextualStructure,
@@ -488,6 +505,8 @@ export function getCustomizerScope(
     allowedPresetIds:
       effectiveType === 'universe_custom'
         ? [...allLayoutPresets, 'universe_custom']
-        : allLayoutPresets,
+        : isPresentation
+          ? [...allLayoutPresets, 'presentation']
+          : allLayoutPresets,
   };
 }

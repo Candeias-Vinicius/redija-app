@@ -411,6 +411,14 @@ export function parseBackup(jsonString: string): DocumentProject {
       annexes: candidate.metadata.annexes,
     },
     templateConfig: candidate.templateConfig,
+    sidebarConfig: candidate.sidebarConfig,
+    sourceProjectId: candidate.sourceProjectId ?? candidate.generatedFrom?.id,
+    sourceProjectName: candidate.sourceProjectName ?? candidate.generatedFrom?.name,
+    generatedFrom:
+      candidate.generatedFrom ??
+      (candidate.sourceProjectId && candidate.sourceProjectName
+        ? { id: candidate.sourceProjectId, name: candidate.sourceProjectName }
+        : undefined),
     blocks: candidate.blocks,
     references: candidate.references,
     updatedAt: new Date().toISOString(),

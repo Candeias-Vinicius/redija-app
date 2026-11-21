@@ -19,7 +19,14 @@ import { SidebarPreTextualsSection } from './sidebar/SidebarPreTextualsSection';
 import { SidebarAbstractSection } from './sidebar/SidebarAbstractSection';
 import { SidebarReferencesSection } from './sidebar/SidebarReferencesSection';
 import { SidebarPostTextualsSection } from './sidebar/SidebarPostTextualsSection';
-import { PanelLeftClose, Sliders, SlidersHorizontal } from 'lucide-react';
+import { canGenerateDefenseFromProject } from '@/core/transpiler/slideGenerator';
+import {
+  LayoutTemplate,
+  PanelLeftClose,
+  Presentation,
+  Sliders,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { PaneWindowControls } from '@/components/ui/PaneWindowControls';
 
 interface SidebarProps {
@@ -33,6 +40,8 @@ interface SidebarProps {
   onOpenReferenceModal: () => void;
   onEditReference?: (ref: AcademicReference) => void;
   onOpenTemplateCustomizer?: () => void;
+  onGenerateDefenseSlides?: () => void;
+  onGeneratePosterFromWork?: () => void;
   onOpenAbntGuide?: () => void;
   onOpenGuide?: (mode: ContextualGuideMode) => void;
   onRemoveReference: (id: string) => void;
@@ -56,6 +65,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenReferenceModal,
   onEditReference,
   onOpenTemplateCustomizer,
+  onGenerateDefenseSlides,
+  onGeneratePosterFromWork,
   onOpenAbntGuide,
   onOpenGuide,
   onRemoveReference,
@@ -83,6 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     () => runDocumentLinter(project, capabilities),
     [project, capabilities],
   );
+  const canGenerateDefense = useMemo(() => canGenerateDefenseFromProject(project), [project]);
 
   return (
     <>
@@ -134,6 +146,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   >
                     <SlidersHorizontal className="w-3 h-3 text-brand-700" />
                     <span>Personalizar Campos</span>
+                  </button>
+                )}
+              </div>
+            )}
+            {canGenerateDefense && (onGenerateDefenseSlides || onGeneratePosterFromWork) && (
+              <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+                {onGenerateDefenseSlides && (
+                  <button
+                    type="button"
+                    onClick={onGenerateDefenseSlides}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-brand-200 bg-brand-50 hover:bg-brand-100 text-xs font-semibold text-brand-800 transition-colors"
+                    title="Gerar apresentação de slides de defesa em 1 clique a partir deste trabalho"
+                  >
+                    <Presentation className="w-3 h-3 text-brand-700" />
+                    <span>Gerar slides de defesa</span>
+                  </button>
+                )}
+                {onGeneratePosterFromWork && (
+                  <button
+                    type="button"
+                    onClick={onGeneratePosterFromWork}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-brand-50 hover:border-brand-200 text-xs font-medium text-slate-700 hover:text-brand-800 transition-colors"
+                    title="Gerar pôster científico A0 em 1 clique a partir deste trabalho"
+                  >
+                    <LayoutTemplate className="w-3 h-3 text-brand-700" />
+                    <span>Gerar pôster</span>
                   </button>
                 )}
               </div>

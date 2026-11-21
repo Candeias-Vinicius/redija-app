@@ -12,6 +12,8 @@ import {
   DEFAULT_TEMPLATE_CONFIG,
   ProjectTemplateType,
   NormPresetId,
+  PresentationAspectRatio,
+  PresentationTheme,
   SidebarConfig,
   FontFamilyId,
   CitationFormat,
@@ -67,6 +69,7 @@ export function normalizeProject(raw: unknown): DocumentProject {
     'sbc',
     'ieee',
     'poster',
+    'presentation',
     'universe_custom',
   ];
   const templateType: ProjectTemplateType =
@@ -153,11 +156,13 @@ export function normalizeProject(raw: unknown): DocumentProject {
   const validPresets: NormPresetId[] = [
     'abnt_classic',
     'abnt_2023',
+    'article_1col',
     'article_2col',
     'apa_7',
     'sbc',
     'ieee',
     'poster',
+    'presentation',
     'universe_custom',
     'custom',
   ];
@@ -385,6 +390,17 @@ export function normalizeProject(raw: unknown): DocumentProject {
       rawConfig.posterTheme === 'emerald'
         ? rawConfig.posterTheme
         : undefined,
+    presentationTheme:
+      rawConfig.presentationTheme === 'sobrio' ||
+      rawConfig.presentationTheme === 'institucional' ||
+      rawConfig.presentationTheme === 'dark'
+        ? (rawConfig.presentationTheme as PresentationTheme)
+        : undefined,
+    presentationAspectRatio:
+      rawConfig.presentationAspectRatio === '16:9' ||
+      rawConfig.presentationAspectRatio === '4:3'
+        ? (rawConfig.presentationAspectRatio as PresentationAspectRatio)
+        : undefined,
     universePackage:
       typeof rawConfig.universePackage === 'string' && SAFE_PKG_REGEX.test(rawConfig.universePackage.trim())
         ? rawConfig.universePackage.trim()
@@ -574,6 +590,37 @@ export function normalizeProject(raw: unknown): DocumentProject {
       ?{ driveTrashSync: data.driveTrashSync }
       : {}),
     ownerEmail: typeof data.ownerEmail === 'string' ? data.ownerEmail : undefined,
+    sourceProjectId:
+      typeof data.sourceProjectId === 'string' && data.sourceProjectId.trim()
+        ? data.sourceProjectId.trim()
+        : data.generatedFrom &&
+            typeof data.generatedFrom === 'object' &&
+            typeof (data.generatedFrom as Record<string, unknown>).id === 'string'
+          ? ((data.generatedFrom as Record<string, unknown>).id as string).trim()
+          : undefined,
+    sourceProjectName:
+      typeof data.sourceProjectName === 'string' && data.sourceProjectName.trim()
+        ? data.sourceProjectName.trim()
+        : data.generatedFrom &&
+            typeof data.generatedFrom === 'object' &&
+            typeof (data.generatedFrom as Record<string, unknown>).name === 'string'
+          ? ((data.generatedFrom as Record<string, unknown>).name as string).trim()
+          : undefined,
+    generatedFrom:
+      data.generatedFrom &&
+      typeof data.generatedFrom === 'object' &&
+      typeof (data.generatedFrom as Record<string, unknown>).id === 'string' &&
+      typeof (data.generatedFrom as Record<string, unknown>).name === 'string'
+        ? {
+            id: ((data.generatedFrom as Record<string, unknown>).id as string).trim(),
+            name: ((data.generatedFrom as Record<string, unknown>).name as string).trim(),
+          }
+        : typeof data.sourceProjectId === 'string' &&
+            typeof data.sourceProjectName === 'string' &&
+            data.sourceProjectId.trim() &&
+            data.sourceProjectName.trim()
+          ? { id: data.sourceProjectId.trim(), name: data.sourceProjectName.trim() }
+          : undefined,
     driveFileId: typeof data.driveFileId === 'string' ? data.driveFileId : undefined,
     driveSyncedAt: typeof data.driveSyncedAt === 'string' ? data.driveSyncedAt : undefined,
     isSharedWithMe: Boolean(data.isSharedWithMe),
