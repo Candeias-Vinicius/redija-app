@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Palette, Trash2, Upload } from 'lucide-react';
+import { BookOpen, Palette, Presentation, Trash2, Upload } from 'lucide-react';
 import { DocumentMetadata, TemplateConfig } from '@/types/document';
 import { CustomizerScope } from '@/core/templates/templateCapabilities';
 
@@ -22,9 +22,59 @@ export const CustomizerStructureTab: React.FC<CustomizerStructureTabProps> = ({
 }) => {
   const showPreTextualStructureToggles = scope?.showPreTextualStructureToggles !== false;
   const showPosterSettings = Boolean(scope?.showPosterSettings);
+  const showPresentationSettings = Boolean(scope?.showPresentationSettings);
 
   return (
     <div className="space-y-5">
+      {/* Opções de Apresentação de Slides (Exibido quando o layout é Apresentação) */}
+      {showPresentationSettings && (
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+            <Presentation className="w-3.5 h-3.5 text-brand-700" />
+            Tema Visual e Proporção dos Slides (Defesa)
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Tema Visual da Apresentação
+              </label>
+              <select
+                value={config.presentationTheme || 'institucional'}
+                onChange={(e) =>
+                  onUpdateField(
+                    'presentationTheme',
+                    e.target.value as TemplateConfig['presentationTheme'],
+                  )
+                }
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-brand-600"
+              >
+                <option value="institucional">Institucional (Verde Esmeralda Acadêmico)</option>
+                <option value="sobrio">Sóbrio (Azul Marinho Clássico)</option>
+                <option value="dark">Escuro (Dark Mode para Projetores)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Proporção dos Slides
+              </label>
+              <select
+                value={config.presentationAspectRatio || '16:9'}
+                onChange={(e) =>
+                  onUpdateField(
+                    'presentationAspectRatio',
+                    e.target.value as TemplateConfig['presentationAspectRatio'],
+                  )
+                }
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-brand-600"
+              >
+                <option value="16:9">16:9 (Widescreen — Padrão Moderno)</option>
+                <option value="4:3">4:3 (Projetor Tradicional)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Opções de Pôster (Exibido quando o layout é Pôster) */}
       {showPosterSettings && (
         <div>
@@ -113,7 +163,11 @@ export const CustomizerStructureTab: React.FC<CustomizerStructureTabProps> = ({
       )}
 
       {/* Estrutura & Brasão */}
-      <div className={showPosterSettings ? 'border-t border-slate-200 pt-4' : ''}>
+      <div
+        className={
+          showPosterSettings || showPresentationSettings ? 'border-t border-slate-200 pt-4' : ''
+        }
+      >
         <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
           <BookOpen className="w-3.5 h-3.5 text-brand-700" />
           {showPreTextualStructureToggles

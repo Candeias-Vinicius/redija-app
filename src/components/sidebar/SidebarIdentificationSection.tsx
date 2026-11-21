@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building, ChevronDown, ChevronRight, Globe, Palette } from 'lucide-react';
+import { Building, ChevronDown, ChevronRight, Globe, Palette, Presentation } from 'lucide-react';
 import { DocumentMetadata, TemplateConfig } from '@/types/document';
 import { IdentificacaoFieldId, TemplateCapabilities } from '@/core/templates/templateCapabilities';
 
@@ -60,6 +60,29 @@ export const SidebarIdentificationSection: React.FC<SidebarIdentificationSection
                 className="w-full py-1 px-2 rounded bg-white border border-brand-200 hover:bg-brand-50 text-xs font-medium text-brand-700 transition-colors"
               >
                 Configurar Dimensões, Tema e Colunas
+              </button>
+            </div>
+          )}
+
+          {capabilities.effectiveType === 'presentation' && onOpenTemplateCustomizer && (
+            <div className="p-2.5 rounded-lg bg-brand-50/60 border border-brand-200 space-y-1.5">
+              <div className="text-xs font-medium text-brand-900 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Presentation className="w-3.5 h-3.5 text-brand-700" />
+                  Slides {templateConfig?.presentationAspectRatio || '16:9'} • Tema{' '}
+                  {templateConfig?.presentationTheme === 'sobrio'
+                    ? 'Sóbrio'
+                    : templateConfig?.presentationTheme === 'dark'
+                      ? 'Escuro'
+                      : 'Institucional'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenTemplateCustomizer}
+                className="w-full py-1 px-2 rounded bg-white border border-brand-200 hover:bg-brand-50 text-xs font-medium text-brand-700 transition-colors"
+              >
+                Configurar Tema Visual, Proporção e Brasão
               </button>
             </div>
           )}

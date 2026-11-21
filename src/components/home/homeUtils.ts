@@ -132,6 +132,7 @@ export function quickTemplates(projects: DocumentProject[], count = 3): ProjectT
   const defaults: ProjectTemplateType[] = [
     'tcc',
     'artigo',
+    'presentation',
     'relatorio',
     'projeto_pesquisa',
     'sbc',

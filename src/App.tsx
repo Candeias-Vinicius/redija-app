@@ -32,9 +32,12 @@ import {
   AcademicReference,
   DEFAULT_TEMPLATE_CONFIG,
   DocumentProject,
+  PresentationAspectRatio,
+  PresentationTheme,
   ProjectTemplateType,
 } from '@/types/document';
 import { type ContextualGuideMode } from '@/core/templates/templateCapabilities';
+import { canGenerateDefenseFromProject } from '@/core/transpiler/slideGenerator';
 import { useAppRoute } from '@/hooks/useAppRoute';
 import { MIN_PREVIEW_WIDTH, MIN_SIDEBAR_WIDTH, usePaneLayout } from '@/hooks/usePaneLayout';
 import { useUndoRedoHistory } from '@/hooks/useUndoRedoHistory';
@@ -144,7 +147,7 @@ export const App: React.FC = () => {
   });
 
   // Sem trabalhos, a própria Home mostra o estado vazio (não há modal para abrir)
-  const handleEmptyWorkspace = useCallback(() => {}, []);
+  const handleEmptyWorkspace = useCallback(() => { }, []);
   const handleProjectImported = useCallback(
     (imported: DocumentProject) => {
       openProjectRoute(imported.id);
@@ -172,6 +175,8 @@ export const App: React.FC = () => {
     handleCreateProject,
     handleRenameProject,
     handleDuplicateProject,
+    handleGenerateDefenseSlides,
+    handleGeneratePosterFromWork,
     handleMoveToTrash,
     handleRestoreFromTrash,
     handlePermanentDelete,
@@ -334,6 +339,56 @@ export const App: React.FC = () => {
     [handleDuplicateProject],
   );
 
+  const handleGenerateSlidesAndOpen = useCallback(
+    async (sourceProj: DocumentProject = project) => {
+      const created = await handleGenerateDefenseSlides(sourceProj);
+      openProjectRoute(created.id);
+      toast.success(`Slides de defesa gerados: "${created.name}".`);
+    },
+    [project, handleGenerateDefenseSlides, openProjectRoute],
+  );
+
+  const handleGeneratePosterAndOpen = useCallback(
+    async (sourceProj: DocumentProject = project) => {
+      const created = await handleGeneratePosterFromWork(sourceProj);
+      openProjectRoute(created.id);
+      toast.success(`Pôster A0 gerado: "${created.name}".`);
+    },
+    [project, handleGeneratePosterFromWork, openProjectRoute],
+  );
+
+  const handleChangePresentationSettings = useCallback(
+    (settings: {
+      presentationTheme?: PresentationTheme;
+      presentationAspectRatio?: PresentationAspectRatio;
+    }) => {
+      const nextConfig = {
+        ...(project.templateConfig ?? DEFAULT_TEMPLATE_CONFIG),
+        ...settings,
+      };
+      handleApplyTemplateCustomizer({
+        config: nextConfig,
+        metadata: project.metadata,
+        selectedTemplateType: 'presentation',
+      });
+    },
+    [project.templateConfig, project.metadata, handleApplyTemplateCustomizer],
+  );
+
+  const canGenerateDefense = canGenerateDefenseFromProject(project);
+  const sourceProjectId =
+    project.sourceProjectId ||
+    project.generatedFrom?.id ||
+    project.generatedFrom?.sourceProjectId;
+  const sourceProject = sourceProjectId
+    ? projects.find((p) => p.id === sourceProjectId) ?? null
+    : null;
+  const sourceProjectName =
+    project.sourceProjectName ||
+    project.generatedFrom?.name ||
+    project.generatedFrom?.sourceProjectName ||
+    sourceProject?.name;
+
   const handleMoveToTrashFromHome = useCallback(
     async (target: DocumentProject) => {
       await handleMoveToTrash(target.id);
@@ -399,9 +454,8 @@ export const App: React.FC = () => {
   return (
     <div
       data-theme-compat
-      className={`h-dvh flex flex-col bg-surface-sunken overflow-hidden ${
-        resizingPane ? 'select-none cursor-col-resize' : ''
-      }`}
+      className={`h-dvh flex flex-col bg-surface-sunken overflow-hidden ${resizingPane ? 'select-none cursor-col-resize' : ''
+        }`}
     >
       {/* Alerta de Recomendação de Backup para Usuários sem Login */}
       {showBackupNotice && (
@@ -437,6 +491,9 @@ export const App: React.FC = () => {
         view={isEditorView ? 'editor' : 'home'}
         onGoHome={goHome}
         onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
+        canGenerateDefense={canGenerateDefense}
+        onGenerateDefenseSlides={() => void handleGenerateSlidesAndOpen(project)}
+        onGeneratePosterFromWork={() => void handleGeneratePosterAndOpen(project)}
         onOpenBugReportModal={() => setIsBugReportOpen(true)}
         onOpenBetaNoticeModal={() => setIsBetaNoticeOpen(true)}
         onOpenWelcomeModal={() => {
@@ -490,6 +547,8 @@ export const App: React.FC = () => {
           onOpen={openProject}
           onDownloadPdf={(p) => void handleDownloadFromHome(p)}
           onDuplicate={(p) => void handleDuplicateFromHome(p)}
+          onGenerateDefenseSlides={(p) => void handleGenerateSlidesAndOpen(p)}
+          onGeneratePosterFromWork={(p) => void handleGeneratePosterAndOpen(p)}
           onRename={setRenameTarget}
           onShowStorage={setStorageTarget}
           onMoveToTrash={(p) => void handleMoveToTrashFromHome(p)}
@@ -536,6 +595,12 @@ export const App: React.FC = () => {
                 }}
                 onRemoveReference={handleRemoveReference}
                 onOpenTemplateCustomizer={() => setIsCustomizerOpen(true)}
+                onGenerateDefenseSlides={
+                  canGenerateDefense ? () => void handleGenerateSlidesAndOpen(project) : undefined
+                }
+                onGeneratePosterFromWork={
+                  canGenerateDefense ? () => void handleGeneratePosterAndOpen(project) : undefined
+                }
                 onOpenAbntGuide={() => {
                   setWelcomeInitialTab('abnt');
                   setIsWelcomeModalOpen(true);
@@ -571,11 +636,10 @@ export const App: React.FC = () => {
                 setResizingPane('sidebar');
               }}
               title="Arraste ou use as setas para redimensionar a barra lateral"
-              className={`relative w-1.5 cursor-col-resize shrink-0 touch-none flex items-center justify-center transition-colors group before:absolute before:inset-y-0 before:-inset-x-1.5 before:content-[''] focus-visible:bg-brand-500 ${
-                resizingPane === 'sidebar'
-                  ? 'bg-brand-500'
-                  : 'bg-slate-200/60 dark:bg-slate-700/60 hover:bg-brand-500/60'
-              }`}
+              className={`relative w-1.5 cursor-col-resize shrink-0 touch-none flex items-center justify-center transition-colors group before:absolute before:inset-y-0 before:-inset-x-1.5 before:content-[''] focus-visible:bg-brand-500 ${resizingPane === 'sidebar'
+                ? 'bg-brand-500'
+                : 'bg-slate-200/60 dark:bg-slate-700/60 hover:bg-brand-500/60'
+                }`}
             >
               <div className="w-0.5 h-8 rounded-full bg-slate-400/60 group-hover:bg-white" />
             </div>
@@ -600,6 +664,11 @@ export const App: React.FC = () => {
                 blocks={project.blocks}
                 metadata={project.metadata}
                 references={project.references}
+                templateType={project.templateType}
+                presentationTheme={project.templateConfig?.presentationTheme}
+                presentationAspectRatio={project.templateConfig?.presentationAspectRatio}
+                sourceProject={sourceProject}
+                sourceProjectName={sourceProjectName}
                 citationStyle={project.templateConfig?.citationStyle ?? DEFAULT_TEMPLATE_CONFIG.citationStyle}
                 citationFormat={project.templateConfig?.citationFormat}
                 referenceOrdering={project.templateConfig?.referenceOrdering}
@@ -611,6 +680,8 @@ export const App: React.FC = () => {
                   setIsModalOpen(true);
                 }}
                 onChangeBlocks={handleBlocksChange}
+                onChangePresentationSettings={handleChangePresentationSettings}
+                onOpenSourceProject={(src) => openProject(src)}
                 onFocusBlock={broadcastCursor}
                 onMinimize={isCompact || (!showSidebar && !showPreview) ? undefined : toggleEditor}
                 onMaximize={isCompact ? undefined : () => focusPane('editor')}
@@ -637,11 +708,10 @@ export const App: React.FC = () => {
                 setResizingPane('preview');
               }}
               title="Arraste ou use as setas para redimensionar o painel do PDF"
-              className={`relative w-1.5 cursor-col-resize shrink-0 touch-none flex items-center justify-center transition-colors group before:absolute before:inset-y-0 before:-inset-x-1.5 before:content-[''] focus-visible:bg-brand-500 ${
-                resizingPane === 'preview'
-                  ? 'bg-brand-500'
-                  : 'bg-slate-200/60 dark:bg-slate-700/60 hover:bg-brand-500/60'
-              }`}
+              className={`relative w-1.5 cursor-col-resize shrink-0 touch-none flex items-center justify-center transition-colors group before:absolute before:inset-y-0 before:-inset-x-1.5 before:content-[''] focus-visible:bg-brand-500 ${resizingPane === 'preview'
+                ? 'bg-brand-500'
+                : 'bg-slate-200/60 dark:bg-slate-700/60 hover:bg-brand-500/60'
+                }`}
             >
               <div className="w-0.5 h-8 rounded-full bg-slate-400/60 group-hover:bg-white" />
             </div>

@@ -1,6 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DocumentProject } from '@/types/document';
-import { compileProjectToPdf, triggerBlobDownload } from '@/core/typst/projectCompiler';
+import {
+  compileProjectToPdf,
+  OfflineSlidesPackageRequiredError,
+  triggerBlobDownload,
+} from '@/core/typst/projectCompiler';
+import { getTemplateCapabilities } from '@/core/templates/templateCapabilities';
 import { generateStandaloneTypst } from '@/core/transpiler/typstGenerator';
 import {
   dismissDocxConversionNotice,
@@ -32,31 +37,47 @@ export async function downloadProjectPdf(
   project: DocumentProject,
   { isAuthenticated, getValidAccessToken }: DownloadPdfOptions,
 ): Promise<boolean> {
-  const result = await compileProjectToPdf(project);
-  if (result.error || !result.pdf) {
-    const msg =
-      result.error ||
-      result.diagnostics.map((d) => `${d.location}: ${d.message}`).join('\n') ||
-      'Não foi possível gerar o PDF.';
-    toast.error(`Erro ao gerar PDF:\n${msg}`);
+  try {
+    const caps = getTemplateCapabilities(project);
+    const isPresentation =
+      caps.effectiveType === 'presentation' ||
+      (caps.effectiveType === 'universe_custom' &&
+        project.templateConfig?.universePackage?.startsWith('@preview/touying'));
+    const result = await compileProjectToPdf(project, {
+      enforceSlidesPackageCache: Boolean(isPresentation),
+    });
+    if (result.error || !result.pdf) {
+      const msg =
+        result.error ||
+        result.diagnostics.map((d) => `${d.location}: ${d.message}`).join('\n') ||
+        'Não foi possível gerar o PDF.';
+      toast.error(`Erro ao gerar PDF:\n${msg}`);
+      return false;
+    }
+
+    const pdfBytes = new Uint8Array(result.pdf);
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    triggerBlobDownload(blob, `${project.name.toLowerCase().replace(/\s+/g, '_')}.pdf`);
+
+    // Sincroniza em segundo plano uma cópia do PDF compilado no Google Drive se autenticado
+    if (isAuthenticated) {
+      getValidAccessToken().then((token) => {
+        if (token) {
+          saveProjectPdfToDrive(project, pdfBytes, token).catch((err) =>
+            console.warn('Erro ao sincronizar cópia PDF no Drive:', err),
+          );
+        }
+      });
+    }
+    return true;
+  } catch (err) {
+    if (err instanceof OfflineSlidesPackageRequiredError) {
+      toast.error(err.message);
+      return false;
+    }
+    toast.error(err instanceof Error ? err.message : 'Erro ao gerar PDF.');
     return false;
   }
-
-  const pdfBytes = new Uint8Array(result.pdf);
-  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-  triggerBlobDownload(blob, `${project.name.toLowerCase().replace(/\s+/g, '_')}.pdf`);
-
-  // Sincroniza em segundo plano uma cópia do PDF compilado no Google Drive se autenticado
-  if (isAuthenticated) {
-    getValidAccessToken().then((token) => {
-      if (token) {
-        saveProjectPdfToDrive(project, pdfBytes, token).catch((err) =>
-          console.warn('Erro ao sincronizar cópia PDF no Drive:', err),
-        );
-      }
-    });
-  }
-  return true;
 }
 
 /**

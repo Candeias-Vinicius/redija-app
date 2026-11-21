@@ -1,4 +1,4 @@
-import { Block, BlockType } from '@/types/document';
+import { Block, BlockType, ProjectTemplateType } from '@/types/document';
 import { hasRichHtmlMarkup, stripHtmlTags } from '@/core/transpiler/escape';
 
 export type SlashCommandType = BlockType | 'action_cite';
@@ -126,6 +126,64 @@ export const SLASH_OPTION_DEFS: SlashMenuOptionDef[] = [
     keywords: 'quebra pagina nova folha pagebreak',
   },
 ];
+
+/**
+ * RDJ-09.3: Em apresentações de slides, o comando `/` exibe apenas os blocos que fazem sentido em slides
+ * (Novo Slide / Título de Slide H1, Subtítulo H2, Lista de Marcadores, Lista Numerada, Parágrafo curto,
+ * Figura, Tabela, Quadro, Equação, Código, Citação e Chamada de Referência).
+ * Oculta seções profundas (H3–H5), título sem numeração, nota de rodapé ABNT e quebra de página A4.
+ */
+export const PRESENTATION_ALLOWED_SLASH_TYPES: ReadonlySet<SlashCommandType> = new Set([
+  'h1',
+  'h2',
+  'bullet',
+  'numbered',
+  'paragraph',
+  'image',
+  'table',
+  'box',
+  'equation',
+  'code',
+  'quote_long',
+  'action_cite',
+  'raw_typst',
+]);
+
+export function getSlashOptionsForTemplate(
+  templateType?: ProjectTemplateType,
+): SlashMenuOptionDef[] {
+  if (templateType !== 'presentation') {
+    return SLASH_OPTION_DEFS;
+  }
+
+  return SLASH_OPTION_DEFS.filter((opt) => PRESENTATION_ALLOWED_SLASH_TYPES.has(opt.type)).map(
+    (opt) => {
+      if (opt.type === 'h1') {
+        return {
+          ...opt,
+          label: 'Novo Slide (Título do Slide)',
+          description: 'Inicia um novo slide na apresentação com este título',
+          keywords: `${opt.keywords} slide novo apresentacao`,
+        };
+      }
+      if (opt.type === 'h2') {
+        return {
+          ...opt,
+          label: 'Subtítulo no Slide',
+          description: 'Subtítulo interno dentro do mesmo slide',
+        };
+      }
+      if (opt.type === 'bullet') {
+        return {
+          ...opt,
+          label: 'Tópico do Slide (Bullet)',
+          description: 'Tópico curto com marcador visual para apresentação',
+        };
+      }
+      return opt;
+    },
+  );
+}
 
 export function createDefaultMetaForType(type: BlockType): Block['meta'] {
   if (type === 'quote_long') {

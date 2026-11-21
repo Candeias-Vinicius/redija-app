@@ -4,6 +4,7 @@ import { Block } from '@/types/document';
 interface HeadingBlockItemProps {
   block: Block;
   sectionNumber?: string;
+  isPresentation?: boolean;
   autoFocus: boolean;
   onUpdateContent: (id: string, content: string) => void;
   onAddParagraphBelow: (afterId: string) => void;
@@ -29,6 +30,7 @@ const HEADING_CLASSES: Record<'h1' | 'h2' | 'h3' | 'h4' | 'h5', string> = {
 export const HeadingBlockItem: React.FC<HeadingBlockItemProps> = ({
   block,
   sectionNumber,
+  isPresentation = false,
   autoFocus,
   onUpdateContent,
   onAddParagraphBelow,
@@ -62,11 +64,19 @@ export const HeadingBlockItem: React.FC<HeadingBlockItemProps> = ({
   }
 
   const level = block.type as 'h1' | 'h2' | 'h3' | 'h4' | 'h5';
+  const badgeLabel =
+    isPresentation && level === 'h1' ? `Slide ${sectionNumber ?? ''}`.trim() : sectionNumber;
+  const placeholderText =
+    isPresentation && level === 'h1'
+      ? 'TÍTULO DO SLIDE'
+      : isPresentation && level === 'h2'
+        ? 'Subtítulo no slide'
+        : HEADING_PLACEHOLDERS[level];
 
   return (
     <div className="flex items-baseline gap-2">
-      <span className="font-mono text-xs font-bold text-brand-700 bg-brand-50 px-1.5 py-0.5 rounded select-none">
-        {sectionNumber}
+      <span className="font-mono text-xs font-bold text-brand-700 bg-brand-50 px-1.5 py-0.5 rounded select-none shrink-0">
+        {badgeLabel}
       </span>
       <input
         type="text"
@@ -82,7 +92,7 @@ export const HeadingBlockItem: React.FC<HeadingBlockItemProps> = ({
             onRemoveBlock(block.id);
           }
         }}
-        placeholder={HEADING_PLACEHOLDERS[level]}
+        placeholder={placeholderText}
         aria-label={`Título de seção (nível ${level})`}
         className={`w-full border-none bg-transparent focus:outline-none placeholder-slate-500 ${HEADING_CLASSES[level]}`}
       />

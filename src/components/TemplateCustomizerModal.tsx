@@ -87,6 +87,9 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
   const isPosterActive =
     draftConfig.preset === 'poster' ||
     (draftConfig.preset === 'custom' && draftTemplateType === 'poster');
+  const isPresentationActive =
+    draftConfig.preset === 'presentation' ||
+    (draftConfig.preset === 'custom' && draftTemplateType === 'presentation');
 
   const updateField = <K extends keyof TemplateConfig>(key: K, value: TemplateConfig[K]) => {
     setDraftConfig((prev) => ({
@@ -222,7 +225,8 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
       draftTemplateType === 'universe_custom' ||
         draftTemplateType === 'sbc' ||
         draftTemplateType === 'ieee' ||
-        draftTemplateType === 'poster'
+        draftTemplateType === 'poster' ||
+        draftTemplateType === 'presentation'
         ? 'tcc'
         : draftTemplateType,
     );
@@ -283,7 +287,11 @@ const TemplateCustomizerModalContent: React.FC<TemplateCustomizerModalProps> = (
             {MODAL_TABS.map((tab) => {
               const selected = activeTab === tab.id;
               const tabLabel =
-                tab.id === 'structure' && isPosterActive ? 'Banner & Pôster' : tab.label;
+                tab.id === 'structure' && isPosterActive
+                  ? 'Banner & Pôster'
+                  : tab.id === 'structure' && isPresentationActive
+                    ? 'Tema & Slides'
+                    : tab.label;
               return (
                 <button
                   key={tab.id}

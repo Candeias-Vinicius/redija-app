@@ -25,10 +25,11 @@ import {
   X,
 } from 'lucide-react';
 import {
-  SLASH_OPTION_DEFS,
   SlashCommandType,
   filterSlashOptions,
+  getSlashOptionsForTemplate,
 } from './blockHelpers';
+import { ProjectTemplateType } from '@/types/document';
 
 const SLASH_ICONS: Record<SlashCommandType, React.ReactNode> = {
   action_cite: <Bookmark className="w-4 h-4 text-brand-700" />,
@@ -55,6 +56,7 @@ const SLASH_ICONS: Record<SlashCommandType, React.ReactNode> = {
 interface SlashCommandMenuProps {
   blockId: string;
   searchQuery: string;
+  templateType?: ProjectTemplateType;
   onChangeSearch: (value: string) => void;
   onClose: () => void;
   onSelect: (blockId: string, type: SlashCommandType) => void;
@@ -67,13 +69,15 @@ interface SlashCommandMenuProps {
 export const SlashCommandMenu: React.FC<SlashCommandMenuProps> = ({
   blockId,
   searchQuery,
+  templateType,
   onChangeSearch,
   onClose,
   onSelect,
   onMoveUp,
   onMoveDown,
 }) => {
-  const filteredOptions = filterSlashOptions(SLASH_OPTION_DEFS, searchQuery);
+  const availableOptions = getSlashOptionsForTemplate(templateType);
+  const filteredOptions = filterSlashOptions(availableOptions, searchQuery);
 
   return (
     <div className="absolute left-0 sm:left-24 top-10 sm:top-9 z-30 w-[min(18rem,calc(100vw-2rem))] max-w-full bg-white border border-slate-200 shadow-xl rounded-xl overflow-hidden text-sm">
@@ -92,7 +96,11 @@ export const SlashCommandMenu: React.FC<SlashCommandMenuProps> = ({
             }
           }}
           autoFocus
-          placeholder="Buscar elemento ABNT..."
+          placeholder={
+            templateType === 'presentation'
+              ? 'Buscar elemento de slide...'
+              : 'Buscar elemento ABNT...'
+          }
           aria-label="Buscar tipo de bloco"
           className="w-full bg-transparent text-sm focus:outline-none"
         />

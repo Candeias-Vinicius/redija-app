@@ -69,7 +69,7 @@ export const METADATA_FIELD_REGISTRY: MetadataFieldDefinition[] = [
     category: 'identificacao',
     inputType: 'text',
     description: 'Título principal exibido na capa, folha de rosto ou cabeçalho do artigo.',
-    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster', 'universe_custom', 'em_branco'],
+    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster', 'presentation', 'universe_custom', 'em_branco'],
   },
   {
     id: 'subtitle',
@@ -78,7 +78,7 @@ export const METADATA_FIELD_REGISTRY: MetadataFieldDefinition[] = [
     category: 'identificacao',
     inputType: 'text',
     description: 'Complemento opcional separado por dois-pontos no título.',
-    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster', 'em_branco'],
+    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster', 'presentation', 'em_branco'],
   },
   {
     id: 'author',
@@ -87,7 +87,7 @@ export const METADATA_FIELD_REGISTRY: MetadataFieldDefinition[] = [
     category: 'identificacao',
     inputType: 'text',
     description: 'Autor(es) do trabalho ou artigo.',
-    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster', 'universe_custom', 'em_branco'],
+    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster', 'presentation', 'universe_custom', 'em_branco'],
   },
   {
     id: 'advisor',
@@ -96,7 +96,7 @@ export const METADATA_FIELD_REGISTRY: MetadataFieldDefinition[] = [
     category: 'identificacao',
     inputType: 'text',
     description: 'Nome e titulação do(a) professor(a) orientador(a).',
-    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo'],
+    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'presentation'],
   },
   {
     id: 'coadvisor',
@@ -105,7 +105,7 @@ export const METADATA_FIELD_REGISTRY: MetadataFieldDefinition[] = [
     category: 'identificacao',
     inputType: 'text',
     description: 'Coorientador(a) acadêmico(a) exibido na folha de rosto e banca.',
-    defaultInTemplates: ABNT_MONOGRAPHS,
+    defaultInTemplates: [...ABNT_MONOGRAPHS, 'presentation'],
   },
   {
     id: 'nature',
@@ -123,7 +123,7 @@ export const METADATA_FIELD_REGISTRY: MetadataFieldDefinition[] = [
     category: 'identificacao',
     inputType: 'text',
     description: 'Universidade, faculdade ou instituto de vínculo dos autores.',
-    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster', 'em_branco'],
+    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster', 'presentation', 'em_branco'],
   },
   {
     id: 'course',
@@ -132,7 +132,7 @@ export const METADATA_FIELD_REGISTRY: MetadataFieldDefinition[] = [
     category: 'identificacao',
     inputType: 'text',
     description: 'Programa de graduação, pós-graduação ou laboratório.',
-    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster'],
+    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster', 'presentation'],
   },
   {
     id: 'location',
@@ -141,7 +141,7 @@ export const METADATA_FIELD_REGISTRY: MetadataFieldDefinition[] = [
     category: 'identificacao',
     inputType: 'text',
     description: 'Município/UF exibido na base da capa e folha de rosto.',
-    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster', 'em_branco'],
+    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster', 'presentation', 'em_branco'],
   },
   {
     id: 'year',
@@ -150,7 +150,7 @@ export const METADATA_FIELD_REGISTRY: MetadataFieldDefinition[] = [
     category: 'identificacao',
     inputType: 'text',
     description: 'Ano de entrega ou publicação.',
-    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster', 'em_branco'],
+    defaultInTemplates: ['tcc', 'relatorio', 'projeto_pesquisa', 'artigo', 'sbc', 'ieee', 'poster', 'presentation', 'em_branco'],
   },
 
   // Resumo & Keywords

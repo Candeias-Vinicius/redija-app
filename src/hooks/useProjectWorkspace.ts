@@ -12,6 +12,10 @@ import { type TemplateCustomizerApplyPayload } from '@/components/TemplateCustom
 import { POPULAR_UNIVERSE_TEMPLATES } from '@/core/universe/universeResolver';
 import { createProjectFromTemplate } from '@/core/storage/projectTemplates';
 import {
+  generateDefenseSlidesProject,
+  generatePosterFromWorkProject,
+} from '@/core/transpiler/slideGenerator';
+import {
   importDocumentFile,
   ImportCancelledError,
   ImportFailure,
@@ -65,6 +69,7 @@ const DEFAULT_PROJECT_NAME_BY_TEMPLATE: Record<ProjectTemplateType, string> = {
   sbc: 'Novo Artigo SBC',
   ieee: 'Novo Artigo IEEE',
   poster: 'Novo Pôster Científico A0',
+  presentation: 'Apresentação de Defesa',
   universe_custom: 'Novo Projeto Typst Universe',
   relatorio: 'Novo Relatório Técnico',
   projeto_pesquisa: 'Novo Projeto de Pesquisa',
@@ -76,6 +81,7 @@ const COMPACT_ARTICLE_OR_POSTER_TYPES = new Set<ProjectTemplateType | undefined>
   'sbc',
   'ieee',
   'poster',
+  'presentation',
   'universe_custom',
 ]);
 
@@ -85,7 +91,13 @@ export function resolveTemplateTypeOnCustomizerApply(
   selectedTemplateType?: ProjectTemplateType,
 ): ProjectTemplateType | undefined {
   const preset = templateConfig.preset;
-  if (preset === 'sbc' || preset === 'ieee' || preset === 'poster' || preset === 'universe_custom') {
+  if (
+    preset === 'sbc' ||
+    preset === 'ieee' ||
+    preset === 'poster' ||
+    preset === 'presentation' ||
+    preset === 'universe_custom'
+  ) {
     return preset;
   }
   if (preset === 'article_1col' || preset === 'article_2col') {
@@ -221,7 +233,7 @@ export function useProjectWorkspace({
   /** Importação em andamento (exibida pelo ImportProgressModal); `null` quando não há nenhuma. */
   const [importState, setImportState] = useState<ImportState | null>(null);
   const importControllerRef = useRef<AbortController | null>(null);
-  const retryImportRef = useRef<(file: File) => void>(() => {});
+  const retryImportRef = useRef<(file: File) => void>(() => { });
 
   const resetWorkspaceState = useCallback(() => {
     skipNextAutoSaveRef.current = true;
@@ -560,6 +572,38 @@ export function useProjectWorkspace({
     [projects, activeOwner, setProject],
   );
 
+  const handleGenerateDefenseSlides = useCallback(
+    async (sourceProject: DocumentProject = project): Promise<DocumentProject> => {
+      const generated = generateDefenseSlidesProject(sourceProject, projects);
+      generated.ownerEmail = activeOwner;
+      await saveProject(generated, false);
+      const all = await listProjects(activeOwner);
+      setProjects(all);
+      skipNextAutoSaveRef.current = true;
+      clearHistory();
+      setProject(generated);
+      setActiveProjectId(generated.id, activeOwner);
+      return generated;
+    },
+    [project, projects, activeOwner, clearHistory, setProject],
+  );
+
+  const handleGeneratePosterFromWork = useCallback(
+    async (sourceProject: DocumentProject = project): Promise<DocumentProject> => {
+      const generated = generatePosterFromWorkProject(sourceProject, projects);
+      generated.ownerEmail = activeOwner;
+      await saveProject(generated, false);
+      const all = await listProjects(activeOwner);
+      setProjects(all);
+      skipNextAutoSaveRef.current = true;
+      clearHistory();
+      setProject(generated);
+      setActiveProjectId(generated.id, activeOwner);
+      return generated;
+    },
+    [project, projects, activeOwner, clearHistory, setProject],
+  );
+
   const isDriveLinked = Boolean(getDriveAccessToken) && activeOwner !== 'local';
 
   /**
@@ -767,6 +811,8 @@ export function useProjectWorkspace({
     handleCreateProject,
     handleRenameProject,
     handleDuplicateProject,
+    handleGenerateDefenseSlides,
+    handleGeneratePosterFromWork,
     handleMoveToTrash,
     handleRestoreFromTrash,
     handlePermanentDelete,

@@ -333,9 +333,11 @@ export function resolveEffectiveDocxLayout(project: DocumentProject): ResolvedDo
       ? cfg.posterOrientation === 'landscape'
         ? 'landscape'
         : 'portrait'
-      : cfg.pageOrientation === 'landscape'
+      : effectiveType === 'presentation'
         ? 'landscape'
-        : 'portrait';
+        : cfg.pageOrientation === 'landscape'
+          ? 'landscape'
+          : 'portrait';
 
   // Tamanhos de papel em cm (Nota: o Word limita páginas a 55,88 cm = 31680 twips;
   // pôsteres A0/A1/A2 usam folha A4/A3 proporcional no Word para abrir sem erro de limite).

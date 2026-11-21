@@ -4,9 +4,11 @@ import {
   Copy,
   Download,
   FolderSearch,
+  LayoutTemplate,
   Loader2,
   MoreHorizontal,
   Pencil,
+  Presentation,
   RotateCcw,
   Settings2,
   Trash2,
@@ -14,6 +16,7 @@ import {
 } from 'lucide-react';
 import type { DocumentProject } from '@/types/document';
 import { getRemainingTrashDays } from '@/core/storage/db';
+import { canGenerateDefenseFromProject } from '@/core/transpiler/slideGenerator';
 import { useDismiss } from '@/hooks/useDismiss';
 import { ProjectCover } from './ProjectCover';
 import { formatRelativeTime, templateBadge } from './homeUtils';
@@ -22,6 +25,8 @@ export interface ProjectCardActions {
   onOpen: (project: DocumentProject) => void;
   onDownloadPdf: (project: DocumentProject) => void;
   onDuplicate: (project: DocumentProject) => void;
+  onGenerateDefenseSlides?: (project: DocumentProject) => void;
+  onGeneratePosterFromWork?: (project: DocumentProject) => void;
   onRename: (project: DocumentProject) => void;
   onShowStorage: (project: DocumentProject) => void;
   onMoveToTrash: (project: DocumentProject) => void;
@@ -60,6 +65,23 @@ const ProjectMeta: React.FC<{ project: DocumentProject }> = ({ project }) => (
         </span>
       )
     )}
+    {(project.sourceProjectName ||
+      project.generatedFrom?.name ||
+      project.generatedFrom?.sourceProjectName) && (
+      <span
+        className="w-full truncate text-[0.7rem] text-brand-700 dark:text-brand-400"
+        title={`Gerado a partir de ${
+          project.sourceProjectName ||
+          project.generatedFrom?.name ||
+          project.generatedFrom?.sourceProjectName
+        }`}
+      >
+        Gerado a partir de{' '}
+        {project.sourceProjectName ||
+          project.generatedFrom?.name ||
+          project.generatedFrom?.sourceProjectName}
+      </span>
+    )}
   </p>
 );
 
@@ -74,10 +96,13 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   onOpen,
   onDownloadPdf,
   onDuplicate,
+  onGenerateDefenseSlides,
+  onGeneratePosterFromWork,
   onRename,
   onShowStorage,
   onMoveToTrash,
 }) => {
+  const canGenerateDefense = canGenerateDefenseFromProject(project);
   const [menu, setMenuState] = useState<'settings' | 'all' | null>(null);
   // O menu abre para o lado com mais espaço (evita sair da tela na 1ª coluna do mobile)
   const [alignLeft, setAlignLeft] = useState(false);
@@ -116,6 +141,23 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             <Copy className="w-4 h-4" />
             <span>Duplicar</span>
           </button>
+          <div className="my-1 border-t border-line" />
+        </>
+      )}
+      {canGenerateDefense && (onGenerateDefenseSlides || onGeneratePosterFromWork) && (
+        <>
+          {onGenerateDefenseSlides && (
+            <button type="button" onClick={run(onGenerateDefenseSlides)} className={MENU_ITEM}>
+              <Presentation className="w-4 h-4 text-brand-700 dark:text-brand-400" />
+              <span>Gerar slides de defesa</span>
+            </button>
+          )}
+          {onGeneratePosterFromWork && (
+            <button type="button" onClick={run(onGeneratePosterFromWork)} className={MENU_ITEM}>
+              <LayoutTemplate className="w-4 h-4 text-brand-700 dark:text-brand-400" />
+              <span>Gerar pôster A0</span>
+            </button>
+          )}
           <div className="my-1 border-t border-line" />
         </>
       )}

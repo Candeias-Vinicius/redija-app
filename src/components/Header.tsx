@@ -21,6 +21,8 @@ import {
   Loader2,
   BookOpen,
   PanelLeft,
+  Presentation,
+  LayoutTemplate,
 } from 'lucide-react';
 import { GoogleUserProfile } from '@/core/auth/GoogleAuthContext';
 import { CollaboratorPresence } from '@/core/collaboration/RealtimeCollabManager';
@@ -58,6 +60,9 @@ interface HeaderProps {
   onOpenBugReportModal: () => void;
   onOpenBetaNoticeModal?: () => void;
   onOpenTemplateCustomizer?: () => void;
+  canGenerateDefense?: boolean;
+  onGenerateDefenseSlides?: () => void;
+  onGeneratePosterFromWork?: () => void;
   onOpenWelcomeModal?: () => void;
   onOpenFullDocs?: () => void;
   onDownloadPdf?: () => void;
@@ -114,6 +119,9 @@ export const Header: React.FC<HeaderProps> = ({
   homeSearch,
   onOpenBugReportModal,
   onOpenBetaNoticeModal,
+  canGenerateDefense = false,
+  onGenerateDefenseSlides,
+  onGeneratePosterFromWork,
   onOpenFullDocs,
   user,
   isAuthenticated,
@@ -128,21 +136,28 @@ export const Header: React.FC<HeaderProps> = ({
   showLoginButton = true,
 }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isDefenseMenuOpen, setIsDefenseMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const defenseMenuRef = useRef<HTMLDivElement>(null);
   const userMenuButtonRef = useRef<HTMLButtonElement>(null);
   const userMenuId = useId();
+  const defenseMenuId = useId();
 
   // Fecha o menu ao clicar fora ou com Esc (devolvendo o foco ao botão)
   useEffect(() => {
-    if (!isUserMenuOpen) return;
+    if (!isUserMenuOpen && !isDefenseMenuOpen) return;
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setIsUserMenuOpen(false);
+      }
+      if (defenseMenuRef.current && !defenseMenuRef.current.contains(event.target as Node)) {
+        setIsDefenseMenuOpen(false);
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsUserMenuOpen(false);
+        setIsDefenseMenuOpen(false);
         userMenuButtonRef.current?.focus();
       }
     };
@@ -152,7 +167,7 @@ export const Header: React.FC<HeaderProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isUserMenuOpen]);
+  }, [isUserMenuOpen, isDefenseMenuOpen]);
 
   const paneTabs: PaneTab[] = [
     {
@@ -442,6 +457,79 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
           )}
+
+          {/* Menu 1-Clique: Gerar Slides de Defesa / Gerar Pôster A0 (RDJ-09.2 & RDJ-09.7) */}
+          {view === 'editor' &&
+            canGenerateDefense &&
+            (onGenerateDefenseSlides || onGeneratePosterFromWork) && (
+              <div className="relative" ref={defenseMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsDefenseMenuOpen((prev) => !prev)}
+                  className="touch-target flex items-center justify-center gap-1.5 p-1.5 md:px-2.5 text-sm font-medium rounded-lg border border-brand-300 dark:border-brand-800 bg-brand-50/70 dark:bg-brand-950/40 text-brand-800 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/60 transition-colors"
+                  title="Transformar este trabalho em Slides de Defesa ou Pôster A0 em 1 clique"
+                  aria-label="Gerar slides de defesa ou pôster"
+                  aria-expanded={isDefenseMenuOpen}
+                  aria-controls={defenseMenuId}
+                >
+                  <Presentation className="w-4 h-4 text-brand-700 dark:text-brand-400" />
+                  <span className="hidden md:inline">Defesa &amp; Pôster</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-brand-700 dark:text-brand-400" />
+                </button>
+
+                {isDefenseMenuOpen && (
+                  <div id={defenseMenuId} className={`${menuPanelClass} w-72`}>
+                    <div className="px-3.5 py-2">
+                      <p className="text-xs font-bold uppercase tracking-wider text-fg-muted">
+                        Gerar a partir deste trabalho
+                      </p>
+                    </div>
+                    <div className="py-1">
+                      {onGenerateDefenseSlides && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsDefenseMenuOpen(false);
+                            onGenerateDefenseSlides();
+                          }}
+                          className="w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left hover:bg-surface-sunken transition-colors"
+                        >
+                          <Presentation className="w-4 h-4 text-brand-700 dark:text-brand-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="block text-xs font-semibold text-fg">
+                              Gerar slides de defesa
+                            </span>
+                            <span className="block text-xs text-fg-muted">
+                              Cria apresentação 16:9 com capa, seções, figuras e referências
+                            </span>
+                          </div>
+                        </button>
+                      )}
+                      {onGeneratePosterFromWork && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsDefenseMenuOpen(false);
+                            onGeneratePosterFromWork();
+                          }}
+                          className="w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left hover:bg-surface-sunken transition-colors"
+                        >
+                          <LayoutTemplate className="w-4 h-4 text-brand-700 dark:text-brand-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="block text-xs font-semibold text-fg">
+                              Gerar pôster
+                            </span>
+                            <span className="block text-xs text-fg-muted">
+                              Cria banner científico A0 em 3 colunas com as seções e figuras
+                            </span>
+                          </div>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
           {/* Compartilhar (ação do trabalho aberto: só no editor) */}
           {view === 'editor' && (
